@@ -1,0 +1,56 @@
+// Copyright 2018 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// =============================================================================
+
+syntax = "proto2";
+
+package tensorflow.data_validation;
+
+// Manual constraints on the automatic generation of a schema.
+message ColumnConstraint {
+  // A column constraint can apply to multiple columns.
+  repeated string column_name = 1;
+  // The name of the enum representing all the columns, if present.
+  optional string enum_name = 2;
+}
+
+// See EnumType::IsSimilar(...).
+message EnumsSimilarConfig {
+  // Equal or below this count, two enums must be identical to be considered
+  // "similar".
+  optional int32 min_count = 1 [default = 10];
+  // Jaccard similarity is the ratio of the intersection to the union.
+  // The enum types are viewed as sets, then two enums are similar if they both
+  // have more than min_similar_count elements and a Jaccard similarity higher
+  // than min_jaccard_similarity.
+  optional double min_jaccard_similarity = 2 [default = 0.5];
+}
+
+// Configuration for creating the first version of a schema or a new field
+// within a schema during validation.
+message FeatureStatisticsToProtoConfig {
+  // Deleted fields.
+  reserved 3, 4;
+
+  // If a string field has less than this number of entries, it will be
+  // interpreted as an enum.
+  optional int32 enum_threshold = 1;
+  optional EnumsSimilarConfig enums_similar_config = 2;
+  // Constraints on various columns.
+  repeated ColumnConstraint column_constraint = 5;
+  // Ignore the following columns.
+  repeated string column_to_ignore = 6;
+  // Sets the severity of an anomaly which indicates a new feature.
+  optional bool new_features_are_warnings = 7;
+}
