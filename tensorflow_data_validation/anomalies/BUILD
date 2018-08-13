@@ -313,8 +313,11 @@ cc_test(
     ],
 )
 
+# Note that the name of the target should follow specific naming
+# pattern specified in tensorflow/tf_exported_symbols.lds in order
+# for the init function in the generated .so file to be exported.
 tf_py_wrap_cc(
-    name = "pywrap_validation",
+    name = "pywrap_tensorflow_data_validation",
     srcs = ["validation_api.i"],
     deps = [
         ":feature_statistics_validator",
