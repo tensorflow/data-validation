@@ -46,38 +46,6 @@ To compile and use TensorFlow Data Validation, you need to set up some prerequis
 If bazel is not installed on your system, install it now by following [these
 directions](https://bazel.build/versions/master/docs/install.html).
 
-#### Packages
-
-To install TensorFlow Data Validation dependencies, execute the following:
-
-<!-- common_typos_disable -->
-```shell
-sudo apt-get update && sudo apt-get install -y \
-        automake \
-        build-essential \
-        curl \
-        libcurl3-dev \
-        git \
-        libtool \
-        libfreetype6-dev \
-        libpng12-dev \
-        libzmq3-dev \
-        pkg-config \
-        python-dev \
-        python-numpy \
-        python-pip \
-        software-properties-common \
-        swig \
-        zip \
-        zlib1g-dev
-```
-
-The list of packages needed to build TensorFlow changes over time, so if you
-encounter any issues, refer TensorFlow's [build
-instructions](https://www.tensorflow.org/install/install_sources). Pay
-particular attention to `apt-get install` and `pip install` commands which you
-may need to run.
-
 ### 2. Clone the TensorFlow Data Validation repository
 
 ```shell
@@ -94,17 +62,17 @@ pass `-b <branchname>` to the `git clone` command.
 TensorFlow Data Validation uses Bazel to build. Use Bazel commands to build individual
 targets or the entire source tree.
 
-To build the entire tree, execute:
+To build the Python wrappers for the C++ modules, execute:
 
 ```shell
-bazel build -c opt tensorflow_data_validation/anomalies/...
+bazel build -c opt tensorflow_data_validation/anomalies:pywrap_tensorflow_data_validation
 ```
 
 ### 4. Copy over generated Python wrappers
 
 ```shell
-cp bazel-bin/tensorflow_data_validation/anomalies/_pywrap_validation.so tensorflow_data_validation/anomalies/
-cp bazel-bin/tensorflow_data_validation/anomalies/pywrap_validation.py tensorflow_data_validation/anomalies/
+cp bazel-bin/tensorflow_data_validation/anomalies/_pywrap_tensorflow_data_validation.so tensorflow_data_validation/anomalies/
+cp bazel-bin/tensorflow_data_validation/anomalies/pywrap_tensorflow_data_validation.py tensorflow_data_validation/anomalies/
 ```
 
 ### 5. Build the pip package
