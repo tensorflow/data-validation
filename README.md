@@ -41,6 +41,11 @@ pip install tensorflow-data-validation
 
 To compile and use TensorFlow Data Validation, you need to set up some prerequisites.
 
+#### Install NumPy
+
+If NumPy is not installed on your system, install it now following [these
+directions](https://www.scipy.org/scipylib/download.html).
+
 #### Install Bazel
 
 If bazel is not installed on your system, install it now by following [these
