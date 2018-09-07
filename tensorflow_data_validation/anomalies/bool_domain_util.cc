@@ -187,7 +187,6 @@ std::vector<Description> UpdateBoolDomain(const FeatureStatsView& feature_stats,
     case FeatureNameStatistics::INT: {
       const NumericStatistics& numeric_statistics = feature_stats.num_stats();
       if (numeric_statistics.min() < 0.0) {
-        feature->clear_domain_info();
         IntDomain* int_domain = feature->mutable_int_domain();
         int_domain->set_max(numeric_statistics.max());
         int_domain->set_min(numeric_statistics.min());
@@ -198,7 +197,6 @@ std::vector<Description> UpdateBoolDomain(const FeatureStatsView& feature_stats,
                               ") not in {0, 1}: converting to an integer.")}};
       }
       if (numeric_statistics.max() > 1.0) {
-        feature->clear_bool_domain();
         IntDomain* int_domain = feature->mutable_int_domain();
         int_domain->set_max(numeric_statistics.max());
         int_domain->set_min(numeric_statistics.min());
@@ -221,7 +219,8 @@ std::vector<Description> UpdateBoolDomain(const FeatureStatsView& feature_stats,
           // in all likelihood an error, let's just wipe the bool_domain.
           const string valid_strings_desc =
               BoolDomainValidStringsDescription(bool_domain);
-          feature->clear_domain_info();
+          // Note that this clears the oneof field domain_info.
+          feature->clear_bool_domain();
           return {{tensorflow::metadata::v0::AnomalyInfo::
                        BOOL_TYPE_UNEXPECTED_STRING,
                    kNonBooleanValues,

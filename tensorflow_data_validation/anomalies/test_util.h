@@ -99,24 +99,11 @@ inline ::testing::PolymorphicMatcher<ProtoStringMatcher> EqualsProto(
 template <typename T>
 T ParseTextProtoOrDie(const string& input) {
   T result;
-  CHECK(TextFormat::ParseFromString(input, &result));
+  CHECK(TextFormat::ParseFromString(input, &result))
+      << "Failed to parse: " << input;
   return result;
 }
 
-
-// Converts a V0 schema to a V1 schema.
-// Returns tensorflow::Status::OK() unless there is a failure to parse the
-// schema proto.
-tensorflow::Status ConvertSchemaV0ToV1(
-    const tensorflow::metadata::v0::Schema& schema_proto,
-    tensorflow::metadata::v0::Schema* schema);
-
-// Converts a V1 schema to a V0 schema.
-// Returns tensorflow::Status::OK() unless there is a failure to parse the
-// schema proto.
-tensorflow::Status ConvertSchemaV1ToV0(
-    const tensorflow::metadata::v0::Schema& schema,
-    tensorflow::metadata::v0::Schema* schema_proto);
 
 // Store this as a proto, to make it easier to understand and update tests.
 struct ExpectedAnomalyInfo {
@@ -124,12 +111,16 @@ struct ExpectedAnomalyInfo {
   tensorflow::metadata::v0::Schema new_schema;
 };
 
-// Given a way to map a schema to a Anomalies, test it.
-void TestSchemaToAnomalies(
+// Test if anomalies is as expected.
+void TestAnomalies(
+    const tensorflow::metadata::v0::Anomalies& actual,
     const tensorflow::metadata::v0::Schema& old_schema,
-    const std::function<tensorflow::metadata::v0::Anomalies(
-        const tensorflow::metadata::v0::Schema&)>& get_diff,
     const std::map<string, ExpectedAnomalyInfo>& expected_anomalies);
+
+void TestAnomalyInfo(const tensorflow::metadata::v0::AnomalyInfo& actual,
+                     const tensorflow::metadata::v0::Schema& baseline,
+                     const ExpectedAnomalyInfo& expected,
+                     const string& comment);
 
 }  // namespace testing
 }  // namespace data_validation

@@ -47,6 +47,7 @@ class NumericStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               num_zeros: 0
               min: 1.0
               max: 5.0
+              median: 3.0
               histograms {
                 buckets {
                   low_value: 1.0
@@ -111,6 +112,7 @@ class NumericStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               num_zeros: 0
               min: 1.0
               max: 5.0
+              median: 3.0
               histograms {
                 buckets {
                   low_value: 1.0
@@ -175,6 +177,7 @@ class NumericStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               num_zeros: 0
               min: 1.0
               max: 5.0
+              median: 3.0
               histograms {
                 num_nan: 2
                 buckets {
@@ -244,6 +247,7 @@ class NumericStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               num_zeros: 0
               min: 1.0
               max: 5.0
+              median: 3.0
               histograms {
                 buckets {
                   low_value: 1.0
@@ -296,6 +300,7 @@ class NumericStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               std_dev: 866.025355672
               min: 1.0
               max: 3000.0
+              median: 1501.0
               histograms {
                 buckets {
                   low_value: 1.0
@@ -340,7 +345,8 @@ class NumericStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             }
             """, statistics_pb2.FeatureNameStatistics())}
     generator = numeric_stats_generator.NumericStatsGenerator(
-        num_histogram_buckets=3, num_quantiles_histogram_buckets=4)
+        num_histogram_buckets=3, num_quantiles_histogram_buckets=4,
+        epsilon=0.001)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
   def test_numeric_stats_generator_with_missing_feature(self):
@@ -361,6 +367,7 @@ class NumericStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               num_zeros: 0
               min: 1.0
               max: 5.0
+              median: 3.0
               histograms {
                 buckets {
                   low_value: 1.0
@@ -413,6 +420,7 @@ class NumericStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               std_dev: 866.025355672
               min: 1.0
               max: 3000.0
+              median: 1501.0
               histograms {
                 buckets {
                   low_value: 1.0
@@ -457,7 +465,8 @@ class NumericStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             }
             """, statistics_pb2.FeatureNameStatistics())}
     generator = numeric_stats_generator.NumericStatsGenerator(
-        num_histogram_buckets=3, num_quantiles_histogram_buckets=4)
+        num_histogram_buckets=3, num_quantiles_histogram_buckets=4,
+        epsilon=0.001)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
   def test_numeric_stats_generator_categorical_feature(self):

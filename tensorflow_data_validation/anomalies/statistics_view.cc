@@ -17,6 +17,7 @@ limitations under the License.
 
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/types/optional.h"
 #include "tensorflow_data_validation/anomalies/map_util.h"
@@ -29,38 +30,161 @@ namespace data_validation {
 namespace {
 using tensorflow::metadata::v0::DatasetFeatureStatistics;
 using tensorflow::metadata::v0::FeatureNameStatistics;
+
+// Returns true if a is a strict prefix of b.
+const bool IsStrictPrefix(const string& a, const string& b) {
+  return a.length() < b.length() && b.substr(0, a.length()) == a;
+}
+
 }  // namespace
+
+// Context of a feature.
+struct FeatureContext {
+  // Index of the parent feature.
+  absl::optional<int> parent_index;
+  // Index of children of the feature.
+  std::vector<int> child_indices;
+};
+
+// A class that summarizes the information from the DatasetFeatureStatistics.
+// Takes O(#features log #features) time to initialize,
+// O(# features) space, and:
+// GetRootFeatures() takes O(# features) time
+// GetChildren() takes O(# children) time
+// GetParent() takes O(1) time
+// GetByName() takes O(log # features) time.
+class DatasetStatsViewImpl {
+ public:
+  DatasetStatsViewImpl(const DatasetFeatureStatistics& data, bool by_weight,
+                       const absl::optional<string>& environment,
+                       const std::shared_ptr<DatasetStatsView>& previous,
+                       const std::shared_ptr<DatasetStatsView>& serving)
+      : data_(data),
+        by_weight_(by_weight),
+        environment_(environment),
+        previous_(previous),
+        serving_(serving) {
+    // It takes O(n log n) time to construct location_, a BST from the name
+    // of a feature to its location in data_.features().
+    for (int i = 0; i < data_.features_size(); ++i) {
+      location_[data_.features(i).name()] = i;
+      context_.push_back(FeatureContext());
+    }
+
+    // After we construct the map, we iterate over the names of features
+    // alphabetically. Note that:
+    // If feature a is right after feature b alphabetically, the ancestors
+    // of feature b are a subset of the ancestors of feature a and possibly
+    // feature a itself.
+    // Since current_ancestors stores the ancestors by increasing name length,
+    // then the last of the current ancestors is the parent of the next field.
+    // Moreover, since every ancestor is added from current_ancestors once,
+    // and removed from the list once, the runtime of this whole operation
+    // is O(# features)
+    std::vector<int> current_ancestors;
+    for (const auto& pair : location_) {
+      const string& name = pair.first;
+      int index = pair.second;
+      while (!current_ancestors.empty() &&
+             !IsStrictPrefix(data_.features()[current_ancestors.back()].name(),
+                             name)) {
+        current_ancestors.pop_back();
+      }
+      if (!current_ancestors.empty()) {
+        context_[index].parent_index = current_ancestors.back();
+        context_[current_ancestors.back()].child_indices.push_back(index);
+      }
+      if (data_.features(index).type() ==
+          tensorflow::metadata::v0::FeatureNameStatistics::STRUCT) {
+        current_ancestors.push_back(index);
+      }
+    }
+  }
+
+  const DatasetFeatureStatistics& data() const { return data_; }
+
+  absl::optional<FeatureStatsView> GetByName(const DatasetStatsView& view,
+                                             const string& name) const {
+    auto ref = location_.find(name);
+    if (ref == location_.end()) {
+      return absl::nullopt;
+    } else {
+      return FeatureStatsView(ref->second, view);
+    }
+  }
+
+  absl::optional<FeatureStatsView> GetParent(
+      const FeatureStatsView& view) const {
+    absl::optional<int> opt_parent_index = context_[view.index_].parent_index;
+    if (opt_parent_index) {
+      return FeatureStatsView(*opt_parent_index, view.parent_view_);
+    } else {
+      return absl::nullopt;
+    }
+  }
+
+  std::vector<FeatureStatsView> GetChildren(
+      const FeatureStatsView& view) const {
+    std::vector<FeatureStatsView> result;
+    for (int i : context_[view.index_].child_indices) {
+      result.emplace_back(i, view.parent_view_);
+    }
+    return result;
+  }
+
+ private:
+  friend DatasetStatsView;
+  // Underlying data.
+  const DatasetFeatureStatistics data_;
+
+  // Whether DatasetFeatureStatistics is accessed by weight or not.
+  const bool by_weight_;
+
+  // Environment.
+  const absl::optional<string> environment_;
+
+  // The previous dataset stats (if available).
+  // Note that DatasetStatsView objects are very lightweight, so this
+  // cost is minimal.
+  const std::shared_ptr<DatasetStatsView> previous_;
+
+  // The serving dataset stats (if available).
+  const std::shared_ptr<DatasetStatsView> serving_;
+
+  /*********** Cached information below, derivable from data_ *****************/
+
+  // Context of each feature: parents and children.
+  // parallel to features() array in data.
+  std::vector<FeatureContext> context_;
+
+  // Map from name to location.
+  // data_.features(location_[foo]).name() == foo
+  std::map<string, int> location_;
+};
 
 DatasetStatsView::DatasetStatsView(const DatasetFeatureStatistics& data,
                                    bool by_weight,
                                    const absl::optional<string>& environment,
                                    std::shared_ptr<DatasetStatsView> previous,
                                    std::shared_ptr<DatasetStatsView> serving)
-    : data_(new DatasetFeatureStatistics(data)),
-      by_weight_(by_weight),
-      environment_(environment),
-      previous_(std::move(previous)),
-      serving_(std::move(serving)) {}
+    : impl_(new DatasetStatsViewImpl(data, by_weight, environment, previous,
+                                     serving)) {}
 
 DatasetStatsView::DatasetStatsView(const DatasetFeatureStatistics& data,
                                    bool by_weight)
-    : data_(new DatasetFeatureStatistics(data)),
-      by_weight_(by_weight),
-      environment_(),
-      previous_(),
-      serving_() {}
+    : impl_(new DatasetStatsViewImpl(data, by_weight, absl::nullopt,
+                                     std::shared_ptr<DatasetStatsView>(),
+                                     std::shared_ptr<DatasetStatsView>())) {}
 
 DatasetStatsView::DatasetStatsView(
     const tensorflow::metadata::v0::DatasetFeatureStatistics& data)
-    : data_(new DatasetFeatureStatistics(data)),
-      by_weight_(false),
-      environment_(),
-      previous_(),
-      serving_() {}
+    : impl_(new DatasetStatsViewImpl(data, false, absl::nullopt,
+                                     std::shared_ptr<DatasetStatsView>(),
+                                     std::shared_ptr<DatasetStatsView>())) {}
 
 std::vector<FeatureStatsView> DatasetStatsView::features() const {
   std::vector<FeatureStatsView> result;
-  for (int i = 0; i < data_->features_size(); ++i) {
+  for (int i = 0; i < impl_->data().features_size(); ++i) {
     result.push_back(FeatureStatsView(i, *this));
   }
   return result;
@@ -69,56 +193,37 @@ std::vector<FeatureStatsView> DatasetStatsView::features() const {
 const tensorflow::metadata::v0::FeatureNameStatistics&
 DatasetStatsView::feature_name_statistics(int index) const {
   CHECK_GE(index, 0);
-  CHECK_LT(index, data_->features_size());
-  return data_->features(index);
+  CHECK_LT(index, impl_->data().features_size());
+  return impl_->data().features(index);
 }
 
 double DatasetStatsView::GetNumExamples() const {
-  if (by_weight_) {
-    return data_->weighted_num_examples();
+  if (impl_->by_weight_) {
+    return impl_->data().weighted_num_examples();
   } else {
-    return data_->num_examples();
+    return impl_->data().num_examples();
   }
 }
 
 absl::optional<FeatureStatsView> DatasetStatsView::GetByName(
     const string& name) const {
-  for (const FeatureStatsView& feature_stats_view : features()) {
-    if (feature_stats_view.name() == name) {
-      return feature_stats_view;
-    }
-  }
-  return absl::nullopt;
+  return impl_->GetByName(*this, name);
 }
 
 absl::optional<FeatureStatsView> DatasetStatsView::GetParent(
-    const string& name) const {
-  std::unique_ptr<FeatureStatsView> best_so_far;
-  for (const FeatureStatsView& feature_stats_view : features()) {
-    if (!feature_stats_view.is_struct()) {
-      continue;
-    }
-    const string& candidate_name = feature_stats_view.name();
-    if (candidate_name.length() < name.length() &&
-        name.substr(0, candidate_name.length()) == candidate_name) {
-      // candidate_name is a strict substring.
-      if (!best_so_far ||
-          (best_so_far->name().length() < candidate_name.length())) {
-        best_so_far = absl::make_unique<FeatureStatsView>(feature_stats_view);
-      }
-    }
-  }
-  if (best_so_far) {
-    return *best_so_far;
-  } else {
-    return absl::nullopt;
-  }
+    const FeatureStatsView& view) const {
+  return impl_->GetParent(view);
+}
+
+std::vector<FeatureStatsView> DatasetStatsView::GetChildren(
+    const FeatureStatsView& view) const {
+  return impl_->GetChildren(view);
 }
 
 std::vector<FeatureStatsView> DatasetStatsView::GetRootFeatures() const {
   std::vector<FeatureStatsView> result;
   for (const FeatureStatsView& feature : features()) {
-    if (!GetParent(feature.name())) {
+    if (!feature.GetParent()) {
       result.push_back(feature);
     }
   }
@@ -127,7 +232,7 @@ std::vector<FeatureStatsView> DatasetStatsView::GetRootFeatures() const {
 
 // Returns true if the weighted statistics exist.
 bool DatasetStatsView::WeightedStatisticsExist() const {
-  if (data_->weighted_num_examples() == 0.0) {
+  if (impl_->data().weighted_num_examples() == 0.0) {
     return false;
   }
   for (const FeatureStatsView& feature_stats_view : features()) {
@@ -136,6 +241,26 @@ bool DatasetStatsView::WeightedStatisticsExist() const {
     }
   }
   return true;
+}
+
+bool DatasetStatsView::by_weight() const { return impl_->by_weight_; }
+
+const absl::optional<string>& DatasetStatsView::environment() const {
+  return impl_->environment_;
+}
+
+const absl::optional<DatasetStatsView> DatasetStatsView::GetPrevious() const {
+  if (impl_->previous_) {
+    return *impl_->previous_;
+  }
+  return absl::nullopt;
+}
+
+const absl::optional<DatasetStatsView> DatasetStatsView::GetServing() const {
+  if (impl_->serving_) {
+    return *impl_->serving_;
+  }
+  return absl::nullopt;
 }
 
 double FeatureStatsView::GetNumExamples() const {
@@ -171,7 +296,7 @@ FeatureStatsView::GetCommonStatistics() const {
   } else if (data().has_bytes_stats()) {
     return data().bytes_stats().common_stats();
   } else if (data().has_struct_stats()) {
-    return data().struct_stats().common_statistics();
+    return data().struct_stats().common_stats();
   }
   LOG(FATAL) << "Unknown statistics: " << data().DebugString();
 }
@@ -278,18 +403,11 @@ tensorflow::metadata::v0::FeatureType FeatureStatsView::GetFeatureType() const {
 }
 
 absl::optional<FeatureStatsView> FeatureStatsView::GetParent() const {
-  return parent_view_.GetParent(name());
+  return parent_view_.GetParent(*this);
 }
 
 std::vector<FeatureStatsView> FeatureStatsView::GetChildren() const {
-  std::vector<FeatureStatsView> result;
-  for (const FeatureStatsView& feature : parent_view_.features()) {
-    absl::optional<FeatureStatsView> parent = feature.GetParent();
-    if (parent && parent->name() == name()) {
-      result.push_back(feature);
-    }
-  }
-  return result;
+  return parent_view_.GetChildren(*this);
 }
 
 }  // namespace data_validation

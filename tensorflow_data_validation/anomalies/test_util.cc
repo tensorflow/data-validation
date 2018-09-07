@@ -21,6 +21,7 @@ limitations under the License.
 #include <vector>
 
 #include <gtest/gtest.h>
+#include "absl/strings/str_cat.h"
 #include "tensorflow_data_validation/anomalies/map_util.h"
 #include "tensorflow/core/lib/core/status.h"
 #include "tensorflow/core/lib/core/status_test_util.h"
@@ -39,43 +40,36 @@ ProtoStringMatcher::ProtoStringMatcher(
     const ::tensorflow::protobuf::Message& expected)
     : expected_(expected.DebugString()) {}
 
-tensorflow::Status ConvertSchemaV0ToV1(
-    const tensorflow::metadata::v0::Schema& schema_proto,
-    tensorflow::metadata::v0::Schema* schema) {
-  *schema = schema_proto;
-  return tensorflow::Status::OK();
-}
 
-tensorflow::Status ConvertSchemaV1ToV0(
-    const tensorflow::metadata::v0::Schema& schema,
-    tensorflow::metadata::v0::Schema* schema_proto) {
-  *schema_proto = schema;
-  return tensorflow::Status::OK();
-}
-
-void TestSchemaToAnomalies(
+void TestAnomalies(
+    const tensorflow::metadata::v0::Anomalies& actual,
     const tensorflow::metadata::v0::Schema& old_schema,
-    const std::function<tensorflow::metadata::v0::Anomalies(
-        const tensorflow::metadata::v0::Schema&)>& get_diff,
     const std::map<string, ExpectedAnomalyInfo>& expected_anomalies) {
-  // Test with V0.
-  {
-    const tensorflow::metadata::v0::Anomalies result = get_diff(old_schema);
-    EXPECT_THAT(result.baseline(), EqualsProto(old_schema));
-    for (const auto& pair : expected_anomalies) {
-      const string& name = pair.first;
-      const ExpectedAnomalyInfo& expected = pair.second;
-      ASSERT_TRUE(ContainsKey(result.anomaly_info(), name))
-          << "Expected anomaly for feature name: " << name
-          << " not found in Anomalies: " << result.DebugString();
-      tensorflow::metadata::v0::AnomalyInfo actual_info =
-          result.anomaly_info().at(name);
-      EXPECT_THAT(actual_info, EqualsProto(expected.expected_info_without_diff))
-          << " (V0) column: " << name;
-    }
-    EXPECT_EQ(result.anomaly_info().size(), expected_anomalies.size())
-        << " (V0): " << old_schema.DebugString();
+  EXPECT_THAT(actual.baseline(), EqualsProto(old_schema));
+  for (const auto& pair : expected_anomalies) {
+    const string& name = pair.first;
+    const ExpectedAnomalyInfo& expected = pair.second;
+    ASSERT_TRUE(ContainsKey(actual.anomaly_info(), name))
+        << "Expected anomaly for feature name: " << name
+        << " not found in Anomalies: " << actual.DebugString();
+    TestAnomalyInfo(actual.anomaly_info().at(name), old_schema, expected,
+                    absl::StrCat(" column: ", name));
   }
+  for (const auto& pair : actual.anomaly_info()) {
+    const string& name = pair.first;
+    EXPECT_TRUE(ContainsKey(expected_anomalies, name))
+        << "Unexpected anomaly: " << name << " "
+        << pair.second.DebugString();
+  }
+}
+
+void TestAnomalyInfo(const tensorflow::metadata::v0::AnomalyInfo& actual,
+                     const tensorflow::metadata::v0::Schema& baseline,
+                     const ExpectedAnomalyInfo& expected,
+                     const string& comment) {
+  tensorflow::metadata::v0::AnomalyInfo actual_info = actual;
+  EXPECT_THAT(actual_info, EqualsProto(expected.expected_info_without_diff))
+      << comment;
 }
 
 }  // namespace testing

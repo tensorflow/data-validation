@@ -32,6 +32,14 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 
 class StatsGenTest(absltest.TestCase):
 
+  def setUp(self):
+    self._default_stats_options = stats_api.StatsOptions(
+        num_top_values=2,
+        num_rank_histogram_buckets=2,
+        num_values_histogram_buckets=2,
+        num_histogram_buckets=2,
+        num_quantiles_histogram_buckets=2)
+
   def _get_temp_dir(self):
     return tempfile.mkdtemp()
 
@@ -109,17 +117,12 @@ class StatsGenTest(absltest.TestCase):
               buckets {
                 low_value: 1.0
                 high_value: 2.0
-                sample_count: 1.0
+                sample_count: 1.5
               }
               buckets {
                 low_value: 2.0
                 high_value: 4.0
-                sample_count: 1.0
-              }
-              buckets {
-                low_value: 4.0
-                high_value: 4.0
-                sample_count: 1.0
+                sample_count: 1.5
               }
               type: QUANTILES
             }
@@ -129,22 +132,18 @@ class StatsGenTest(absltest.TestCase):
           num_zeros: 0
           min: 1.0
           max: 5.0
+          median: 3.0
           histograms {
             num_nan: 1
             buckets {
               low_value: 1.0
-              high_value: 2.3333333
-              sample_count: 2.9866667
+              high_value: 3.0
+              sample_count: 3.0
             }
             buckets {
-              low_value: 2.3333333
-              high_value: 3.6666667
-              sample_count: 1.0066667
-            }
-            buckets {
-              low_value: 3.6666667
+              low_value: 3.0
               high_value: 5.0
-              sample_count: 2.0066667
+              sample_count: 3.0
             }
             type: STANDARD
           }
@@ -152,23 +151,13 @@ class StatsGenTest(absltest.TestCase):
             num_nan: 1
             buckets {
               low_value: 1.0
-              high_value: 1.0
-              sample_count: 1.5
-            }
-            buckets {
-              low_value: 1.0
               high_value: 3.0
-              sample_count: 1.5
+              sample_count: 3.0
             }
             buckets {
               low_value: 3.0
-              high_value: 4.0
-              sample_count: 1.5
-            }
-            buckets {
-              low_value: 4.0
               high_value: 5.0
-              sample_count: 1.5
+              sample_count: 3.0
             }
             type: QUANTILES
           }
@@ -188,17 +177,12 @@ class StatsGenTest(absltest.TestCase):
               buckets {
                 low_value: 4.0
                 high_value: 4.0
-                sample_count: 1.0
+                sample_count: 1.5
               }
               buckets {
                 low_value: 4.0
                 high_value: 4.0
-                sample_count: 1.0
-              }
-              buckets {
-                low_value: 4.0
-                high_value: 4.0
-                sample_count: 1.0
+                sample_count: 1.5
               }
               type: QUANTILES
             }
@@ -226,12 +210,6 @@ class StatsGenTest(absltest.TestCase):
               label: "c"
               sample_count: 3.0
             }
-            buckets {
-              low_rank: 2
-              high_rank: 2
-              label: "d"
-              sample_count: 2.0
-            }
           }
         }
       }
@@ -240,12 +218,7 @@ class StatsGenTest(absltest.TestCase):
 
     result = stats_gen_lib.generate_statistics_from_tfrecord(
         data_location=input_data_path,
-        stats_options=stats_api.StatsOptions(
-            num_top_values=2,
-            num_rank_histogram_buckets=3,
-            num_values_histogram_buckets=3,
-            num_histogram_buckets=3,
-            num_quantiles_histogram_buckets=4))
+        stats_options=self._default_stats_options)
     compare_fn = test_util.make_dataset_feature_stats_list_proto_equal_fn(
         self, expected_result)
     compare_fn([result])
@@ -297,6 +270,7 @@ class StatsGenTest(absltest.TestCase):
       std_dev: 2.0
       min: 1.0
       max: 7.0
+      median: 4.0
       histograms {
         buckets {
           low_value: 1.0
@@ -389,12 +363,7 @@ class StatsGenTest(absltest.TestCase):
         data_location=input_data_path,
         column_names=header,
         delimiter=',',
-        stats_options=stats_api.StatsOptions(
-            num_top_values=2,
-            num_rank_histogram_buckets=2,
-            num_values_histogram_buckets=2,
-            num_histogram_buckets=2,
-            num_quantiles_histogram_buckets=2))
+        stats_options=self._default_stats_options)
     compare_fn = test_util.make_dataset_feature_stats_list_proto_equal_fn(
         self, expected_result)
     compare_fn([result])
@@ -409,12 +378,7 @@ class StatsGenTest(absltest.TestCase):
         data_location=input_data_path,
         column_names=header,
         delimiter=',',
-        stats_options=stats_api.StatsOptions(
-            num_top_values=2,
-            num_rank_histogram_buckets=2,
-            num_values_histogram_buckets=2,
-            num_histogram_buckets=2,
-            num_quantiles_histogram_buckets=2))
+        stats_options=self._default_stats_options)
     compare_fn = test_util.make_dataset_feature_stats_list_proto_equal_fn(
         self, expected_result)
     compare_fn([result])
@@ -429,12 +393,7 @@ class StatsGenTest(absltest.TestCase):
         data_location=input_data_path,
         column_names=header,
         delimiter='\t',
-        stats_options=stats_api.StatsOptions(
-            num_top_values=2,
-            num_rank_histogram_buckets=2,
-            num_values_histogram_buckets=2,
-            num_histogram_buckets=2,
-            num_quantiles_histogram_buckets=2))
+        stats_options=self._default_stats_options)
     compare_fn = test_util.make_dataset_feature_stats_list_proto_equal_fn(
         self, expected_result)
     compare_fn([result])
@@ -455,12 +414,7 @@ class StatsGenTest(absltest.TestCase):
         data_location=input_data_path,
         column_names=None,
         delimiter=',',
-        stats_options=stats_api.StatsOptions(
-            num_top_values=2,
-            num_rank_histogram_buckets=2,
-            num_values_histogram_buckets=2,
-            num_histogram_buckets=2,
-            num_quantiles_histogram_buckets=2))
+        stats_options=self._default_stats_options)
     compare_fn = test_util.make_dataset_feature_stats_list_proto_equal_fn(
         self, expected_result)
     compare_fn([result])
@@ -481,6 +435,44 @@ class StatsGenTest(absltest.TestCase):
         ValueError, 'Files have different headers.'):
       _ = stats_gen_lib.generate_statistics_from_csv(
           data_location=input_data_path, column_names=None, delimiter=',')
+
+  def test_stats_gen_with_csv_missing_column(self):
+    records = [',', ',']
+    input_data_path = self._write_records_to_csv(records, self._get_temp_dir(),
+                                                 'input_data.csv')
+    expected_result = text_format.Parse(
+        """
+        datasets {
+          num_examples: 2
+          features {
+            name: "feature1"
+            type: STRING
+            string_stats {
+              common_stats {
+                num_missing: 2
+              }
+            }
+          }
+          features {
+            name: "feature2"
+            type: STRING
+            string_stats {
+              common_stats {
+                num_missing: 2
+              }
+            }
+          }
+        }
+        """, statistics_pb2.DatasetFeatureStatisticsList())
+
+    result = stats_gen_lib.generate_statistics_from_csv(
+        data_location=input_data_path,
+        column_names=['feature1', 'feature2'],
+        delimiter=',',
+        stats_options=self._default_stats_options)
+    compare_fn = test_util.make_dataset_feature_stats_list_proto_equal_fn(
+        self, expected_result)
+    compare_fn([result])
 
   def test_stats_gen_with_header_in_empty_csv_file(self):
     input_data_path = self._write_records_to_csv([], self._get_temp_dir(),

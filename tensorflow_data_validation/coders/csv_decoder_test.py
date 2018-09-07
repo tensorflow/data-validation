@@ -52,8 +52,11 @@ def _make_example_dict_equal_fn(
       for i in range(len(actual)):
         for key in actual[i]:
           # Check each feature value.
-          test.assertEqual(actual[i][key].dtype, expected[i][key].dtype)
-          np.testing.assert_equal(actual[i][key], expected[i][key])
+          if isinstance(expected[i][key], np.ndarray):
+            test.assertEqual(actual[i][key].dtype, expected[i][key].dtype)
+            np.testing.assert_equal(actual[i][key], expected[i][key])
+          else:
+            test.assertEqual(actual[i][key], expected[i][key])
 
     except AssertionError, e:
       raise util.BeamAssertException('Failed assert: ' + str(e))
@@ -89,8 +92,11 @@ class CSVDecoderTest(absltest.TestCase):
     column_names = ['int_feature', 'float_feature', 'str_feature']
     expected_result = [
         {'int_feature': np.array([1.0], dtype=np.floating),
+         'float_feature': None,
          'str_feature': np.array(['hello'], dtype=np.object)},
-        {'float_feature': np.array([12.34], dtype=np.floating)}]
+        {'int_feature': None,
+         'float_feature': np.array([12.34], dtype=np.floating),
+         'str_feature': None}]
 
     with beam.Pipeline() as p:
       result = (p | beam.Create(input_lines) |
@@ -210,7 +216,8 @@ class CSVDecoderTest(absltest.TestCase):
     expected_result = [
         {'int_feature': np.array([1], dtype=np.integer),
          'str_feature': np.array(['this is a \ttext'], dtype=np.object)},
-        {'int_feature': np.array([5], dtype=np.integer)}]
+        {'int_feature': np.array([5], dtype=np.integer),
+         'str_feature': None}]
 
     with beam.Pipeline() as p:
       result = (p | beam.Create(input_lines) |
@@ -225,7 +232,9 @@ class CSVDecoderTest(absltest.TestCase):
                    '1,2.0,hello']
     column_names = ['int_feature', 'float_feature', 'str_feature']
     expected_result = [
-        {},
+        {'int_feature': None,
+         'float_feature': None,
+         'str_feature': None},
         {'int_feature': np.array([1.0], dtype=np.floating),
          'float_feature': np.array([2.0], dtype=np.floating),
          'str_feature': np.array(['hello'], dtype=np.object)}]
@@ -257,7 +266,8 @@ class CSVDecoderTest(absltest.TestCase):
                    '1,2']
     column_names = ['float_feature1', 'float_feature2']
     expected_result = [
-        {},
+        {'float_feature1': None,
+         'float_feature2': None},
         {'float_feature1': np.array([1.0], dtype=np.floating),
          'float_feature2': np.array([2.0], dtype=np.floating)}]
 
@@ -288,7 +298,7 @@ class CSVDecoderTest(absltest.TestCase):
                    '1']
     column_names = ['float_feature']
     expected_result = [
-        {},
+        {'float_feature': None},
         {'float_feature': np.array([1.0], dtype=np.floating)}]
 
     with beam.Pipeline() as p:

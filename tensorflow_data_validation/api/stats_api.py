@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License
-
 """TensorFlow Data Validation Statistics API.
 
 The Statistics API for TF Data Validation consists of a single beam.PTransform,
@@ -57,6 +56,7 @@ from tensorflow_data_validation.statistics.generators import string_stats_genera
 from tensorflow_data_validation.statistics.generators import top_k_stats_generator
 from tensorflow_data_validation.statistics.generators import uniques_stats_generator
 from tensorflow_data_validation.utils import batch_util
+from tensorflow_data_validation.utils import profile_util
 from tensorflow_data_validation.types_compat import List
 
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -73,28 +73,27 @@ class StatsOptions(
 
   Attributes:
     generators: An optional list of statistics generators. A statistics
-        generator must extend either CombinerStatsGenerator or
-        TransformStatsGenerator.
+      generator must extend either CombinerStatsGenerator or
+      TransformStatsGenerator.
     feature_whitelist: An optional list of names of the features to calculate
-        statistics for.
-    schema: An optional tensorflow_metadata Schema proto. Currently we use
-        the schema to infer categorical and bytes features.
+      statistics for.
+    schema: An optional tensorflow_metadata Schema proto. Currently we use the
+      schema to infer categorical and bytes features.
     num_top_values: An optional number of most frequent feature values to keep
-        for string features.
+      for string features.
     num_rank_histogram_buckets: An optional number of buckets in the rank
-        histogram for string features.
+      histogram for string features.
     num_values_histogram_buckets: An optional number of buckets in a quantiles
-        histogram for the number of values per Feature, which is stored in
-        CommonStatistics.num_values_histogram.
+      histogram for the number of values per Feature, which is stored in
+      CommonStatistics.num_values_histogram.
     num_histogram_buckets: An optional number of buckets in a standard
-        NumericStatistics.histogram with equal-width buckets.
+      NumericStatistics.histogram with equal-width buckets.
     num_quantiles_histogram_buckets: An optional number of buckets in a
-        quantiles NumericStatistics.histogram.
+      quantiles NumericStatistics.histogram.
     epsilon: An optional error tolerance for the computation of quantiles,
-        typically a small fraction close to zero (e.g. 0.01). Higher values
-        of epsilon increase the quantile approximation, and hence result in
-        more unequal buckets, but could improve performance, and resource
-        consumption.
+      typically a small fraction close to zero (e.g. 0.01). Higher values of
+      epsilon increase the quantile approximation, and hence result in more
+      unequal buckets, but could improve performance, and resource consumption.
   """
 
   def __new__(cls,
@@ -106,7 +105,7 @@ class StatsOptions(
               num_values_histogram_buckets=10,
               num_histogram_buckets=10,
               num_quantiles_histogram_buckets=10,
-              epsilon=0.001):
+              epsilon=0.01):
     # Default generate statistics option values
     return super(StatsOptions, cls).__new__(
         cls,
@@ -162,10 +161,10 @@ class GenerateStatistics(beam.PTransform):
         if (not isinstance(generator,
                            (stats_generator.CombinerStatsGenerator,
                             stats_generator.TransformStatsGenerator))):
-          raise TypeError('Statistics generator must extend one of '
-                          'CombinerStatsGenerator or TransformStatsGenerator, '
-                          'found object of type %s' %
-                          type(generator).__class__.__name__)
+          raise TypeError(
+              'Statistics generator must extend one of '
+              'CombinerStatsGenerator or TransformStatsGenerator, '
+              'found object of type %s' % type(generator).__class__.__name__)
 
     if (options.feature_whitelist is not None and
         not isinstance(options.feature_whitelist, list)):
@@ -226,21 +225,22 @@ class GenerateStatistics(beam.PTransform):
       # Add custom stats generators.
       stats_generators.extend(self._options.generators)
 
-    # Batch input examples.
-    batched_dataset = dataset | 'BatchInputs' >> batch_util.BatchExamples()
+    # Profile and then batch input examples.
+    batched_dataset = (
+        dataset
+        | 'Profile' >> profile_util.Profile()
+        | 'BatchInputs' >> batch_util.BatchExamples())
 
     # If a set of whitelist features are provided, keep only those features.
     filtered_dataset = batched_dataset
     if self._options.feature_whitelist:
       filtered_dataset = (
-          batched_dataset |
-          'RemoveNonWhitelistedFeatures' >> beam.Map(
+          batched_dataset | 'RemoveNonWhitelistedFeatures' >> beam.Map(
               _filter_features,
               feature_whitelist=self._options.feature_whitelist))
 
-    return (filtered_dataset |
-            'RunStatsGenerators' >> stats_impl.GenerateStatisticsImpl(
-                stats_generators))
+    return (filtered_dataset | 'RunStatsGenerators' >>
+            stats_impl.GenerateStatisticsImpl(stats_generators))
 
 
 def _filter_features(
@@ -255,6 +255,8 @@ def _filter_features(
   Returns:
     A dict containing only the whitelisted features of the input batch.
   """
-  return {feature_name: batch[feature_name]
-          for feature_name in feature_whitelist
-          if feature_name in batch}
+  return {
+      feature_name: batch[feature_name]
+      for feature_name in feature_whitelist
+      if feature_name in batch
+  }

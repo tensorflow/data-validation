@@ -32,13 +32,12 @@ namespace data_validation {
 
 class FeatureStatsView;
 
+class DatasetStatsViewImpl;
+
 // Wrapper for statistics.
 // Designed to be passed by const reference.
 class DatasetStatsView {
  public:
-  // DatasetStatsView does not take ownership of data.
-  // Note that DatasetFeatureStatistics is not yet populated with enough
-  // weighted features to make by_weight work.
   DatasetStatsView(
       const tensorflow::metadata::v0::DatasetFeatureStatistics& data,
       bool by_weight);
@@ -55,7 +54,7 @@ class DatasetStatsView {
       const tensorflow::metadata::v0::DatasetFeatureStatistics& data);
 
   // Perform shallow copies of object, sharing the same
-  // DatasetFeatureStatistics through a shared_ptr.
+  // DatasetStatsViewImpl through a shared_ptr.
   DatasetStatsView(const DatasetStatsView& other) = default;
   DatasetStatsView& operator=(const DatasetStatsView& other) = default;
 
@@ -68,7 +67,7 @@ class DatasetStatsView {
   // If returns zero, it could just be the default value.
   double GetNumExamples() const;
 
-  bool by_weight() const { return by_weight_; }
+  bool by_weight() const;
 
   // Note that this takes linear time in the number of features.
   // If the name does not exist, returns absl::nullopt.
@@ -92,42 +91,22 @@ class DatasetStatsView {
   // a.name() is a strict prefix of b.name().
   // FeatureStatsView a is the parent of FeatureStatsView b if it is the
   // ancestor with the longest name.
-  absl::optional<FeatureStatsView> GetParent(const string& name) const;
+  absl::optional<FeatureStatsView> GetParent(
+      const FeatureStatsView& view) const;
 
-  const absl::optional<string>& environment() const { return environment_; }
+  // Gets the children of a FeatureStatsView.
+  std::vector<FeatureStatsView> GetChildren(const FeatureStatsView& view) const;
 
-  const absl::optional<DatasetStatsView> GetPrevious() const {
-    if (previous_) {
-      return *previous_;
-    }
-    return absl::nullopt;
-  }
+  const absl::optional<string>& environment() const;
 
-  const absl::optional<DatasetStatsView> GetServing() const {
-    if (serving_) {
-      return *serving_;
-    }
-    return absl::nullopt;
-  }
+  const absl::optional<DatasetStatsView> GetPrevious() const;
+
+  const absl::optional<DatasetStatsView> GetServing() const;
 
  private:
   // Guaranteed not to be null. This being a shared_ptr makes this object
   // lightweight.
-  std::shared_ptr<const tensorflow::metadata::v0::DatasetFeatureStatistics>
-      data_;
-  // Whether DatasetFeatureStatistics is accessed by weight or not.
-  const bool by_weight_;
-
-  // Environment.
-  const absl::optional<string> environment_;
-
-  // The previous dataset stats (if available).
-  // Note that DatasetStatsView objects are very lightweight, so this
-  // cost is minimal.
-  const std::shared_ptr<DatasetStatsView> previous_;
-
-  // The serving dataset stats (if available).
-  const std::shared_ptr<DatasetStatsView> serving_;
+  std::shared_ptr<const DatasetStatsViewImpl> impl_;
 };
 
 // Provides a view into the DatasetFeatureStatistics from a particular column.
@@ -213,13 +192,15 @@ class FeatureStatsView {
     return type() == tensorflow::metadata::v0::FeatureNameStatistics::STRUCT;
   }
 
+  // Object is assumed to be created from DatasetStatsView::features().
+  FeatureStatsView(int index, const DatasetStatsView& parent_view)
+      : parent_view_(parent_view), index_(index) {}
+
  private:
   // Made a friend to access private constructor.
   friend std::vector<FeatureStatsView> DatasetStatsView::features() const;
 
-  // Object is assumed to be created from DatasetStatsView::features().
-  FeatureStatsView(int index, const DatasetStatsView& parent_view)
-      : parent_view_(parent_view), index_(index) {}
+  friend DatasetStatsViewImpl;
 
   // Get a reference to the statistics from the parent.
   // This should never check-fail.

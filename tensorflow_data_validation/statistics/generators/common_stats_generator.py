@@ -175,7 +175,10 @@ def _make_feature_stats_proto(
   # to the stats proto to handle this case.
   if is_categorical:
     result.type = statistics_pb2.FeatureNameStatistics.INT
-  elif common_stats.type is not None:
+  elif common_stats.type is None:
+    # If a feature is completely missing, we assume the type to be STRING.
+    result.type = statistics_pb2.FeatureNameStatistics.STRING
+  else:
     result.type = common_stats.type
 
   # Copy the common stats into appropriate numeric/string stats.
@@ -205,7 +208,7 @@ class CommonStatsGenerator(stats_generator.CombinerStatsGenerator):
       name = 'CommonStatsGenerator',
       schema = None,
       num_values_histogram_buckets = 10,
-      epsilon = 0.001):
+      epsilon = 0.01):
     """Initializes a common statistics generator.
 
     Args:

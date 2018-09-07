@@ -234,19 +234,21 @@ tensorflow::Status SchemaAnomalies::FindChanges(
   return Status::OK();
 }
 
-void SchemaAnomalies::FindSkew(const DatasetStatsView& dataset_stats_view) {
+tensorflow::Status SchemaAnomalies::FindSkew(
+    const DatasetStatsView& dataset_stats_view) {
   for (const FeatureStatsView& feature_stats_view :
        dataset_stats_view.features()) {
     // This is a simplified version of finding skew, that ignores the field
     // if there is no training data for it.
     const string& feature_name = feature_stats_view.name();
-    TF_CHECK_OK(GenericUpdate(
+    TF_RETURN_IF_ERROR(GenericUpdate(
         [&feature_stats_view](SchemaAnomaly* schema_anomaly) {
           schema_anomaly->UpdateSkewComparator(feature_stats_view);
           return Status::OK();
         },
         feature_name));
   }
+  return Status::OK();
 }
 
 }  // namespace data_validation

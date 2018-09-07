@@ -214,28 +214,39 @@ double GetMaxOffDomain(const tensorflow::metadata::v0::DistributionConstraints&
 
 void InitValueCountAndPresence(const FeatureStatsView& feature_stats_view,
                                Feature* feature) {
+  double num_present = feature_stats_view.GetNumPresent();
+  if (num_present < 1.0) {
+    // Note that we also set min_count to be zero when num_present is between
+    // (0.0, 1.0)
+    feature->mutable_presence()->set_min_count(0);
+  } else {
+    feature->mutable_presence()->set_min_count(1);
+  }
+
+  // If there are no examples containing this feature, do not infer value
+  // counts.
+  if (num_present == 0.0) {
+    return;
+  }
+
   if (feature_stats_view.max_num_values() > 1) {
     if (feature_stats_view.GetNumMissing() == 0.0 &&
         feature_stats_view.min_num_values() > 0) {
       // Apply REPEATED REQUIRED.
       feature->mutable_presence()->set_min_fraction(1.0);
-      feature->mutable_presence()->set_min_count(1);
       feature->mutable_value_count()->set_min(1);
     } else {
       // REPEATED
       feature->mutable_value_count()->set_min(1);
-      feature->mutable_presence()->set_min_count(1);
     }
   } else if (feature_stats_view.GetNumMissing() == 0.0 &&
              feature_stats_view.min_num_values() > 0) {
     // REQUIRED
     feature->mutable_presence()->set_min_fraction(1.0);
-    feature->mutable_presence()->set_min_count(1);
     feature->mutable_value_count()->set_min(1);
     feature->mutable_value_count()->set_max(1);
   } else {
     // OPTIONAL
-    feature->mutable_presence()->set_min_count(1);
     feature->mutable_value_count()->set_min(1);
     feature->mutable_value_count()->set_max(1);
   }

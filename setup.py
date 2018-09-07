@@ -57,7 +57,7 @@ setup(
     namespace_packages=[],
     install_requires=[
         'absl-py>=0.1.6',
-        'apache-beam[gcp]>=2.5,<3',
+        'apache-beam[gcp]>=2.6,<3',
         'numpy>=1.13.3,<2',
 
         # TF now requires protobuf>=3.6.0.
@@ -66,12 +66,12 @@ setup(
         'six>=1.10,<2',
 
 
-        'tensorflow-metadata>=0.6,<1',
-        'tensorflow-transform>=0.8,<1',
+        'tensorflow-metadata>=0.9,<1',
+        'tensorflow-transform>=0.9,<1',
 
         # Dependencies needed for visualization.
-        'IPython',
-        'pandas',
+        'IPython>=5.0,<6',
+        'pandas>=0.18,<1',
     ],
     python_requires='>=2.7,<3',
     packages=find_packages(),
