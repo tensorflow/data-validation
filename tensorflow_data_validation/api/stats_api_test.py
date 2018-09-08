@@ -84,6 +84,7 @@ class StatsAPITest(absltest.TestCase):
           num_zeros: 0
           min: 1.0
           max: 5.0
+          median: 3.0
           histograms {
             num_nan: 1
             buckets {
@@ -163,6 +164,7 @@ class StatsAPITest(absltest.TestCase):
           std_dev: 866.025355672
           min: 1.0
           max: 3000.0
+          median: 1501.0
           histograms {
             buckets {
               low_value: 1.0
@@ -276,7 +278,8 @@ class StatsAPITest(absltest.TestCase):
           num_rank_histogram_buckets=3,
           num_values_histogram_buckets=3,
           num_histogram_buckets=3,
-          num_quantiles_histogram_buckets=4)
+          num_quantiles_histogram_buckets=4,
+          epsilon=0.001)
       result = (
           p | beam.Create(examples) | stats_api.GenerateStatistics(options))
       util.assert_that(

@@ -109,7 +109,7 @@ class SchemaAnomalies {
       const DatasetStatsView& statistics,
       const FeatureStatisticsToProtoConfig& feature_statistics_to_proto_config);
 
-  void FindSkew(const DatasetStatsView& dataset_stats_view);
+  tensorflow::Status FindSkew(const DatasetStatsView& dataset_stats_view);
 
   // Records current anomalies as a schema diff.
   tensorflow::metadata::v0::Anomalies GetSchemaDiff() const;

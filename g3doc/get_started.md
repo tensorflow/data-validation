@@ -57,46 +57,53 @@ an example usage:
 
 ```python
 
-    import tensorflow_data_validation as tfdv
-    import apache_beam as beam
-    from apache_beam.options.pipeline_options import PipelineOptions, GoogleCloudOptions, StandardOptions, SetupOptions
-    from tensorflow_metadata.proto.v0 import statistics_pb2
+import tensorflow_data_validation as tfdv
+import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions, GoogleCloudOptions, StandardOptions, SetupOptions
+from tensorflow_metadata.proto.v0 import statistics_pb2
 
-    PROJECT_NAME = ''
-    JOB_NAME = ''
-    GCS_STAGING_LOCATION = ''
-    GCS_TMP_LOCATION = ''
-    GCS_DATA_LOCATION = ''
-    GCS_OUTPUT_LOCATION = ''
+PROJECT_ID = ''
+JOB_NAME = ''
+GCS_STAGING_LOCATION = ''
+GCS_TMP_LOCATION = ''
+GCS_DATA_LOCATION = ''
+GCS_OUTPUT_LOCATION = ''
 
-    PATH_TO_WHL_FILE = ''
+PATH_TO_WHL_FILE = ''
 
-    # Create and set your PipelineOptions.
-    options = PipelineOptions()
+# Create and set your PipelineOptions.
+options = PipelineOptions()
 
-    # For Cloud execution, set the Cloud Platform project, job_name,
-    # staging location, temp_location and specify DataflowRunner.
-    google_cloud_options = options.view_as(GoogleCloudOptions)
-    google_cloud_options.project = PROJECT_NAME
-    google_cloud_options.job_name = JOB_NAME
-    google_cloud_options.staging_location = GCS_STAGING_LOCATION
-    google_cloud_options.temp_location = GCS_TMP_LOCATION
-    options.view_as(StandardOptions).runner = 'DataflowRunner'
+# For Cloud execution, set the Cloud Platform project, job_name,
+# staging location, temp_location and specify DataflowRunner.
+google_cloud_options = options.view_as(GoogleCloudOptions)
+google_cloud_options.project = PROJECT_ID
+google_cloud_options.job_name = JOB_NAME
+google_cloud_options.staging_location = GCS_STAGING_LOCATION
+google_cloud_options.temp_location = GCS_TMP_LOCATION
+options.view_as(StandardOptions).runner = 'DataflowRunner'
 
-    # Only required until github repo is not public
-    # PATH_TO_WHL_FILE should point to a .whl file for tfdv
-    options.view_as(SetupOptions).extra_packages = [PATH_TO_WHL_FILE]
+# Only required until github repo is not public
+# PATH_TO_WHL_FILE should point to a .whl file for tfdv
+options.view_as(SetupOptions).extra_packages = [PATH_TO_WHL_FILE]
 
-    with Pipeline(options=options) as p:
-       _ = (
-        p
-        | 'ReadData' >> beam.io.ReadFromTFRecord(file_pattern=GCS_DATA_LOCATION)
-        | 'DecodeData' >> beam.Map(tfdv.TFExampleDecoder().decode)
-        | 'GenerateStatistics' >> tfdv.GenerateStatistics()
-        | 'WriteStatsOutput' >> beam.io.WriteToTFRecord(
-            file_path_prefix = GCS_OUTPUT_PATH,
-            coder=beam.coders.ProtoCoder(
-                statistics_pb2.DatasetFeatureStatisticsList)))
+with beam.Pipeline(options=options) as p:
+    _ = (
+    p
+    | 'ReadData' >> beam.io.ReadFromTFRecord(file_pattern=GCS_DATA_LOCATION)
+    | 'DecodeData' >> beam.Map(tfdv.TFExampleDecoder().decode)
+    | 'GenerateStatistics' >> tfdv.GenerateStatistics()
+    | 'WriteStatsOutput' >> beam.io.WriteToTFRecord(
+        file_path_prefix = GCS_OUTPUT_LOCATION,
+        shard_name_template='',
+        coder=beam.coders.ProtoCoder(
+            statistics_pb2.DatasetFeatureStatisticsList)))
+
+stats = tfdv.load_statistics(GCS_OUTPUT_LOCATION)
+schema = tfdv.infer_schema(stats)
+
+print(schema)
+
 ```
 
 In this case, the generated statistics proto is stored in `output_path`.
@@ -219,3 +226,103 @@ a table, listing the features where errors are detected and a short description
 of each error.
 
 ![Screenshot of anomalies](images/anomaly.png)
+
+
+## Schema Environments
+
+By default, validations assume that all datasets in a pipeline adhere to a
+single schema. In some cases introducing slight schema variations is necessary,
+for instance features used as labels are required during training (and should be
+validated), but are missing during serving.
+
+**Environments** can be used to express such requirements. In particular,
+features in schema can be associated with a set of environments using
+default_environment, in_environment and not_in_environment.
+
+For example, if the **tips** feature is being used as the label in training, but
+missing in the serving data. Without environment specified, it will show up as
+an anomaly.
+
+```python
+    serving_stats = tfdv.generate_statistics_from_tfrecord(data_location=serving_data_path)
+    serving_anomalies = tfdv.validate_statistics(serving_stats, schema)
+```
+
+![Screenshot of serving anomalies](images/serving_anomaly.png)
+
+To fix this, we need to set the default environment for all features to be both
+'TRAINING' and 'SERVING', and exclude the 'tips' feature from SERVING
+environment.
+
+```python
+    # All features are by default in both TRAINING and SERVING environments.
+    schema.default_environment.append('TRAINING')
+    schema.default_environment.append('SERVING')
+
+    # Specify that 'tips' feature is not in SERVING environment.
+    tfdv.get_feature(schema, 'tips').not_in_environment.append('SERVING')
+
+    serving_anomalies_with_env = tfdv.validate_statistics(
+        serving_stats, schema, environment='SERVING')
+```
+
+## Checking data skew and drift
+
+In addition to checking whether a dataset conforms to the expectations set in
+the schema, TFDV also provides functionalities to detect:
+
+*   skew between training and serving data
+*   drift between different days of training data
+
+TFDV performs this check by comparing the statistics of different datasets
+based on the drift/skew comparators specified in the schema. For example, to
+check if there is any skew between 'payment_type' feature within training and
+serving dataset:
+
+```python
+    # Assume we have already generated the statistics of training dataset, and
+    # inferred a schema from it.
+    serving_stats = tfdv.generate_statistics_from_tfrecord(data_location=serving_data_path)
+    # Add a skew comparator to schema for 'payment_type' and set the threshold
+    # of L-infinity norm for triggering skew anomaly to be 0.01.
+    tfdv.get_feature(schema, 'payment_type').skew_comparator.infinity_norm.threshold = 0.01
+    skew_anomalies = tfdv.validate_statistics(
+        statistics=train_stats, schema=schema, serving_statistics=serving_stats)
+```
+
+Same with checking whether a dataset conform to the expectations set in the
+schema, the result is also an instance of the
+[Anomalies](https://github.com/tensorflow/metadata/tree/master/tensorflow_metadata/proto/v0/anomalies.proto)
+protocol buffer and describes any skew between the training and serving
+datasets. For example, suppose the serving data contains significantly more
+examples with feature `payement_type` having value `Cash`, this produces a skew
+anomaly
+
+```python
+   payment_type  High Linfty distance between serving and training  The Linfty distance between serving and training is 0.0435984 (up to six significant digits), above the threshold 0.01. The feature value with maximum difference is: Cash
+```
+
+If the anomaly truly indicates a skew between training and serving data, then
+further investigation is necessary as this could have a direct impact on model
+performance.
+
+The [example notebook](https://github.com/tensorflow/data-validation/tree/master/tensorflow_data_validation/examples/chicago_taxi/chicago_taxi_tfdv.ipynb)
+contains a simple visualization of the skew anomalies as
+a table, listing the features where skews are detected and a short description
+of each skew.
+
+![Screenshot of skew anomalies](images/skew_anomaly.png)
+
+Detecting drift between different days of training data can be done in a similar
+way
+
+```python
+    # Assume we have already generated the statistics of training dataset for
+    # day 2, and inferred a schema from it.
+    train_day1_stats = tfdv.generate_statistics_from_tfrecord(data_location=train_day1_data_path)
+    # Add a drift comparator to schema for 'payment_type' and set the threshold
+    # of L-infinity norm for triggering drift anomaly to be 0.01.
+    tfdv.get_feature(schema, 'payment_type').drift_comparator.infinity_norm.threshold = 0.01
+    drift_anomalies = tfdv.validate_statistics(
+        statistics=train_day2_stats, schema=schema, previous_statistics=train_day1_stats)
+```

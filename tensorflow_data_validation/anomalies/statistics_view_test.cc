@@ -215,7 +215,7 @@ TEST(FeatureStatsView, GetNumPresentForStruct) {
            name: 'the_struct'
            type: STRUCT
            struct_stats: {
-             common_statistics: {
+             common_stats: {
                num_missing: 0
                num_non_missing: 10
                min_num_values: 1
@@ -296,13 +296,15 @@ TEST(DatasetStatsView, GetParent) {
             name: 'foo'
             type: STRUCT
             struct_stats: {
-              common_statistics: {
+              common_stats: {
                 num_missing: 0
                 num_non_missing: 6
                 min_num_values: 1
                 max_num_values: 1}}})");
   DatasetStatsView stats(input);
-  absl::optional<FeatureStatsView> parent = stats.GetParent("foo.bar");
+  absl::optional<FeatureStatsView> actual = stats.GetByName("foo.bar");
+  ASSERT_TRUE(actual);
+  absl::optional<FeatureStatsView> parent = actual->GetParent();
   ASSERT_TRUE(parent);
   EXPECT_EQ(parent->name(), "foo");
 }
@@ -334,7 +336,9 @@ TEST(DatasetStatsView, GetParentFalsePositive) {
                 max_num_values: 7
               }}})");
   DatasetStatsView stats(input);
-  absl::optional<FeatureStatsView> parent = stats.GetParent("foo.bar");
+  absl::optional<FeatureStatsView> actual = stats.GetByName("foo.bar");
+  EXPECT_TRUE(actual);
+  absl::optional<FeatureStatsView> parent = actual->GetParent();
   EXPECT_FALSE(parent);
 }
 
@@ -357,7 +361,7 @@ TEST(DatasetStatsView, GetRootFeatures) {
             name: 'foo'
             type: STRUCT
             struct_stats: {
-              common_statistics: {
+              common_stats: {
                 num_missing: 0
                 num_non_missing: 6
                 min_num_values: 1
@@ -367,7 +371,6 @@ TEST(DatasetStatsView, GetRootFeatures) {
   ASSERT_EQ(roots.size(), 1);
   EXPECT_EQ(roots[0].name(), "foo");
 }
-
 
 TEST(FeatureStatsView, GetNumExamplesWeighted) {
   const FeatureNameStatistics input =
@@ -962,7 +965,7 @@ TEST(FeatureStatsView, GetParent) {
             name: 'foo'
             type: STRUCT
             struct_stats: {
-            common_statistics: {
+            common_stats: {
               num_missing: 0
               num_non_missing: 6
               min_num_values: 1
@@ -993,7 +996,7 @@ TEST(DatasetStatsView, GetChildren) {
             name: 'foo'
             type: STRUCT
             struct_stats: {
-              common_statistics: {
+              common_stats: {
                 num_missing: 0
                 num_non_missing: 6
                 min_num_values: 1
@@ -1005,6 +1008,7 @@ TEST(DatasetStatsView, GetChildren) {
   ASSERT_EQ(children.size(), 1);
   EXPECT_EQ(children[0].name(), "foo.bar");
 }
+
 
 }  // namespace data_validation
 }  // namespace tensorflow

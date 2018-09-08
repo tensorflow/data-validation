@@ -151,8 +151,12 @@ def _make_feature_stats_proto(
     numeric_stats_proto.min = float(numeric_stats.min)
     numeric_stats_proto.max = float(numeric_stats.max)
 
-    # Add equi-width histogram to the numeric stats proto.
+    # Add median and equi-width histogram to the numeric stats proto.
     quantiles = std_hist_combiner.extract_output(numeric_stats.std_hist_summary)
+    # Note that we find the median from the quantiles used for standard
+    # histogram as it uses a large number of buckets and hence results in a more
+    # accurate median estimate.
+    numeric_stats_proto.median = float(quantiles_util.find_median(quantiles))
     std_histogram = quantiles_util.generate_equi_width_histogram(
         quantiles, numeric_stats.min, numeric_stats.max,
         numeric_stats.total_num_values, num_histogram_buckets)
@@ -199,7 +203,7 @@ class NumericStatsGenerator(stats_generator.CombinerStatsGenerator):
       schema = None,
       num_histogram_buckets = 10,
       num_quantiles_histogram_buckets = 10,
-      epsilon = 0.001):
+      epsilon = 0.01):
     """Initializes a numeric statistics generator.
 
     Args:

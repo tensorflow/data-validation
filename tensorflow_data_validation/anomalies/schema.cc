@@ -489,14 +489,16 @@ std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
   }
   if (!ContainsKey(AllowedFeatureTypes(feature->domain_info_case()),
                    feature->type())) {
-    feature->clear_domain_info();
+    // Note that this clears the oneof field domain_info.
+    feature->mutable_int_domain()->Clear();
     descriptions.push_back({tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
                             "The domain does not match the type"});
   }
   switch (feature->domain_info_case()) {
     case Feature::kDomain:
       if (GetExistingStringDomain(feature->domain()) == nullptr) {
-        feature->clear_domain_info();
+        // Note that this clears the oneof field domain_info.
+        feature->clear_domain();
         descriptions.push_back(
             {tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
              absl::StrCat("missing domain: ", feature->domain())});
@@ -542,7 +544,8 @@ std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
       descriptions.push_back(
           {tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
            "internal issue: unknown domain_info type"});
-      feature->clear_domain_info();
+      // Note that this clears the oneof field domain_info.
+      feature->mutable_int_domain()->Clear();
   }
 
   return descriptions;
@@ -607,6 +610,13 @@ std::vector<Description> Schema::UpdateFeatureInternal(
     if (!IsFeatureInEnvironment(*feature, view.environment())) {
       feature->add_in_environment(view_environment);
     }
+    descriptions.push_back(
+        {tensorflow::metadata::v0::AnomalyInfo::SCHEMA_NEW_COLUMN,
+         "Column missing in environment",
+         absl::StrCat("New column ", view.name(),
+                      " found in data but not in the "
+                      "environment ",
+                      view_environment, " in the schema.")});
   }
 
   auto add_to_descriptions =
@@ -622,7 +632,8 @@ std::vector<Description> Schema::UpdateFeatureInternal(
     descriptions.insert(descriptions.end(), update_summary.descriptions.begin(),
                         update_summary.descriptions.end());
     if (update_summary.clear_field) {
-      feature->clear_domain_info();
+      // Note that this clears the oneof field domain_info.
+      feature->mutable_int_domain()->Clear();
     }
   };
 
@@ -663,7 +674,8 @@ std::vector<Description> Schema::UpdateFeatureInternal(
   if (view.type() == FeatureNameStatistics::BYTES &&
       feature->domain_info_case() !=
           tensorflow::metadata::v0::Feature::DOMAIN_INFO_NOT_SET) {
-    feature->clear_domain_info();
+    // Note that this clears the oneof field domain_info.
+    feature->mutable_int_domain()->Clear();
     descriptions.push_back({tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
                             "Data is marked as BYTES that indicates the data "
                             " should not be analyzed: this is incompatible "

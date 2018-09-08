@@ -146,5 +146,12 @@ class QuantilesUtilTest(absltest.TestCase):
             min_val=1.0, max_val=1.0, total_count=100, num_buckets=3),
         [quantiles_util.Bucket(1.0, 1.0, 100.0)])
 
+  def test_find_median(self):
+    self.assertEqual(quantiles_util.find_median([5.0]), 5.0)
+    self.assertEqual(quantiles_util.find_median([3.0, 5.0]), 4.0)
+    self.assertEqual(quantiles_util.find_median([3.0, 4.0, 5.0]), 4.0)
+    self.assertEqual(quantiles_util.find_median([3.0, 4.0, 5.0, 6.0]), 4.5)
+
+
 if __name__ == '__main__':
   absltest.main()

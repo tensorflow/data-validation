@@ -243,6 +243,7 @@ cc_library(
     srcs = ["feature_statistics_validator.cc"],
     hdrs = ["feature_statistics_validator.h"],
     deps = [
+        ":path",
         ":schema",
         ":statistics_view",
         "//tensorflow_data_validation/anomalies/proto:feature_statistics_to_proto_proto",
@@ -288,6 +289,31 @@ cc_test(
     deps = [
         ":test_util",
         "@com_google_absl//absl/strings",
+        "@com_google_googletest//:gtest_main",
+        "@org_tensorflow//tensorflow/core:lib",
+        "@org_tensorflow//tensorflow/core:test",
+    ],
+)
+
+cc_library(
+    name = "path",
+    srcs = ["path.cc"],
+    hdrs = ["path.h"],
+    deps = [
+        "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
+        "@com_google_absl//absl/strings",
+        "@com_googlesource_code_re2//:re2",
+        "@org_tensorflow//tensorflow/core:lib",
+    ],
+)
+
+cc_test(
+    name = "path_test",
+    srcs = ["path_test.cc"],
+    deps = [
+        ":path",
+        ":test_util",
+        "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
         "@com_google_googletest//:gtest_main",
         "@org_tensorflow//tensorflow/core:lib",
         "@org_tensorflow//tensorflow/core:test",

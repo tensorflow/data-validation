@@ -166,7 +166,8 @@ class CSVParser(object):
 
 def _make_example_dict(
     row, skip_blank_lines,
-    column_info):
+    column_info
+):
   """Create the in-memory representation from the CSV record.
 
   Args:
@@ -183,13 +184,11 @@ def _make_example_dict(
 
   result = {}
   for index, field in enumerate(row):
-    # If the field is an empty string, don't add the feature key to the dict.
-    # Note that due to this if a feature is missing in all the rows, we will
-    # lose the feature information and it will not appear in the schema.
-    if not field:
-      continue
     feature_name, feature_type = column_info[index]
-    if feature_type == statistics_pb2.FeatureNameStatistics.INT:
+    if not field:
+      # If the field is an empty string, add the feature key with value as None.
+      result[feature_name] = None
+    elif feature_type == statistics_pb2.FeatureNameStatistics.INT:
       result[feature_name] = np.asarray([int(field)], dtype=np.integer)
     elif feature_type == statistics_pb2.FeatureNameStatistics.FLOAT:
       result[feature_name] = np.asarray([float(field)], dtype=np.floating)

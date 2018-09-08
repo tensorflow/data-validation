@@ -24,9 +24,15 @@ import base64
 from IPython.display import display
 from IPython.display import HTML
 import pandas as pd
+from tensorflow_data_validation import types
+from tensorflow_data_validation.types_compat import Optional, Text, Union
 from tensorflow_metadata.proto.v0 import anomalies_pb2
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
+
+
+def _add_quotes(input_str):
+  return "'" + input_str.replace("'", "\\'") + "'"
 
 
 def display_schema(schema):
@@ -43,22 +49,19 @@ def display_schema(schema):
   domain_rows = []
   for domain in schema.string_domain:
     domain_rows.append(
-        [domain.name, ', '.join('"' + v + '"' for v in domain.value)])
+        [_add_quotes(domain.name),
+         ', '.join(_add_quotes(v) for v in domain.value)])
 
   feature_rows = []
-  types = {0: 'Unknown', 1: 'Bytes', 2: 'Int', 3: 'Float'}
   # Iterate over the features in the schema and extract the properties of each
   # feature.
   for feature in schema.feature:
     # Extract the presence information of the feature.
     if feature.HasField('presence'):
-      if feature.presence.min_fraction == 1:
+      if feature.presence.min_fraction == 1.0:
         feature_presence = 'required'
-      elif feature.presence.min_count == 1:
-        feature_presence = 'optional'
       else:
-        feature_presence = ('custom: ' + '[%d' % feature.presence.min_count +
-                            ',' + '%f]' % feature.presence.min_fraction)
+        feature_presence = 'optional'
     else:
       feature_presence = ''
 
@@ -76,16 +79,16 @@ def display_schema(schema):
         valency = min_value_count + ',' + max_value_count
 
     # Extract the feature type.
-    feature_type = types.get(feature.type)
+    feature_type = schema_pb2.FeatureType.Name(feature.type)
     # If the feature has a string domain, treat it as a string feature.
-    if feature_type == 'Bytes' and (feature.HasField('domain') or
+    if feature_type == 'BYTES' and (feature.HasField('domain') or
                                     feature.HasField('string_domain')):
-      feature_type = 'String'
+      feature_type = 'STRING'
 
     # Extract the domain (if any) of the feature.
-    domain = ''
+    domain = '-'
     if feature.HasField('domain'):
-      domain = feature.domain
+      domain = _add_quotes(feature.domain)
     elif feature.HasField('int_domain'):
       left_value = ('[%d' % feature.int_domain.min
                     if feature.int_domain.HasField('min') else '(-inf')
@@ -99,14 +102,16 @@ def display_schema(schema):
                      if feature.float_domain.HasField('max') else 'inf)')
       domain = left_value + ',' + right_value
     elif feature.HasField('string_domain'):
-      domain = (feature.string_domain.name if feature.string_domain.name
-                else feature.name + '_domain')
+      domain = _add_quotes(feature.string_domain.name if
+                           feature.string_domain.name else
+                           feature.name + '_domain')
       domain_rows.append([domain,
-                          ', '.join('"' + v + '"' for v in
+                          ', '.join(_add_quotes(v) for v in
                                     feature.string_domain.value)])
 
     feature_rows.append(
-        [feature.name, feature_type, feature_presence, valency, domain])
+        [_add_quotes(feature.name), feature_type, feature_presence, valency,
+         domain])
 
   # Construct a DataFrame consisting of the properties of the features
   # and display it.
@@ -139,7 +144,8 @@ def display_anomalies(anomalies):
   anomaly_rows = []
   for feature_name, anomaly_info in anomalies.anomaly_info.items():
     anomaly_rows.append([
-        feature_name, anomaly_info.short_description, anomaly_info.description
+        _add_quotes(feature_name), anomaly_info.short_description,
+        anomaly_info.description
     ])
 
   if not anomaly_rows:
@@ -156,33 +162,86 @@ def display_anomalies(anomalies):
 
 
 def visualize_statistics(
-    statistics):
+    lhs_statistics,
+    rhs_statistics
+     = None,
+    lhs_name = 'lhs_statistics',
+    rhs_name = 'rhs_statistics'
+):
   """Visualize the input statistics using Facets.
 
   Args:
-    statistics: A DatasetFeatureStatisticsList protocol buffer.
-  """
-  if not isinstance(statistics, statistics_pb2.DatasetFeatureStatisticsList):
-    raise TypeError(
-        'statistics is of type %s, should be '
-        'a DatasetFeatureStatisticsList proto.' % type(statistics).__name__)
+    lhs_statistics: A DatasetFeatureStatisticsList protocol buffer.
+    rhs_statistics: An optional DatasetFeatureStatisticsList protocol buffer
+        to compare with lhs_statistics.
+    lhs_name: Name of the lhs_statistics dataset.
+    rhs_name: Name of the rhs_statistics dataset.
 
-  protostr = base64.b64encode(statistics.SerializeToString()).decode('utf-8')
+  Raises:
+    TypeError: If the input argument is not of the expected type.
+    ValueError: If the input statistics protos does not have only one dataset.
+  """
+  if not isinstance(lhs_statistics,
+                    statistics_pb2.DatasetFeatureStatisticsList):
+    raise TypeError(
+        'lhs_statistics is of type %s, should be '
+        'a DatasetFeatureStatisticsList proto.' % type(lhs_statistics).__name__)
+
+  if len(lhs_statistics.datasets) != 1:
+    raise ValueError('lhs_statistics proto contains multiple datasets. Only '
+                     'one dataset is currently supported.')
+
+  if lhs_statistics.datasets[0].name:
+    lhs_name = lhs_statistics.datasets[0].name
+
+  # Add lhs stats.
+  combined_statistics = statistics_pb2.DatasetFeatureStatisticsList()
+  lhs_stats_copy = combined_statistics.datasets.add()
+  lhs_stats_copy.MergeFrom(lhs_statistics.datasets[0])
+
+  if rhs_statistics is not None:
+    if not isinstance(rhs_statistics,
+                      statistics_pb2.DatasetFeatureStatisticsList):
+      raise TypeError('rhs_statistics is of type %s, should be a '
+                      'DatasetFeatureStatisticsList proto.'
+                      % type(rhs_statistics).__name__)
+    if len(rhs_statistics.datasets) != 1:
+      raise ValueError('rhs_statistics proto contains multiple datasets. Only '
+                       'one dataset is currently supported.')
+
+    if rhs_statistics.datasets[0].name:
+      rhs_name = rhs_statistics.datasets[0].name
+
+    # If we have same name, revert to default names.
+    if lhs_name == rhs_name:
+      lhs_name, rhs_name = 'lhs_statistics', 'rhs_statistics'
+
+    # Add rhs stats.
+    rhs_stats_copy = combined_statistics.datasets.add()
+    rhs_stats_copy.MergeFrom(rhs_statistics.datasets[0])
+    rhs_stats_copy.name = rhs_name
+
+  # Update lhs name.
+  lhs_stats_copy.name = lhs_name
+
+  protostr = base64.b64encode(
+      combined_statistics.SerializeToString()).decode('utf-8')
 
   # pylint: disable=line-too-long
   # Note that in the html template we currently assign a temporary id to the
   # facets element and then remove it once we have appended the serialized proto
   # string to the element. We do this to avoid any collision of ids when
   # displaying multiple facets output in the notebook.
-  html_template = """<link rel="import" href="https://raw.githubusercontent.com/PAIR-code/facets/master/facets-dist/facets-jupyter.html" >
-        <facets-overview id="tfdv-facets-overview"></facets-overview>
+  html_template = """<iframe id='facets-iframe' width="100%" height="500px"></iframe>
         <script>
-          (function () {
-            facets_overview = document.getElementById("tfdv-facets-overview");
-            facets_overview.protoInput = "protostr";
-            facets_overview.id = "";
-          }) ()
-        </script>"""
+        facets_iframe = document.getElementById('facets-iframe');
+        facets_html = '<link rel="import" href="https://raw.githubusercontent.com/PAIR-code/facets/master/facets-dist/facets-jupyter.html"><facets-overview proto-input="protostr"></facets-overview>';
+        facets_iframe.contentWindow.document.write(facets_html);
+         facets_iframe.id = "";
+         setTimeout(() => {
+           facets_iframe.setAttribute('height', facets_iframe.contentWindow.document.body.offsetHeight + 'px')
+         }, 1500)
+         </script>"""
   # pylint: enable=line-too-long
   html = html_template.replace('protostr', protostr)
 

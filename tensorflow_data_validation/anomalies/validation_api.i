@@ -42,11 +42,17 @@ PyObject* InferSchema(const string& statistics_proto_string,
 }
 
 
-PyObject* ValidateFeatureStatistics(const string& statistics_proto_string,
-                                    const string& schema_proto_string) {
+PyObject* ValidateFeatureStatistics(
+  const string& statistics_proto_string,
+  const string& schema_proto_string,
+  const string& environment,
+  const string& previous_statistics_proto_string,
+  const string& serving_statistics_proto_string) {
   string anomalies_proto_string;
   const tensorflow::Status status = tensorflow::data_validation::ValidateFeatureStatistics(
-    schema_proto_string, statistics_proto_string, &anomalies_proto_string);
+    statistics_proto_string, schema_proto_string, environment,
+    previous_statistics_proto_string, serving_statistics_proto_string,
+    &anomalies_proto_string);
   if (!status.ok()) {
     PyErr_SetString(PyExc_RuntimeError, status.error_message().c_str());
     return NULL;
@@ -67,5 +73,9 @@ PyObject* ValidateFeatureStatistics(const string& statistics_proto_string,
 PyObject* InferSchema(const string& statistics_proto_string,
                       int max_string_domain_size);
 
-PyObject* ValidateFeatureStatistics(const string& statistics_proto_string,
-                                    const string& schema_proto_string);
+PyObject* ValidateFeatureStatistics(
+  const string& statistics_proto_string,
+  const string& schema_proto_string,
+  const string& environment,
+  const string& previous_statistics_proto_string,
+  const string& serving_statistics_proto_string);

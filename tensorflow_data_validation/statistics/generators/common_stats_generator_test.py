@@ -321,7 +321,7 @@ class CommonStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             }
             """, statistics_pb2.FeatureNameStatistics())}
     generator = common_stats_generator.CommonStatsGenerator(
-        num_values_histogram_buckets=3)
+        num_values_histogram_buckets=3, epsilon=0.001)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
   def test_common_stats_generator_categorical_feature(self):
@@ -381,7 +381,8 @@ class CommonStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         'a': text_format.Parse(
             """
             name: 'a'
-            num_stats {
+            type: STRING
+            string_stats {
               common_stats {
                 num_non_missing: 0
                 num_missing: 0

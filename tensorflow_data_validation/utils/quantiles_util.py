@@ -64,6 +64,30 @@ class QuantilesCombiner(object):
     return quantiles[0]
 
 
+def find_median(quantiles):
+  """Find median from the quantile boundaries.
+
+  Args:
+    quantiles: A numpy array containing the quantile boundaries.
+
+  Returns:
+    The median.
+  """
+  num_quantiles = len(quantiles)
+  # We assume that we have at least one quantile boundary.
+  assert num_quantiles > 0
+
+  median_index = int(num_quantiles / 2)
+  if num_quantiles % 2 == 0:
+    # If we have an even number of quantile boundaries, take the mean of the
+    # middle boundaries to be the median.
+    return (quantiles[median_index - 1] + quantiles[median_index])/2.0
+  else:
+    # If we have an odd number of quantile boundaries, the middle boundary is
+    # the median.
+    return quantiles[median_index]
+
+
 def generate_quantiles_histogram(quantiles,
                                  min_val,
                                  max_val,

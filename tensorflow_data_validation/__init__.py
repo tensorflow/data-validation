@@ -16,6 +16,7 @@
 
 # Import stats API.
 from tensorflow_data_validation.api.stats_api import GenerateStatistics
+from tensorflow_data_validation.api.stats_api import StatsOptions
 
 # Import validation API.
 from tensorflow_data_validation.api.validation_api import infer_schema

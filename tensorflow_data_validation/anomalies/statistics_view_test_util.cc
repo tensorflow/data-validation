@@ -40,7 +40,7 @@ CommonStatistics* GetCommonStatisticsPtr(FeatureNameStatistics* feature_stats) {
   } else if (feature_stats->has_bytes_stats()) {
     return feature_stats->mutable_bytes_stats()->mutable_common_stats();
   } else if (feature_stats->has_struct_stats()) {
-    return feature_stats->mutable_struct_stats()->mutable_common_statistics();
+    return feature_stats->mutable_struct_stats()->mutable_common_stats();
   }
   LOG(FATAL) << "Unknown statistics: " << feature_stats->DebugString();
 }

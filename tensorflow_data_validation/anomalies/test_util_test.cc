@@ -32,47 +32,18 @@ namespace testing {
 namespace {
 
 
-// Also tests ConvertSchemaV1ToV0.
-TEST(ConvertSchemaV0ToV1, RoundTrip) {
+TEST(TestAnomalies, Basic) {
   const tensorflow::metadata::v0::Schema original =
-    ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
-      feature {
-        name: "feature_name"
-        type: INT
-        skew_comparator: {
-          infinity_norm: {
-            threshold: 0.1
-          }
-        }
-      })");
-  tensorflow::metadata::v0::Schema intermediate;
-  TF_ASSERT_OK(ConvertSchemaV0ToV1(original, &intermediate));
-  tensorflow::metadata::v0::Schema result;
-  TF_ASSERT_OK(ConvertSchemaV1ToV0(intermediate, &result));
-  EXPECT_THAT(result, EqualsProto(original));
-}
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
+        feature {
+          name: "feature_name"
+          type: INT
+          skew_comparator: { infinity_norm: { threshold: 0.1 } }
+        })");
 
-TEST(TestSchemaToAnomalies, Basic) {
-  const tensorflow::metadata::v0::Schema original =
-    ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
-      feature {
-        name: "feature_name"
-        type: INT
-        skew_comparator: {
-          infinity_norm: {
-            threshold: 0.1
-          }
-        }
-      })");
-  std::function<tensorflow::metadata::v0::Anomalies(
-      const ::tensorflow::metadata::v0::Schema&)>
-      get_diff = [](const ::tensorflow::metadata::v0::Schema& schema_proto) {
-        tensorflow::metadata::v0::Anomalies result;
-        *result.mutable_baseline() = schema_proto;
-        return result;
-      };
-  TestSchemaToAnomalies(original, get_diff,
-                        std::map<string, ExpectedAnomalyInfo>());
+  tensorflow::metadata::v0::Anomalies result;
+  *result.mutable_baseline() = original;
+  TestAnomalies(result, original, std::map<string, ExpectedAnomalyInfo>());
 }
 
 }  // namespace

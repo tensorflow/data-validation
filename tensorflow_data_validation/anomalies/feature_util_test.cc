@@ -130,6 +130,7 @@ TEST(FeatureTypeTest, ConstructFromFeatureNameStatistics) {
            string_stats: {
              common_stats: {
                num_missing: 3
+              num_non_missing: 10
                max_num_values: 2
              }
              unique: 3
@@ -156,6 +157,7 @@ TEST(FeatureTypeTest, ConstructFromFeatureNameStatistics) {
           string_stats: {
             common_stats: {
               num_missing: 3
+              num_non_missing: 10
               max_num_values: 1
             }
             unique: 3
@@ -183,6 +185,7 @@ TEST(FeatureTypeTest, ConstructFromFeatureNameStatistics) {
           num_stats: {
             common_stats: {
               num_missing: 3
+              num_non_missing: 1
               max_num_values: 2}})"),
        ParseTextProtoOrDie<Feature>(R"(
            value_count {
@@ -196,6 +199,7 @@ TEST(FeatureTypeTest, ConstructFromFeatureNameStatistics) {
           num_stats: {
             common_stats: {
               num_missing: 0
+              num_non_missing: 1
               max_num_values: 1
               min_num_values: 1}})"),
        ParseTextProtoOrDie<Feature>(R"(
@@ -207,7 +211,37 @@ TEST(FeatureTypeTest, ConstructFromFeatureNameStatistics) {
              min_count: 1
              min_fraction: 1.0
            }
-           )")}};
+           )")},
+      {ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+          name: 'bar4'
+          type: FLOAT
+          num_stats: {
+            common_stats: {
+              num_missing: 0
+              num_non_missing: 1
+              weighted_common_stats: {
+                num_missing: 0
+                num_non_missing: 0.5
+              }
+            }})"),
+       ParseTextProtoOrDie<Feature>(R"(
+           value_count {
+             min: 1
+             max: 1
+           }
+           presence { min_count: 1 }
+       )")},
+      {ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+          name: 'bar5'
+          type: STRING
+          string_stats: {
+            common_stats: {
+              num_missing: 100
+              num_non_missing: 0
+            }})"),
+       ParseTextProtoOrDie<Feature>(R"(
+           presence { min_count: 0 }
+       )")}};
   for (const auto& test : tests) {
     Feature feature;
 
