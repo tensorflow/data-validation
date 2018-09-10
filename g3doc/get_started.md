@@ -48,12 +48,14 @@ You can find the available data decoders [here]
 (https://github.com/tensorflow/data-validation/tree/master/tensorflow_data_validation/coders).
 
 ### Running on Google Cloud
+
 Internally, TFDV uses [Apache Beam](https://beam.apache.org)'s data-parallel
 processing framework to scale the computation of statistics over large datasets.
-For applications that wish to integrate deeper with TFDV (e.g., attach
-statistics generation at the end of a data-generation pipeline), the API also
-exposes a Beam PTransform for statistics generation. The following snippet shows
-an example usage:
+For applications that wish to integrate deeper with TFDV (e.g. attach statistics
+generation at the end of a data-generation pipeline,
+[generate statistics for data in custom format](#writing-custom-data-connector)),
+the API also exposes a Beam PTransform for statistics generation. The following
+snippet shows an example usage:
 
 ```python
 
@@ -325,4 +327,78 @@ way
     tfdv.get_feature(schema, 'payment_type').drift_comparator.infinity_norm.threshold = 0.01
     drift_anomalies = tfdv.validate_statistics(
         statistics=train_day2_stats, schema=schema, previous_statistics=train_day1_stats)
+```
+
+## Writing custom data connector
+
+To compute data statistics, TFDV provides several
+[convenient methods](https://github.com/tensorflow/data-validation/tree/master/tensorflow_data_validation/utils/stats_gen_lib.py)
+for handling input data in various formats (e.g. `TFRecord` of
+[tf.train.Example](https://www.tensorflow.org/api_docs/python/tf/train/Example),
+CSV, etc). If your data format is not in this list, you need to write a custom
+data connector for reading input data, and connect it with the TFDV core API for
+computing data statistics.
+
+The TFDV
+[core API for computing data statistics](https://github.com/tensorflow/data-validation/tree/master/tensorflow_data_validation/api/stats_api.py)
+is a
+[Beam PTransform](https://beam.apache.org/contribute/ptransform-style-guide/)
+that takes a PCollection of input examples (a dict of feature names to numpy
+array of feature values), and outputs a PCollection containing a single
+`DatasetFeatureStatisticsList` protocol buffer. For example, if the input data
+has two examples:
+
+         | feature_a | feature_b
+-------- | --------- | ---------
+Example1 | 1, 2, 3   | 'a', 'b'
+Example2 | 4, 5      | NULL
+
+Then the input to `tfdv.GenerateStatistics` PTransform should be a PCollection
+of dictionaries.
+
+```python
+[
+  # Example1
+  {
+    'feature_a': numpy.array([1, 2, 3]),
+    'feature_b': numpy.array(['a', 'b'])
+  },
+  # Example2
+  {
+    'feature_a': numpy.array([4, 5])
+  }
+]
+```
+
+Once you have implemented the custom data connector that transforms your input
+example into a dictionary, you need to connect it with the
+`tfdv.GenerateStatistics` API for computing the data statistics. Take `TFRecord`
+of `tf.train.Example`'s for example. We provide the
+[TFExampleDecoder](https://github.com/tensorflow/data-validation/tree/master/tensorflow_data_validation/coders/tf_example_decoder.py)
+data connector, and below is an example of how to connect it with the
+`tfdv.GenerateStatistics` API.
+
+```python
+import tensorflow_data_validation as tfdv
+import apache_beam as beam
+from tensorflow_metadata.proto.v0 import statistics_pb2
+
+DATA_LOCATION = ''
+OUTPUT_LOCATION = ''
+
+with beam.Pipeline() as p:
+    _ = (
+    p
+    # 1. Read out the examples from input files.
+    | 'ReadData' >> beam.io.ReadFromTFRecord(file_pattern=DATA_LOCATION)
+    # 2. Convert each example to a dict of feature name to numpy array of feature values.
+    | 'DecodeData' >> beam.Map(tfdv.TFExampleDecoder().decode)
+    # 3. Invoke TFDV `GenerateStatistics` API to compute the data statistics.
+    | 'GenerateStatistics' >> tfdv.GenerateStatistics()
+    # 4. Materialize the generated data statistics.
+    | 'WriteStatsOutput' >> beam.io.WriteToTFRecord(
+        file_path_prefix = OUTPUT_LOCATION,
+        shard_name_template='',
+        coder=beam.coders.ProtoCoder(
+            statistics_pb2.DatasetFeatureStatisticsList)))
 ```
