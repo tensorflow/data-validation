@@ -348,10 +348,10 @@ array of feature values), and outputs a PCollection containing a single
 `DatasetFeatureStatisticsList` protocol buffer. For example, if the input data
 has two examples:
 
-         | feature_a | feature_b
--------- | --------- | ---------
-Example1 | 1, 2, 3   | 'a', 'b'
-Example2 | 4, 5      | NULL
+[]()      | feature_a | feature_b
+--------- | --------- | ---------
+Example1  | 1, 2, 3   | 'a', 'b'
+Example2  | 4, 5      | NULL
 
 Then the input to `tfdv.GenerateStatistics` PTransform should be a PCollection
 of dictionaries.
