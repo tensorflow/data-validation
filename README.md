@@ -2,8 +2,8 @@
 
 # TensorFlow Data Validation [![PyPI](https://img.shields.io/pypi/pyversions/tensorflow-data-validation.svg?style=plastic)](https://github.com/tensorflow/data-validation)
 
-*TensorFlow Data Validation* is a library for exploring and validating
-machine learning data. `tf.DataValidation` is designed to be highly scalable
+*TensorFlow Data Validation* (TFDV) is a library for exploring and validating
+machine learning data. It is designed to be highly scalable
 and to work well with TensorFlow and [TensorFlow Extended (TFX)](https://www.tensorflow.org/tfx).
 
 TF Data Validation includes:
@@ -20,13 +20,14 @@ TF Data Validation includes:
 *    An anomalies viewer so that you can see what features have anomalies and
      learn more in order to correct them.
 
-For instructions on using TF Data Validation, see the [get started guide](g3doc/get_started.md).
+For instructions on using TFDV, see the [get started guide](g3doc/get_started.md)
+and try out the [example notebook](https://nbviewer.jupyter.org/github/tensorflow/data-validation/blob/master/examples/chicago_taxi/chicago_taxi_tfdv.ipynb).
 
-Caution: `tf.DataValidation` may be backwards incompatible before version 1.0.
+Caution: TFDV may be backwards incompatible before version 1.0.
 
 ## Installing from PyPI
 
-The recommended way to install TensorFlow Data Validation is using the
+The recommended way to install TFDV is using the
 [PyPI package](https://pypi.org/project/tensorflow-data-validation/):
 
 ```bash
@@ -37,7 +38,7 @@ pip install tensorflow-data-validation
 
 ### 1. Prerequisites
 
-To compile and use TensorFlow Data Validation, you need to set up some prerequisites.
+To compile and use TFDV, you need to set up some prerequisites.
 
 #### Install NumPy
 
@@ -49,7 +50,7 @@ directions](https://www.scipy.org/scipylib/download.html).
 If bazel is not installed on your system, install it now by following [these
 directions](https://bazel.build/versions/master/docs/install.html).
 
-### 2. Clone the TensorFlow Data Validation repository
+### 2. Clone the TFDV repository
 
 ```shell
 git clone https://github.com/tensorflow/data-validation
@@ -62,7 +63,7 @@ pass `-b <branchname>` to the `git clone` command.
 
 ### 3. Build and install pip package
 
-TensorFlow Data Validation uses Bazel to build and install the pip package from source:
+TFDV uses Bazel to build and install the pip package from source:
 
 ```shell
 bazel run -c opt tensorflow_data_validation:pip_installer
@@ -73,9 +74,16 @@ environment. You can find the installed `.whl` file in the `dist`
 subdirectory. It is also possible to pass options to the executed `pip install`
 through the environment variable `TFDV_PIP_INSTALL_OPTIONS`.
 
+## Supported platforms
+
+TFDV is built and tested on the following 64-bit operating systems:
+
+  * macOS 10.12.6 (Sierra) or later.
+  * Ubuntu 14.04 or later.
+
 ## Dependencies
 
-`tf.DataValidation` requires TensorFlow but does not depend on the `tensorflow`
+TFDV requires TensorFlow but does not depend on the `tensorflow`
 [PyPI package](https://pypi.org/project/tensorflow/). See the[TensorFlow install guides](https://www.tensorflow.org/install/)
 for instructions on how to get started with TensorFlow.
 
@@ -83,11 +91,11 @@ for instructions on how to get started with TensorFlow.
 distributed computation is supported. By default, Apache Beam runs in local
 mode but can also run in distributed mode using
 [Google Cloud Dataflow](https://cloud.google.com/dataflow/).
-`tf.DataValidation` is designed to be extensible for other Apache Beam runners.
+TFDV is designed to be extensible for other Apache Beam runners.
 
 ## Compatible versions
 
-The following table shows the `tf.DataValidation` package versions that are
+The following table shows the  package versions that are
 compatible with each other. This is determined by our testing framework, but
 other *untested* combinations may also work.
 
