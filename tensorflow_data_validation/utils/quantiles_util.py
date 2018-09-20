@@ -31,13 +31,18 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 class QuantilesCombiner(object):
   """Computes quantiles using a combiner function.
 
-  This class wraps tf.transform's _QuantilesCombinerSpec.
+  This class wraps tf.transform's QuantilesCombiner.
   """
 
   def __init__(self, num_quantiles, epsilon):
     self._num_quantiles = num_quantiles
     self._epsilon = epsilon
-    self._quantiles_spec = analyzers._QuantilesCombinerSpec(
+    # NOTE: this fallback can be removed once TFDV depends on TFT 1.10.
+    try:
+      quantiles_combiner = analyzers.QuantilesCombiner
+    except AttributeError:
+      quantiles_combiner = analyzers._QuantilesCombinerSpec  # pylint: disable=protected-access
+    self._quantiles_spec = quantiles_combiner(
         num_quantiles=num_quantiles, epsilon=epsilon,
         bucket_numpy_dtype=np.float32, always_return_num_quantiles=True)
     # Initializes non-pickleable local state of the combiner spec.

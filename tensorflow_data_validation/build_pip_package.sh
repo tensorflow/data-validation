@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Convenience binary to install TFDV from source.
+# Convenience binary to build TFDV from source.
 
 # Put wrapped c++ files in place
 
@@ -24,11 +24,10 @@ cp -f tensorflow_data_validation/anomalies/pywrap_tensorflow_data_validation.py 
 cp -f tensorflow_data_validation/anomalies/_pywrap_tensorflow_data_validation.so \
   ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/anomalies
 
-# Create and install the wheel
+# Create the wheel
 cd ${BUILD_WORKSPACE_DIRECTORY}
 
 python setup.py bdist_wheel
-pip install dist/*.whl ${TFDV_PIP_INSTALL_OPTIONS}
 
 # Cleanup
 cd -
