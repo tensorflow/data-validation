@@ -61,20 +61,26 @@ Note that these instructions will install the latest master branch of TensorFlow
 Data Validation. If you want to install a specific branch (such as a release branch),
 pass `-b <branchname>` to the `git clone` command.
 
-### 3. Build and install pip package
+### 3. Build the pip package
 
-TFDV uses Bazel to build and install the pip package from source:
+TFDV uses Bazel to build the pip package from source:
 
 ```shell
-bazel run -c opt tensorflow_data_validation:pip_installer
+bazel run -c opt tensorflow_data_validation:build_pip_package
 ```
 
-Note that the previous command performs a `pip install` in the current python
-environment. You can find the installed `.whl` file in the `dist`
-subdirectory. It is also possible to pass options to the executed `pip install`
-through the environment variable `TFDV_PIP_INSTALL_OPTIONS`.
+You can find the generated `.whl` file in the `dist` subdirectory.
+
+### 4. Install the pip package
+
+```shell
+pip install dist/*.whl
+```
 
 ## Supported platforms
+
+Note: TFDV currently requires Python 2.7. Support for Python 3 is coming
+very soon (tracked [here](https://github.com/tensorflow/data-validation/issues/10)).
 
 TFDV is built and tested on the following 64-bit operating systems:
 
