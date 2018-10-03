@@ -90,6 +90,8 @@ bool SparseFeatureIsDeprecated(
 double GetMaxOffDomain(const tensorflow::metadata::v0::DistributionConstraints&
                            distribution_constraints);
 
+// Clear the domain of the feature.
+void ClearDomain(tensorflow::metadata::v0::Feature* feature);
 }  // namespace data_validation
 }  // namespace tensorflow
 #endif  // TENSORFLOW_DATA_VALIDATION_ANOMALIES_FEATURE_UTIL_H_

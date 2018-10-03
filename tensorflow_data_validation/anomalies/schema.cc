@@ -490,7 +490,7 @@ std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
   if (!ContainsKey(AllowedFeatureTypes(feature->domain_info_case()),
                    feature->type())) {
     // Note that this clears the oneof field domain_info.
-    feature->mutable_int_domain()->Clear();
+    ::tensorflow::data_validation::ClearDomain(feature);
     descriptions.push_back({tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
                             "The domain does not match the type"});
   }
@@ -545,7 +545,7 @@ std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
           {tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
            "internal issue: unknown domain_info type"});
       // Note that this clears the oneof field domain_info.
-      feature->mutable_int_domain()->Clear();
+      ::tensorflow::data_validation::ClearDomain(feature);
   }
 
   return descriptions;
@@ -633,7 +633,7 @@ std::vector<Description> Schema::UpdateFeatureInternal(
                         update_summary.descriptions.end());
     if (update_summary.clear_field) {
       // Note that this clears the oneof field domain_info.
-      feature->mutable_int_domain()->Clear();
+      ::tensorflow::data_validation::ClearDomain(feature);
     }
   };
 
@@ -675,7 +675,7 @@ std::vector<Description> Schema::UpdateFeatureInternal(
       feature->domain_info_case() !=
           tensorflow::metadata::v0::Feature::DOMAIN_INFO_NOT_SET) {
     // Note that this clears the oneof field domain_info.
-    feature->mutable_int_domain()->Clear();
+    ::tensorflow::data_validation::ClearDomain(feature);
     descriptions.push_back({tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
                             "Data is marked as BYTES that indicates the data "
                             " should not be analyzed: this is incompatible "

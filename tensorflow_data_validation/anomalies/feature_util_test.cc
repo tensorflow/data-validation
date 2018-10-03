@@ -95,6 +95,20 @@ std::vector<FeatureIsDeprecatedTest> GetFeatureIsDeprecatedTests() {
        false}};
 }
 
+TEST(FeatureUtilTest, ClearDomain) {
+  Feature feature = ParseTextProtoOrDie<Feature>(R"(
+          name: "bytes_feature"
+          presence: { min_count: 1 }
+          value_count: { min: 1 max: 1 }
+          type: BYTES
+        )");
+  EXPECT_EQ(feature.domain_info_case(), Feature::DOMAIN_INFO_NOT_SET);
+  feature.mutable_int_domain();
+  EXPECT_EQ(feature.domain_info_case(), Feature::kIntDomain);
+  ClearDomain(&feature);
+  EXPECT_EQ(feature.domain_info_case(), Feature::DOMAIN_INFO_NOT_SET);
+}
+
 TEST(FeatureUtilTest, FeatureIsDeprecated) {
   for (const auto& test : GetFeatureIsDeprecatedTests()) {
     EXPECT_EQ(FeatureIsDeprecated(test.feature_proto), test.is_deprecated)

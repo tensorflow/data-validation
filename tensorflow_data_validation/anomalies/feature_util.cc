@@ -212,6 +212,12 @@ double GetMaxOffDomain(const tensorflow::metadata::v0::DistributionConstraints&
              : 0.0;
 }
 
+void ClearDomain(Feature* feature) {
+  feature->mutable_int_domain();
+  // Note that this clears the oneof field domain_info.
+  feature->clear_int_domain();
+}
+
 void InitValueCountAndPresence(const FeatureStatsView& feature_stats_view,
                                Feature* feature) {
   double num_present = feature_stats_view.GetNumPresent();

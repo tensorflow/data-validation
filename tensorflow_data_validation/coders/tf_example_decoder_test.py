@@ -62,8 +62,8 @@ class TFExampleDecoderTest(absltest.TestCase):
         'int_feature_2': np.array([1, 2, 3], dtype=np.integer),
         'float_feature_1': np.array([4.0], dtype=np.floating),
         'float_feature_2': np.array([5.0, 6.0], dtype=np.floating),
-        'str_feature_1': np.array(['female'], dtype=np.object),
-        'str_feature_2': np.array(['string', 'list'], dtype=np.object),
+        'str_feature_1': np.array([b'female'], dtype=np.object),
+        'str_feature_2': np.array([b'string', b'list'], dtype=np.object),
     }
     example = tf.train.Example()
     text_format.Merge(example_proto_text, example)
@@ -88,7 +88,7 @@ class TFExampleDecoderTest(absltest.TestCase):
         'int_feature_empty': np.array([], dtype=np.object),
         'float_feature': np.array([4.0], dtype=np.floating),
         'float_feature_empty': np.array([], dtype=np.object),
-        'str_feature': np.array(['male'], dtype=np.object),
+        'str_feature': np.array([b'male'], dtype=np.object),
         'str_feature_empty': np.array([], dtype=np.object),
     }
     example = tf.train.Example()

@@ -12,6 +12,9 @@ from tensorflow_data_validation.types_compat import Dict, Text, Union
 
 FeatureName = Union[bytes, Text]
 
+# Feature type enum value.
+FeatureNameStatisticsType = int
+
 # Type of the input batch.
 ExampleBatch = Dict[FeatureName, np.ndarray]
 

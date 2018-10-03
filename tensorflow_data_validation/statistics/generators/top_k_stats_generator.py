@@ -131,8 +131,9 @@ class _ComputeTopKStats(beam.PTransform):
         (beam.FlatMap(self._filter_irrelevant_features).with_output_types(
             beam.typehints.KV[types.BeamFeatureName, np.ndarray]))
         | 'TopK_FlattenToFeatureNameValueTuples' >>
-        beam.FlatMap(
-            lambda (name, value_list): [(name, value) for value in value_list])
+        beam.FlatMap(lambda name_and_value_list:  # pylint: disable=g-long-lambda
+                     [(name_and_value_list[0], value)
+                      for value in name_and_value_list[1]])
         | 'TopK_CountFeatureNameValueTuple' >>
         beam.combiners.Count().PerElement()
         # Convert from ((feature_name, feature_value), count) to

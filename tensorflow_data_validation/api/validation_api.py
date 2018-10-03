@@ -22,6 +22,7 @@ from __future__ import division
 from __future__ import print_function
 
 import logging
+import tensorflow as tf
 from tensorflow_data_validation.anomalies import pywrap_tensorflow_data_validation
 from tensorflow_data_validation.types_compat import Optional
 from tensorflow_metadata.proto.v0 import anomalies_pb2
@@ -63,7 +64,8 @@ def infer_schema(statistics,
   _check_for_unsupported_stats_fields(statistics.datasets[0], 'statistics')
 
   schema_proto_string = pywrap_tensorflow_data_validation.InferSchema(
-      statistics.datasets[0].SerializeToString(), max_string_domain_size)
+      tf.compat.as_bytes(statistics.datasets[0].SerializeToString()),
+      max_string_domain_size)
 
   # Parse the serialized Schema proto.
   result = schema_pb2.Schema()
@@ -203,8 +205,11 @@ def validate_statistics(
 
   anomalies_proto_string = (
       pywrap_tensorflow_data_validation.ValidateFeatureStatistics(
-          serialized_stats, serialized_schema, environment,
-          serialized_previous_stats, serialized_serving_stats))
+          tf.compat.as_bytes(serialized_stats),
+          tf.compat.as_bytes(serialized_schema),
+          tf.compat.as_bytes(environment),
+          tf.compat.as_bytes(serialized_previous_stats),
+          tf.compat.as_bytes(serialized_serving_stats)))
 
   # Parse the serialized Anomalies proto.
   result = anomalies_pb2.Anomalies()

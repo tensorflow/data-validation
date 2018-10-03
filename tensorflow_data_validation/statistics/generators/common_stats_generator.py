@@ -46,7 +46,7 @@ class _PartialCommonStats(object):
   """Holds partial statistics needed to compute the common statistics
   for a single feature."""
 
-  def __init__(self):
+  def __init__(self, has_weights):
     # The number of examples with at least one value for this feature.
     self.num_non_missing = 0
     # The number of examples with no values for this feature.
@@ -63,10 +63,21 @@ class _PartialCommonStats(object):
     # feature.
     self.num_values_summary = ''
 
+    # Keep track of partial weighted common stats.
+    if has_weights:
+      # The sum of weights of all the examples with at least one value for this
+      # feature.
+      self.weighted_num_non_missing = 0
+      # The sum of weights of all the examples with no values for this feature.
+      self.weighted_num_missing = 0
+      # The sum of weights of all the values for this feature.
+      self.weighted_total_num_values = 0
+
 
 def _update_common_stats(common_stats,
                          value,
-                         feature_name):
+                         feature_name,
+                         weight = None):
   """Update the partial common statistics using the input value."""
   # Check if the input value is a numpy array. If so, we have a non-missing
   # value to process.
@@ -77,6 +88,10 @@ def _update_common_stats(common_stats,
     common_stats.min_num_values = min(common_stats.min_num_values, num_values)
     common_stats.max_num_values = max(common_stats.max_num_values, num_values)
     common_stats.total_num_values += num_values
+
+    if weight is not None:
+      common_stats.weighted_num_non_missing += weight
+      common_stats.weighted_total_num_values += weight * num_values
 
     feature_type = stats_util.make_feature_type(value.dtype)
     if feature_type is None:
@@ -94,6 +109,8 @@ def _update_common_stats(common_stats,
   # We represent a missing value by None.
   elif value is None:
     common_stats.num_missing += 1
+    if weight is not None:
+      common_stats.weighted_num_missing += weight
   else:
     raise TypeError('Feature %s has value of type %s, '
                     'should be numpy.ndarray or None' %
@@ -101,7 +118,8 @@ def _update_common_stats(common_stats,
 
 
 def _merge_common_stats(left, right,
-                        feature_name):
+                        feature_name, has_weights
+                       ):
   """Merge two partial common statistics and return the merged statistics."""
   # Check if the types from the two partial statistics are not compatible.
   # If so, raise an error. We consider types to be compatible if both types
@@ -112,12 +130,20 @@ def _merge_common_stats(left, right,
                     'Found values of types %s and %s.' %
                     (feature_name, left.type, right.type))
 
-  result = _PartialCommonStats()
+  result = _PartialCommonStats(has_weights)
   result.num_non_missing = left.num_non_missing + right.num_non_missing
   result.num_missing = left.num_missing + right.num_missing
   result.min_num_values = min(left.min_num_values, right.min_num_values)
   result.max_num_values = max(left.max_num_values, right.max_num_values)
   result.total_num_values = left.total_num_values + right.total_num_values
+
+  if has_weights:
+    result.weighted_num_non_missing = (left.weighted_num_non_missing +
+                                       right.weighted_num_non_missing)
+    result.weighted_num_missing = (left.weighted_num_missing +
+                                   right.weighted_num_missing)
+    result.weighted_total_num_values = (left.weighted_total_num_values +
+                                        right.weighted_total_num_values)
 
   # Set the type of the merged common stats.
   # Case 1: Both the types are None. We set the merged type to be None.
@@ -133,7 +159,8 @@ def _merge_common_stats(left, right,
 def _make_feature_stats_proto(
     common_stats, feature_name,
     q_combiner,
-    is_categorical):
+    is_categorical, has_weights
+):
   """Convert the partial common stats into a FeatureNameStatistics proto.
 
   Args:
@@ -142,6 +169,7 @@ def _make_feature_stats_proto(
     q_combiner: The quantiles combiner used to construct the quantiles
         histogram for the number of values in the feature.
     is_categorical: A boolean indicating whether the feature is categorical.
+    has_weights: A boolean indicating whether a weight feature is specified.
 
   Returns:
     A statistics_pb2.FeatureNameStatistics proto.
@@ -164,6 +192,21 @@ def _make_feature_stats_proto(
         num_values_quantiles, common_stats.min_num_values,
         common_stats.max_num_values, common_stats.num_non_missing)
     common_stats_proto.num_values_histogram.CopyFrom(histogram)
+
+  # Add weighted common stats to the proto.
+  if has_weights:
+    weighted_common_stats_proto = statistics_pb2.WeightedCommonStatistics(
+        num_non_missing=common_stats.weighted_num_non_missing,
+        num_missing=common_stats.weighted_num_missing,
+        tot_num_values=common_stats.weighted_total_num_values)
+
+    if common_stats.weighted_num_non_missing > 0:
+      weighted_common_stats_proto.avg_num_values = (
+          common_stats.weighted_total_num_values /
+          common_stats.weighted_num_non_missing)
+
+    common_stats_proto.weighted_common_stats.CopyFrom(
+        weighted_common_stats_proto)
 
   # Create a new FeatureNameStatistics proto.
   result = statistics_pb2.FeatureNameStatistics()
@@ -207,6 +250,7 @@ class CommonStatsGenerator(stats_generator.CombinerStatsGenerator):
       self,  # pylint: disable=useless-super-delegation
       name = 'CommonStatsGenerator',
       schema = None,
+      weight_feature = None,
       num_values_histogram_buckets = 10,
       epsilon = 0.01):
     """Initializes a common statistics generator.
@@ -214,6 +258,8 @@ class CommonStatsGenerator(stats_generator.CombinerStatsGenerator):
     Args:
       name: An optional unique name associated with the statistics generator.
       schema: An optional schema for the dataset.
+      weight_feature: An optional feature name whose numeric value represents
+          the weight of an example.
       num_values_histogram_buckets: An optional number of buckets in a quantiles
           histogram for the number of values per Feature, which is stored in
           CommonStatistics.num_values_histogram.
@@ -226,6 +272,7 @@ class CommonStatsGenerator(stats_generator.CombinerStatsGenerator):
     super(CommonStatsGenerator, self).__init__(name, schema)
     self._categorical_features = set(
         stats_util.get_categorical_numeric_features(schema) if schema else [])
+    self._weight_feature = weight_feature
     # Initialize quantiles combiner.
     self._quantiles_combiner = quantiles_util.QuantilesCombiner(
         num_values_histogram_buckets, epsilon)
@@ -241,12 +288,21 @@ class CommonStatsGenerator(stats_generator.CombinerStatsGenerator):
   def add_input(self, accumulator,
                 input_batch
                ):
+    if self._weight_feature:
+      if self._weight_feature not in input_batch:
+        raise ValueError('Weight feature "{}" not present in the input '
+                         'batch.'.format(self._weight_feature))
+      weights = input_batch[self._weight_feature]
+
     # Iterate through each feature and update the partial common stats.
     for feature_name, values in six.iteritems(input_batch):
+      # Skip the weight feature.
+      if feature_name == self._weight_feature:
+        continue
       # If we encounter this feature for the first time, create a
       # new partial common stats.
       if feature_name not in accumulator:
-        partial_stats = _PartialCommonStats()
+        partial_stats = _PartialCommonStats(self._weight_feature is not None)
         # Store empty summary.
         partial_stats.num_values_summary = (
             self._quantiles_combiner.create_accumulator())
@@ -255,8 +311,22 @@ class CommonStatsGenerator(stats_generator.CombinerStatsGenerator):
       # Update the common statistics for every example in the batch.
       num_values = []
 
-      for value in values:
-        _update_common_stats(accumulator[feature_name], value, feature_name)
+      for i, value in enumerate(values):
+        if self._weight_feature:
+          if weights[i] is None:
+            raise ValueError('Weight feature "{}" missing in an '
+                             'example.'.format(self._weight_feature))
+          elif (stats_util.make_feature_type(weights[i].dtype) ==
+                statistics_pb2.FeatureNameStatistics.STRING):
+            raise ValueError('Weight feature "{}" must be of numeric type. '
+                             'Found {}.'.format(
+                                 self._weight_feature, weights[i]))
+          elif weights[i].size != 1:
+            raise ValueError('Weight feature "{}" must have a single value. '
+                             'Found {}.'.format(
+                                 self._weight_feature, weights[i]))
+        _update_common_stats(accumulator[feature_name], value, feature_name,
+                             weights[i][0] if self._weight_feature else None)
         # Keep track of the number of values in non-missing examples.
         if isinstance(value, np.ndarray):
           num_values.append(value.size)
@@ -282,8 +352,9 @@ class CommonStatsGenerator(stats_generator.CombinerStatsGenerator):
         if feature_name not in result:
           result[feature_name] = common_stats
         else:
-          result[feature_name] = _merge_common_stats(result[feature_name],
-                                                     common_stats, feature_name)
+          result[feature_name] = _merge_common_stats(
+              result[feature_name], common_stats, feature_name,
+              self._weight_feature is not None)
 
         # Keep track of summaries per feature.
         num_values_summary_per_feature[feature_name].append(
@@ -309,7 +380,8 @@ class CommonStatsGenerator(stats_generator.CombinerStatsGenerator):
       # common stats.
       feature_stats_proto = _make_feature_stats_proto(
           common_stats, feature_name, self._quantiles_combiner,
-          feature_name in self._categorical_features)
+          feature_name in self._categorical_features,
+          self._weight_feature is not None)
       # Copy the constructed FeatureNameStatistics proto into the
       # DatasetFeatureStatistics proto.
       new_feature_stats_proto = result.features.add()

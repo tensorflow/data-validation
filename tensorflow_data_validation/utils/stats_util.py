@@ -44,8 +44,8 @@ def get_categorical_numeric_features(
   return categorical_features
 
 
-def make_feature_type(
-    dtype):
+def make_feature_type(dtype
+                     ):
   """Get feature type from numpy dtype.
 
   Args:

@@ -64,7 +64,7 @@ def make_dataset_feature_stats_list_proto_equal_fn(
             feature,
             expected_features[feature.name],
             normalize_numbers=True)
-    except AssertionError, e:
+    except AssertionError as e:
       raise util.BeamAssertException('Failed assert: ' + str(e))
 
   return _matcher

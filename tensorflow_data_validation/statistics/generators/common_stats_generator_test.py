@@ -80,6 +80,64 @@ class CommonStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         num_values_histogram_buckets=4)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
+  def test_common_stats_generator_with_weight_feature(self):
+    # input with two batches: first batch has two examples and second batch
+    # has a single example.
+    batches = [{'a': np.array([np.array([1.0, 2.0]),
+                               np.array([3.0, 4.0, 5.0])]),
+                'w': np.array([np.array([1.0]), np.array([2.0])])},
+               {'a': np.array([np.array([1.0,]), None]),
+                'w': np.array([np.array([3.0]), np.array([2.0])])}]
+    expected_result = {
+        'a': text_format.Parse(
+            """
+            name: 'a'
+            type: FLOAT
+            num_stats {
+              common_stats {
+                num_non_missing: 3
+                num_missing: 1
+                min_num_values: 1
+                max_num_values: 3
+                avg_num_values: 2.0
+                tot_num_values: 6
+                num_values_histogram {
+                  buckets {
+                    low_value: 1.0
+                    high_value: 1.0
+                    sample_count: 0.75
+                  }
+                  buckets {
+                    low_value: 1.0
+                    high_value: 2.0
+                    sample_count: 0.75
+                  }
+                  buckets {
+                    low_value: 2.0
+                    high_value: 3.0
+                    sample_count: 0.75
+                  }
+                  buckets {
+                    low_value: 3.0
+                    high_value: 3.0
+                    sample_count: 0.75
+                  }
+                  type: QUANTILES
+                }
+                weighted_common_stats {
+                  num_non_missing: 6.0
+                  num_missing: 2.0
+                  avg_num_values: 1.83333333
+                  tot_num_values: 11.0
+                }
+              }
+            }
+            """, statistics_pb2.FeatureNameStatistics())}
+    generator = common_stats_generator.CommonStatsGenerator(
+        weight_feature='w',
+        num_values_histogram_buckets=4)
+    self.assertCombinerOutputEqual(batches, generator, expected_result)
+
   def test_common_stats_generator_with_entire_feature_value_list_missing(self):
     # input with two batches: first batch has three examples and second batch
     # has two examples.
@@ -415,6 +473,33 @@ class CommonStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     batches = [{'a': np.array([np.array([1+2j])])}]
     generator = common_stats_generator.CommonStatsGenerator()
     with self.assertRaises(TypeError):
+      self.assertCombinerOutputEqual(batches, generator, None)
+
+  def test_common_stats_generator_invalid_weight_feature(self):
+    batches = [{'a': np.array([np.array([1])])}]
+    generator = common_stats_generator.CommonStatsGenerator(weight_feature='w')
+    with self.assertRaisesRegexp(ValueError, 'Weight feature.*not present.*'):
+      self.assertCombinerOutputEqual(batches, generator, None)
+
+  def test_common_stats_generator_weight_feature_missing(self):
+    batches = [{'a': np.array([np.array([1])]),
+                'w': np.array([None])}]
+    generator = common_stats_generator.CommonStatsGenerator(weight_feature='w')
+    with self.assertRaisesRegexp(ValueError, 'Weight feature.*missing.*'):
+      self.assertCombinerOutputEqual(batches, generator, None)
+
+  def test_common_stats_generator_weight_feature_string_type(self):
+    batches = [{'a': np.array([np.array([1])]),
+                'w': np.array([np.array(['a'])])}]
+    generator = common_stats_generator.CommonStatsGenerator(weight_feature='w')
+    with self.assertRaisesRegexp(ValueError, 'Weight feature.*numeric type.*'):
+      self.assertCombinerOutputEqual(batches, generator, None)
+
+  def test_common_stats_generator_weight_feature_multiple_values(self):
+    batches = [{'a': np.array([np.array([1])]),
+                'w': np.array([np.array([2, 3])])}]
+    generator = common_stats_generator.CommonStatsGenerator(weight_feature='w')
+    with self.assertRaisesRegexp(ValueError, 'Weight feature.*single value.*'):
       self.assertCombinerOutputEqual(batches, generator, None)
 
 if __name__ == '__main__':
