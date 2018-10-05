@@ -48,9 +48,9 @@ class ProfileUtilTest(absltest.TestCase):
     ]
 
     expected_distributions = {
-        'int_feature_values_count': [3L, 3L, 3L, 1L],
-        'float_feature_values_count': [2L, 4L, 6L, 2L],
-        'string_feature_values_count': [3L, 4L, 13L, 4L],
+        'int_feature_values_count': [3, 3, 3, 1],
+        'float_feature_values_count': [2, 4, 6, 2],
+        'string_feature_values_count': [3, 4, 13, 4],
     }
     p = beam.Pipeline()
     _ = (
@@ -70,7 +70,7 @@ class ProfileUtilTest(absltest.TestCase):
     counter = result_metrics.query(beam.metrics.metric.MetricsFilter()
                                    .with_name('num_instances'))['counters']
     self.assertEqual(len(counter), 1)
-    self.assertEqual(counter[0].committed, 5L)
+    self.assertEqual(counter[0].committed, 5)
 
     for distribution_name, expected_value in six.iteritems(
         expected_distributions):

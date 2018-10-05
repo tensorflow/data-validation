@@ -21,12 +21,14 @@ from __future__ import division
 
 from __future__ import print_function
 
+import sys
 from absl.testing import absltest
 import apache_beam as beam
 from apache_beam.testing import util
 import numpy as np
 from tensorflow_data_validation import types
 from tensorflow_data_validation.coders import csv_decoder
+from tensorflow_data_validation.types_compat import Callable, List
 
 
 def _make_example_dict_equal_fn(
@@ -58,7 +60,7 @@ def _make_example_dict_equal_fn(
           else:
             test.assertEqual(actual[i][key], expected[i][key])
 
-    except AssertionError, e:
+    except AssertionError as e:
       raise util.BeamAssertException('Failed assert: ' + str(e))
 
   return _matcher
@@ -223,6 +225,76 @@ class CSVDecoderTest(absltest.TestCase):
       result = (p | beam.Create(input_lines) |
                 csv_decoder.DecodeCSV(column_names=column_names,
                                       delimiter='\t'))
+      util.assert_that(
+          result,
+          _make_example_dict_equal_fn(self, expected_result))
+
+  def test_csv_decoder_negative_values(self):
+    input_lines = ['-34', '45']
+    column_names = ['feature']
+    expected_result = [
+        {'feature': np.array([-34], dtype=np.int64)},
+        {'feature': np.array([45], dtype=np.int64)}]
+
+    with beam.Pipeline() as p:
+      result = (p | beam.Create(input_lines) |
+                csv_decoder.DecodeCSV(column_names=column_names))
+      util.assert_that(
+          result,
+          _make_example_dict_equal_fn(self, expected_result))
+
+  def test_csv_decoder_int64_max(self):
+    input_lines = ['34', str(sys.maxsize)]
+    column_names = ['feature']
+    expected_result = [
+        {'feature': np.array([34], dtype=np.int64)},
+        {'feature': np.array([sys.maxsize], dtype=np.int64)}]
+
+    with beam.Pipeline() as p:
+      result = (p | beam.Create(input_lines) |
+                csv_decoder.DecodeCSV(column_names=column_names))
+      util.assert_that(
+          result,
+          _make_example_dict_equal_fn(self, expected_result))
+
+  def test_csv_decoder_large_int_categorical_pos(self):
+    input_lines = ['34', str(sys.maxsize+1)]
+    column_names = ['feature']
+    expected_result = [
+        {'feature': np.array(['34'], dtype=np.object)},
+        {'feature': np.array([str(sys.maxsize+1)], dtype=np.object)}]
+
+    with beam.Pipeline() as p:
+      result = (p | beam.Create(input_lines) |
+                csv_decoder.DecodeCSV(column_names=column_names))
+      util.assert_that(
+          result,
+          _make_example_dict_equal_fn(self, expected_result))
+
+  def test_csv_decoder_large_int_categorical_neg(self):
+    input_lines = ['34', str(-(sys.maxsize+2))]
+    column_names = ['feature']
+    expected_result = [
+        {'feature': np.array(['34'], dtype=np.object)},
+        {'feature': np.array([str(-(sys.maxsize+2))], dtype=np.object)}]
+
+    with beam.Pipeline() as p:
+      result = (p | beam.Create(input_lines) |
+                csv_decoder.DecodeCSV(column_names=column_names))
+      util.assert_that(
+          result,
+          _make_example_dict_equal_fn(self, expected_result))
+
+  def test_csv_decoder_large_int_categorical_pos_and_neg(self):
+    input_lines = [str(sys.maxsize+1), str(-(sys.maxsize+2))]
+    column_names = ['feature']
+    expected_result = [
+        {'feature': np.array([str(sys.maxsize+1)], dtype=np.object)},
+        {'feature': np.array([str(-(sys.maxsize+2))], dtype=np.object)}]
+
+    with beam.Pipeline() as p:
+      result = (p | beam.Create(input_lines) |
+                csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
           _make_example_dict_equal_fn(self, expected_result))

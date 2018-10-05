@@ -16,5 +16,4 @@ tfdv_proto_library(
     name = "validation_config_proto",
     srcs = ["validation_config.proto"],
     cc_api_version = 2,
-    java_api_version = 2,
 )

@@ -199,19 +199,22 @@ def _make_example_dict(
   return [result]
 
 
-def _infer_value_type(
-    value):
+def _infer_value_type(value):
   """Infer feature type from the input value."""
   # If the value is an empty string, we can set the feature type to be
   # either FLOAT or STRING. We conservatively set it to be FLOAT.
   if not value:
     return statistics_pb2.FeatureNameStatistics.FLOAT
 
-  # If all the characters in the value are digits, consider the
-  # type to be INT.
-  if value.isdigit():
-    return statistics_pb2.FeatureNameStatistics.INT
-  else:
+  # Check if the value is of type INT.
+  try:
+    int_or_long_value = int(value)
+    int64_info = np.iinfo(np.int64)
+    if int64_info.min <= int_or_long_value <= int64_info.max:
+      return statistics_pb2.FeatureNameStatistics.INT
+    # We infer STRING type when we have long integer values.
+    return statistics_pb2.FeatureNameStatistics.STRING
+  except ValueError:
     # If the type is not INT, we next check for FLOAT type (according to our
     # type hierarchy). If we can convert the string to a float value, we
     # fix the type to be FLOAT. Else we resort to STRING type.
@@ -219,12 +222,10 @@ def _infer_value_type(
       float(value)
     except ValueError:
       return statistics_pb2.FeatureNameStatistics.STRING
-
     return statistics_pb2.FeatureNameStatistics.FLOAT
 
 
-def _type_hierarchy_level(
-    feature_type):
+def _type_hierarchy_level(feature_type):
   """Get level of the input type in the type hierarchy.
 
   Our type hierarchy is as follows,
@@ -263,7 +264,8 @@ class _FeatureTypeInferrer(beam.CombineFn):
     return {}
 
   def add_input(
-      self, accumulator,
+      self,
+      accumulator,
       input_row
   ):
     """Updates the feature types in the accumulator using the input row.
@@ -306,7 +308,8 @@ class _FeatureTypeInferrer(beam.CombineFn):
     return accumulator
 
   def merge_accumulators(
-      self, accumulators
+      self,
+      accumulators
   ):
     """Merge the feature types inferred from the different partitions.
 
@@ -329,8 +332,10 @@ class _FeatureTypeInferrer(beam.CombineFn):
           result[feature_name] = feature_type
     return result
 
-  def extract_output(self, accumulator
-                    ):
+  def extract_output(
+      self,
+      accumulator
+  ):
     """Return a list of tuples containing the column info."""
     return [
         ColumnInfo(col_name, accumulator.get(col_name, None))

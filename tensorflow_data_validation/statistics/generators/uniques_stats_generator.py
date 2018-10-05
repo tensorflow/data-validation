@@ -105,7 +105,9 @@ class _UniquesStatsGeneratorImpl(beam.PTransform):
         (beam.FlatMap(self._filter_irrelevant_features).with_output_types(
             beam.typehints.KV[types.BeamFeatureName, np.ndarray]))
         | 'Uniques_FlattenToFeatureNameValueTuples' >>
-        beam.FlatMap(lambda x: [(x[0], value) for value in x[1]])
+        beam.FlatMap(lambda name_and_value_list:  # pylint: disable=g-long-lambda
+                     [(name_and_value_list[0], value)
+                      for value in name_and_value_list[1]])
         | 'Uniques_CountFeatureNameValueTuple' >>
         beam.combiners.Count().PerElement()
         # Drop the values to only have the feature_name with each repeated the

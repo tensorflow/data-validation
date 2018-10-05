@@ -53,7 +53,8 @@ class _ProfileFn(beam.DoFn):
         METRICS_NAMESPACE, 'unknown_feature_values_count')
 
   def process(self,
-              element):
+              element
+             ):
     self._num_instances.inc(1)
     for _, value in six.iteritems(element):
       if not isinstance(value, np.ndarray):
