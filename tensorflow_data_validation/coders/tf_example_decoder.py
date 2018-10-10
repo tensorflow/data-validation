@@ -19,6 +19,7 @@ from __future__ import division
 
 from __future__ import print_function
 
+import apache_beam as beam
 import numpy as np
 import tensorflow as tf
 from tensorflow_data_validation import types
@@ -40,8 +41,7 @@ def _convert_to_numpy_array(feature):
 
 
 class TFExampleDecoder(object):
-  """A decoder for decoding TF examples into tf data validation datasets.
-  """
+  """A decoder for decoding TF examples into tf data validation datasets."""
 
   def decode(self, serialized_example_proto):
     """Decodes serialized tf.Example to tf data validation input dict."""
@@ -52,3 +52,19 @@ class TFExampleDecoder(object):
         feature_name: _convert_to_numpy_array(feature_map[feature_name])
         for feature_name in feature_map
     }
+
+
+class DecodeTFExample(beam.PTransform):
+  """Decodes TF examples into an in-memory dict representation. """
+
+  def expand(self, examples):
+    """Decodes the TF examples into an in-memory dict representation.
+
+    Args:
+      examples: A PCollection of strings representing the TF examples.
+
+    Returns:
+      A PCollection of dicts representing the TF examples.
+    """
+    return (examples | 'ParseTFExamples' >> beam.Map(
+            TFExampleDecoder().decode))
