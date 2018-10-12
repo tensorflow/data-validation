@@ -44,8 +44,7 @@ protocol buffer. The [example notebook](https://nbviewer.jupyter.org/github/tens
 
 The previous example assumes that the data is stored in a `TFRecord` file. TFDV
 also supports CSV input format, with extensibility for other common formats.
-You can find the available data decoders [here]
-(https://github.com/tensorflow/data-validation/tree/master/tensorflow_data_validation/coders).
+You can find the available data decoders [here](https://github.com/tensorflow/data-validation/tree/master/tensorflow_data_validation/coders).
 
 ### Running on Google Cloud
 
