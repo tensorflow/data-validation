@@ -18,9 +18,11 @@ from __future__ import print_function
 
 from absl.testing import absltest
 import apache_beam as beam
+from apache_beam.testing import util
 import numpy as np
 import tensorflow as tf
 from tensorflow_data_validation.coders import tf_example_decoder
+from tensorflow_data_validation.coders.decoder_test_util import _make_example_dict_equal_fn
 
 from google.protobuf import text_format
 
@@ -128,11 +130,11 @@ class TFExampleDecoderTest(absltest.TestCase):
     text_format.Merge(example_proto_text, example)
     with beam.Pipeline() as p:
       result = (p
-        | beam.Create([example.SerializeToString()])
-        | tf_example_decoder.DecodeTFExample()
-        | beam.FlatMap(
-          lambda decoded_example: np.testing.assert_equal(
-            decoded_example, expected_decoded)))
+               | beam.Create([example.SerializeToString()])
+               | tf_example_decoder.DecodeTFExample())
+      util.assert_that(
+            result,
+            _make_example_dict_equal_fn(self, [expected_decoded]))
 
 
 if __name__ == '__main__':

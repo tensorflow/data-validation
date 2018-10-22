@@ -28,42 +28,8 @@ from apache_beam.testing import util
 import numpy as np
 from tensorflow_data_validation import types
 from tensorflow_data_validation.coders import csv_decoder
+from tensorflow_data_validation.coders.decoder_test_util import _make_example_dict_equal_fn
 from tensorflow_data_validation.types_compat import Callable, List
-
-
-def _make_example_dict_equal_fn(
-    test,
-    expected
-):
-  """Makes a matcher function for comparing the example dict.
-
-  Args:
-    test: test case object.
-    expected: the expected example dict.
-
-  Returns:
-    A matcher function for comparing the example dicts.
-  """
-
-  def _matcher(actual):
-    """Matcher function for comparing the example dicts."""
-    try:
-      # Check number of examples.
-      test.assertEqual(len(actual), len(expected))
-
-      for i in range(len(actual)):
-        for key in actual[i]:
-          # Check each feature value.
-          if isinstance(expected[i][key], np.ndarray):
-            test.assertEqual(actual[i][key].dtype, expected[i][key].dtype)
-            np.testing.assert_equal(actual[i][key], expected[i][key])
-          else:
-            test.assertEqual(actual[i][key], expected[i][key])
-
-    except AssertionError as e:
-      raise util.BeamAssertException('Failed assert: ' + str(e))
-
-  return _matcher
 
 
 class CSVDecoderTest(absltest.TestCase):

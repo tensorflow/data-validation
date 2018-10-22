@@ -60,7 +60,7 @@ class DecodeTFExample(beam.PTransform):
   """Decodes TF examples into an in-memory dict representation. """
 
   def __init__(self):
-   """Initializes DecodeTFExample ptransform."""
+    """Initializes DecodeTFExample ptransform."""
     self._decoder = TFExampleDecoder()
 
   def expand(self, examples):
