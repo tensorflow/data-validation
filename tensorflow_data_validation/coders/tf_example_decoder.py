@@ -40,6 +40,8 @@ def _convert_to_numpy_array(feature):
     return np.array([], dtype=np.object)
 
 
+@beam.typehints.with_input_types(bytes)
+@beam.typehints.with_output_types(types.ExampleBatch)
 class TFExampleDecoder(object):
   """A decoder for decoding TF examples into tf data validation datasets."""
 
@@ -57,6 +59,10 @@ class TFExampleDecoder(object):
 class DecodeTFExample(beam.PTransform):
   """Decodes TF examples into an in-memory dict representation. """
 
+  def __init__(self):
+   """Initializes DecodeTFExample ptransform."""
+    self._decoder = TFExampleDecoder()
+
   def expand(self, examples):
     """Decodes the TF examples into an in-memory dict representation.
 
@@ -67,4 +73,4 @@ class DecodeTFExample(beam.PTransform):
       A PCollection of dicts representing the TF examples.
     """
     return (examples | 'ParseTFExamples' >> beam.Map(
-            TFExampleDecoder().decode))
+            self._decoder.decode))
