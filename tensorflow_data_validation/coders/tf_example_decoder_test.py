@@ -22,7 +22,7 @@ from apache_beam.testing import util
 import numpy as np
 import tensorflow as tf
 from tensorflow_data_validation.coders import tf_example_decoder
-from tensorflow_data_validation.coders.decoder_test_util import _make_example_dict_equal_fn
+from tensorflow_data_validation.utils import test_util
 
 from google.protobuf import text_format
 
@@ -134,7 +134,7 @@ class TFExampleDecoderTest(absltest.TestCase):
                | tf_example_decoder.DecodeTFExample())
       util.assert_that(
             result,
-            _make_example_dict_equal_fn(self, [expected_decoded]))
+            test_util._make_example_dict_equal_fn(self, [expected_decoded]))
 
 
 if __name__ == '__main__':
