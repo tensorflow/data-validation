@@ -30,7 +30,7 @@ from tensorflow.python.util.protobuf import compare
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
-def _make_example_dict_equal_fn(
+def make_example_dict_equal_fn(
     test,
     expected
 ):

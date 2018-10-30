@@ -134,7 +134,7 @@ class TFExampleDecoderTest(absltest.TestCase):
                | tf_example_decoder.DecodeTFExample())
       util.assert_that(
             result,
-            test_util._make_example_dict_equal_fn(self, [expected_decoded]))
+            test_util.make_example_dict_equal_fn(self, [expected_decoded]))
 
 
 if __name__ == '__main__':
