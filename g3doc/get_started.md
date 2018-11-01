@@ -149,7 +149,7 @@ and can thus be updated/edited using the standard protocol-buffer API. TFDV also
 provides a [few utility methods](https://github.com/tensorflow/data-validation/tree/master/tensorflow_data_validation/utils/schema_util.py)
  to make these updates easier. For instance,
 suppose that the schema contains the following stanza to describe a required
-string feature `device` that takes a single value:
+string feature `payment_type` that takes a single value:
 
 ```json
 feature {
