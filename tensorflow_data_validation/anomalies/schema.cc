@@ -30,6 +30,8 @@ limitations under the License.
 #include "tensorflow_data_validation/anomalies/int_domain_util.h"
 #include "tensorflow_data_validation/anomalies/internal_types.h"
 #include "tensorflow_data_validation/anomalies/map_util.h"
+#include "tensorflow_data_validation/anomalies/path.h"
+#include "tensorflow_data_validation/anomalies/schema_util.h"
 #include "tensorflow_data_validation/anomalies/statistics_view.h"
 #include "tensorflow_data_validation/anomalies/string_domain_util.h"
 #include "tensorflow/core/lib/core/errors.h"
@@ -73,11 +75,14 @@ std::set<tensorflow::metadata::v0::FeatureType> AllowedFeatureTypes(
       return {tensorflow::metadata::v0::FLOAT, tensorflow::metadata::v0::BYTES};
     case Feature::kStringDomain:
       return {tensorflow::metadata::v0::BYTES};
+    case Feature::kStructDomain:
+      return {tensorflow::metadata::v0::STRUCT};
     case Feature::DOMAIN_INFO_NOT_SET:
       ABSL_FALLTHROUGH_INTENDED;
     default:
       return {tensorflow::metadata::v0::INT, tensorflow::metadata::v0::FLOAT,
-              tensorflow::metadata::v0::BYTES};
+              tensorflow::metadata::v0::BYTES,
+              tensorflow::metadata::v0::STRUCT};
   }
 }
 
@@ -100,6 +105,38 @@ int RemoveIf(::tensorflow::protobuf::RepeatedPtrField<T>* array,
   return end - i;
 }
 
+Feature* GetExistingFeatureHelper(
+    const string& last_part,
+    tensorflow::protobuf::RepeatedPtrField<Feature>* features) {
+  for (tensorflow::metadata::v0::Feature& feature : *features) {
+    if (feature.name() == last_part) {
+      return &feature;
+    }
+  }
+  return nullptr;
+}
+
+SparseFeature* GetExistingSparseFeatureHelper(
+    const string& name,
+    tensorflow::protobuf::RepeatedPtrField<
+        tensorflow::metadata::v0::SparseFeature>* sparse_features) {
+  for (SparseFeature& sparse_feature : *sparse_features) {
+    if (sparse_feature.name() == name) {
+      return &sparse_feature;
+    }
+  }
+  return nullptr;
+}
+
+// absl::nullopt is the set of all paths.
+bool ContainsPath(const absl::optional<std::set<Path>>& paths_to_consider,
+                  const Path& path) {
+  if (!paths_to_consider) {
+    return true;
+  }
+  return ContainsKey(*paths_to_consider, path);
+}
+
 }  // namespace
 
 Status Schema::Init(const tensorflow::metadata::v0::Schema& input) {
@@ -116,7 +153,7 @@ tensorflow::Status Schema::Update(
     tensorflow::metadata::v0::AnomalyInfo::Severity* severity) {
   *severity = tensorflow::metadata::v0::AnomalyInfo::UNKNOWN;
 
-  Feature* feature = GetExistingFeature(feature_stats_view.name());
+  Feature* feature = GetExistingFeature(feature_stats_view.GetPath());
 
 
   if (feature != nullptr) {
@@ -128,64 +165,88 @@ tensorflow::Status Schema::Update(
   } else {
     const Description description = {
         tensorflow::metadata::v0::AnomalyInfo::SCHEMA_NEW_COLUMN, "New column",
-        absl::StrCat("New column (column in data but not in schema): ",
-                     feature_stats_view.name())};
+        "New column (column in data but not in schema)"};
     *descriptions = {description};
     return updater.CreateColumn(feature_stats_view, this, severity);
   }
   return Status::OK();
 }
 
-void Schema::DeprecateFeature(const string& feature_name) {
+bool Schema::FeatureIsDeprecated(const Path& path) {
+  Feature* feature = GetExistingFeature(path);
+  if (feature == nullptr) {
+    SparseFeature* sparse_feature = GetExistingSparseFeature(path);
+    if (sparse_feature != nullptr) {
+      return ::tensorflow::data_validation::SparseFeatureIsDeprecated(
+          *sparse_feature);
+    }
+    // Here, the result is undefined.
+    return false;
+  }
+  return ::tensorflow::data_validation::FeatureIsDeprecated(*feature);
+}
+
+void Schema::DeprecateFeature(const Path& path) {
   ::tensorflow::data_validation::DeprecateFeature(
-      CHECK_NOTNULL(GetExistingFeature(feature_name)));
+      CHECK_NOTNULL(GetExistingFeature(path)));
 }
 
-Status Schema::Update(const DatasetStatsView& statistics,
-                      const FeatureStatisticsToProtoConfig& config) {
-  const Updater factory(config);
-  for (const auto& feature_stats_view : statistics.features()) {
-    std::vector<Description> dummy_descriptions;
-    tensorflow::metadata::v0::AnomalyInfo::Severity dummy_severity;
-    // As a side-effect, this may be creating string_domains.
-    TF_RETURN_IF_ERROR(Update(factory, feature_stats_view, &dummy_descriptions,
-                              &dummy_severity));
+Status Schema::UpdateRecursively(
+    const Updater& updater, const FeatureStatsView& feature_stats_view,
+    const absl::optional<std::set<Path>>& paths_to_consider,
+    std::vector<Description>* descriptions,
+    tensorflow::metadata::v0::AnomalyInfo::Severity* severity) {
+  *severity = tensorflow::metadata::v0::AnomalyInfo::UNKNOWN;
+  if (!ContainsPath(paths_to_consider, feature_stats_view.GetPath())) {
+    return Status::OK();
   }
-  for (const string& missing_column : GetMissingColumns(statistics)) {
-    DeprecateFeature(missing_column);
-  }
-  return Status::OK();
-}
-
-Status Schema::Update(const DatasetStatsView& statistics,
-                      const FeatureStatisticsToProtoConfig& config,
-                      const std::vector<string>& columns_to_consider) {
-  Updater factory(config);
-  for (const string& column_name : columns_to_consider) {
-    absl::optional<FeatureStatsView> feature_stats_view =
-        statistics.GetByName(column_name);
-    if (feature_stats_view) {
-      std::vector<Description> dummy_descriptions;
-      tensorflow::metadata::v0::AnomalyInfo::Severity dummy_severity;
-      TF_RETURN_IF_ERROR(Update(factory, *feature_stats_view,
-                                &dummy_descriptions, &dummy_severity));
-    } else {
-      Feature* feature = GetExistingFeature(column_name);
-      if (feature != nullptr) {
-        // A column present in the schema but absent from the statistics.
-        // Deprecate it if it is required to be there.
-        if (IsExistenceRequired(*feature, statistics.environment())) {
-          ::tensorflow::data_validation::DeprecateFeature(feature);
-        }
-      } else {
-        // There is a column specified that is neither present in the schema,
-        // nor present in the statistics. For now, we'll ignore this case.
-        LOG(ERROR) << "Warning: requested update of " << column_name
-                   << " that is neither in the statistics nor in the schema.";
-      }
+  TF_RETURN_IF_ERROR(
+      Update(updater, feature_stats_view, descriptions, severity));
+  if (!FeatureIsDeprecated(feature_stats_view.GetPath())) {
+    for (const FeatureStatsView& child : feature_stats_view.GetChildren()) {
+      std::vector<Description> child_descriptions;
+      tensorflow::metadata::v0::AnomalyInfo::Severity child_severity;
+      TF_RETURN_IF_ERROR(UpdateRecursively(updater, child, paths_to_consider,
+                                           &child_descriptions,
+                                           &child_severity));
+      descriptions->insert(descriptions->end(), child_descriptions.begin(),
+                           child_descriptions.end());
+      *severity = MaxSeverity(child_severity, *severity);
     }
   }
   return Status::OK();
+}
+
+Status Schema::Update(const DatasetStatsView& dataset_stats,
+                      const FeatureStatisticsToProtoConfig& config) {
+  return Update(dataset_stats, Updater(config), absl::nullopt);
+}
+
+Status Schema::Update(const DatasetStatsView& dataset_stats,
+                      const Updater& updater,
+                      const absl::optional<std::set<Path>>& paths_to_consider) {
+  std::vector<Description> dummy_descriptions;
+  tensorflow::metadata::v0::AnomalyInfo::Severity dummy_severity;
+
+  for (const auto& feature_stats_view : dataset_stats.GetRootFeatures()) {
+    TF_RETURN_IF_ERROR(UpdateRecursively(updater, feature_stats_view,
+                                         paths_to_consider, &dummy_descriptions,
+                                         &dummy_severity));
+  }
+  for (const Path& missing_path : GetMissingPaths(dataset_stats)) {
+    if (ContainsPath(paths_to_consider, missing_path)) {
+      DeprecateFeature(missing_path);
+    }
+  }
+  return Status::OK();
+}
+
+Status Schema::Update(const DatasetStatsView& dataset_stats,
+                      const FeatureStatisticsToProtoConfig& config,
+                      const std::vector<Path>& paths_to_consider) {
+  return Update(
+      dataset_stats, Updater(config),
+      std::set<Path>(paths_to_consider.begin(), paths_to_consider.end()));
 }
 
 Schema::Updater::Updater(const FeatureStatisticsToProtoConfig& config)
@@ -202,7 +263,7 @@ Schema::Updater::Updater(const FeatureStatisticsToProtoConfig& config)
 Status Schema::Updater::CreateColumn(
     const FeatureStatsView& feature_stats_view, Schema* schema,
     tensorflow::metadata::v0::AnomalyInfo::Severity* severity) const {
-  if (schema->GetExistingFeature(feature_stats_view.name()) != nullptr) {
+  if (schema->GetExistingFeature(feature_stats_view.GetPath()) != nullptr) {
     return InvalidArgument("Schema already contains \"",
                            feature_stats_view.name(), "\".");
   }
@@ -211,11 +272,12 @@ Status Schema::Updater::CreateColumn(
                   ? tensorflow::metadata::v0::AnomalyInfo::WARNING
                   : tensorflow::metadata::v0::AnomalyInfo::ERROR;
 
-  Feature* feature = schema->GetNewFeature(feature_stats_view.name());
+  Feature* feature = schema->GetNewFeature(feature_stats_view.GetPath());
 
   feature->set_type(feature_stats_view.GetFeatureType());
   InitValueCountAndPresence(feature_stats_view, feature);
-  if (ContainsKey(columns_to_ignore_, feature_stats_view.name())) {
+  if (ContainsKey(columns_to_ignore_,
+                  feature_stats_view.GetPath().Serialize())) {
     ::tensorflow::data_validation::DeprecateFeature(feature);
     return Status::OK();
   }
@@ -312,52 +374,76 @@ std::vector<std::set<string>> Schema::SimilarEnumTypes(
   return result;
 }
 
-std::vector<string> Schema::GetMissingColumns(
-    const DatasetStatsView& statistics) const {
-  std::set<string> columns_present;
-  for (const FeatureStatsView& feature_stats_view : statistics.features()) {
-    columns_present.insert(feature_stats_view.name());
-  }
-  std::vector<string> columns_absent;
-
-  for (const Feature& feature : schema_.feature()) {
-    if (IsExistenceRequired(feature, statistics.environment()) &&
-        !ContainsKey(columns_present, feature.name())) {
-      columns_absent.push_back(feature.name());
+std::vector<Path> Schema::GetAllRequiredFeatures(
+    const Path& prefix,
+    const tensorflow::protobuf::RepeatedPtrField<Feature>& features,
+    const absl::optional<string>& environment) const {
+  // This recursively walks through the structure. Sometimes, a feature is
+  // not required because its parent is deprecated.
+  std::vector<Path> result;
+  for (const Feature& feature : features) {
+    const Path child_path = prefix.GetChild(feature.name());
+    if (IsExistenceRequired(feature, environment)) {
+      result.push_back(child_path);
     }
-  }
-  return columns_absent;
-}
-
-std::map<string, std::set<string>> Schema::EnumNameToColumns() const {
-  std::map<string, std::set<string>> result;
-  for (const Feature& feature : schema_.feature()) {
-    if (feature.has_domain()) {
-      result[feature.domain()].insert(feature.name());
+    // There is an odd semantics here. Here, if a child feature is required,
+    // but the parent is not, we could have an anomaly for the missing child
+    // feature, even though it is the parent that is actually missing.
+    if (!::tensorflow::data_validation::FeatureIsDeprecated(feature)) {
+      std::vector<Path> descendants = GetAllRequiredFeatures(
+          child_path, feature.struct_domain().feature(), environment);
+      result.insert(result.end(), descendants.begin(), descendants.end());
     }
   }
   return result;
 }
 
-Status Schema::GetRelatedEnums(const DatasetStatsView& statistics,
+std::vector<Path> Schema::GetMissingPaths(
+    const DatasetStatsView& dataset_stats) {
+  std::set<Path> paths_present;
+  for (const FeatureStatsView& feature_stats_view : dataset_stats.features()) {
+    paths_present.insert(feature_stats_view.GetPath());
+  }
+  std::vector<Path> paths_absent;
+
+  for (const Path& path : GetAllRequiredFeatures(Path(), schema_.feature(),
+                                                 dataset_stats.environment())) {
+    if (!ContainsKey(paths_present, path)) {
+      paths_absent.push_back(path);
+    }
+  }
+  return paths_absent;
+}
+
+std::map<string, std::set<Path>> Schema::EnumNameToPaths() const {
+  std::map<string, std::set<Path>> result;
+  for (const Feature& feature : schema_.feature()) {
+    if (feature.has_domain()) {
+      result[feature.domain()].insert(Path({feature.name()}));
+    }
+  }
+  return result;
+}
+
+Status Schema::GetRelatedEnums(const DatasetStatsView& dataset_stats,
                                FeatureStatisticsToProtoConfig* config) {
   Schema schema;
-  TF_RETURN_IF_ERROR(schema.Update(statistics, *config));
+  TF_RETURN_IF_ERROR(schema.Update(dataset_stats, *config));
 
   std::vector<std::set<string>> similar_enums =
       schema.SimilarEnumTypes(config->enums_similar_config());
-  // Map the enum names to the column names.
-  const std::map<string, std::set<string>> enum_name_to_columns =
-      schema.EnumNameToColumns();
+  // Map the enum names to the paths.
+  const std::map<string, std::set<Path>> enum_name_to_paths =
+      schema.EnumNameToPaths();
   for (const std::set<string>& set : similar_enums) {
     if (set.empty()) {
       return Internal("Schema::SimilarEnumTypes returned an empty set.");
     }
     ColumnConstraint* column_constraint = config->add_column_constraint();
     for (const string& enum_name : set) {
-      if (ContainsKey(enum_name_to_columns, enum_name)) {
-        for (const auto& column : enum_name_to_columns.at(enum_name)) {
-          *column_constraint->add_column_name() = column;
+      if (ContainsKey(enum_name_to_paths, enum_name)) {
+        for (const auto& column : enum_name_to_paths.at(enum_name)) {
+          *column_constraint->add_column_name() = column.Serialize();
         }
       }
     }
@@ -375,28 +461,62 @@ Status Schema::GetRelatedEnums(const DatasetStatsView& statistics,
 
 tensorflow::metadata::v0::Schema Schema::GetSchema() const { return schema_; }
 
-Feature* Schema::GetExistingFeature(const string& name) {
-  for (Feature& feature : *schema_.mutable_feature()) {
-    if (feature.name() == name) {
-      return &feature;
+bool Schema::FeatureExists(const Path& path) {
+  return GetExistingFeature(path) != nullptr ||
+         GetExistingSparseFeature(path) != nullptr;
+}
+
+Feature* Schema::GetExistingFeature(const Path& path) {
+  if (path.size() == 1) {
+    return GetExistingFeatureHelper(path.last_step(),
+                                    schema_.mutable_feature());
+  } else {
+    Path parent = path.GetParent();
+    Feature* parent_feature = GetExistingFeature(parent);
+    if (parent_feature == nullptr) {
+      return nullptr;
     }
+    if (!parent_feature->has_struct_domain()) {
+      return nullptr;
+    }
+    return GetExistingFeatureHelper(
+        path.last_step(),
+        parent_feature->mutable_struct_domain()->mutable_feature());
   }
   return nullptr;
 }
 
-SparseFeature* Schema::GetExistingSparseFeature(const string& name) {
-  for (SparseFeature& sparse_feature : *schema_.mutable_sparse_feature()) {
-    if (sparse_feature.name() == name) {
-      return &sparse_feature;
+SparseFeature* Schema::GetExistingSparseFeature(const Path& path) {
+  CHECK(!path.empty());
+  if (path.size() == 1) {
+    return GetExistingSparseFeatureHelper(path.last_step(),
+                                          schema_.mutable_sparse_feature());
+  } else {
+    Feature* parent_feature = GetExistingFeature(path.GetParent());
+    if (parent_feature == nullptr) {
+      return nullptr;
     }
+    if (!parent_feature->has_struct_domain()) {
+      return nullptr;
+    }
+    return GetExistingSparseFeatureHelper(
+        path.last_step(),
+        parent_feature->mutable_struct_domain()->mutable_sparse_feature());
   }
-  return nullptr;
 }
-
-Feature* Schema::GetNewFeature(const string& name) {
-  Feature* result = schema_.add_feature();
-  *result->mutable_name() = name;
-  return result;
+Feature* Schema::GetNewFeature(const Path& path) {
+  CHECK(!path.empty());
+  if (path.size() > 1) {
+    Path parent = path.GetParent();
+    Feature* parent_feature = CHECK_NOTNULL(GetExistingFeature(parent));
+    Feature* result = parent_feature->mutable_struct_domain()->add_feature();
+    *result->mutable_name() = path.last_step();
+    return result;
+  } else {
+    Feature* result = schema_.add_feature();
+    *result->mutable_name() = path.last_step();
+    return result;
+  }
 }
 
 bool Schema::IsFeatureInEnvironment(
@@ -494,6 +614,7 @@ std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
     descriptions.push_back({tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
                             "The domain does not match the type"});
   }
+
   switch (feature->domain_info_case()) {
     case Feature::kDomain:
       if (GetExistingStringDomain(feature->domain()) == nullptr) {
@@ -532,6 +653,14 @@ std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
     case tensorflow::metadata::v0::Feature::kStringDomain:
       UpdateStringDomainSelf(feature->mutable_string_domain());
       break;
+    case tensorflow::metadata::v0::Feature::kStructDomain:
+      if (feature->has_distribution_constraints()) {
+        feature->clear_distribution_constraints();
+        descriptions.push_back(
+            {tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
+             "distribution constraints not supported for struct domains."});
+      }
+      break;
     case tensorflow::metadata::v0::Domain::DOMAIN_INFO_NOT_SET:
       if (feature->has_distribution_constraints()) {
         feature->clear_distribution_constraints();
@@ -553,7 +682,7 @@ std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
 
 std::vector<Description> Schema::UpdateSkewComparator(
     const FeatureStatsView& feature_stats_view) {
-  Feature* feature = GetExistingFeature(feature_stats_view.name());
+  Feature* feature = GetExistingFeature(feature_stats_view.GetPath());
   if (feature != nullptr &&
       FeatureHasComparator(*feature, ComparatorType::SKEW)) {
     return UpdateFeatureComparatorDirect(
@@ -573,7 +702,7 @@ std::vector<Description> Schema::UpdateFeatureInternal(
   }
 
   // This is to cover the rare case where there is actually no examples with
-  // this feature, but there is still a statistics object.
+  // this feature, but there is still a dataset_stats object.
   const bool feature_missing = view.GetNumPresent() == 0;
 
   // If the feature is missing, but should be present, create an anomaly.
@@ -590,8 +719,8 @@ std::vector<Description> Schema::UpdateFeatureInternal(
     }
   }
 
-  // If the feature is present in the statistics and the schema, but is
-  // excluded from the environment of the statistics, then add it to that
+  // If the feature is present in the dataset_stats and the schema, but is
+  // excluded from the environment of the dataset_stats, then add it to that
   // environment.
   if (!feature_missing &&
       !IsFeatureInEnvironment(*feature, view.environment())) {
@@ -707,6 +836,9 @@ std::vector<Description> Schema::UpdateFeatureInternal(
           ::tensorflow::data_validation::GetMaxOffDomain(
               feature->distribution_constraints()),
           feature->mutable_string_domain()));
+      break;
+    case Feature::kStructDomain:
+      // struct_domain is handled recursively.
       break;
     case tensorflow::metadata::v0::Feature::DOMAIN_INFO_NOT_SET:
       // Nothing to check here.

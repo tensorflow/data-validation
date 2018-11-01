@@ -66,7 +66,7 @@ class QuantilesUtilTest(absltest.TestCase):
   def test_generate_quantiles_histogram(self):
     result = quantiles_util.generate_quantiles_histogram(
         quantiles=np.array([61.0, 121.0, 181.0, 241.0], dtype=np.float32),
-        min_val=1.0, max_val=300.0, total_count=300.0)
+        min_val=1.0, max_val=300.0, total_count=300.0, num_buckets=5)
     expected_result = text_format.Parse(
         """
         buckets {
@@ -93,6 +93,63 @@ class QuantilesUtilTest(absltest.TestCase):
           low_value: 241.0
           high_value: 300.0
           sample_count: 60.0
+        }
+        type: QUANTILES
+        """, statistics_pb2.Histogram())
+    self.assertEqual(result, expected_result)
+
+  def test_generate_quantiles_histogram_diff_num_buckets_multiple(self):
+    result = quantiles_util.generate_quantiles_histogram(
+        quantiles=np.array([61.0, 121.0, 181.0, 241.0, 301.0],
+                           dtype=np.float32),
+        min_val=1.0, max_val=360.0, total_count=360.0, num_buckets=3)
+    expected_result = text_format.Parse(
+        """
+        buckets {
+          low_value: 1.0
+          high_value: 121.0
+          sample_count: 120.0
+        }
+        buckets {
+          low_value: 121.0
+          high_value: 241.0
+          sample_count: 120.0
+        }
+        buckets {
+          low_value: 241.0
+          high_value: 360.0
+          sample_count: 120.0
+        }
+        type: QUANTILES
+        """, statistics_pb2.Histogram())
+    self.assertEqual(result, expected_result)
+
+  def test_generate_quantiles_histogram_diff_num_buckets_non_multiple(self):
+    result = quantiles_util.generate_quantiles_histogram(
+        quantiles=np.array([61.0, 121.0, 181.0, 241.0],
+                           dtype=np.float32),
+        min_val=1.0, max_val=300.0, total_count=300.0, num_buckets=4)
+    expected_result = text_format.Parse(
+        """
+        buckets {
+          low_value: 1.0
+          high_value: 76.0
+          sample_count: 75.0
+        }
+        buckets {
+          low_value: 76.0
+          high_value: 151.0
+          sample_count: 75.0
+        }
+        buckets {
+          low_value: 151.0
+          high_value: 226.0
+          sample_count: 75.0
+        }
+        buckets {
+          low_value: 226.0
+          high_value: 300.0
+          sample_count: 75.0
         }
         type: QUANTILES
         """, statistics_pb2.Histogram())

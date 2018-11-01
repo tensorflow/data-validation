@@ -72,6 +72,7 @@ setup(
         # Dependencies needed for visualization.
         'IPython>=5.0,<6',
         'pandas>=0.18,<1',
+
     ],
     python_requires='>=2.7,<3',
     packages=find_packages(),

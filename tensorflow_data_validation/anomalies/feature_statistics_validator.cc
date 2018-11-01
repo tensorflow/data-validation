@@ -33,7 +33,15 @@ using tensorflow::metadata::v0::DatasetFeatureStatistics;
 namespace tensorflow {
 namespace data_validation {
 
+namespace {
 const int64 kDefaultEnumThreshold = 400;
+
+template<typename T>
+    absl::optional<T> ToAbslOptional(gtl::optional<T> opt) {
+  if (!opt) return absl::nullopt;
+  return std::move(opt).value();
+}
+}
 
 FeatureStatisticsToProtoConfig GetDefaultFeatureStatisticsToProtoConfig() {
   FeatureStatisticsToProtoConfig feature_statistics_to_proto_config;
@@ -41,17 +49,6 @@ FeatureStatisticsToProtoConfig GetDefaultFeatureStatisticsToProtoConfig() {
   return feature_statistics_to_proto_config;
 }
 
-tensorflow::Status UpdateSchema(
-    const FeatureStatisticsToProtoConfig& feature_statistics_to_proto_config,
-    const ValidationConfig& validation_config,
-    const tensorflow::metadata::v0::DatasetFeatureStatistics&
-        feature_statistics,
-    const tensorflow::gtl::optional<string>& environment,
-    tensorflow::metadata::v0::Schema* schema_to_update) {
-  return UpdateSchema(feature_statistics_to_proto_config, *schema_to_update,
-                      feature_statistics, tensorflow::gtl::nullopt, environment,
-                      schema_to_update);
-}
 
 tensorflow::Status InferSchema(const string& feature_statistics_proto_string,
                                const int max_string_domain_size,
@@ -64,10 +61,11 @@ tensorflow::Status InferSchema(const string& feature_statistics_proto_string,
   FeatureStatisticsToProtoConfig feature_statistics_to_proto_config;
   feature_statistics_to_proto_config.set_enum_threshold(max_string_domain_size);
   tensorflow::metadata::v0::Schema schema;
-  TF_RETURN_IF_ERROR(UpdateSchema(feature_statistics_to_proto_config,
-                                  ValidationConfig(), feature_statistics,
-                                  /* environment= */ tensorflow::gtl::nullopt,
-                                  &schema));
+  TF_RETURN_IF_ERROR(
+      UpdateSchema(feature_statistics_to_proto_config,
+                   schema, feature_statistics,
+                   /* paths_to_consider= */ gtl::nullopt,
+                   /* environment= */ gtl::nullopt, &schema));
   if (!schema.SerializeToString(schema_proto_string)) {
     return tensorflow::errors::Internal(
         "Could not serialize Schema output proto to string.");
@@ -79,13 +77,14 @@ tensorflow::Status ValidateFeatureStatistics(
     const tensorflow::metadata::v0::DatasetFeatureStatistics&
         feature_statistics,
     const tensorflow::metadata::v0::Schema& schema_proto,
-    const tensorflow::gtl::optional<string>& environment,
-    const tensorflow::gtl::optional<
+    const gtl::optional<string>& environment,
+    const gtl::optional<
         tensorflow::metadata::v0::DatasetFeatureStatistics>&
         prev_feature_statistics,
-    const tensorflow::gtl::optional<
+    const gtl::optional<
         tensorflow::metadata::v0::DatasetFeatureStatistics>&
         serving_feature_statistics,
+    const gtl::optional<FeaturesNeeded>& features_needed,
     const ValidationConfig& validation_config,
     tensorflow::metadata::v0::Anomalies* result) {
   const absl::optional<string> maybe_environment =
@@ -120,8 +119,9 @@ tensorflow::Status ValidateFeatureStatistics(
 
     const DatasetStatsView training = DatasetStatsView(
         feature_statistics, by_weight, maybe_environment, previous, serving);
-    TF_RETURN_IF_ERROR(schema_anomalies.FindChanges(
-        training, feature_statistics_to_proto_config));
+    TF_RETURN_IF_ERROR(
+        schema_anomalies.FindChanges(training, ToAbslOptional(features_needed),
+                                     feature_statistics_to_proto_config));
     *result = schema_anomalies.GetSchemaDiff();
   }
 
@@ -130,8 +130,7 @@ tensorflow::Status ValidateFeatureStatistics(
 
 tensorflow::Status ValidateFeatureStatistics(
     const string& feature_statistics_proto_string,
-    const string& schema_proto_string,
-    const string& environment,
+    const string& schema_proto_string, const string& environment,
     const string& previous_statistics_proto_string,
     const string& serving_statistics_proto_string,
     string* anomalies_proto_string) {
@@ -177,7 +176,8 @@ tensorflow::Status ValidateFeatureStatistics(
   tensorflow::metadata::v0::Anomalies anomalies;
   TF_RETURN_IF_ERROR(ValidateFeatureStatistics(
       feature_statistics, schema, may_be_environment, previous_statistics,
-      serving_statistics, ValidationConfig(), &anomalies));
+      serving_statistics, /*features_needed=*/gtl::nullopt, ValidationConfig(),
+      &anomalies));
 
   if (!anomalies.SerializeToString(anomalies_proto_string)) {
     return tensorflow::errors::Internal(
@@ -186,35 +186,14 @@ tensorflow::Status ValidateFeatureStatistics(
   return tensorflow::Status::OK();
 }
 
-tensorflow::Status FeatureStatisticsValidator::UpdateSchema(
-    const ValidationConfig& validation_config,
-    const tensorflow::metadata::v0::DatasetFeatureStatistics&
-        feature_statistics,
-    tensorflow::metadata::v0::Schema* schema_to_update) {
-  FeatureStatisticsToProtoConfig feature_statistics_to_proto_config;
-  feature_statistics_to_proto_config.set_enum_threshold(kDefaultEnumThreshold);
-  return ::tensorflow::data_validation::UpdateSchema(
-      GetDefaultFeatureStatisticsToProtoConfig(), validation_config,
-      feature_statistics,
-      /* environment= */ tensorflow::gtl::nullopt, schema_to_update);
-}
-
 tensorflow::Status UpdateSchema(
     const FeatureStatisticsToProtoConfig& feature_statistics_to_proto_config,
-
     const tensorflow::metadata::v0::Schema& schema_to_update,
     const tensorflow::metadata::v0::DatasetFeatureStatistics&
         feature_statistics,
-    const tensorflow::gtl::optional<std::vector<Path>>& paths_to_consider,
-    const tensorflow::gtl::optional<string>& environment,
+    const gtl::optional<std::vector<Path>>& paths_to_consider,
+    const gtl::optional<string>& environment,
     tensorflow::metadata::v0::Schema* result) {
-  absl::optional<std::vector<string>> columns_to_consider;
-  if (paths_to_consider) {
-    columns_to_consider = std::vector<string>(paths_to_consider->size());
-    for (const Path& path : *paths_to_consider) {
-      columns_to_consider->push_back(path.last_step());
-    }
-  }
   const absl::optional<string> maybe_environment =
       environment ? absl::optional<string>(*environment) : absl::nullopt;
 
@@ -222,12 +201,12 @@ tensorflow::Status UpdateSchema(
       DatasetStatsView(feature_statistics).WeightedStatisticsExist();
   Schema schema;
   TF_RETURN_IF_ERROR(schema.Init(schema_to_update));
-  if (columns_to_consider) {
+  if (paths_to_consider) {
     TF_RETURN_IF_ERROR(schema.Update(
         DatasetStatsView(feature_statistics, by_weight, maybe_environment,
                          /* previous= */ nullptr,
                          /* serving= */ nullptr),
-        feature_statistics_to_proto_config, *columns_to_consider));
+        feature_statistics_to_proto_config, *paths_to_consider));
   } else {
     TF_RETURN_IF_ERROR(schema.Update(
         DatasetStatsView(feature_statistics, by_weight, maybe_environment,
@@ -235,40 +214,36 @@ tensorflow::Status UpdateSchema(
                          /* serving= */ nullptr),
         feature_statistics_to_proto_config));
   }
-
   *result = schema.GetSchema();
   return tensorflow::Status::OK();
 }
 
-tensorflow::Status FeatureStatisticsValidator::UpdateSchema(
-    const tensorflow::metadata::v0::Schema& schema_to_update,
-    const tensorflow::metadata::v0::DatasetFeatureStatistics&
-        feature_statistics,
-    const std::vector<string>& columns_to_consider,
-    tensorflow::metadata::v0::Schema* result) {
-  std::vector<Path> paths_to_consider;
-  paths_to_consider.reserve(columns_to_consider.size());
-  for (const string& str : columns_to_consider) {
-    paths_to_consider.push_back(Path({str}));
-  }
-  return tensorflow::data_validation::UpdateSchema(
-      GetDefaultFeatureStatisticsToProtoConfig(), schema_to_update,
-      feature_statistics, paths_to_consider,
-      /* environment= */ tensorflow::gtl::nullopt, result);
-}
-
-tensorflow::Status FeatureStatisticsValidator::ValidateFeatureStatistics(
-    const DatasetFeatureStatistics& feature_statistics,
-    const tensorflow::metadata::v0::Schema& schema_proto,
-    const tensorflow::gtl::optional<string>& environment,
-    const tensorflow::gtl::optional<DatasetFeatureStatistics>&
+Status FeatureStatisticsValidator::ValidateFeatureStatistics(
+    const metadata::v0::DatasetFeatureStatistics& feature_statistics,
+    const metadata::v0::Schema& schema_proto,
+    const gtl::optional<string>& environment,
+    const gtl::optional<metadata::v0::DatasetFeatureStatistics>&
         prev_feature_statistics,
+    const gtl::optional<metadata::v0::DatasetFeatureStatistics>&
+        serving_feature_statistics,
+    const gtl::optional<FeaturesNeeded>& features_needed,
     const ValidationConfig& validation_config,
-    tensorflow::metadata::v0::Anomalies* result) {
+    metadata::v0::Anomalies* result) const {
   return ::tensorflow::data_validation::ValidateFeatureStatistics(
       feature_statistics, schema_proto, environment, prev_feature_statistics,
-      /* serving_feature_statistics= */ tensorflow::gtl::nullopt,
-      validation_config, result);
+      serving_feature_statistics, features_needed, validation_config, result);
+}
+
+Status FeatureStatisticsValidator::UpdateSchema(
+    const FeatureStatisticsToProtoConfig& feature_statistics_to_proto_config,
+    const metadata::v0::Schema& schema_to_update,
+    const metadata::v0::DatasetFeatureStatistics& feature_statistics,
+    const gtl::optional<std::vector<Path>>& paths_to_consider,
+    const gtl::optional<string>& environment,
+    metadata::v0::Schema* result) const {
+  return ::tensorflow::data_validation::UpdateSchema(
+      feature_statistics_to_proto_config, schema_to_update, feature_statistics,
+      paths_to_consider, environment, result);
 }
 
 }  // namespace data_validation

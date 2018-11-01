@@ -1,6 +1,7 @@
 #ifndef TENSORFLOW_DATA_VALIDATION_ANOMALIES_PATH_H_
 #define TENSORFLOW_DATA_VALIDATION_ANOMALIES_PATH_H_
 
+#include <iosfwd>
 #include <string>
 #include <vector>
 #include "absl/strings/string_view.h"
@@ -107,6 +108,9 @@ bool operator==(const Path& a, const Path& b);
 bool operator!=(const Path& a, const Path& b);
 bool operator>=(const Path& a, const Path& b);
 bool operator<=(const Path& a, const Path& b);
+
+// gUnit uses this function to pretty print a Path.
+void PrintTo(const Path& p, std::ostream*);
 
 }  // namespace data_validation
 }  // namespace tensorflow

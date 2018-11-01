@@ -25,6 +25,7 @@ import numpy as np
 import six
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
+from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
 from tensorflow_data_validation.types_compat import Generator, List, Optional, Set, Tuple
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -98,7 +99,7 @@ class _ComputeTopKStats(beam.PTransform):
       schema: An schema for the dataset. None if no schema is available.
     """
     self._categorical_features = set(
-        stats_util.get_categorical_numeric_features(schema) if schema else [])
+        schema_util.get_categorical_numeric_features(schema) if schema else [])
     self._num_top_values = num_top_values
     self._num_rank_histogram_buckets = num_rank_histogram_buckets
 

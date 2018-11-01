@@ -47,7 +47,7 @@ CommonStatistics* GetCommonStatisticsPtr(FeatureNameStatistics* feature_stats) {
 
 FeatureStatsView GetByNameOrDie(const DatasetStatsView& dataset,
                                 const string& name) {
-  absl::optional<FeatureStatsView> result = dataset.GetByName(name);
+  absl::optional<FeatureStatsView> result = dataset.GetByPath(Path({name}));
   CHECK(absl::nullopt != result) << "Unknown name: " << name;
   return *result;
 }

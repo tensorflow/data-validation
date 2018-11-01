@@ -68,6 +68,8 @@ IntIntervalResult GetIntInterval(const FeatureStatsView& feature_stats_view) {
   const std::vector<string> string_values =
       feature_stats_view.GetStringValues();
   switch (feature_stats_view.type()) {
+    case FeatureNameStatistics::STRUCT:
+      return absl::nullopt;
     case FeatureNameStatistics::FLOAT:
       return absl::nullopt;
     case FeatureNameStatistics::INT: {

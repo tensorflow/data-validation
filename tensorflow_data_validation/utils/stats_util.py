@@ -21,31 +21,12 @@ from __future__ import print_function
 
 import numpy as np
 from tensorflow_data_validation import types
-from tensorflow_data_validation.types_compat import List, Optional
-from tensorflow_metadata.proto.v0 import schema_pb2
+from tensorflow_data_validation.types_compat import Dict, Optional
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
-def get_categorical_numeric_features(
-    schema):
-  """Get the list of numeric features that should be treated as categorical.
-
-  Args:
-    schema: The schema for the data.
-
-  Returns:
-    A list of int features that should be considered categorical.
-  """
-  categorical_features = []
-  for feature in schema.feature:
-    if (feature.type == schema_pb2.INT and feature.HasField('int_domain') and
-        feature.int_domain.is_categorical):
-      categorical_features.append(feature.name)
-  return categorical_features
-
-
-def make_feature_type(dtype
-                     ):
+def make_feature_type(
+    dtype):
   """Get feature type from numpy dtype.
 
   Args:
@@ -68,3 +49,65 @@ def make_feature_type(dtype
         dtype.type == np.unicode_):
     return statistics_pb2.FeatureNameStatistics.STRING
   return None
+
+
+def make_dataset_feature_stats_proto(
+    stats_values
+):
+  """Builds DatasetFeatureStatistics proto with custom stats from input dict.
+
+  Args:
+    stats_values: A Dict[FeatureName, Dict[str,float]] where the keys are
+    feature names, and values are Dicts with keys denoting name of the custom
+    statistic and values denoting the value of the custom statistic
+    for the feature.
+      Ex. {
+            'feature_1': {
+                'Mutual Information': 0.5,
+                'Correlation': 0.1 },
+            'feature_2': {
+                'Mutual Information': 0.8,
+                'Correlation': 0.6 }
+          }
+
+  Returns:
+    DatasetFeatureStatistics proto containing the custom statistics for each
+    feature in the dataset.
+  """
+  result = statistics_pb2.DatasetFeatureStatistics()
+
+  for feature_name, custom_stat_to_value in stats_values.items():
+    feature_stats_proto = _make_feature_stats_proto(custom_stat_to_value,
+                                                    feature_name)
+    new_feature_stats_proto = result.features.add()
+    new_feature_stats_proto.CopyFrom(feature_stats_proto)
+
+  return result
+
+
+def _make_feature_stats_proto(
+    stats_values,
+    feature_name):
+  """Creates the FeatureNameStatistics proto for one feature.
+
+  Args:
+    stats_values: A Dict[str,float] where the key of the dict is the name of the
+      custom statistic and the value is the numeric value of the custom
+      statistic of that feature. Ex. {
+              'Mutual Information': 0.5,
+              'Correlation': 0.1 }
+    feature_name: The name of the feature.
+
+  Returns:
+    A FeatureNameStatistic proto containing the custom statistics for a
+    feature.
+  """
+
+  result = statistics_pb2.FeatureNameStatistics()
+  result.name = feature_name
+
+  # Sort alphabetically by statistic name to have deterministic ordering
+  stat_names = sorted(stats_values.keys())
+  for stat_name in stat_names:
+    result.custom_stats.add(name=stat_name, num=stats_values[stat_name])
+  return result

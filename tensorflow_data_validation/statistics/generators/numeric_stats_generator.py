@@ -36,6 +36,7 @@ import six
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import quantiles_util
+from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
 from tensorflow_data_validation.types_compat import Dict, List, Optional, Union
 
@@ -67,10 +68,8 @@ class _PartialNumericStats(object):
     self.total_num_values = 0
     # Type of this feature.
     self.type = None
-    # Summary of the equi-width histogram for the values in this feature.
-    self.std_hist_summary = ''
-    # Summary of the quantiles histogram for the values in this feature.
-    self.quantiles_hist_summary = ''
+    # Summary of the quantiles summary for the values in this feature.
+    self.quantiles_summary = ''
 
 
 def _update_numeric_stats(
@@ -132,9 +131,10 @@ def _merge_numeric_stats(
 
 def _make_feature_stats_proto(
     numeric_stats, feature_name,
-    std_hist_combiner,
-    quantiles_hist_combiner,
-    num_histogram_buckets):
+    quantiles_combiner,
+    num_histogram_buckets,
+    num_quantiles_histogram_buckets
+    ):
   """Convert the partial numeric statistics into FeatureNameStatistics proto."""
   numeric_stats_proto = statistics_pb2.NumericStatistics()
 
@@ -151,12 +151,15 @@ def _make_feature_stats_proto(
     numeric_stats_proto.min = float(numeric_stats.min)
     numeric_stats_proto.max = float(numeric_stats.max)
 
-    # Add median and equi-width histogram to the numeric stats proto.
-    quantiles = std_hist_combiner.extract_output(numeric_stats.std_hist_summary)
-    # Note that we find the median from the quantiles used for standard
-    # histogram as it uses a large number of buckets and hence results in a more
-    # accurate median estimate.
+    # Extract the quantiles from the summary.
+    quantiles = quantiles_combiner.extract_output(
+        numeric_stats.quantiles_summary)
+
+    # Find the median from the quantiles and update the numeric stats proto.
     numeric_stats_proto.median = float(quantiles_util.find_median(quantiles))
+
+    # Construct the equi-width histogram from the quantiles and add it to the
+    # numeric stats proto.
     std_histogram = quantiles_util.generate_equi_width_histogram(
         quantiles, numeric_stats.min, numeric_stats.max,
         numeric_stats.total_num_values, num_histogram_buckets)
@@ -164,12 +167,11 @@ def _make_feature_stats_proto(
     new_std_histogram = numeric_stats_proto.histograms.add()
     new_std_histogram.CopyFrom(std_histogram)
 
-    # Add quantiles histogram to the numeric stats proto.
-    quantiles = quantiles_hist_combiner.extract_output(
-        numeric_stats.quantiles_hist_summary)
+    # Construct the quantiles histogram from the quantiles and add it to the
+    # numeric stats proto.
     q_histogram = quantiles_util.generate_quantiles_histogram(
         quantiles, numeric_stats.min, numeric_stats.max,
-        numeric_stats.total_num_values)
+        numeric_stats.total_num_values, num_quantiles_histogram_buckets)
     q_histogram.num_nan = numeric_stats.num_nan
     new_q_histogram = numeric_stats_proto.histograms.add()
     new_q_histogram.CopyFrom(q_histogram)
@@ -221,15 +223,15 @@ class NumericStatsGenerator(stats_generator.CombinerStatsGenerator):
     """
     super(NumericStatsGenerator, self).__init__(name)
     self._categorical_features = set(
-        stats_util.get_categorical_numeric_features(schema) if schema else [])
-    # Initialize quantiles combiner for equi-width histogram.
-    self._std_hist_combiner = quantiles_util.QuantilesCombiner(
-        _NUM_QUANTILES_FACTOR_FOR_STD_HISTOGRAM * num_histogram_buckets,
-        epsilon)
-    # Initialize quantiles combiner for quantiles histogram.
-    self._quantiles_hist_combiner = quantiles_util.QuantilesCombiner(
-        num_quantiles_histogram_buckets, epsilon)
+        schema_util.get_categorical_numeric_features(schema) if schema else [])
     self._num_histogram_buckets = num_histogram_buckets
+    self._num_quantiles_histogram_buckets = num_quantiles_histogram_buckets
+    num_buckets = max(
+        self._num_quantiles_histogram_buckets,
+        _NUM_QUANTILES_FACTOR_FOR_STD_HISTOGRAM * self._num_histogram_buckets)
+    # Initialize quantiles combiner.
+    self._quantiles_combiner = quantiles_util.QuantilesCombiner(num_buckets,
+                                                                epsilon)
 
   # Create an accumulator, which maps feature name to the partial stats
   # associated with the feature.
@@ -269,10 +271,8 @@ class NumericStatsGenerator(stats_generator.CombinerStatsGenerator):
         if feature_name not in accumulator:
           partial_stats = _PartialNumericStats()
           # Store empty summary.
-          partial_stats.std_hist_summary = (
-              self._std_hist_combiner.create_accumulator())
-          partial_stats.quantiles_hist_summary = (
-              self._quantiles_hist_combiner.create_accumulator())
+          partial_stats.quantiles_summary = (
+              self._quantiles_combiner.create_accumulator())
           accumulator[feature_name] = partial_stats
 
         # Update the partial numeric stats and append values
@@ -280,15 +280,11 @@ class NumericStatsGenerator(stats_generator.CombinerStatsGenerator):
         _update_numeric_stats(accumulator[feature_name], value, feature_name,
                               feature_type, current_batch)
 
-      # Update the equi-width histogram and quantiles histogram sequi-widthor
-      # the feature based on the current batch.
+      # Update the quantiles summary of the feature based on the current batch.
       if current_batch:
-        accumulator[feature_name].std_hist_summary = (
-            self._std_hist_combiner.add_input(
-                accumulator[feature_name].std_hist_summary, [current_batch]))
-        accumulator[feature_name].quantiles_hist_summary = (
-            self._quantiles_hist_combiner.add_input(
-                accumulator[feature_name].quantiles_hist_summary,
+        accumulator[feature_name].quantiles_summary = (
+            self._quantiles_combiner.add_input(
+                accumulator[feature_name].quantiles_summary,
                 [current_batch]))
 
     return accumulator
@@ -298,8 +294,7 @@ class NumericStatsGenerator(stats_generator.CombinerStatsGenerator):
       self, accumulators
   ):
     result = {}
-    std_hist_summary_per_feature = collections.defaultdict(list)
-    quantiles_hist_summary_per_feature = collections.defaultdict(list)
+    quantiles_summary_per_feature = collections.defaultdict(list)
 
     for accumulator in accumulators:
       for feature_name, numeric_stats in accumulator.items():
@@ -310,22 +305,15 @@ class NumericStatsGenerator(stats_generator.CombinerStatsGenerator):
               result[feature_name], numeric_stats, feature_name)
 
         # Keep track of summaries per feature.
-        std_hist_summary_per_feature[feature_name].append(
-            numeric_stats.std_hist_summary)
-        quantiles_hist_summary_per_feature[feature_name].append(
-            numeric_stats.quantiles_hist_summary)
+        quantiles_summary_per_feature[feature_name].append(
+            numeric_stats.quantiles_summary)
 
-    # Merge the equi-width histogram summaries per feature.
-    for feature_name, std_hist_summaries in \
-        std_hist_summary_per_feature.items():
-      result[feature_name].std_hist_summary = (
-          self._std_hist_combiner.merge_accumulators(std_hist_summaries))
-    # Merge the quantiles histogram summaries per feature.
-    for feature_name, quantiles_hist_summaries in \
-        quantiles_hist_summary_per_feature.items():
-      result[feature_name].quantiles_hist_summary = (
-          self._quantiles_hist_combiner.merge_accumulators(
-              quantiles_hist_summaries))
+    # Merge the quantiles summaries per feature.
+    for feature_name, quantiles_summaries in \
+        quantiles_summary_per_feature.items():
+      result[feature_name].quantiles_summary = (
+          self._quantiles_combiner.merge_accumulators(
+              quantiles_summaries))
 
     return result
 
@@ -340,8 +328,9 @@ class NumericStatsGenerator(stats_generator.CombinerStatsGenerator):
       # Construct the FeatureNameStatistics proto from the partial
       # numeric stats.
       feature_stats_proto = _make_feature_stats_proto(
-          numeric_stats, feature_name, self._std_hist_combiner,
-          self._quantiles_hist_combiner, self._num_histogram_buckets)
+          numeric_stats, feature_name, self._quantiles_combiner,
+          self._num_histogram_buckets,
+          self._num_quantiles_histogram_buckets)
       # Copy the constructed FeatureNameStatistics proto into the
       # DatasetFeatureStatistics proto.
       new_feature_stats_proto = result.features.add()

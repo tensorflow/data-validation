@@ -38,7 +38,7 @@ ColumnInfo = collections.namedtuple('ColumnInfo', ['name', 'type'])
 
 
 @beam.typehints.with_input_types(CSVRecord)
-@beam.typehints.with_output_types(types.ExampleBatch)
+@beam.typehints.with_output_types(types.Example)
 class DecodeCSV(beam.PTransform):
   """Decodes CSV records into an in-memory dict representation.
 
@@ -139,7 +139,7 @@ class CSVParser(object):
 
     def read_record(self, csv_string):
       self._line_generator.push_line(_to_utf8_string(csv_string))
-      return self._reader.next()
+      return self._reader.next()  # pytype: disable=attribute-error
 
     def __getstate__(self):
       return self._state
@@ -166,8 +166,7 @@ class CSVParser(object):
 
 def _make_example_dict(
     row, skip_blank_lines,
-    column_info
-):
+    column_info):
   """Create the in-memory representation from the CSV record.
 
   Args:

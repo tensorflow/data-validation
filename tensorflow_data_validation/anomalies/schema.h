@@ -4,7 +4,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    https://www.apache.org/licenses/LICENSE-2.0
+   https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -24,9 +24,11 @@ limitations under the License.
 
 #include "absl/types/optional.h"
 #include "tensorflow_data_validation/anomalies/internal_types.h"
+#include "tensorflow_data_validation/anomalies/path.h"
 #include "tensorflow_data_validation/anomalies/proto/feature_statistics_to_proto.pb.h"
 #include "tensorflow_data_validation/anomalies/statistics_view.h"
 #include "tensorflow/core/lib/core/status.h"
+#include "tensorflow/core/platform/protobuf.h"
 #include "tensorflow/core/platform/types.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
@@ -73,9 +75,6 @@ class Schema {
     const std::set<string> columns_to_ignore_;
     // A map from a key to an enum, extracted from config_.
     std::map<string, string> grouped_enums_;
-    // Fields must be unique in PascalCase.
-    // This set contains the PascalCase variables used in field names.
-    std::set<string> field_names_used_;
   };
 
   // This creates an empty schema. In order to populate it, either call
@@ -91,27 +90,42 @@ class Schema {
 
   // Updates Schema given new data. If you have a new, previously unseen column,
   // then config is used to create it.
-  tensorflow::Status Update(const DatasetStatsView& statistics,
+  tensorflow::Status Update(const DatasetStatsView& dataset_stats,
                             const FeatureStatisticsToProtoConfig& config);
 
   // Updates Schema given new data, but only on the columns specified.
   // If you have a new, previously unseen column on the list of columns to,
   // consider, then config is used to create it.
-  tensorflow::Status Update(const DatasetStatsView& statistics,
+  tensorflow::Status Update(const DatasetStatsView& dataset_stats,
                             const FeatureStatisticsToProtoConfig& config,
-                            const std::vector<string>& columns_to_consider);
+                            const std::vector<Path>& paths_to_consider);
+
+  // Check if there are any issues with a path or its children.
+  tensorflow::Status UpdateRecursively(
+      const Updater& updater, const FeatureStatsView& feature_stats_view,
+      const absl::optional<std::set<Path>>& paths_to_consider,
+      std::vector<Description>* descriptions,
+      tensorflow::metadata::v0::AnomalyInfo::Severity* severity);
+
+  // Returns true iff there is a feature corresponding to the path.
+  bool FeatureExists(const Path& path);
+
+  // Returns true if the feature corresponding to the view is deprecated,
+  // false if it is not. If there is no feature corresponding to the
+  // view, the result is undefined.
+  bool FeatureIsDeprecated(const Path& path);
 
   // Deprecates a feature.
-  void DeprecateFeature(const string& feature_name);
+  void DeprecateFeature(const Path& path);
 
   // Gets the schema that represents the proto.
   tensorflow::metadata::v0::Schema GetSchema() const;
 
   // Populates FeatureStatisticsToProtoConfig with groups of enums that seem
-  // similar. config is the original config, and statistics has
+  // similar. config is the original config, and dataset_stats has
   // the relevant data.
   static tensorflow::Status GetRelatedEnums(
-      const DatasetStatsView& statistics,
+      const DatasetStatsView& dataset_stats,
       FeatureStatisticsToProtoConfig* config);
 
   // Returns true if there are no enum types and no feature types.
@@ -132,8 +146,15 @@ class Schema {
 
   // Returns columns that are required to be present but are absent
   // (i.e., no FeatureNameStatistics).
-  std::vector<string> GetMissingColumns(
-      const DatasetStatsView& statistics) const;
+  std::vector<Path> GetMissingPaths(const DatasetStatsView& dataset_stats);
+
+  // Updates Schema given new data, but only on the columns specified.
+  // If you have a new, previously unseen column on the list of columns to
+  // consider, then config is used to create it.
+  // If paths_to_consider is unspecified, then it updates all columns.
+  tensorflow::Status Update(
+      const DatasetStatsView& dataset_stats, const Updater& updater,
+      const absl::optional<std::set<Path>>& paths_to_consider);
 
  private:
   using Feature = tensorflow::metadata::v0::Feature;
@@ -141,7 +162,7 @@ class Schema {
   using StringDomain = tensorflow::metadata::v0::StringDomain;
   // Gets a map from a simple enum name to the columns that are using it.
   // Used in GetRelatedEnums().
-  std::map<string, std::set<string>> EnumNameToColumns() const;
+  std::map<string, std::set<Path>> EnumNameToPaths() const;
 
   // Returns simple names of similar enum types.
   // Definition of similar (will be) configured in the
@@ -152,6 +173,20 @@ class Schema {
 
   // Gets an existing StringDomain. If it does not already exist, returns null.
   StringDomain* GetExistingStringDomain(const string& name);
+
+  // Finds all names and of features in the environment.
+  std::vector<Path> GetAllRequiredFeatures(
+      const Path& prefix,
+      const ::tensorflow::protobuf::RepeatedPtrField<Feature>& features,
+      const absl::optional<string>& environment) const;
+
+  // Returns the structure of the schema, organized by full name.
+  // For each full name, returns an existing feature with that name,
+  // and the parent name (or the empty string if there is no parent).
+  void GetAllExistingFeaturesByName(
+      tensorflow::protobuf::RepeatedPtrField<Feature>* features,
+      const string& parent,
+      std::map<string, std::pair<string, Feature*>>* result);
 
   bool IsExistenceRequired(const Feature& feature,
                            const absl::optional<string>& environment) const;
@@ -168,18 +203,27 @@ class Schema {
   // description of what is wrong.
   std::vector<Description> UpdateFeatureSelf(Feature* feature);
 
+  // Updates Schema given new data, but only on the columns specified.
+  // If you have a new, previously unseen column on the list of columns to
+  // consider, then config is used to create it.
+  // If columns_to_consider is unspecified, then it updates all columns.
+  tensorflow::Status Update(
+      const DatasetStatsView& dataset_stats,
+      const FeatureStatisticsToProtoConfig& config,
+      const absl::optional<std::set<Path>>& columns_to_consider);
+
   // Gets an EnumType, adding it to enum_types_ and/or appending
   // values if necessary.
   StringDomain* GetStringDomain(const string& name);
 
   // Gets an existing feature, and returns null if it doesn't exist.
-  Feature* GetExistingFeature(const string& name);
+  Feature* GetExistingFeature(const Path& path);
 
   // Gets an existing sparse feature, and returns null if it doesn't exist.
-  SparseFeature* GetExistingSparseFeature(const string& name);
+  SparseFeature* GetExistingSparseFeature(const Path& path);
 
   // Gets a new feature. Assumes that the feature does not already exist.
-  Feature* GetNewFeature(const string& name);
+  Feature* GetNewFeature(const Path& path);
 
   std::vector<Description> UpdateFeatureInternal(const FeatureStatsView& view,
                                                  Feature* feature);

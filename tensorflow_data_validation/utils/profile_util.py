@@ -31,8 +31,8 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 METRICS_NAMESPACE = 'tfx.DataValidation'
 
 
-@beam.typehints.with_input_types(types.ExampleBatch)
-@beam.typehints.with_output_types(types.ExampleBatch)
+@beam.typehints.with_input_types(types.Example)
+@beam.typehints.with_output_types(types.Example)
 class _ProfileFn(beam.DoFn):
   """See docstring of Profile for details."""
 
@@ -72,8 +72,8 @@ class _ProfileFn(beam.DoFn):
     yield element
 
 
-@beam.typehints.with_input_types(types.ExampleBatch)
-@beam.typehints.with_output_types(types.ExampleBatch)
+@beam.typehints.with_input_types(types.Example)
+@beam.typehints.with_output_types(types.Example)
 class Profile(beam.PTransform):
   """Profiles the input examples by emitting counters for different properties.
 

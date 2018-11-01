@@ -11,6 +11,15 @@ exports_files(["LICENSE"])
 load("@org_tensorflow//tensorflow:tensorflow.bzl", "tf_py_wrap_cc")
 
 cc_library(
+    name = "features_needed",
+    hdrs = ["features_needed.h"],
+    deps = [
+        ":path",
+        "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
+    ],
+)
+
+cc_library(
     name = "test_schema_protos",
     testonly = 1,
     srcs = ["test_schema_protos.cc"],
@@ -45,6 +54,7 @@ cc_test(
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
         "@com_google_googletest//:gtest_main",
         "@org_tensorflow//tensorflow/core:lib",
+        "@org_tensorflow//tensorflow/core:test",
     ],
 )
 
@@ -54,6 +64,7 @@ cc_library(
     hdrs = ["statistics_view.h"],
     deps = [
         ":map_util",
+        ":path",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
         "@com_google_absl//absl/types:optional",
         "@org_tensorflow//tensorflow/core:lib",
@@ -131,6 +142,7 @@ cc_library(
         "int_domain_util.cc",
         "schema.cc",
         "schema_anomalies.cc",
+        "schema_util.cc",
         "string_domain_util.cc",
     ],
     hdrs = [
@@ -140,12 +152,15 @@ cc_library(
         "int_domain_util.h",
         "schema.h",
         "schema_anomalies.h",
+        "schema_util.h",
         "string_domain_util.h",
     ],
     deps = [
+        ":features_needed",
         ":internal_types",
         ":map_util",
         ":metrics",
+        ":path",
         ":statistics_view",
         "//tensorflow_data_validation/anomalies/proto:feature_statistics_to_proto_proto",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
@@ -224,6 +239,7 @@ cc_test(
     name = "schema_test",
     srcs = [
         "schema_test.cc",
+        "schema_util_test.cc",
     ],
     deps = [
         ":schema",
@@ -243,6 +259,7 @@ cc_library(
     srcs = ["feature_statistics_validator.cc"],
     hdrs = ["feature_statistics_validator.h"],
     deps = [
+        ":features_needed",
         ":path",
         ":schema",
         ":statistics_view",

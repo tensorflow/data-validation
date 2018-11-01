@@ -27,6 +27,7 @@ import numpy as np
 import six
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
+from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
 from tensorflow_data_validation.types_compat import Dict, List, Optional
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -86,7 +87,7 @@ class StringStatsGenerator(stats_generator.CombinerStatsGenerator):
     """
     super(StringStatsGenerator, self).__init__(name, schema)
     self._categorical_features = set(
-        stats_util.get_categorical_numeric_features(schema) if schema else [])
+        schema_util.get_categorical_numeric_features(schema) if schema else [])
 
   # Create an accumulator, which maps feature name to the partial stats
   # associated with the feature.

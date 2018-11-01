@@ -148,6 +148,13 @@ TEST(Path, GetLastStep) {
   EXPECT_EQ("a", Path({"a"}).last_step());
 }
 
+TEST(Path, PrintTo) {
+  Path p({"a", "b", "c"});
+  std::ostringstream os;
+  PrintTo(p, &os);
+  EXPECT_EQ(p.Serialize(), os.str());
+}
+
 }  // namespace
 }  // namespace data_validation
 }  // namespace tensorflow

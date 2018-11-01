@@ -1057,7 +1057,7 @@ TEST(FeatureTypeTest, RareMissingFeatureUnweighted) {
           })");
   DatasetStatsView stats_view(statistics);
   const absl::optional<FeatureStatsView> feature_stats_view =
-      stats_view.GetByName("one_in_a_quadrillion");
+      stats_view.GetByPath(Path({"one_in_a_quadrillion"}));
   Feature to_modify = ParseTextProtoOrDie<Feature>(R"(
       name: "one_in_a_quadrillion"
       presence {
@@ -1104,7 +1104,7 @@ TEST(FeatureTypeTest, RareMissingFeatureWeighted) {
           })");
   DatasetStatsView stats_view(statistics, true);
   const absl::optional<FeatureStatsView> feature_stats_view =
-      stats_view.GetByName("one_in_a_quadrillion");
+      stats_view.GetByPath(Path({"one_in_a_quadrillion"}));
   Feature to_modify = ParseTextProtoOrDie<Feature>(R"(
       name: "one_in_a_quadrillion"
       presence {

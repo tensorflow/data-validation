@@ -23,10 +23,12 @@ import apache_beam as beam
 import numpy as np
 import tensorflow as tf
 from tensorflow_data_validation import types
+from tensorflow_data_validation.types_compat import Optional
 
 
-def _convert_to_numpy_array(feature):
-  """Converts a single TF feature to its numpy array representation."""
+def _convert_to_example_dict_value(feature
+                                  ):
+  """Converts a single TF feature to its example Dict value."""
   kind = feature.WhichOneof('kind')
   if kind == 'int64_list':
     return np.asarray(feature.int64_list.value, dtype=np.integer)
@@ -34,16 +36,17 @@ def _convert_to_numpy_array(feature):
     return np.asarray(feature.float_list.value, dtype=np.floating)
   elif kind == 'bytes_list':
     return np.asarray(feature.bytes_list.value, dtype=np.object)
+  elif kind is None:
+    # If we have a feature with no value list, we consider it to be a missing
+    # value.
+    return None
   else:
-    # Return an empty array for feature with no value list. In numpy, an empty
-    # array has a dtype of float, thus we explicitly set it to np.object here.
-    return np.array([], dtype=np.object)
+    raise ValueError('Unsupported value type found in feature: {}'.format(kind))
 
 
-@beam.typehints.with_input_types(bytes)
-@beam.typehints.with_output_types(types.ExampleBatch)
 class TFExampleDecoder(object):
-  """A decoder for decoding TF examples into tf data validation datasets."""
+  """A decoder for decoding TF examples into tf data validation datasets.
+  """
 
   def decode(self, serialized_example_proto):
     """Decodes serialized tf.Example to tf data validation input dict."""
@@ -51,11 +54,13 @@ class TFExampleDecoder(object):
     example.ParseFromString(serialized_example_proto)
     feature_map = example.features.feature
     return {
-        feature_name: _convert_to_numpy_array(feature_map[feature_name])
+        feature_name: _convert_to_example_dict_value(feature_map[feature_name])
         for feature_name in feature_map
     }
 
 
+@beam.typehints.with_input_types(bytes)
+@beam.typehints.with_output_types(types.Example)
 class DecodeTFExample(beam.PTransform):
   """Decodes TF examples into an in-memory dict representation. """
 
@@ -64,13 +69,12 @@ class DecodeTFExample(beam.PTransform):
     self._decoder = TFExampleDecoder()
 
   def expand(self, examples):
-    """Decodes the TF examples into an in-memory dict representation.
+    """Decodes serialized TF examples into an in-memory dict representation.
 
     Args:
-      examples: A PCollection of strings representing the TF examples.
+      examples: A PCollection of strings representing serialized TF examples.
 
     Returns:
       A PCollection of dicts representing the TF examples.
     """
-    return (examples | 'ParseTFExamples' >> beam.Map(
-            self._decoder.decode))
+    return examples | 'ParseTFExamples' >> beam.Map(self._decoder.decode)

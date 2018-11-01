@@ -35,6 +35,7 @@ import six
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import quantiles_util
+from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
 from tensorflow_data_validation.types_compat import Dict, List, Optional
 
@@ -159,6 +160,7 @@ def _merge_common_stats(left, right,
 def _make_feature_stats_proto(
     common_stats, feature_name,
     q_combiner,
+    num_values_histogram_buckets,
     is_categorical, has_weights
 ):
   """Convert the partial common stats into a FeatureNameStatistics proto.
@@ -168,6 +170,8 @@ def _make_feature_stats_proto(
     feature_name: The name of the feature.
     q_combiner: The quantiles combiner used to construct the quantiles
         histogram for the number of values in the feature.
+    num_values_histogram_buckets: Number of buckets in the quantiles
+        histogram for the number of values per feature.
     is_categorical: A boolean indicating whether the feature is categorical.
     has_weights: A boolean indicating whether a weight feature is specified.
 
@@ -190,7 +194,8 @@ def _make_feature_stats_proto(
         common_stats.num_values_summary)
     histogram = quantiles_util.generate_quantiles_histogram(
         num_values_quantiles, common_stats.min_num_values,
-        common_stats.max_num_values, common_stats.num_non_missing)
+        common_stats.max_num_values, common_stats.num_non_missing,
+        num_values_histogram_buckets)
     common_stats_proto.num_values_histogram.CopyFrom(histogram)
 
   # Add weighted common stats to the proto.
@@ -271,11 +276,12 @@ class CommonStatsGenerator(stats_generator.CombinerStatsGenerator):
     """
     super(CommonStatsGenerator, self).__init__(name, schema)
     self._categorical_features = set(
-        stats_util.get_categorical_numeric_features(schema) if schema else [])
+        schema_util.get_categorical_numeric_features(schema) if schema else [])
     self._weight_feature = weight_feature
+    self._num_values_histogram_buckets = num_values_histogram_buckets
     # Initialize quantiles combiner.
     self._quantiles_combiner = quantiles_util.QuantilesCombiner(
-        num_values_histogram_buckets, epsilon)
+        self._num_values_histogram_buckets, epsilon)
 
   # Create an accumulator, which maps feature name to the partial stats
   # associated with the feature.
@@ -380,6 +386,7 @@ class CommonStatsGenerator(stats_generator.CombinerStatsGenerator):
       # common stats.
       feature_stats_proto = _make_feature_stats_proto(
           common_stats, feature_name, self._quantiles_combiner,
+          self._num_values_histogram_buckets,
           feature_name in self._categorical_features,
           self._weight_feature is not None)
       # Copy the constructed FeatureNameStatistics proto into the

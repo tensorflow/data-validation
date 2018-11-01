@@ -22,6 +22,7 @@ limitations under the License.
 #include <string>
 #include <vector>
 
+#include "tensorflow_data_validation/anomalies/features_needed.h"
 #include "tensorflow_data_validation/anomalies/internal_types.h"
 #include "tensorflow_data_validation/anomalies/proto/feature_statistics_to_proto.pb.h"
 #include "tensorflow_data_validation/anomalies/schema.h"
@@ -51,6 +52,16 @@ class SchemaAnomaly {
   tensorflow::Status Update(const Schema::Updater& updater,
                             const FeatureStatsView& feature_stats_view);
 
+  // Updates recursively upon the relevant current feature statistics.
+  // This is used to have all of the fields of a new sub-message appear
+  // in the same anomaly.
+  // If features_to_update is not nullopt, only updates fields in
+  // features_to_update.
+  tensorflow::Status CreateNewField(
+      const Schema::Updater& updater,
+      const absl::optional<std::set<Path>>& features_to_update,
+      const FeatureStatsView& feature_stats_view);
+
   // Update the skew.
   void UpdateSkewComparator(const FeatureStatsView& feature_stats_view);
 
@@ -72,9 +83,11 @@ class SchemaAnomaly {
   bool is_problem() {
     return severity_ != tensorflow::metadata::v0::AnomalyInfo::UNKNOWN;
   }
-  void set_feature_name(const string& feature_name) {
-    feature_name_ = feature_name;
-  }
+  void set_path(const Path& path) { path_ = path; }
+
+  // Returns true iff the feature is deprecated after changes in this anomaly
+  // have been applied.
+  bool FeatureIsDeprecated(const Path& path);
 
  private:
   // Returns an AnomalyInfo representing the change. Takes as an input the
@@ -86,7 +99,7 @@ class SchemaAnomaly {
   // A new schema that will make the anomaly go away.
   std::unique_ptr<Schema> schema_;
   // The name of the feature being fixed.
-  string feature_name_;
+  Path path_;
   // Descriptions of what caused the anomaly.
   std::vector<Description> descriptions_;
   // The severity of the anomaly
@@ -105,8 +118,11 @@ class SchemaAnomalies {
   // involving only the changes for that column. Returns a map where the key is
   // the key of the column with an anomaly, and the Schema proto is a changed
   // schema that would allow the column to be valid.
+  // If fields_needed is set, then a field that is not present in the schema
+  // will only be created if it is present in that set.
   tensorflow::Status FindChanges(
       const DatasetStatsView& statistics,
+      const absl::optional<FeaturesNeeded>& features_needed,
       const FeatureStatisticsToProtoConfig& feature_statistics_to_proto_config);
 
   tensorflow::Status FindSkew(const DatasetStatsView& dataset_stats_view);
@@ -115,6 +131,18 @@ class SchemaAnomalies {
   tensorflow::metadata::v0::Anomalies GetSchemaDiff() const;
 
  private:
+  // Checks a particular column for any issues, and:
+  // 1. If the column is not in the schema, creates a new Schema proto
+  //    where the column and all its descendants are added.
+  // 2. If the column is in the schema, check if it is OK.
+  //    A. If it is deprecated after repair, do nothing.
+  //    B. Otherwise, recursively check all its children, returning separate
+  //       anomalies for each child.
+  tensorflow::Status FindChangesRecursively(
+      const FeatureStatsView& feature_stats_view,
+      const absl::optional<std::set<Path>>& features_needed,
+      const Schema::Updater& updater);
+
   // 1. If there is a SchemaAnomaly for feature_name, applies update,
   // 2. otherwise, creates a new SchemaAnomaly for the feature_name and
   // initializes it using the serialized_baseline_. Then, it tries the
@@ -122,13 +150,13 @@ class SchemaAnomalies {
   // gets added.
   tensorflow::Status GenericUpdate(
       const std::function<tensorflow::Status(SchemaAnomaly* anomaly)>& update,
-      const string& feature_name);
+      const Path& path);
 
   // Initialize a schema from the serialized_baseline_.
   tensorflow::Status InitSchema(Schema* schema) const;
 
   // A map from feature columns to anomalies in that column.
-  std::map<string, SchemaAnomaly> anomalies_;
+  std::map<Path, SchemaAnomaly> anomalies_;
 
   // The initial schema. Each SchemaAnomaly is initialized from this.
   tensorflow::metadata::v0::Schema serialized_baseline_;
