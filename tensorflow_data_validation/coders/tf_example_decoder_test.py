@@ -17,9 +17,12 @@ from __future__ import division
 from __future__ import print_function
 
 from absl.testing import absltest
+import apache_beam as beam
+from apache_beam.testing import util
 import numpy as np
 import tensorflow as tf
 from tensorflow_data_validation.coders import tf_example_decoder
+from tensorflow_data_validation.utils import test_util
 
 from google.protobuf import text_format
 
@@ -97,6 +100,41 @@ class TFExampleDecoderTest(absltest.TestCase):
     decoder = tf_example_decoder.TFExampleDecoder()
     self._check_decoding_results(
         decoder.decode(example.SerializeToString()), expected_decoded)
+
+  def test_decode_example_with_beam_pipeline(self):
+    example_proto_text = """
+    features {
+      feature { key: "int_feature_1"
+                value { int64_list { value: [ 0 ] } } }
+      feature { key: "int_feature_2"
+                value { int64_list { value: [ 1, 2, 3 ] } } }
+      feature { key: "float_feature_1"
+                value { float_list { value: [ 4.0 ] } } }
+      feature { key: "float_feature_2"
+                value { float_list { value: [ 5.0, 6.0 ] } } }
+      feature { key: "str_feature_1"
+                value { bytes_list { value: [ 'female' ] } } }
+      feature { key: "str_feature_2"
+                value { bytes_list { value: [ 'string', 'list' ] } } }
+    }
+    """
+    expected_decoded = {
+        'int_feature_1': np.array([0], dtype=np.integer),
+        'int_feature_2': np.array([1, 2, 3], dtype=np.integer),
+        'float_feature_1': np.array([4.0], dtype=np.floating),
+        'float_feature_2': np.array([5.0, 6.0], dtype=np.floating),
+        'str_feature_1': np.array([b'female'], dtype=np.object),
+        'str_feature_2': np.array([b'string', b'list'], dtype=np.object),
+    }
+    example = tf.train.Example()
+    text_format.Merge(example_proto_text, example)
+    with beam.Pipeline() as p:
+      result = (p
+               | beam.Create([example.SerializeToString()])
+               | tf_example_decoder.DecodeTFExample())
+      util.assert_that(
+            result,
+            test_util.make_example_dict_equal_fn(self, [expected_decoded]))
 
 
 if __name__ == '__main__':

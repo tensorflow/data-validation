@@ -28,42 +28,8 @@ from apache_beam.testing import util
 import numpy as np
 from tensorflow_data_validation import types
 from tensorflow_data_validation.coders import csv_decoder
+from tensorflow_data_validation.utils import test_util
 from tensorflow_data_validation.types_compat import Callable, List
-
-
-def _make_example_dict_equal_fn(
-    test,
-    expected
-):
-  """Makes a matcher function for comparing the example dict.
-
-  Args:
-    test: test case object.
-    expected: the expected example dict.
-
-  Returns:
-    A matcher function for comparing the example dicts.
-  """
-
-  def _matcher(actual):
-    """Matcher function for comparing the example dicts."""
-    try:
-      # Check number of examples.
-      test.assertEqual(len(actual), len(expected))
-
-      for i in range(len(actual)):
-        for key in actual[i]:
-          # Check each feature value.
-          if isinstance(expected[i][key], np.ndarray):
-            test.assertEqual(actual[i][key].dtype, expected[i][key].dtype)
-            np.testing.assert_equal(actual[i][key], expected[i][key])
-          else:
-            test.assertEqual(actual[i][key], expected[i][key])
-
-    except AssertionError as e:
-      raise util.BeamAssertException('Failed assert: ' + str(e))
-
-  return _matcher
 
 
 class CSVDecoderTest(absltest.TestCase):
@@ -86,7 +52,7 @@ class CSVDecoderTest(absltest.TestCase):
                 csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
-          _make_example_dict_equal_fn(self, expected_result))
+          test_util.make_example_dict_equal_fn(self, expected_result))
 
   def test_csv_decoder_missing_values(self):
     input_lines = ['1,,hello',
@@ -105,7 +71,7 @@ class CSVDecoderTest(absltest.TestCase):
                 csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
-          _make_example_dict_equal_fn(self, expected_result))
+          test_util.make_example_dict_equal_fn(self, expected_result))
 
   def test_csv_decoder_with_int_and_float_in_same_column(self):
     input_lines = ['2,1.5',
@@ -122,7 +88,7 @@ class CSVDecoderTest(absltest.TestCase):
                 csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
-          _make_example_dict_equal_fn(self, expected_result))
+          test_util.make_example_dict_equal_fn(self, expected_result))
 
   def test_csv_decoder_with_int_and_string_in_same_column(self):
     input_lines = ['2,abc',
@@ -139,7 +105,7 @@ class CSVDecoderTest(absltest.TestCase):
                 csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
-          _make_example_dict_equal_fn(self, expected_result))
+          test_util.make_example_dict_equal_fn(self, expected_result))
 
   def test_csv_decoder_with_float_and_string_in_same_column(self):
     input_lines = ['2.3,abc',
@@ -156,7 +122,7 @@ class CSVDecoderTest(absltest.TestCase):
                 csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
-          _make_example_dict_equal_fn(self, expected_result))
+          test_util.make_example_dict_equal_fn(self, expected_result))
 
   def test_csv_decoder_with_unicode(self):
     input_lines = [u'1,שקרכלשהו,22.34,text field']
@@ -174,7 +140,7 @@ class CSVDecoderTest(absltest.TestCase):
                 csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
-          _make_example_dict_equal_fn(self, expected_result))
+          test_util.make_example_dict_equal_fn(self, expected_result))
 
   def test_csv_decoder_csv_record_with_quotes(self):
     input_lines = ['1,"ab,cd,ef"',
@@ -191,7 +157,7 @@ class CSVDecoderTest(absltest.TestCase):
                 csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
-          _make_example_dict_equal_fn(self, expected_result))
+          test_util.make_example_dict_equal_fn(self, expected_result))
 
   def test_csv_decoder_with_space_delimiter(self):
     input_lines = ['1 "ab,cd,ef"',
@@ -209,7 +175,7 @@ class CSVDecoderTest(absltest.TestCase):
                                       delimiter=' '))
       util.assert_that(
           result,
-          _make_example_dict_equal_fn(self, expected_result))
+          test_util.make_example_dict_equal_fn(self, expected_result))
 
   def test_csv_decoder_with_tab_delimiter(self):
     input_lines = ['1\t"this is a \ttext"',
@@ -227,7 +193,7 @@ class CSVDecoderTest(absltest.TestCase):
                                       delimiter='\t'))
       util.assert_that(
           result,
-          _make_example_dict_equal_fn(self, expected_result))
+          test_util.make_example_dict_equal_fn(self, expected_result))
 
   def test_csv_decoder_negative_values(self):
     input_lines = ['-34', '45']
@@ -241,7 +207,7 @@ class CSVDecoderTest(absltest.TestCase):
                 csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
-          _make_example_dict_equal_fn(self, expected_result))
+          test_util.make_example_dict_equal_fn(self, expected_result))
 
   def test_csv_decoder_int64_max(self):
     input_lines = ['34', str(sys.maxsize)]
@@ -255,7 +221,7 @@ class CSVDecoderTest(absltest.TestCase):
                 csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
-          _make_example_dict_equal_fn(self, expected_result))
+          test_util.make_example_dict_equal_fn(self, expected_result))
 
   def test_csv_decoder_large_int_categorical_pos(self):
     input_lines = ['34', str(sys.maxsize+1)]
@@ -269,7 +235,7 @@ class CSVDecoderTest(absltest.TestCase):
                 csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
-          _make_example_dict_equal_fn(self, expected_result))
+          test_util.make_example_dict_equal_fn(self, expected_result))
 
   def test_csv_decoder_large_int_categorical_neg(self):
     input_lines = ['34', str(-(sys.maxsize+2))]
@@ -283,7 +249,7 @@ class CSVDecoderTest(absltest.TestCase):
                 csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
-          _make_example_dict_equal_fn(self, expected_result))
+          test_util.make_example_dict_equal_fn(self, expected_result))
 
   def test_csv_decoder_large_int_categorical_pos_and_neg(self):
     input_lines = [str(sys.maxsize+1), str(-(sys.maxsize+2))]
@@ -297,7 +263,7 @@ class CSVDecoderTest(absltest.TestCase):
                 csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
-          _make_example_dict_equal_fn(self, expected_result))
+          test_util.make_example_dict_equal_fn(self, expected_result))
 
   def test_csv_decoder_empty_row(self):
     input_lines = [',,',
@@ -316,7 +282,7 @@ class CSVDecoderTest(absltest.TestCase):
                 csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
-          _make_example_dict_equal_fn(self, expected_result))
+          test_util.make_example_dict_equal_fn(self, expected_result))
 
   def test_csv_decoder_skip_blank_line(self):
     input_lines = ['',
@@ -331,7 +297,7 @@ class CSVDecoderTest(absltest.TestCase):
                 csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
-          _make_example_dict_equal_fn(self, expected_result))
+          test_util.make_example_dict_equal_fn(self, expected_result))
 
   def test_csv_decoder_consider_blank_line(self):
     input_lines = ['',
@@ -349,7 +315,7 @@ class CSVDecoderTest(absltest.TestCase):
                                       skip_blank_lines=False))
       util.assert_that(
           result,
-          _make_example_dict_equal_fn(self, expected_result))
+          test_util.make_example_dict_equal_fn(self, expected_result))
 
   def test_csv_decoder_skip_blank_line_single_column(self):
     input_lines = ['',
@@ -363,7 +329,7 @@ class CSVDecoderTest(absltest.TestCase):
                 csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
-          _make_example_dict_equal_fn(self, expected_result))
+          test_util.make_example_dict_equal_fn(self, expected_result))
 
   def test_csv_decoder_consider_blank_line_single_column(self):
     input_lines = ['',
@@ -379,7 +345,7 @@ class CSVDecoderTest(absltest.TestCase):
                                       skip_blank_lines=False))
       util.assert_that(
           result,
-          _make_example_dict_equal_fn(self, expected_result))
+          test_util.make_example_dict_equal_fn(self, expected_result))
 
   def test_csv_decoder_empty_csv(self):
     input_lines = []
@@ -390,7 +356,7 @@ class CSVDecoderTest(absltest.TestCase):
                 csv_decoder.DecodeCSV(column_names=[]))
       util.assert_that(
           result,
-          _make_example_dict_equal_fn(self, expected_result))
+          test_util.make_example_dict_equal_fn(self, expected_result))
 
   def test_csv_decoder_invalid_row(self):
     input_lines = ['1,2.0,hello',
@@ -404,7 +370,7 @@ class CSVDecoderTest(absltest.TestCase):
                   csv_decoder.DecodeCSV(column_names=column_names))
         util.assert_that(
             result,
-            _make_example_dict_equal_fn(self, None))
+            test_util.make_example_dict_equal_fn(self, None))
 
 
 if __name__ == '__main__':
