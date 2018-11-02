@@ -70,8 +70,6 @@ GCS_TMP_LOCATION = ''
 GCS_DATA_LOCATION = ''
 GCS_OUTPUT_LOCATION = ''
 
-PATH_TO_WHL_FILE = ''
-
 # Create and set your PipelineOptions.
 options = PipelineOptions()
 
@@ -83,10 +81,6 @@ google_cloud_options.job_name = JOB_NAME
 google_cloud_options.staging_location = GCS_STAGING_LOCATION
 google_cloud_options.temp_location = GCS_TMP_LOCATION
 options.view_as(StandardOptions).runner = 'DataflowRunner'
-
-# Only required until github repo is not public
-# PATH_TO_WHL_FILE should point to a .whl file for tfdv
-options.view_as(SetupOptions).extra_packages = [PATH_TO_WHL_FILE]
 
 with beam.Pipeline(options=options) as p:
     _ = (
@@ -107,7 +101,7 @@ print(schema)
 
 ```
 
-In this case, the generated statistics proto is stored in `output_path`.
+In this case, the generated statistics proto is stored in `GCS_OUTPUT_LOCATION`.
 
 ## Inferring a schema over the data
 

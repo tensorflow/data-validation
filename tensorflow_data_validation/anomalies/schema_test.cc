@@ -300,10 +300,11 @@ TEST(SchemaTest, UpdateSomeColumns) {
       num_stats: { common_stats: { num_missing: 3 max_num_values: 2 } }
     })");
   DatasetStatsView stats(dataset_statistics, false);
-  TF_ASSERT_OK(
-      schema.Update(stats, FeatureStatisticsToProtoConfig(),
-                    {"missing_feature", "completely_missing_column",
-                     "standard_update", "standard_update_2", "new_column"}));
+  TF_ASSERT_OK(schema.Update(
+      stats, FeatureStatisticsToProtoConfig(),
+      {Path({"missing_feature"}), Path({"completely_missing_column"}),
+       Path({"standard_update"}), Path({"standard_update_2"}),
+       Path({"new_column"})}));
   const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
 
   EXPECT_THAT(actual, EqualsProto(
@@ -413,7 +414,7 @@ TEST(SchemaTest, UpdateColumnsWithEnvironments) {
                                /* previous= */ nullptr,
                                /* serving= */ nullptr);
         TF_ASSERT_OK(schema.Update(stats, FeatureStatisticsToProtoConfig(),
-                                   {"feature"}));
+                                   {Path({"feature"})}));
         EXPECT_THAT(schema.GetSchema(), EqualsProto(result_schema_proto));
       };
   // The following test cases cover all distinct posibilities of:
@@ -496,7 +497,7 @@ TEST(SchemaTest, UpdateColumnsWithNewEnvironmentDescription) {
   tensorflow::metadata::v0::AnomalyInfo::Severity severity;
 
   TF_ASSERT_OK(schema.Update(Schema::Updater(FeatureStatisticsToProtoConfig()),
-                             *dataset_stats_view.GetByName("feature"),
+                             *dataset_stats_view.GetByPath(Path({"feature"})),
                              &descriptions, &severity));
   ASSERT_EQ(descriptions.size(), 1);
   EXPECT_EQ(descriptions[0].type,
@@ -514,7 +515,7 @@ TEST(SchemaTest, DeprecateFeature) {
 
   Schema schema;
   TF_ASSERT_OK(schema.Init(schema_proto));
-  schema.DeprecateFeature("feature_name");
+  schema.DeprecateFeature(Path({"feature_name"}));
   EXPECT_THAT(schema.GetSchema(), EqualsProto(R"(
                 feature {
                   name: "feature_name"
@@ -607,7 +608,7 @@ TEST(SchemaTest, FindSkew) {
           skew_comparator { infinity_norm: { threshold: 0.19999999999999998 } }
         })");
   const std::vector<Description> result =
-      schema.UpdateSkewComparator(*training_view->GetByName("foo"));
+      schema.UpdateSkewComparator(*training_view->GetByPath(Path({"foo"})));
 
   EXPECT_THAT(schema.GetSchema(), EqualsProto(expected_schema));
   // We're not particular about the description, just that there be one.
@@ -678,8 +679,8 @@ TEST(SchemaTest, FindDrift) {
   std::vector<Description> descriptions;
   tensorflow::metadata::v0::AnomalyInfo::Severity severity;
   TF_ASSERT_OK(schema.Update(Schema::Updater(FeatureStatisticsToProtoConfig()),
-                             *training_view->GetByName("foo"), &descriptions,
-                             &severity));
+                             *training_view->GetByPath(Path({"foo"})),
+                             &descriptions, &severity));
 
   EXPECT_THAT(schema.GetSchema(), EqualsProto(expected_schema));
   // We're not particular about the description, just that there be one.
@@ -741,6 +742,764 @@ TEST(SchemaTest, CreateFromProtoWithEmbeddedStringDomain) {
                   value_count { min: 1 max: 1 }
                   type: BYTES
                 })"));
+}
+
+// Test if the feature exists.
+TEST(SchemaTest, FeatureExists) {
+  const tensorflow::metadata::v0::Schema initial =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"pb(
+        feature {
+          name: "struct"
+          type: STRUCT
+          struct_domain {
+            feature: { name: "foo" }
+            feature: { name: "bar.baz" }
+          }
+        }
+        feature {
+          name: "##SEQUENCE##"
+          type: STRUCT
+          struct_domain {
+            feature: { name: "foo" }
+            feature: { name: "bar" }
+            feature: { name: "baz.bar" }
+          }
+        }
+        feature {
+          name: "(ext.field)"
+          type: STRUCT
+          struct_domain {
+            feature: { name: "foo" }
+            feature: { name: "bar" }
+            sparse_feature: { name: "deep_sparse" }
+          }
+        }
+        sparse_feature: { name: "shallow_sparse" }
+
+        feature { name: "foo.bar" })pb");
+
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(initial));
+  EXPECT_TRUE(schema.FeatureExists(Path({"foo.bar"})));
+  EXPECT_TRUE(schema.FeatureExists(Path({"##SEQUENCE##", "foo"})));
+  EXPECT_TRUE(schema.FeatureExists(Path({"(ext.field)", "foo"})));
+  EXPECT_TRUE(schema.FeatureExists(Path({"(ext.field)", "deep_sparse"})));
+  EXPECT_TRUE(schema.FeatureExists(Path({"shallow_sparse"})));
+  EXPECT_TRUE(schema.FeatureExists(Path({"struct", "foo"})));
+  EXPECT_TRUE(schema.FeatureExists(Path({"struct", "bar.baz"})));
+  EXPECT_TRUE(schema.FeatureExists(Path({"##SEQUENCE##", "baz.bar"})));
+  EXPECT_TRUE(schema.FeatureExists(Path({"##SEQUENCE##"})));
+  EXPECT_FALSE(schema.FeatureExists(Path({"no_such_field"})));
+  EXPECT_FALSE(schema.FeatureExists(Path({"##SEQUENCE##", "no_such_field"})));
+}
+
+// Tests the creation of a nested feature.
+TEST(SchemaTest, CreateColumnsDeepAll) {
+  Schema schema;
+  const tensorflow::metadata::v0::DatasetFeatureStatistics stats =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::DatasetFeatureStatistics>(
+          R"pb(
+            features {
+              name: "struct"
+              type: STRUCT
+              struct_stats {
+                common_stats {
+                  num_missing: 3
+                  num_non_missing: 7
+                  max_num_values: 2
+                }
+              }
+            }
+            features {
+              name: "struct.foo"
+              type: INT
+              num_stats: {
+                common_stats: {
+                  num_missing: 3
+                  num_non_missing: 4
+                  max_num_values: 2
+                }
+              }
+            }
+            features {
+              name: "struct.bar.baz"
+              type: INT
+              num_stats: {
+                common_stats: {
+                  num_missing: 3
+                  num_non_missing: 4
+                  max_num_values: 2
+                }
+              }
+            })pb");
+
+  DatasetStatsView view(stats);
+  TF_ASSERT_OK(schema.Update(view, FeatureStatisticsToProtoConfig()));
+  EXPECT_THAT(schema.GetSchema(), ::testing::EqualsProto(R"(
+                feature {
+                  name: "struct"
+                  value_count { min: 1 }
+                  type: STRUCT
+                  presence { min_count: 1 }
+                  struct_domain {
+                    feature {
+                      name: "bar.baz"
+                      value_count { min: 1 }
+                      type: INT
+                      presence { min_count: 1 }
+                    }
+                    feature {
+                      name: "foo"
+                      value_count { min: 1 }
+                      type: INT
+                      presence { min_count: 1 }
+                    }
+                  }
+                })"));
+}
+
+// Tests the creation of a nested feature.
+TEST(SchemaTest, CreateColumnsDeep) {
+  const tensorflow::metadata::v0::Schema initial =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"pb(
+        feature {
+          name: "struct"
+          type: STRUCT
+          struct_domain {}
+        })pb");
+
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(initial));
+  const tensorflow::metadata::v0::DatasetFeatureStatistics stats =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::DatasetFeatureStatistics>(
+          R"pb(
+            features {
+              name: "struct"
+              type: STRUCT
+              struct_stats {
+                common_stats {
+                  num_missing: 3
+                  num_non_missing: 7
+                  max_num_values: 2
+                }
+              }
+            }
+            features {
+              name: "struct.foo"
+              type: INT
+              num_stats: {
+                common_stats: {
+                  num_missing: 3
+                  num_non_missing: 4
+                  max_num_values: 2
+                }
+              }
+            }
+            features {
+              name: "struct.bar.baz"
+              type: INT
+              num_stats: {
+                common_stats: {
+                  num_missing: 3
+                  num_non_missing: 4
+                  max_num_values: 2
+                }
+              }
+            })pb");
+
+  DatasetStatsView view(stats);
+  TF_ASSERT_OK(schema.Update(view, FeatureStatisticsToProtoConfig()));
+  EXPECT_THAT(schema.GetSchema(), ::testing::EqualsProto(R"(
+                feature {
+                  name: "struct"
+                  type: STRUCT
+                  struct_domain {
+                    feature {
+                      name: "bar.baz"
+                      value_count { min: 1 }
+                      type: INT
+                      presence { min_count: 1 }
+                    }
+                    feature {
+                      name: "foo"
+                      value_count { min: 1 }
+                      type: INT
+                      presence { min_count: 1 }
+                    }
+                  }
+                })"));
+}
+
+// Tests the creation of a nested feature with the parent deprecated
+// (all children are also considered deprecated).
+TEST(SchemaTest, CreateColumnsDeepDeprecated) {
+  const tensorflow::metadata::v0::Schema initial =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"pb(
+        feature {
+          name: "struct"
+          type: STRUCT
+          lifecycle_stage: DEPRECATED
+          struct_domain { feature: { name: "foo" } }
+        })pb");
+
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(initial));
+  const tensorflow::metadata::v0::DatasetFeatureStatistics stats =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::DatasetFeatureStatistics>(
+          R"pb(
+            features {
+              name: "struct"
+              type: STRUCT
+              struct_stats { common_stats { num_missing: 3 max_num_values: 2 } }
+            }
+            features {
+              name: "struct.foo"
+              type: INT
+              num_stats: { common_stats: { num_missing: 3 max_num_values: 2 } }
+            }
+            features {
+              name: "struct.bar.baz"
+              type: INT
+              num_stats: { common_stats: { num_missing: 3 max_num_values: 2 } }
+            })pb");
+
+  DatasetStatsView view(stats);
+  TF_ASSERT_OK(schema.Update(view, FeatureStatisticsToProtoConfig()));
+  EXPECT_THAT(schema.GetSchema(), ::testing::EqualsProto(initial));
+}
+
+// Test that FeatureIsDeprecated is correct when the output should be false.
+TEST(SchemaTest, FeatureIsDeprecatedFalse) {
+  const tensorflow::metadata::v0::Schema initial =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"pb(
+        feature {
+          name: "empty_domain"
+          presence: { min_count: 1 }
+          value_count { min: 1 max: 1 }
+          type: BYTES
+          string_domain {}
+        }
+        feature {
+          name: "struct"
+          presence: { min_count: 1 }
+          value_count { min: 1 max: 1 }
+          type: STRUCT
+          struct_domain {
+            feature: { name: "foo" }
+            feature: { name: "bar.baz" }
+          }
+        }
+        feature {
+          name: "##SEQUENCE##"
+          presence: { min_count: 1 }
+          value_count { min: 1 max: 1 }
+          type: STRUCT
+          struct_domain {
+            feature: { name: "foo" }
+            feature: { name: "bar" }
+            feature: { name: "baz.bar" }
+          }
+        }
+        feature {
+          name: "(ext.field)"
+          presence: { min_count: 1 }
+          value_count { min: 1 max: 1 }
+          type: STRUCT
+          struct_domain {
+            feature: { name: "foo" }
+            feature: { name: "bar" }
+            sparse_feature: { name: "deep_sparse" }
+          }
+        }
+        sparse_feature: { name: "shallow_sparse" }
+
+        feature { name: "foo.bar" })pb");
+
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(initial));
+  EXPECT_FALSE(schema.FeatureIsDeprecated(Path({"foo", "bar"})));
+  EXPECT_FALSE(schema.FeatureIsDeprecated(Path({"##SEQUENCE##", "foo"})));
+  EXPECT_FALSE(schema.FeatureIsDeprecated(Path({"(ext.field)", "foo"})));
+  EXPECT_FALSE(
+      schema.FeatureIsDeprecated(Path({"(ext.field)", "deep_sparse"})));
+  EXPECT_FALSE(schema.FeatureIsDeprecated(Path({"shallow_sparse"})));
+  EXPECT_FALSE(schema.FeatureIsDeprecated(Path({"struct", "foo"})));
+  EXPECT_FALSE(schema.FeatureIsDeprecated(Path({"struct", "bar.baz"})));
+  EXPECT_FALSE(schema.FeatureIsDeprecated(Path({"##SEQUENCE##", "baz.bar"})));
+}
+
+// Test when a bunch of paths are all present in the schema and missing in
+// the data.
+TEST(SchemaTest, GetMissingPathsAllMissing) {
+  const tensorflow::metadata::v0::Schema initial =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"pb(
+        feature {
+          name: "struct"
+          presence: { min_count: 1 }
+          type: STRUCT
+          struct_domain {
+            feature: {
+              presence: { min_count: 1 }
+              name: "foo"
+            }
+            feature: {
+              presence: { min_count: 1 }
+              name: "bar.baz"
+            }
+          }
+        }
+        feature {
+          name: "##SEQUENCE##"
+          presence: { min_count: 1 }
+          type: STRUCT
+          struct_domain {
+            feature: {
+              presence: { min_count: 1 }
+              name: "foo"
+            }
+            feature: {
+              presence: { min_count: 1 }
+              name: "bar"
+            }
+            feature: {
+              presence: { min_count: 1 }
+              name: "baz.bar"
+            }
+          }
+        }
+        feature {
+          name: "(ext.field)"
+          presence: { min_count: 1 }
+          value_count { min: 1 max: 1 }
+          type: STRUCT
+          struct_domain {
+            feature: {
+              presence: { min_count: 1 }
+              name: "foo"
+            }
+            feature: {
+              presence: { min_count: 1 }
+              name: "bar"
+            }
+            sparse_feature: {
+              presence: { min_count: 1 }
+              name: "deep_sparse"
+            }
+          }
+        }
+        sparse_feature: {
+          name: "shallow_sparse"
+          presence: { min_count: 1 }
+        }
+
+        feature {
+          name: "foo.bar"
+          presence: { min_count: 1 }
+        })pb");
+
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(initial));
+  const tensorflow::metadata::v0::DatasetFeatureStatistics stats;
+  DatasetStatsView view(stats);
+  // "(ext.field).deep_sparse", "shallow_sparse" are sparse and therefore
+  // not required.
+  EXPECT_THAT(schema.GetMissingPaths(view),
+              ::testing::UnorderedElementsAre(
+                  Path({"struct"}), Path({"struct", "foo"}),
+                  Path({"struct", "bar.baz"}), Path({"##SEQUENCE##"}),
+                  Path({"##SEQUENCE##", "foo"}), Path({"##SEQUENCE##", "bar"}),
+                  Path({"##SEQUENCE##", "baz.bar"}), Path({"(ext.field)"}),
+                  Path({"(ext.field)", "foo"}), Path({"(ext.field)", "bar"}),
+                  Path({"foo.bar"})));
+}
+
+// Test when GetMissingPaths when all paths in a schema are in the data.
+TEST(SchemaTest, GetMissingPathsAllPresent) {
+  const tensorflow::metadata::v0::Schema initial =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"pb(
+        feature {
+          name: "empty_domain"
+          presence: { min_count: 1 }
+          value_count { min: 1 max: 1 }
+          type: BYTES
+          string_domain {}
+        }
+        feature {
+          name: "struct"
+          presence: { min_count: 1 }
+          value_count { min: 1 max: 1 }
+          type: STRUCT
+          struct_domain {
+            feature: { name: "foo" }
+            feature: { name: "bar.baz" }
+          }
+        }
+        feature {
+          name: "##SEQUENCE##"
+          presence: { min_count: 1 }
+          value_count { min: 1 max: 1 }
+          type: STRUCT
+          struct_domain {
+            feature: { name: "foo" }
+            feature: { name: "bar" }
+            feature: { name: "baz.bar" }
+          }
+        }
+        feature {
+          name: "(ext.field)"
+          presence: { min_count: 1 }
+          value_count { min: 1 max: 1 }
+          type: STRUCT
+          struct_domain {
+            feature: { name: "foo" }
+            feature: { name: "bar" }
+            sparse_feature: { name: "deep_sparse" }
+          }
+        }
+        sparse_feature: { name: "shallow_sparse" }
+
+        feature { name: "foo.bar" })pb");
+
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(initial));
+  const tensorflow::metadata::v0::DatasetFeatureStatistics stats =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::DatasetFeatureStatistics>(
+          R"pb(
+            features { name: "empty_domain" type: BYTES }
+            features { name: "struct" type: STRUCT }
+            features { name: "struct.foo" }
+            features { name: "struct.bar.baz" }
+            features { name: "##SEQUENCE##" type: STRUCT }
+            features { name: "##SEQUENCE##.foo" }
+            features: { name: "##SEQUENCE##.bar" }
+            features: { name: "##SEQUENCE##.baz.bar" }
+            features: { name: "(ext.field)" type: STRUCT }
+            features: { name: "(ext.field).foo" }
+            features: { name: "(ext.field).bar" }
+            features: { name: "(ext.field).deep_sparse" }
+            features: { name: "shallow_sparse" }
+            features { name: "foo.bar" })pb");
+
+  DatasetStatsView view(stats);
+  EXPECT_EQ(schema.GetMissingPaths(view).size(), 0);
+}
+
+// This tests if UpdateRecursively can create a deep feature.
+TEST(SchemaTest, CreateDeepFieldUpdateRecursivelyStructFoo) {
+  const tensorflow::metadata::v0::Schema initial =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
+        feature {
+          name: "struct"
+          presence: { min_count: 1 }
+          value_count { min: 1 max: 1 }
+          type: STRUCT
+          struct_domain { feature: { name: "bar" } }
+        })");
+
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(initial));
+  const tensorflow::metadata::v0::DatasetFeatureStatistics stats =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::DatasetFeatureStatistics>(
+          R"(
+            features {
+              name: "struct"
+              type: STRUCT
+              struct_stats: {
+                common_stats: {
+                  num_missing: 3
+                  num_non_missing: 7
+                  max_num_values: 2
+                }
+              }
+
+            }
+            features {
+              name: "struct.foo"
+              type: INT
+              num_stats: {
+                common_stats: {
+                  num_missing: 3
+                  num_non_missing: 4
+                  max_num_values: 2
+                }
+              }
+            })");
+
+  DatasetStatsView view(stats);
+  std::vector<Description> descriptions;
+  metadata::v0::AnomalyInfo::Severity severity;
+
+  TF_ASSERT_OK(schema.UpdateRecursively(
+      Schema::Updater(FeatureStatisticsToProtoConfig()),
+      *view.GetByPath(Path({"struct", "foo"})), absl::nullopt, &descriptions,
+      &severity));
+  EXPECT_THAT(schema.GetSchema(),
+              testing::EqualsProto(R"(feature {
+                                        name: "struct"
+                                        value_count { min: 1 max: 1 }
+                                        type: STRUCT
+                                        presence { min_count: 1 }
+                                        struct_domain {
+                                          feature: { name: "bar" }
+                                          feature {
+                                            name: "foo"
+                                            value_count { min: 1 }
+                                            type: INT
+                                            presence { min_count: 1 }
+                                          }
+                                        }
+                                      })"));
+}
+
+// This tests if UpdateRecursively can create a deep feature.
+TEST(SchemaTest, CreateDeepFieldUpdateRecursivelyStruct) {
+  const tensorflow::metadata::v0::Schema initial =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
+        feature {
+          name: "struct"
+          presence: { min_count: 1 }
+          value_count { max: 1 }
+          type: STRUCT
+          struct_domain { feature: { name: "bar" } }
+        })");
+
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(initial));
+  const tensorflow::metadata::v0::DatasetFeatureStatistics stats =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::DatasetFeatureStatistics>(
+          R"(
+            features {
+              name: "struct"
+              type: STRUCT
+              struct_stats: {
+                common_stats: {
+                  num_missing: 3
+                  num_non_missing: 7
+                  max_num_values: 1
+                }
+              }
+
+            }
+            features {
+              name: "struct.foo"
+              type: INT
+              num_stats: {
+                common_stats: {
+                  num_missing: 3
+                  num_non_missing: 4
+                  max_num_values: 2
+                }
+              }
+            })");
+
+  DatasetStatsView view(stats);
+  std::vector<Description> descriptions;
+  metadata::v0::AnomalyInfo::Severity severity;
+  TF_ASSERT_OK(schema.UpdateRecursively(
+      Schema::Updater(FeatureStatisticsToProtoConfig()),
+      *view.GetByPath(Path({"struct"})), absl::nullopt, &descriptions,
+      &severity));
+
+  EXPECT_THAT(schema.GetSchema(),
+              testing::EqualsProto(R"(feature {
+                                        name: "struct"
+                                        value_count { max: 1 }
+                                        type: STRUCT
+                                        presence { min_count: 1 }
+                                        struct_domain {
+                                          feature: { name: "bar" }
+                                          feature {
+                                            name: "foo"
+                                            value_count { min: 1 }
+                                            type: INT
+                                            presence { min_count: 1 }
+                                          }
+                                        }
+                                      })"));
+}
+
+// applying Update to a struct should do nothing but confirm that it is a
+// struct.
+TEST(SchemaTest, UpdateStruct) {
+  const tensorflow::metadata::v0::Schema initial =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
+        feature {
+          name: "struct"
+          presence: { min_count: 1 }
+          value_count { max: 1 }
+          type: STRUCT
+          struct_domain { feature: { name: "bar" } }
+        })");
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(initial));
+  const tensorflow::metadata::v0::DatasetFeatureStatistics stats =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::DatasetFeatureStatistics>(
+          R"(
+            features {
+              name: "struct"
+              type: STRUCT
+              struct_stats: {
+                common_stats: {
+                  num_missing: 3
+                  num_non_missing: 7
+                  max_num_values: 1
+                }
+              }
+
+            }
+            features {
+              name: "struct.foo"
+              type: INT
+              num_stats: {
+                common_stats: {
+                  num_missing: 3
+                  num_non_missing: 4
+                  max_num_values: 2
+                }
+              }
+            })");
+
+  DatasetStatsView view(stats);
+  std::vector<Description> descriptions;
+  metadata::v0::AnomalyInfo::Severity severity;
+  TF_ASSERT_OK(schema.Update(Schema::Updater(FeatureStatisticsToProtoConfig()),
+                             *view.GetByPath(Path({"struct"})), &descriptions,
+                             &severity));
+  EXPECT_THAT(schema.GetSchema(), testing::EqualsProto(initial));
+}
+
+// This tests if Update can create a deep feature.
+TEST(SchemaTest, CreateDeepFieldWithUpdate) {
+  const tensorflow::metadata::v0::Schema initial =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
+        feature {
+          name: "struct"
+          presence: { min_count: 1 }
+          value_count { max: 1 }
+          type: STRUCT
+          struct_domain { feature: { name: "bar" } }
+        })");
+
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(initial));
+  const tensorflow::metadata::v0::DatasetFeatureStatistics stats =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::DatasetFeatureStatistics>(
+          R"(
+
+            features {
+              name: "struct"
+              type: STRUCT
+              struct_stats: {
+                common_stats: {
+                  num_missing: 3
+                  num_non_missing: 7
+                  max_num_values: 2
+                }
+              }
+            }
+            features {
+              name: "struct.foo"
+              type: INT
+              num_stats: {
+                common_stats: {
+                  num_missing: 3
+                  num_non_missing: 4
+                  max_num_values: 2
+                }
+              }
+            })");
+
+  DatasetStatsView view(stats);
+
+  TF_ASSERT_OK(schema.Update(view, FeatureStatisticsToProtoConfig()));
+  EXPECT_THAT(schema.GetSchema(), testing::EqualsProto(R"(
+                feature {
+                  name: "struct"
+                  value_count { max: 2 }
+                  type: STRUCT
+                  presence { min_count: 1 }
+                  struct_domain {
+                    feature { name: "bar" }
+                    feature {
+                      name: "foo"
+                      value_count { min: 1 }
+                      type: INT
+                      presence { min_count: 1 }
+                    }
+                  }
+                }
+              )"));
+}
+
+// Test if FeatureIsDeprecated using FeatureStatsView.
+TEST(SchemaTest, FeatureIsDeprecatedTrue) {
+  const tensorflow::metadata::v0::Schema initial =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"pb(
+        feature {
+          name: "struct"
+          type: STRUCT
+          struct_domain {
+            feature: {
+              name: "foo"
+              lifecycle_stage: DEPRECATED
+
+            }
+            feature: {
+              name: "bar.baz"
+              lifecycle_stage: DEPRECATED
+
+            }
+          }
+        }
+        feature {
+          name: "##SEQUENCE##"
+          type: STRUCT
+          struct_domain {
+            feature: { name: "foo" lifecycle_stage: DEPRECATED }
+            feature: { name: "bar" lifecycle_stage: DEPRECATED }
+            feature: { name: "baz.bar" lifecycle_stage: DEPRECATED }
+          }
+        }
+        feature {
+          name: "(ext.field)"
+          type: STRUCT
+          struct_domain {
+            feature: { name: "foo" lifecycle_stage: DEPRECATED }
+            feature: { name: "bar" lifecycle_stage: DEPRECATED }
+            sparse_feature: { name: "deep_sparse" lifecycle_stage: DEPRECATED }
+          }
+        }
+        sparse_feature: { name: "shallow_sparse" lifecycle_stage: DEPRECATED }
+        feature { name: "foo.bar" lifecycle_stage: DEPRECATED })pb");
+
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(initial));
+  const tensorflow::metadata::v0::DatasetFeatureStatistics stats =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::DatasetFeatureStatistics>(
+          R"pb(
+            features { name: "struct" type: STRUCT }
+            features { name: "struct.foo" }
+            features { name: "struct.bar.baz" }
+            features { name: "##SEQUENCE##" type: STRUCT }
+            features { name: "##SEQUENCE##.foo" }
+            features: { name: "##SEQUENCE##.bar" }
+            features: { name: "##SEQUENCE##.baz.bar" }
+            features: { name: "(ext.field)" type: STRUCT }
+            features: { name: "(ext.field).foo" }
+            features: { name: "(ext.field).bar" }
+            features: { name: "(ext.field).deep_sparse" }
+            features: { name: "shallow_sparse" }
+            features { name: "foo.bar" })pb");
+
+  DatasetStatsView view(stats);
+  EXPECT_TRUE(schema.FeatureIsDeprecated(Path({"foo.bar"})));
+  EXPECT_TRUE(schema.FeatureIsDeprecated(Path({"##SEQUENCE##", "foo"})));
+  EXPECT_TRUE(schema.FeatureIsDeprecated(Path({"(ext.field)", "foo"})));
+  EXPECT_TRUE(schema.FeatureIsDeprecated(Path({"(ext.field)", "deep_sparse"})));
+  EXPECT_TRUE(schema.FeatureIsDeprecated(Path({"shallow_sparse"})));
+  EXPECT_TRUE(schema.FeatureIsDeprecated(Path({"struct", "foo"})));
+  EXPECT_TRUE(schema.FeatureIsDeprecated(Path({"struct", "bar.baz"})));
+  EXPECT_TRUE(schema.FeatureIsDeprecated(Path({"##SEQUENCE##", "baz.bar"})));
 }
 
 TEST(SchemaTest, GetSchemaWithDash) {

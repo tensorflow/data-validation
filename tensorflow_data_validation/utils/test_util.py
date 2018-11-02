@@ -32,8 +32,7 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 
 def make_example_dict_equal_fn(
     test,
-    expected
-):
+    expected):
   """Makes a matcher function for comparing the example dict.
 
   Args:
@@ -43,7 +42,6 @@ def make_example_dict_equal_fn(
   Returns:
     A matcher function for comparing the example dicts.
   """
-
   def _matcher(actual):
     """Matcher function for comparing the example dicts."""
     try:
@@ -106,6 +104,56 @@ def make_dataset_feature_stats_list_proto_equal_fn(
   return _matcher
 
 
+def assert_feature_proto_equal_with_error_on_custom_stats(
+    test,
+    actual,
+    expected,
+    relative_error_threshold = 0.05,
+    absolute_error_threshold = 0.05):
+  """Compares feature protos and ensures custom stats are almost equal.
+
+  A numeric custom stat is almost equal if
+  expected * (1 - relative_error_threshold) - absolute_error_threshold < actual
+  AND
+  actual < expected * (1 + relative_error_threshold) + absolute_error_threshold
+
+  All other proto fields are compared directly.
+
+  Args:
+    test: The test case.
+    actual: The actual feature proto.
+    expected: The expected feature proto.
+    relative_error_threshold: The relative error permitted between custom stats
+      in expected and actual.
+    absolute_error_threshold: The absolute error permitted between custom stats
+      in expected and actual.
+  """
+
+  test.assertEqual(len(actual.custom_stats), len(expected.custom_stats))
+  expected_custom_stats = {}
+  for expected_custom_stat in expected.custom_stats:
+    expected_custom_stats[expected_custom_stat.name] = expected_custom_stat
+
+  for i, actual_custom_stat in enumerate(actual.custom_stats):
+    test.assertTrue(actual_custom_stat.name in expected_custom_stats)
+    expected_custom_stat = expected_custom_stats[actual_custom_stat.name]
+    # Compare numeric custom stats with error margin
+    if actual_custom_stat.WhichOneof(
+        'val') == 'num' and expected_custom_stat.WhichOneof('val') == 'num':
+      test.assertBetween(
+          actual_custom_stat.num,
+          expected_custom_stat.num * (1 - relative_error_threshold) -
+          absolute_error_threshold,
+          expected_custom_stat.num * (1 + relative_error_threshold) +
+          absolute_error_threshold,
+          msg=actual_custom_stat.name + ' is not within the expected range.')
+      del actual.custom_stats[i]
+      del expected.custom_stats[i]
+
+    # Compare the rest of the proto without numeric custom stats
+    compare.assertProtoEqual(test, actual, expected, normalize_numbers=True)
+
+
 class CombinerStatsGeneratorTest(absltest.TestCase):
   """Test class with extra combiner stats generator related functionality."""
 
@@ -113,7 +161,8 @@ class CombinerStatsGeneratorTest(absltest.TestCase):
   # matches the expected result.
   def assertCombinerOutputEqual(
       self, batches,
-      generator, expected_result):
+      generator,
+      expected_result):
     """Tests a combiner statistics generator."""
     accumulators = [
         generator.add_input(generator.create_accumulator(), batch)

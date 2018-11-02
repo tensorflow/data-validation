@@ -45,10 +45,11 @@ from __future__ import division
 
 from __future__ import print_function
 
-import collections
+import random
 import apache_beam as beam
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics import stats_impl
+from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.statistics.generators import common_stats_generator
 from tensorflow_data_validation.statistics.generators import numeric_stats_generator
 from tensorflow_data_validation.statistics.generators import stats_generator
@@ -57,70 +58,13 @@ from tensorflow_data_validation.statistics.generators import top_k_stats_generat
 from tensorflow_data_validation.statistics.generators import uniques_stats_generator
 from tensorflow_data_validation.utils import batch_util
 from tensorflow_data_validation.utils import profile_util
-from tensorflow_data_validation.types_compat import List
+from tensorflow_data_validation.types_compat import Generator, List
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
-class StatsOptions(
-    collections.namedtuple('StatsOptions', [
-        'generators', 'feature_whitelist', 'schema', 'num_top_values',
-        'num_rank_histogram_buckets', 'num_values_histogram_buckets',
-        'num_histogram_buckets', 'num_quantiles_histogram_buckets', 'epsilon'
-    ])):
-  """Options for generating data statistics.
-
-  Attributes:
-    generators: An optional list of statistics generators. A statistics
-      generator must extend either CombinerStatsGenerator or
-      TransformStatsGenerator.
-    feature_whitelist: An optional list of names of the features to calculate
-      statistics for.
-    schema: An optional tensorflow_metadata Schema proto. Currently we use the
-      schema to infer categorical and bytes features.
-    num_top_values: An optional number of most frequent feature values to keep
-      for string features.
-    num_rank_histogram_buckets: An optional number of buckets in the rank
-      histogram for string features.
-    num_values_histogram_buckets: An optional number of buckets in a quantiles
-      histogram for the number of values per Feature, which is stored in
-      CommonStatistics.num_values_histogram.
-    num_histogram_buckets: An optional number of buckets in a standard
-      NumericStatistics.histogram with equal-width buckets.
-    num_quantiles_histogram_buckets: An optional number of buckets in a
-      quantiles NumericStatistics.histogram.
-    epsilon: An optional error tolerance for the computation of quantiles,
-      typically a small fraction close to zero (e.g. 0.01). Higher values of
-      epsilon increase the quantile approximation, and hence result in more
-      unequal buckets, but could improve performance, and resource consumption.
-  """
-
-  def __new__(cls,
-              generators=None,
-              feature_whitelist=None,
-              schema=None,
-              num_top_values=20,
-              num_rank_histogram_buckets=1000,
-              num_values_histogram_buckets=10,
-              num_histogram_buckets=10,
-              num_quantiles_histogram_buckets=10,
-              epsilon=0.01):
-    # Default generate statistics option values
-    return super(StatsOptions, cls).__new__(
-        cls,
-        generators=generators,
-        feature_whitelist=feature_whitelist,
-        schema=schema,
-        num_top_values=num_top_values,
-        num_rank_histogram_buckets=num_rank_histogram_buckets,
-        num_values_histogram_buckets=num_values_histogram_buckets,
-        num_histogram_buckets=num_histogram_buckets,
-        num_quantiles_histogram_buckets=num_quantiles_histogram_buckets,
-        epsilon=epsilon)
-
-
-@beam.typehints.with_input_types(types.ExampleBatch)
+@beam.typehints.with_input_types(types.Example)
 @beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatisticsList)
 class GenerateStatistics(beam.PTransform):
   """Public API for generating data statistics.
@@ -138,7 +82,10 @@ class GenerateStatistics(beam.PTransform):
                    statistics_pb2.DatasetFeatureStatisticsList)))
   """
 
-  def __init__(self, options = StatsOptions()):
+  def __init__(
+      self,
+      options = stats_options.StatsOptions()
+  ):
     """Initializes the transform.
 
     Args:
@@ -153,6 +100,10 @@ class GenerateStatistics(beam.PTransform):
     self._options = options
 
   def _check_options(self, options):
+    if not isinstance(options, stats_options.StatsOptions):
+      raise TypeError('options is of type %s, should be a StatsOptions.' %
+                      type(options).__name__)
+
     if options.generators is not None:
       if not isinstance(options.generators, list):
         raise TypeError('generators is of type %s, should be a list' % type(
@@ -175,6 +126,16 @@ class GenerateStatistics(beam.PTransform):
                                                      schema_pb2.Schema):
       raise TypeError('schema is of type %s, should be a Schema proto.' % type(
           options.schema).__name__)
+
+    if options.sample_count is not None and options.sample_rate is not None:
+      raise ValueError('Only one of sample_count or sample_rate can be '
+                       'specified.')
+
+    if options.sample_count is not None and options.sample_count < 1:
+      raise ValueError('Invalid sample_count %d' % options.sample_count)
+
+    if options.sample_rate is not None and not 0 < options.sample_rate <= 1:
+      raise ValueError('Invalid sample_rate %f' % options.sample_rate)
 
     if options.num_values_histogram_buckets < 1:
       raise ValueError('Invalid num_values_histogram_buckets %d' %
@@ -225,22 +186,43 @@ class GenerateStatistics(beam.PTransform):
       # Add custom stats generators.
       stats_generators.extend(self._options.generators)
 
-    # Profile and then batch input examples.
-    batched_dataset = (
-        dataset
-        | 'Profile' >> profile_util.Profile()
-        | 'BatchInputs' >> batch_util.BatchExamples())
+    # Profile the input examples.
+    dataset |= 'ProfileExamples' >> profile_util.Profile()
+
+    # Sample input data if sample_count option is provided.
+    if self._options.sample_count is not None:
+      # beam.combiners.Sample.FixedSizeGlobally returns a
+      # PCollection[List[types.Example]], which we then flatten to get a
+      # PCollection[types.Example].
+      dataset |= ('SampleExamples(%s)' % self._options.sample_count >>
+                  beam.combiners.Sample.FixedSizeGlobally(
+                      self._options.sample_count)
+                  | 'FlattenExamples' >> beam.FlatMap(lambda lst: lst))
+    elif self._options.sample_rate is not None:
+      dataset |= ('SampleExamplesAtRate(%s)' % self._options.sample_rate >>
+                  beam.FlatMap(_sample_at_rate,
+                               sample_rate=self._options.sample_rate))
+
+    # Batch the input examples.
+    desired_batch_size = (None if self._options.sample_count is None else
+                          self._options.sample_count)
+    dataset = (dataset | 'BatchExamples' >> batch_util.BatchExamples(
+        desired_batch_size=desired_batch_size))
 
     # If a set of whitelist features are provided, keep only those features.
-    filtered_dataset = batched_dataset
     if self._options.feature_whitelist:
-      filtered_dataset = (
-          batched_dataset | 'RemoveNonWhitelistedFeatures' >> beam.Map(
-              _filter_features,
-              feature_whitelist=self._options.feature_whitelist))
+      dataset |= ('RemoveNonWhitelistedFeatures' >> beam.Map(
+          _filter_features, feature_whitelist=self._options.feature_whitelist))
 
-    return (filtered_dataset | 'RunStatsGenerators' >>
+    return (dataset | 'RunStatsGenerators' >>
             stats_impl.GenerateStatisticsImpl(stats_generators))
+
+
+def _sample_at_rate(example, sample_rate
+                   ):
+  """Sample examples at input sampling rate."""
+  if random.random() <= sample_rate:
+    yield example
 
 
 def _filter_features(

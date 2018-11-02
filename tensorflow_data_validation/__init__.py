@@ -16,7 +16,6 @@
 
 # Import stats API.
 from tensorflow_data_validation.api.stats_api import GenerateStatistics
-from tensorflow_data_validation.api.stats_api import StatsOptions
 
 # Import validation API.
 from tensorflow_data_validation.api.validation_api import infer_schema
@@ -29,6 +28,9 @@ from tensorflow_data_validation.coders.tf_example_decoder import TFExampleDecode
 # Import stats generators.
 from tensorflow_data_validation.statistics.generators.stats_generator import CombinerStatsGenerator
 from tensorflow_data_validation.statistics.generators.stats_generator import TransformStatsGenerator
+
+# Import stats options.
+from tensorflow_data_validation.statistics.stats_options import StatsOptions
 
 # Import display utilities.
 from tensorflow_data_validation.utils.display_util import display_anomalies

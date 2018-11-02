@@ -26,10 +26,8 @@ from absl.testing import absltest
 import apache_beam as beam
 from apache_beam.testing import util
 import numpy as np
-from tensorflow_data_validation import types
 from tensorflow_data_validation.coders import csv_decoder
 from tensorflow_data_validation.utils import test_util
-from tensorflow_data_validation.types_compat import Callable, List
 
 
 class CSVDecoderTest(absltest.TestCase):

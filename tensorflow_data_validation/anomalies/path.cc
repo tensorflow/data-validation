@@ -189,5 +189,9 @@ Path Path::GetChild(absl::string_view last_step) const {
   return Path(std::move(new_steps));
 }
 
+void PrintTo(const Path& p, std::ostream* o) {
+  (*o) << p.Serialize();
+}
+
 }  // namespace data_validation
 }  // namespace tensorflow

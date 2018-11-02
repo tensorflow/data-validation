@@ -21,7 +21,7 @@ import tempfile
 from absl.testing import absltest
 import tensorflow as tf
 
-from tensorflow_data_validation.api import stats_api
+from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.utils import stats_gen_lib
 from tensorflow_data_validation.utils import test_util
 
@@ -33,7 +33,7 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 class StatsGenTest(absltest.TestCase):
 
   def setUp(self):
-    self._default_stats_options = stats_api.StatsOptions(
+    self._default_stats_options = stats_options.StatsOptions(
         num_top_values=2,
         num_rank_histogram_buckets=2,
         num_values_histogram_buckets=2,

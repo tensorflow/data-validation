@@ -23,6 +23,7 @@ limitations under the License.
 #include <vector>
 
 #include "absl/types/optional.h"
+#include "tensorflow_data_validation/anomalies/path.h"
 #include "tensorflow/core/platform/types.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
@@ -69,9 +70,8 @@ class DatasetStatsView {
 
   bool by_weight() const;
 
-  // Note that this takes linear time in the number of features.
-  // If the name does not exist, returns absl::nullopt.
-  absl::optional<FeatureStatsView> GetByName(const string& name) const;
+  // If the path does not exist, returns absl::nullopt.
+  absl::optional<FeatureStatsView> GetByPath(const Path& path) const;
 
   // Only call from FeatureStatsView::data().
   // check-fails if index is out of range. However, should never fail if
@@ -93,6 +93,8 @@ class DatasetStatsView {
   // ancestor with the longest name.
   absl::optional<FeatureStatsView> GetParent(
       const FeatureStatsView& view) const;
+
+  const Path& GetPath(const FeatureStatsView& view) const;
 
   // Gets the children of a FeatureStatsView.
   std::vector<FeatureStatsView> GetChildren(const FeatureStatsView& view) const;
@@ -118,6 +120,8 @@ class FeatureStatsView {
   FeatureStatsView(const FeatureStatsView& other) = default;
 
   const string& name() const { return data().name(); }
+
+  const Path& GetPath() const;
 
   const absl::optional<string>& environment() const {
     return parent_view_.environment();

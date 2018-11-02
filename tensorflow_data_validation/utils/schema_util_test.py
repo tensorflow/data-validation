@@ -17,10 +17,14 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import os
+from absl import flags
 from absl.testing import absltest
 from tensorflow_data_validation.utils import schema_util
 from google.protobuf import text_format
 from tensorflow_metadata.proto.v0 import schema_pb2
+
+FLAGS = flags.FLAGS
 
 
 class SchemaUtilTest(absltest.TestCase):
@@ -50,11 +54,11 @@ class SchemaUtilTest(absltest.TestCase):
         """, schema_pb2.Schema())
 
     with self.assertRaisesRegexp(ValueError,
-                                 'Feature.*not found in the schema.*'):
+                                 'Feature.*not found in the schema'):
       _ = schema_util.get_feature(schema, 'feature2')
 
   def test_get_feature_invalid_schema_input(self):
-    with self.assertRaisesRegexp(TypeError, '.*should be a Schema proto.*'):
+    with self.assertRaisesRegexp(TypeError, 'should be a Schema proto'):
       _ = schema_util.get_feature({}, 'feature')
 
   def test_get_string_domain_schema_level_domain(self):
@@ -160,14 +164,90 @@ class SchemaUtilTest(absltest.TestCase):
         }
         """, schema_pb2.Schema())
 
-    with self.assertRaisesRegexp(ValueError,
-                                 '.*has no domain associated.*'):
+    with self.assertRaisesRegexp(ValueError, 'has no domain associated'):
       _ = schema_util.get_domain(schema, 'feature1')
 
   def test_get_domain_invalid_schema_input(self):
-    with self.assertRaisesRegexp(TypeError, '.*should be a Schema proto.*'):
+    with self.assertRaisesRegexp(TypeError, 'should be a Schema proto'):
       _ = schema_util.get_domain({}, 'feature')
 
+  def test_write_load_schema_text(self):
+    schema = text_format.Parse(
+        """
+        feature {
+          name: "feature1"
+        }
+        feature {
+          name: "feature2"
+        }
+        """, schema_pb2.Schema())
+
+    schema_path = os.path.join(FLAGS.test_tmpdir, 'schema.pbtxt')
+    schema_util.write_schema_text(schema=schema, output_path=schema_path)
+    loaded_schema = schema_util.load_schema_text(input_path=schema_path)
+    self.assertEqual(schema, loaded_schema)
+
+  def test_write_schema_text_invalid_schema_input(self):
+    with self.assertRaisesRegexp(TypeError, 'should be a Schema proto'):
+      _ = schema_util.write_schema_text({}, 'schema.pbtxt')
+
+  def test_get_categorical_numeric_features(self):
+    schema = text_format.Parse(
+        """
+        feature {
+          name: "fa"
+          type: INT
+          int_domain {
+            is_categorical: true
+          }
+        }
+        feature {
+          name: "fb"
+          type: BYTES
+        }
+        feature {
+          name: "fc"
+          type: FLOAT
+        }
+        feature {
+          name: "fc"
+          type: INT
+          bool_domain{
+            name: "fc_bool_domain"
+          }
+        }
+        """, schema_pb2.Schema())
+    self.assertEqual(
+        schema_util.get_categorical_numeric_features(schema), ['fa', 'fc'])
+
+  def test_is_categorical_features(self):
+    schema = text_format.Parse(
+        """
+        feature {
+          name: "fa"
+          type: INT
+          int_domain {
+            is_categorical: true
+          }
+        }
+        feature {
+          name: "fb"
+          type: BYTES
+        }
+        feature {
+          name: "fc"
+          type: FLOAT
+        }
+        feature {
+          name: "fa"
+          type: INT
+        }
+        """, schema_pb2.Schema())
+    expected = [True, True, False, False]
+    self.assertEqual([
+        schema_util.is_categorical_feature(feature)
+        for feature in schema.feature
+    ], expected)
 
 if __name__ == '__main__':
   absltest.main()

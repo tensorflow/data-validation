@@ -17,11 +17,11 @@ limitations under the License.
 
 #include <string>
 #include <vector>
-
 #include <gtest/gtest.h>
 #include "tensorflow_data_validation/anomalies/feature_util.h"
 #include "tensorflow_data_validation/anomalies/statistics_view_test_util.h"
 #include "tensorflow_data_validation/anomalies/test_util.h"
+#include "tensorflow/core/lib/core/status_test_util.h"
 #include "tensorflow/core/platform/types.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
 
@@ -39,7 +39,7 @@ void TestFindChanges(
     const FeatureStatisticsToProtoConfig& config,
     const std::map<string, testing::ExpectedAnomalyInfo>& expected_anomalies) {
   SchemaAnomalies anomalies(schema);
-  TF_CHECK_OK(anomalies.FindChanges(stats_view, config));
+  TF_CHECK_OK(anomalies.FindChanges(stats_view, absl::nullopt, config));
   TestAnomalies(anomalies.GetSchemaDiff(), schema, expected_anomalies);
 }
 
@@ -123,6 +123,7 @@ TEST(SchemaAnomalies, FindChangesCategoricalIntFeature) {
       })");
     expected_anomalies["a_int"].expected_info_without_diff =
         ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
+          path { step: "a_int" }
           description: "Some examples have more values than expected."
           severity: ERROR
           short_description: "Superfluous values"
@@ -202,6 +203,7 @@ TEST(SchemaAnomalies, FindChanges) {
     expected_anomalies["annotated_enum"]
         .expected_info_without_diff = ParseTextProtoOrDie<
         tensorflow::metadata::v0::AnomalyInfo>(R"(
+      path { step: "annotated_enum" }
       description: "Examples contain values missing from the schema: D (~50%). "
       severity: ERROR
       short_description: "Unexpected string values"
@@ -270,6 +272,7 @@ TEST(SchemaAnomalies, FindSkew) {
     })");
   expected_anomalies["foo"].expected_info_without_diff = ParseTextProtoOrDie<
       tensorflow::metadata::v0::AnomalyInfo>(R"(
+    path { step: "foo" }
     description: "The Linfty distance between serving and training is 0.2 (up to six significant digits), above the threshold 0.1. The feature value with maximum difference is: a"
     severity: ERROR
     short_description: "High Linfty distance between serving and training"
@@ -308,17 +311,17 @@ TEST(Schema, FindChangesEmptySchemaProto) {
           value_count: { min: 1 max: 1 }
           type: BYTES
         })");
-  expected_anomalies["annotated_enum"]
-      .expected_info_without_diff = ParseTextProtoOrDie<
-      tensorflow::metadata::v0::AnomalyInfo>(R"(
-    description: "New column (column in data but not in schema): annotated_enum"
-    severity: ERROR
-    short_description: "New column"
-    reason {
-      type: SCHEMA_NEW_COLUMN
-      short_description: "New column"
-      description: "New column (column in data but not in schema): annotated_enum"
-    })");
+  expected_anomalies["annotated_enum"].expected_info_without_diff =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"pb(
+        path { step: "annotated_enum" }
+        description: "New column (column in data but not in schema)"
+        severity: ERROR
+        short_description: "New column"
+        reason {
+          type: SCHEMA_NEW_COLUMN
+          short_description: "New column"
+          description: "New column (column in data but not in schema)"
+        })pb");
 
   TestFindChanges(Schema(), DatasetStatsView(statistics, false),
                   FeatureStatisticsToProtoConfig(), expected_anomalies);
@@ -381,17 +384,17 @@ TEST(Schema, FindChangesOnlyValidateSchemaFeatures) {
       presence { min_count: 1 }
     }
     string_domain { name: "MyAloneEnum" value: "A" value: "B" value: "C" })");
-  expected_anomalies["new_feature"]
-      .expected_info_without_diff = ParseTextProtoOrDie<
-      tensorflow::metadata::v0::AnomalyInfo>(R"(
-    description: "New column (column in data but not in schema): new_feature"
-    severity: ERROR
-    short_description: "New column"
-    reason {
-      type: SCHEMA_NEW_COLUMN
-      short_description: "New column"
-      description: "New column (column in data but not in schema): new_feature"
-    })");
+  expected_anomalies["new_feature"].expected_info_without_diff =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"pb(
+        path: { step: "new_feature" }
+        description: "New column (column in data but not in schema)"
+        severity: ERROR
+        short_description: "New column"
+        reason {
+          type: SCHEMA_NEW_COLUMN
+          short_description: "New column"
+          description: "New column (column in data but not in schema)"
+        })pb");
 
   {
     const FeatureStatisticsToProtoConfig config =
@@ -451,18 +454,123 @@ TEST(GetSchemaDiff, BasicTest) {
       presence { min_count: 1 }
     })");
   expected_anomalies["foo"].expected_info_without_diff =
-      ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
-        description: "New column (column in data but not in schema): foo"
+      ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"pb(
+        path: { step: "foo" }
+        description: "New column (column in data but not in schema)"
         severity: ERROR
         short_description: "New column"
         reason {
           type: SCHEMA_NEW_COLUMN
           short_description: "New column"
-          description: "New column (column in data but not in schema): foo"
-        })");
+          description: "New column (column in data but not in schema)"
+        })pb");
 
   TestFindChanges(initial, DatasetStatsView(statistics, false),
                   FeatureStatisticsToProtoConfig(), expected_anomalies);
+}
+
+// Make updates only to existing features and features_needed.
+// foo is needed, so it is created.
+// bar exists, so it is fixed.
+// no_worries is neither needed nor existing, so it is unchanged.
+TEST(GetSchemaDiff, FindSelectedChanges) {
+  Schema initial = ParseTextProtoOrDie<Schema>(R"(feature {
+                                                    name: "bar"
+                                                    type: INT
+                                                    value_count { max: 1 }
+                                                  })");
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        num_examples: 10
+        features: {
+          name: 'bar'
+          type: INT
+          num_stats: {
+            common_stats: {
+              num_missing: 3
+              num_non_missing: 7
+              min_num_values: 1
+              max_num_values: 2
+            }
+          }
+        }
+        features: {
+          name: 'foo'
+          type: INT
+          num_stats: {
+            common_stats: {
+              num_missing: 3
+              num_non_missing: 7
+              min_num_values: 1
+              max_num_values: 1
+            }
+          }
+        }
+        features: {
+          name: 'foo_noworries'
+          type: INT
+          num_stats: {
+            common_stats: {
+              num_missing: 3
+              num_non_missing: 7
+              min_num_values: 1
+              max_num_values: 1
+            }
+          }
+        }
+      )"
+
+      );
+  std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
+  expected_anomalies["foo"].new_schema = ParseTextProtoOrDie<Schema>(R"(
+    feature {
+      name: "bar"
+      value_count { max: 1 }
+      type: INT
+    }
+    feature {
+      name: "foo"
+      value_count { min: 1 max: 1 }
+      type: INT
+      presence { min_count: 1 }
+    })");
+  expected_anomalies["foo"].expected_info_without_diff =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"pb(
+        path { step: "foo" }
+        description: "New column (column in data but not in schema)"
+        severity: ERROR
+        short_description: "New column"
+        reason {
+          type: SCHEMA_NEW_COLUMN
+          short_description: "New column"
+          description: "New column (column in data but not in schema)"
+        })pb");
+  expected_anomalies["bar"].new_schema = ParseTextProtoOrDie<Schema>(R"(
+    feature {
+      name: "bar"
+      value_count { max: 2 }
+      type: INT
+    })");
+  expected_anomalies["bar"].expected_info_without_diff =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
+        path { step: "bar" }
+        description: "Some examples have more values than expected."
+        severity: ERROR
+        short_description: "Superfluous values"
+        reason {
+          type: FEATURE_TYPE_HIGH_NUMBER_VALUES
+          short_description: "Superfluous values"
+          description: "Some examples have more values than expected."
+        })");
+  FeaturesNeeded features;
+  // The next line creates a feature that is needed without a reason.
+  features[Path({"foo"})];
+  SchemaAnomalies anomalies(initial);
+  TF_CHECK_OK(anomalies.FindChanges(DatasetStatsView(statistics), features,
+                                    FeatureStatisticsToProtoConfig()));
+  auto result = anomalies.GetSchemaDiff();
+
+  TestAnomalies(result, initial, expected_anomalies);
 }
 
 
@@ -473,7 +581,7 @@ TEST(SchemaAnomalies, GetSchemaDiffTwoReasons) {
   FeatureStatisticsToProtoConfig config =
       ParseTextProtoOrDie<FeatureStatisticsToProtoConfig>(
           "new_features_are_warnings: true");
-  // New field introduced.
+  // New feature introduced.
   const DatasetFeatureStatistics statistics =
       ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
         num_examples: 10
@@ -510,8 +618,8 @@ TEST(SchemaAnomalies, GetSchemaDiffTwoReasons) {
   DatasetStatsView stats_view(statistics, false);
   DatasetStatsView stats_view_2(statistics_2, false);
   SchemaAnomalies anomalies(initial);
-  TF_CHECK_OK(anomalies.FindChanges(stats_view, config));
-  TF_CHECK_OK(anomalies.FindChanges(stats_view_2, config));
+  TF_CHECK_OK(anomalies.FindChanges(stats_view, absl::nullopt, config));
+  TF_CHECK_OK(anomalies.FindChanges(stats_view_2, absl::nullopt, config));
   std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
 
   expected_anomalies["bar"].new_schema = ParseTextProtoOrDie<Schema>(R"(
@@ -522,20 +630,21 @@ TEST(SchemaAnomalies, GetSchemaDiffTwoReasons) {
       presence { min_count: 1 }
     })");
   expected_anomalies["bar"].expected_info_without_diff = ParseTextProtoOrDie<
-      tensorflow::metadata::v0::AnomalyInfo>(R"(
-    description: "New column (column in data but not in schema): bar Some examples have more values than expected."
+      tensorflow::metadata::v0::AnomalyInfo>(R"pb(
+    path: { step: "bar" }
+    description: "New column (column in data but not in schema) Some examples have more values than expected."
     severity: ERROR
     short_description: "Multiple errors"
     reason {
       type: SCHEMA_NEW_COLUMN
       short_description: "New column"
-      description: "New column (column in data but not in schema): bar"
+      description: "New column (column in data but not in schema)"
     }
     reason {
       type: FEATURE_TYPE_HIGH_NUMBER_VALUES
       short_description: "Superfluous values"
       description: "Some examples have more values than expected."
-    })");
+    })pb");
   TestAnomalies(anomalies.GetSchemaDiff(), initial, expected_anomalies);
 }
 
@@ -579,15 +688,16 @@ TEST(GetSchemaDiff, TwoChanges) {
       presence { min_count: 1 }
     })");
   expected_anomalies["bar"].expected_info_without_diff =
-      ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
-        description: "New column (column in data but not in schema): bar"
+      ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"pb(
+        path: { step: "bar" }
+        description: "New column (column in data but not in schema)"
         severity: ERROR
         short_description: "New column"
         reason {
           type: SCHEMA_NEW_COLUMN
           short_description: "New column"
-          description: "New column (column in data but not in schema): bar"
-        })");
+          description: "New column (column in data but not in schema)"
+        })pb");
   expected_anomalies["foo"].new_schema = ParseTextProtoOrDie<Schema>(R"(
     feature {
       name: "foo"
@@ -596,15 +706,16 @@ TEST(GetSchemaDiff, TwoChanges) {
       presence { min_count: 1 }
     })");
   expected_anomalies["foo"].expected_info_without_diff =
-      ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
-        description: "New column (column in data but not in schema): foo"
+      ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"pb(
+        path: { step: "foo" }
+        description: "New column (column in data but not in schema)"
         severity: ERROR
         short_description: "New column"
         reason {
           type: SCHEMA_NEW_COLUMN
           short_description: "New column"
-          description: "New column (column in data but not in schema): foo"
-        })");
+          description: "New column (column in data but not in schema)"
+        })pb");
 
   TestFindChanges(Schema(), DatasetStatsView(statistics, false),
                   FeatureStatisticsToProtoConfig(), expected_anomalies);

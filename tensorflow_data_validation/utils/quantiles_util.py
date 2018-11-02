@@ -96,7 +96,8 @@ def find_median(quantiles):
 def generate_quantiles_histogram(quantiles,
                                  min_val,
                                  max_val,
-                                 total_count
+                                 total_count,
+                                 num_buckets
                                 ):
   """Generate quantiles histrogram from the quantile boundaries.
 
@@ -108,29 +109,60 @@ def generate_quantiles_histogram(quantiles,
         are computed.
     total_count: The total number of values over which the quantiles
         are computed.
+    num_buckets: The required number of buckets in the quantiles histogram.
 
   Returns:
     A statistics_pb2.Histogram proto.
   """
   result = statistics_pb2.Histogram()
   result.type = statistics_pb2.Histogram.QUANTILES
-  quantile_count = total_count / (quantiles.size + 1)
 
-  # We explicitly add a bucket in the beginning and the end as the
+  quantiles = list(quantiles)
+  # We explicitly add the min and max to the quantiles list as the
   # quantiles combiner returns only the internal boundaries.
-  # Add the bucket (min_val, first quantile in quantiles).
-  result.buckets.add(low_value=min_val, high_value=quantiles[0],
-                     sample_count=quantile_count)
+  quantiles.insert(0, min_val)  # Insert min_val in the beginning.
+  quantiles.append(max_val)  # Append max_val to the end.
 
-  for i in range(1, quantiles.size):
-    result.buckets.add(low_value=quantiles[i - 1],
-                       high_value=quantiles[i],
-                       sample_count=quantile_count)
+  # We assume that the number of quantiles is at least the required number of
+  # buckets in the quantiles histogram.
+  assert len(quantiles) - 1 >= num_buckets
 
-  # Add the bucket (last quantile in quantiles, max_val).
-  result.buckets.add(low_value=quantiles[quantiles.size - 1],
-                     high_value=max_val,
-                     sample_count=quantile_count)
+  # Sample count per bucket based on the computed quantiles.
+  current_sample_count = float(total_count / (len(quantiles)-1))
+  # Sample count per bucket required for the quantiles histogram.
+  required_sample_count = float(total_count / num_buckets)
+
+  # Start of the current bucket.
+  bucket_start = min_val
+  # Sample count of the current bucket.
+  running_sample_count = 0
+  # Iterate to create the first num_buckets - 1 buckets.
+  for i in range(len(quantiles)-1):
+    if running_sample_count + current_sample_count >= required_sample_count:
+      # Sample count needed for the current bucket.
+      needed_sample_count = required_sample_count - running_sample_count
+      # Compute width of the current bucket based on the needed sample count.
+      # We assume the samples are uniformly distributed in an interval.
+      width = ((quantiles[i+1] - quantiles[i]) *
+               needed_sample_count / current_sample_count)
+
+      result.buckets.add(low_value=bucket_start,
+                         high_value=quantiles[i]+width,
+                         sample_count=required_sample_count)
+
+      # Add any carried over sample count for the next bucket.
+      running_sample_count = current_sample_count - needed_sample_count
+      # Fix the start of the next bucket.
+      bucket_start = quantiles[i] + width
+
+      if len(result.buckets) == num_buckets-1:
+        break
+    else:
+      running_sample_count += current_sample_count
+
+  # Add the last bucket.
+  result.buckets.add(low_value=bucket_start, high_value=max_val,
+                     sample_count=required_sample_count)
 
   return result
 
@@ -220,7 +252,7 @@ def generate_equi_width_buckets(quantiles,
   width = (max_val - min_val) / num_buckets
 
   # Compute sample count associated with a quantile interval.
-  quantile_count = total_count / (len(quantiles) - 1)
+  sample_count = total_count / (len(quantiles) - 1)
 
   # Index of the current quantile being processed.
   quantile_index = 0
@@ -239,16 +271,16 @@ def generate_equi_width_buckets(quantiles,
 
     # Add sample count corresponding to the number of entire quantile
     # intervals included in the current bucket.
-    bucket_count += (curr_index - quantile_index - 1) * quantile_count
+    bucket_count += (curr_index - quantile_index - 1) * sample_count
 
     # Add sample count corresponding to the partial last quantile interval.
     # We assume the samples are uniformly distributed in an interval.
-    delta = ((bucket_end - quantiles[curr_index - 1]) * quantile_count /
+    delta = ((bucket_end - quantiles[curr_index - 1]) * sample_count /
              (quantiles[curr_index] - quantiles[curr_index - 1]))
     bucket_count += delta
 
     # Update carried over sample count for the next bucket.
-    carry_over = quantile_count - delta
+    carry_over = sample_count - delta
 
     # Update the index of the quantile to be processed for the next bucket.
     quantile_index = curr_index
@@ -261,7 +293,7 @@ def generate_equi_width_buckets(quantiles,
   # intervals from quantile_index. We add the last bucket separately because
   # the bucket end boundary is inclusive for the last bucket.
   bucket_count = (carry_over +
-                  (len(quantiles) - quantile_index - 1) * quantile_count)
+                  (len(quantiles) - quantile_index - 1) * sample_count)
   result.append(Bucket(bucket_boundaries[-1], max_val, bucket_count))
 
   return result

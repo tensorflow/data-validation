@@ -38,13 +38,12 @@ using testing::ParseTextProtoOrDie;
 void TestSchemaUpdate(const ValidationConfig& config,
                       const DatasetFeatureStatistics& statistics,
                       const Schema& old_schema, const Schema& expected) {
-  // V0 test.
-  {
-    Schema schema_copy = old_schema;
-    TF_ASSERT_OK(FeatureStatisticsValidator::UpdateSchema(
-        ValidationConfig(), statistics, &schema_copy));
-    EXPECT_THAT(schema_copy, EqualsProto(expected));
-  }
+  Schema result;
+  TF_ASSERT_OK(UpdateSchema(
+      GetDefaultFeatureStatisticsToProtoConfig(), old_schema, statistics,
+      /*paths_to_consider=*/ tensorflow::gtl::nullopt,
+      /*environment=*/ tensorflow::gtl::nullopt, &result));
+  EXPECT_THAT(result, EqualsProto(expected));
 }
 
 bool operator==(const tensorflow::metadata::v0::AnomalyInfo::Reason& a,
@@ -60,11 +59,13 @@ void TestFeatureStatisticsValidator(
     const tensorflow::gtl::optional<DatasetFeatureStatistics>&
         prev_feature_statistics,
     const tensorflow::gtl::optional<string>& environment,
+    const tensorflow::gtl::optional<FeaturesNeeded>& features_needed,
     const std::map<string, testing::ExpectedAnomalyInfo>& expected_anomalies) {
   tensorflow::metadata::v0::Anomalies result;
-  TF_CHECK_OK(FeatureStatisticsValidator::ValidateFeatureStatistics(
-      feature_statistics, old_schema, environment,
-      prev_feature_statistics, validation_config, &result));
+  TF_CHECK_OK(ValidateFeatureStatistics(
+      feature_statistics, old_schema, environment, prev_feature_statistics,
+      /*serving_feature_statistics=*/gtl::nullopt, features_needed,
+      validation_config, &result));
   TestAnomalies(result, old_schema, expected_anomalies);
 }
 
@@ -154,12 +155,15 @@ TEST(FeatureStatisticsValidatorTest, EndToEnd) {
       type: ENUM_TYPE_UNEXPECTED_STRING_VALUES
       short_description: "Unexpected string values"
       description: "Examples contain values missing from the schema: D (?). "
-    })");
+    }
+    path { step: "annotated_enum" }
+  )");
 
   TestFeatureStatisticsValidator(
       schema, ValidationConfig(), statistics,
-      /* prev_feature_statistics= */ tensorflow::gtl::nullopt,
-      /* environment= */ tensorflow::gtl::nullopt, anomalies);
+      /*prev_feature_statistics=*/tensorflow::gtl::nullopt,
+      /*environment=*/gtl::nullopt,
+      /*features_needed=*/gtl::nullopt, anomalies);
 }
 
 TEST(FeatureStatisticsValidatorTest, MissingFeatureAndEnvironments) {
@@ -213,7 +217,8 @@ TEST(FeatureStatisticsValidatorTest, MissingFeatureAndEnvironments) {
       value_count: { min: 1 max: 1 }
       presence: { min_count: 1 }
       type: BYTES
-    })");
+    }
+  )");
   anomalies["label"].expected_info_without_diff =
       ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
         description: "Column is completely missing"
@@ -223,22 +228,80 @@ TEST(FeatureStatisticsValidatorTest, MissingFeatureAndEnvironments) {
           type: SCHEMA_MISSING_COLUMN
           short_description: "Column dropped"
           description: "Column is completely missing"
-        })");
+        }
+        path { step: "label" })");
 
   // Running for no environment, or "TRAINING" environment without feature
   // 'label' should deprecate the feature.
-  TestFeatureStatisticsValidator(
-      schema, ValidationConfig(), statistics, tensorflow::gtl::nullopt,
-      /* environment= */ tensorflow::gtl::nullopt, anomalies);
+  TestFeatureStatisticsValidator(schema, ValidationConfig(), statistics,
+                                 tensorflow::gtl::nullopt,
+                                 /*environment=*/gtl::nullopt,
+                                 /*features_needed=*/gtl::nullopt, anomalies);
   TestFeatureStatisticsValidator(schema, ValidationConfig(), statistics,
                                  tensorflow::gtl::nullopt, "TRAINING",
-                                 anomalies);
+                                 /*features_needed=*/gtl::nullopt, anomalies);
 
   // Running for environment "SERVING" should not generate anomalies.
   TestFeatureStatisticsValidator(
       schema, ValidationConfig(), statistics,
-      /* prev_feature_statistics= */ tensorflow::gtl::nullopt, "SERVING",
-      /* expected_anomalies= */ {});
+      /*prev_feature_statistics=*/ tensorflow::gtl::nullopt, "SERVING",
+      /*features_needed=*/gtl::nullopt,
+      /*expected_anomalies=*/ {});
+}
+
+TEST(FeatureStatisticsValidatorTest, FeaturesNeeded) {
+  const Schema empty_schema;
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        num_examples: 1000
+        features: {
+          name: 'feature1'
+          type: STRING
+          string_stats: {
+            common_stats: {
+              num_missing: 3
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 1
+            }
+            unique: 3
+            rank_histogram: { buckets: { label: "D" sample_count: 1 } }
+          }
+        },
+        features: {
+          name: 'feature2'
+          type: STRING
+          string_stats: { common_stats: { num_missing: 1000 } }
+        })");
+
+  std::map<string, testing::ExpectedAnomalyInfo> anomalies;
+  anomalies["feature1"].expected_info_without_diff =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"pb(
+        description: "New column (column in data but not in schema)"
+        severity: ERROR
+        short_description: "New column"
+        reason {
+          type: SCHEMA_NEW_COLUMN
+          short_description: "New column"
+          description: "New column (column in data but not in schema)"
+        }
+        path { step: "feature1" }
+      )pb");
+  anomalies["feature1"].new_schema = ParseTextProtoOrDie<Schema>(R"(
+    feature {
+      name: "feature1"
+      value_count { min: 1 max: 1 }
+      type: BYTES
+      domain: "feature1"
+      presence { min_count: 1 }
+    }
+    string_domain { name: "feature1" value: "D" }
+  )");
+  TestFeatureStatisticsValidator(
+      empty_schema, ValidationConfig(), statistics, tensorflow::gtl::nullopt,
+      /*environment=*/gtl::nullopt,
+      /*features_needed=*/FeaturesNeeded({{Path({"feature1"}), {{"needed"}}}}),
+      anomalies);
 }
 
 // If there are no examples, then we don't crazily fire every exception, we
@@ -257,10 +320,11 @@ TEST(FeatureStatisticsValidatorTest, MissingExamples) {
   want.set_data_missing(true);
 
   tensorflow::metadata::v0::Anomalies got;
-  TF_ASSERT_OK(FeatureStatisticsValidator().ValidateFeatureStatistics(
-      statistics, schema, /* environment= */ tensorflow::gtl::nullopt,
-      /* prev_feature_statistics= */ tensorflow::gtl::nullopt,
-      ValidationConfig(), &got));
+  TF_ASSERT_OK(ValidateFeatureStatistics(
+      statistics, schema, /*environment=*/tensorflow::gtl::nullopt,
+      /*prev_feature_statistics=*/tensorflow::gtl::nullopt,
+      /*serving_feature_statistics=*/gtl::nullopt,
+      /*features_needed=*/absl::nullopt, ValidationConfig(), &got));
   EXPECT_THAT(got, EqualsProto(want));
 }
 
@@ -397,8 +461,10 @@ TEST(FeatureStatisticsValidatorTest, UpdateSchemaWithColumnsToConsider) {
     }
     string_domain { name: "annotated_enum" value: "E" value: "D" })");
   Schema got;
-  TF_EXPECT_OK(FeatureStatisticsValidator::UpdateSchema(
-      old_schema, statistics, {"annotated_enum"}, &got));
+  std::vector<Path> paths_to_consider = {Path({"annotated_enum"})};
+  TF_EXPECT_OK(UpdateSchema(GetDefaultFeatureStatisticsToProtoConfig(),
+                            old_schema, statistics, paths_to_consider,
+                            /*environment=*/gtl::nullopt, &got));
   EXPECT_THAT(got, EqualsProto(want));
 }
 
@@ -505,10 +571,13 @@ TEST(FeatureStatisticsValidatorTest, UpdateDriftComparatorInSchema) {
       type: COMPARATOR_L_INFTY_HIGH
       short_description: "High Linfty distance between current and previous"
       description: "The Linfty distance between current and previous is 0.25 (up to six significant digits), above the threshold 0.01. The feature value with maximum difference is: b"
-    })");
-  TestFeatureStatisticsValidator(
-      old_schema, ValidationConfig(), statistics, prev_statistics,
-      /* environment= */ tensorflow::gtl::nullopt, anomalies);
+    }
+    path: { step: "annotated_enum" }
+  )");
+  TestFeatureStatisticsValidator(old_schema, ValidationConfig(), statistics,
+                                 prev_statistics,
+                                 /*environment=*/gtl::nullopt,
+                                 /*features_needed=*/gtl::nullopt, anomalies);
 }
 
 }  // namespace

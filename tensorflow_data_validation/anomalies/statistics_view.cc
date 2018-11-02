@@ -23,7 +23,6 @@ limitations under the License.
 #include "tensorflow_data_validation/anomalies/map_util.h"
 #include "tensorflow/core/platform/logging.h"
 #include "tensorflow/core/platform/types.h"
-
 namespace tensorflow {
 namespace data_validation {
 
@@ -44,6 +43,7 @@ struct FeatureContext {
   absl::optional<int> parent_index;
   // Index of children of the feature.
   std::vector<int> child_indices;
+  Path path;
 };
 
 // A class that summarizes the information from the DatasetFeatureStatistics.
@@ -52,7 +52,7 @@ struct FeatureContext {
 // GetRootFeatures() takes O(# features) time
 // GetChildren() takes O(# children) time
 // GetParent() takes O(1) time
-// GetByName() takes O(log # features) time.
+// GetByPath() takes O(log # features) time.
 class DatasetStatsViewImpl {
  public:
   DatasetStatsViewImpl(const DatasetFeatureStatistics& data, bool by_weight,
@@ -64,10 +64,14 @@ class DatasetStatsViewImpl {
         environment_(environment),
         previous_(previous),
         serving_(serving) {
-    // It takes O(n log n) time to construct location_, a BST from the name
+    // It takes O(n log n) time to construct location, a BST from the name
     // of a feature to its location in data_.features().
+    // Map from name to location.
+    // data_.features(location[foo]).name() == foo
+    std::map<string, int> location;
+
     for (int i = 0; i < data_.features_size(); ++i) {
-      location_[data_.features(i).name()] = i;
+      location[data_.features(i).name()] = i;
       context_.push_back(FeatureContext());
     }
 
@@ -82,7 +86,8 @@ class DatasetStatsViewImpl {
     // and removed from the list once, the runtime of this whole operation
     // is O(# features)
     std::vector<int> current_ancestors;
-    for (const auto& pair : location_) {
+
+    for (const auto& pair : location) {
       const string& name = pair.first;
       int index = pair.second;
       while (!current_ancestors.empty() &&
@@ -91,9 +96,17 @@ class DatasetStatsViewImpl {
         current_ancestors.pop_back();
       }
       if (!current_ancestors.empty()) {
-        context_[index].parent_index = current_ancestors.back();
-        context_[current_ancestors.back()].child_indices.push_back(index);
+        int parent_index = current_ancestors.back();
+        const string& parent_name = data_.features(parent_index).name();
+        const string& name = data_.features(index).name();
+        context_[index].parent_index = parent_index;
+        context_[index].path = context_[parent_index].path.GetChild(
+            name.substr(parent_name.size() + 1));
+        context_[parent_index].child_indices.push_back(index);
+      } else {
+        context_[index].path = Path({data_.features(index).name()});
       }
+      path_location_[context_[index].path] = index;
       if (data_.features(index).type() ==
           tensorflow::metadata::v0::FeatureNameStatistics::STRUCT) {
         current_ancestors.push_back(index);
@@ -103,14 +116,24 @@ class DatasetStatsViewImpl {
 
   const DatasetFeatureStatistics& data() const { return data_; }
 
-  absl::optional<FeatureStatsView> GetByName(const DatasetStatsView& view,
-                                             const string& name) const {
-    auto ref = location_.find(name);
-    if (ref == location_.end()) {
+  absl::optional<FeatureStatsView> GetByPath(const DatasetStatsView& view,
+                                             const Path& path) const {
+    auto ref = path_location_.find(path);
+    if (ref == path_location_.end()) {
+      VLOG(0) << "DatasetStatsViewImpl::GetByPath() can't find: "
+              << path.Serialize();
+      for (const FeatureStatsView& feature_view : view.features()) {
+        VLOG(0) << "  DatasetStatsViewImpl::GetByPath(): path: "
+                << feature_view.GetPath().Serialize();
+      }
       return absl::nullopt;
     } else {
       return FeatureStatsView(ref->second, view);
     }
+  }
+
+  const Path& GetPath(const FeatureStatsView& view) const {
+    return context_[view.index_].path;
   }
 
   absl::optional<FeatureStatsView> GetParent(
@@ -157,9 +180,9 @@ class DatasetStatsViewImpl {
   // parallel to features() array in data.
   std::vector<FeatureContext> context_;
 
-  // Map from name to location.
-  // data_.features(location_[foo]).name() == foo
-  std::map<string, int> location_;
+  // Map from path to the index of the FeatureStatistics containing the
+  // statistics for that path.
+  std::map<Path, int> path_location_;
 };
 
 DatasetStatsView::DatasetStatsView(const DatasetFeatureStatistics& data,
@@ -205,14 +228,18 @@ double DatasetStatsView::GetNumExamples() const {
   }
 }
 
-absl::optional<FeatureStatsView> DatasetStatsView::GetByName(
-    const string& name) const {
-  return impl_->GetByName(*this, name);
+absl::optional<FeatureStatsView> DatasetStatsView::GetByPath(
+    const Path& path) const {
+  return impl_->GetByPath(*this, path);
 }
 
 absl::optional<FeatureStatsView> DatasetStatsView::GetParent(
     const FeatureStatsView& view) const {
   return impl_->GetParent(view);
+}
+
+const Path& DatasetStatsView::GetPath(const FeatureStatsView& view) const {
+  return impl_->GetPath(view);
 }
 
 std::vector<FeatureStatsView> DatasetStatsView::GetChildren(
@@ -298,7 +325,8 @@ FeatureStatsView::GetCommonStatistics() const {
   } else if (data().has_struct_stats()) {
     return data().struct_stats().common_stats();
   }
-  LOG(FATAL) << "Unknown statistics: " << data().DebugString();
+  LOG(FATAL) << "Unknown statistics (or missing stats): "
+             << data().DebugString();
 }
 
 // Get the number of examples in which this field is present.
@@ -374,7 +402,7 @@ absl::optional<FeatureStatsView> FeatureStatsView::GetServing() const {
   absl::optional<DatasetStatsView> dataset_stats_view =
       parent_view_.GetServing();
   if (dataset_stats_view) {
-    return dataset_stats_view->GetByName(name());
+    return dataset_stats_view->GetByPath(GetPath());
   }
   return absl::nullopt;
 }
@@ -383,7 +411,7 @@ absl::optional<FeatureStatsView> FeatureStatsView::GetPrevious() const {
   absl::optional<DatasetStatsView> dataset_stats_view =
       parent_view_.GetPrevious();
   if (dataset_stats_view) {
-    return dataset_stats_view->GetByName(name());
+    return dataset_stats_view->GetByPath(GetPath());
   }
   return absl::nullopt;
 }
@@ -397,6 +425,8 @@ tensorflow::metadata::v0::FeatureType FeatureStatsView::GetFeatureType() const {
       return tensorflow::metadata::v0::INT;
     case FeatureNameStatistics::FLOAT:
       return tensorflow::metadata::v0::FLOAT;
+    case FeatureNameStatistics::STRUCT:
+      return tensorflow::metadata::v0::STRUCT;
     default:
       return tensorflow::metadata::v0::TYPE_UNKNOWN;
   }
@@ -408,6 +438,10 @@ absl::optional<FeatureStatsView> FeatureStatsView::GetParent() const {
 
 std::vector<FeatureStatsView> FeatureStatsView::GetChildren() const {
   return parent_view_.GetChildren(*this);
+}
+
+const Path& FeatureStatsView::GetPath() const {
+  return parent_view_.GetPath(*this);
 }
 
 }  // namespace data_validation

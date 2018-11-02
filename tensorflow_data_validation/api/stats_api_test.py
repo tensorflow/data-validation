@@ -24,6 +24,7 @@ import apache_beam as beam
 from apache_beam.testing import util
 import numpy as np
 from tensorflow_data_validation.api import stats_api
+from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import test_util
 
@@ -273,7 +274,7 @@ class StatsAPITest(absltest.TestCase):
     """, statistics_pb2.DatasetFeatureStatisticsList())
 
     with beam.Pipeline() as p:
-      options = stats_api.StatsOptions(
+      options = stats_options.StatsOptions(
           num_top_values=2,
           num_rank_histogram_buckets=3,
           num_values_histogram_buckets=3,
@@ -367,7 +368,7 @@ class StatsAPITest(absltest.TestCase):
     """, statistics_pb2.DatasetFeatureStatisticsList())
 
     with beam.Pipeline() as p:
-      options = stats_api.StatsOptions(
+      options = stats_options.StatsOptions(
           feature_whitelist=['b'],
           num_top_values=2,
           num_rank_histogram_buckets=3,
@@ -385,7 +386,7 @@ class StatsAPITest(absltest.TestCase):
     examples = [{'a': np.array([1.0, 2.0])}]
     with self.assertRaises(TypeError):
       with beam.Pipeline() as p:
-        options = stats_api.StatsOptions(feature_whitelist={})
+        options = stats_options.StatsOptions(feature_whitelist={})
         _ = (p | beam.Create(examples) | stats_api.GenerateStatistics(options))
 
   def test_empty_input(self):
@@ -397,7 +398,7 @@ class StatsAPITest(absltest.TestCase):
     """, statistics_pb2.DatasetFeatureStatisticsList())
     with beam.Pipeline() as p:
       result = p | beam.Create(examples) | stats_api.GenerateStatistics(
-          stats_api.StatsOptions())
+          stats_options.StatsOptions())
       util.assert_that(
           result,
           test_util.make_dataset_feature_stats_list_proto_equal_fn(
@@ -485,7 +486,7 @@ class StatsAPITest(absltest.TestCase):
     }
     """, statistics_pb2.DatasetFeatureStatisticsList())
     with beam.Pipeline() as p:
-      options = stats_api.StatsOptions(
+      options = stats_options.StatsOptions(
           schema=schema,
           num_top_values=2,
           num_rank_histogram_buckets=3,
@@ -495,6 +496,147 @@ class StatsAPITest(absltest.TestCase):
       util.assert_that(
           result, test_util.make_dataset_feature_stats_list_proto_equal_fn(
               self, expected_result))
+
+  _sampling_test_expected_result = text_format.Parse("""
+    datasets {
+      num_examples: 1
+      features {
+        name: 'c'
+        type: INT
+        num_stats {
+          common_stats {
+            num_non_missing: 1
+            num_missing: 0
+            min_num_values: 3000
+            max_num_values: 3000
+            avg_num_values: 3000.0
+            tot_num_values: 3000
+            num_values_histogram {
+              buckets {
+                low_value: 3000.0
+                high_value: 3000.0
+                sample_count: 0.5
+              }
+              buckets {
+                low_value: 3000.0
+                high_value: 3000.0
+                sample_count: 0.5
+              }
+              type: QUANTILES
+            }
+          }
+          mean: 1500.5
+          std_dev: 866.025355672
+          min: 1.0
+          max: 3000.0
+          median: 1501.0
+          histograms {
+            buckets {
+              low_value: 1.0
+              high_value: 1500.5
+              sample_count: 1499.5
+            }
+            buckets {
+              low_value: 1500.5
+              high_value: 3000.0
+              sample_count: 1500.5
+            }
+            type: STANDARD
+          }
+          histograms {
+            buckets {
+              low_value: 1.0
+              high_value: 1501.0
+              sample_count: 1500.0
+            }
+            buckets {
+              low_value: 1501.0
+              high_value: 3000.0
+              sample_count: 1500.0
+            }
+            type: QUANTILES
+          }
+        }
+      }
+    }
+    """, statistics_pb2.DatasetFeatureStatisticsList())
+
+  def test_stats_pipeline_with_sample_count(self):
+    # input with three examples.
+    examples = [{'c': np.linspace(1, 3000, 3000, dtype=np.int32)},
+                {'c': np.linspace(1, 3000, 3000, dtype=np.int32)},
+                {'c': np.linspace(1, 3000, 3000, dtype=np.int32)}]
+
+    with beam.Pipeline() as p:
+      options = stats_options.StatsOptions(
+          sample_count=1,
+          num_top_values=2,
+          num_rank_histogram_buckets=2,
+          num_values_histogram_buckets=2,
+          num_histogram_buckets=2,
+          num_quantiles_histogram_buckets=2,
+          epsilon=0.001)
+      result = (
+          p | beam.Create(examples) | stats_api.GenerateStatistics(options))
+      util.assert_that(
+          result,
+          test_util.make_dataset_feature_stats_list_proto_equal_fn(
+              self, self._sampling_test_expected_result))
+
+  def test_stats_pipeline_with_sample_rate(self):
+    # input with three examples.
+    examples = [{'c': np.linspace(1, 3000, 3000, dtype=np.int32)}]
+
+    with beam.Pipeline() as p:
+      options = stats_options.StatsOptions(
+          sample_rate=1.0,
+          num_top_values=2,
+          num_rank_histogram_buckets=2,
+          num_values_histogram_buckets=2,
+          num_histogram_buckets=2,
+          num_quantiles_histogram_buckets=2,
+          epsilon=0.001)
+      result = (
+          p | beam.Create(examples) | stats_api.GenerateStatistics(options))
+      util.assert_that(
+          result,
+          test_util.make_dataset_feature_stats_list_proto_equal_fn(
+              self, self._sampling_test_expected_result))
+
+  def test_invalid_sample_count_zero(self):
+    examples = [{}]
+    with self.assertRaises(ValueError):
+      with beam.Pipeline() as p:
+        options = stats_options.StatsOptions(sample_count=0)
+        _ = (p | beam.Create(examples) | stats_api.GenerateStatistics(options))
+
+  def test_invalid_sample_count_negative(self):
+    examples = [{}]
+    with self.assertRaises(ValueError):
+      with beam.Pipeline() as p:
+        options = stats_options.StatsOptions(sample_count=-1)
+        _ = (p | beam.Create(examples) | stats_api.GenerateStatistics(options))
+
+  def test_invalid_both_sample_count_and_sample_rate(self):
+    examples = [{}]
+    with self.assertRaises(ValueError):
+      with beam.Pipeline() as p:
+        options = stats_options.StatsOptions(sample_count=100, sample_rate=0.5)
+        _ = (p | beam.Create(examples) | stats_api.GenerateStatistics(options))
+
+  def test_invalid_sample_rate_zero(self):
+    examples = [{}]
+    with self.assertRaises(ValueError):
+      with beam.Pipeline() as p:
+        options = stats_options.StatsOptions(sample_rate=0)
+        _ = (p | beam.Create(examples) | stats_api.GenerateStatistics(options))
+
+  def test_invalid_sample_rate_negative(self):
+    examples = [{}]
+    with self.assertRaises(ValueError):
+      with beam.Pipeline() as p:
+        options = stats_options.StatsOptions(sample_rate=-1)
+        _ = (p | beam.Create(examples) | stats_api.GenerateStatistics(options))
 
   def test_custom_generators(self):
 
@@ -586,7 +728,7 @@ class StatsAPITest(absltest.TestCase):
         name='CustomStatsGenerator',
         ptransform=CustomPTransform())
     with beam.Pipeline() as p:
-      options = stats_api.StatsOptions(
+      options = stats_options.StatsOptions(
           generators=[transform_stats_gen], num_values_histogram_buckets=2)
       result = (
           p | beam.Create(examples) | stats_api.GenerateStatistics(options))
@@ -601,7 +743,7 @@ class StatsAPITest(absltest.TestCase):
       with beam.Pipeline() as p:
         _ = (
             p | beam.Create(examples) | stats_api.GenerateStatistics(
-                stats_api.StatsOptions(generators={})))
+                stats_options.StatsOptions(generators={})))
 
   def test_filter_features(self):
     input_batch = {'a': np.array([]), 'b': np.array([]), 'c': np.array([])}
@@ -614,6 +756,14 @@ class StatsAPITest(absltest.TestCase):
     actual = stats_api._filter_features(input_batch, [])
     expected = {}
     self.assertEqual(sorted(actual), sorted(expected))
+
+  def test_invalid_stats_options(self):
+    examples = [{'a': np.array([1.0, 2.0])}]
+    with self.assertRaisesRegexp(TypeError, '.*should be a StatsOptions.'):
+      with beam.Pipeline() as p:
+        _ = (p | beam.Create(examples)
+             | stats_api.GenerateStatistics(options={}))
+
 
 if __name__ == '__main__':
   absltest.main()

@@ -29,6 +29,7 @@ from tensorflow_data_validation import types
 from tensorflow_data_validation.api import stats_api
 from tensorflow_data_validation.coders import csv_decoder
 from tensorflow_data_validation.coders import tf_example_decoder
+from tensorflow_data_validation.statistics import stats_options as options
 from tensorflow_data_validation.types_compat import List, Optional
 
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -37,7 +38,7 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 def generate_statistics_from_tfrecord(
     data_location,
     output_path = None,
-    stats_options = stats_api.StatsOptions(),
+    stats_options = options.StatsOptions(),
     pipeline_options = None,
 ):
   """Compute data statistics from TFRecord files containing TFExamples.
@@ -94,7 +95,7 @@ def generate_statistics_from_csv(
     column_names = None,
     delimiter = ',',
     output_path = None,
-    stats_options = stats_api.StatsOptions(),
+    stats_options = options.StatsOptions(),
     pipeline_options = None,
 ):
   """Compute data statistics from CSV files.

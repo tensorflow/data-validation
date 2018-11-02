@@ -38,9 +38,9 @@ def _merge_single_batch(batch):
   return result
 
 
-@beam.typehints.with_input_types(types.ExampleBatch)
-@beam.typehints.with_output_types(types.ExampleBatch)
 @beam.ptransform_fn
+@beam.typehints.with_input_types(types.Example)
+@beam.typehints.with_output_types(types.ExampleBatch)
 def BatchExamples(  # pylint: disable=invalid-name
     examples,
     desired_batch_size = None):

@@ -34,7 +34,6 @@ using ::tensorflow::metadata::v0::SparseFeature;
 
 constexpr char kSuperfluousValues[] = "Superfluous values";
 constexpr char kMissingValues[] = "Missing values";
-constexpr char kNoValues[] = "No values";
 constexpr char kDropped[] = "Column dropped";
 
 ComparatorContext GetContext(ComparatorType comparator_type) {
