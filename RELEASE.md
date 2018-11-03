@@ -11,7 +11,7 @@
 
 * Fix bug in clearing oneof domain\_info field in Feature proto.
 * Fix overflow error for large integers by casting them to STRING type.
-* Added API docs
+* Added API docs.
 
 ## Breaking changes
 

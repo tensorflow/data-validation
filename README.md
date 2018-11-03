@@ -90,7 +90,7 @@ TFDV is built and tested on the following 64-bit operating systems:
 ## Dependencies
 
 TFDV requires TensorFlow but does not depend on the `tensorflow`
-[PyPI package](https://pypi.org/project/tensorflow/). See the[TensorFlow install guides](https://www.tensorflow.org/install/)
+[PyPI package](https://pypi.org/project/tensorflow/). See the [TensorFlow install guides](https://www.tensorflow.org/install/)
 for instructions on how to get started with TensorFlow.
 
 [Apache Beam](https://beam.apache.org/) is required; it's the way that efficient
