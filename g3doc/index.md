@@ -3,7 +3,7 @@
 {% setvar github_path %}tensorflow/data-validation{% endsetvar %}
 {% include "_templates/github-bug.html" %}
 
-# TensorFlow Data Validation [![PyPI](https://img.shields.io/pypi/pyversions/tensorflow-data-validation.svg?style=plastic)](https://github.com/tensorflow/data-validation)
+# TensorFlow Data Validation
 
 *TensorFlow Data Validation* (TFDV) is a library for exploring and validating
 machine learning data. It is designed to be highly scalable

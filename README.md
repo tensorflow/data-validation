@@ -34,6 +34,14 @@ The recommended way to install TFDV is using the
 pip install tensorflow-data-validation
 ```
 
+TFDV 0.9.0 currently requires TensorFlow Transform 0.9.0. Make sure to
+force install Transform 0.9.0 after installing TFDV, using the following
+command.
+
+```bash
+pip install tensorflow_transform==0.9.0
+```
+
 ## Installing from source
 
 ### 1. Prerequisites
