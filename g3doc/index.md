@@ -50,7 +50,7 @@ directions](https://www.scipy.org/scipylib/download.html).
 
 #### Install Bazel
 
-If bazel is not installed on your system, install it now by following [these
+If Bazel is not installed on your system, install it now by following [these
 directions](https://bazel.build/versions/master/docs/install.html).
 
 ### 2. Clone the TFDV repository
