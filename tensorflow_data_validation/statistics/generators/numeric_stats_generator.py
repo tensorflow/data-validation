@@ -38,6 +38,7 @@ from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import quantiles_util
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
+from tensorflow_data_validation.utils.stats_util import get_feature_type
 from tensorflow_data_validation.types_compat import Dict, List, Optional, Union
 
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -48,7 +49,7 @@ class _PartialNumericStats(object):
   """Holds partial statistics needed to compute the numeric statistics
   for a single feature."""
 
-  def __init__(self):
+  def __init__(self, has_weights):
     # Explicitly make the sum and the sum of squares to be float in order to
     # avoid numpy overflow warnings.
     # The sum of all the values for this feature.
@@ -68,15 +69,27 @@ class _PartialNumericStats(object):
     self.total_num_values = 0
     # Type of this feature.
     self.type = None
-    # Summary of the quantiles summary for the values in this feature.
+    # Summary of the quantiles for the values in this feature.
     self.quantiles_summary = ''
+
+    # Keep track of partial weighted numeric stats.
+    if has_weights:
+      # The weighted sum of all the values for this feature.
+      self.weighted_sum = 0.0
+      # The weighted sum of squares of all the values for this feature.
+      self.weighted_sum_of_squares = 0.0
+      # The sum of weights of all the values for this feature.
+      self.weighted_total_num_values = 0.0
+      # Summary of the weighted quantiles for the values in this feature.
+      self.weighted_quantiles_summary = ''
 
 
 def _update_numeric_stats(
     numeric_stats, value,
     feature_name,
     feature_type,
-    current_batch):
+    current_batch,
+    weight = None):
   """Update the partial numeric statistics using the input value."""
   if numeric_stats.type is not None and numeric_stats.type != feature_type:
     raise TypeError('Cannot determine the type of feature %s. '
@@ -97,8 +110,14 @@ def _update_numeric_stats(
       numeric_stats.num_zeros += 1
     numeric_stats.min = min(numeric_stats.min, v)
     numeric_stats.max = max(numeric_stats.max, v)
-    current_batch.append(v)
     numeric_stats.total_num_values += 1
+    current_batch[0].append(v)
+
+    if weight is not None:
+      numeric_stats.weighted_sum += weight * v
+      numeric_stats.weighted_sum_of_squares += weight * v * v
+      numeric_stats.weighted_total_num_values += weight
+      current_batch[1].append(weight)
 
   # Update the feature type.
   if numeric_stats.type is None:
@@ -107,7 +126,8 @@ def _update_numeric_stats(
 
 def _merge_numeric_stats(
     left, right,
-    feature_name):
+    feature_name, has_weights
+):
   """Merge two partial numeric statistics and return the merged statistics."""
   # Check if the types from the two partial statistics are not compatible.
   # If so, raise an error.
@@ -117,7 +137,7 @@ def _merge_numeric_stats(
                     'Found values of types %s and %s.' %
                     (feature_name, left.type, right.type))
 
-  result = _PartialNumericStats()
+  result = _PartialNumericStats(has_weights)
   result.sum = left.sum + right.sum
   result.sum_of_squares = left.sum_of_squares + right.sum_of_squares
   result.num_zeros = left.num_zeros + right.num_zeros
@@ -126,6 +146,14 @@ def _merge_numeric_stats(
   result.max = max(left.max, right.max)
   result.total_num_values = left.total_num_values + right.total_num_values
   result.type = left.type if left.type is not None else right.type
+
+  if has_weights:
+    result.weighted_sum = left.weighted_sum + right.weighted_sum
+    result.weighted_sum_of_squares = (left.weighted_sum_of_squares +
+                                      right.weighted_sum_of_squares)
+    result.weighted_total_num_values = (left.weighted_total_num_values +
+                                        right.weighted_total_num_values)
+
   return result
 
 
@@ -133,7 +161,8 @@ def _make_feature_stats_proto(
     numeric_stats, feature_name,
     quantiles_combiner,
     num_histogram_buckets,
-    num_quantiles_histogram_buckets
+    num_quantiles_histogram_buckets,
+    has_weights
     ):
   """Convert the partial numeric statistics into FeatureNameStatistics proto."""
   numeric_stats_proto = statistics_pb2.NumericStatistics()
@@ -176,6 +205,49 @@ def _make_feature_stats_proto(
     new_q_histogram = numeric_stats_proto.histograms.add()
     new_q_histogram.CopyFrom(q_histogram)
 
+  # Add weighted numeric stats to the proto.
+  if has_weights:
+    weighted_numeric_stats_proto = statistics_pb2.WeightedNumericStatistics()
+
+    if numeric_stats.total_num_values > 0:
+      weighted_mean = (0.0 if numeric_stats.weighted_total_num_values == 0 else
+                       numeric_stats.weighted_sum /
+                       numeric_stats.weighted_total_num_values)
+      weighted_variance = (0 if numeric_stats.weighted_total_num_values == 0
+                           else max(0, (numeric_stats.weighted_sum_of_squares /
+                                        numeric_stats.weighted_total_num_values)
+                                    - weighted_mean**2))
+      weighted_numeric_stats_proto.mean = weighted_mean
+      weighted_numeric_stats_proto.std_dev = math.sqrt(weighted_variance)
+
+      # Extract the weighted quantiles from the summary.
+      weighted_quantiles = quantiles_combiner.extract_output(
+          numeric_stats.weighted_quantiles_summary)
+
+      # Find the weighted median from the quantiles and update the proto.
+      weighted_numeric_stats_proto.median = float(
+          quantiles_util.find_median(weighted_quantiles))
+
+      # Construct the weighted equi-width histogram from the quantiles and
+      # add it to the numeric stats proto.
+      weighted_std_histogram = quantiles_util.generate_equi_width_histogram(
+          weighted_quantiles, numeric_stats.min, numeric_stats.max,
+          numeric_stats.weighted_total_num_values, num_histogram_buckets)
+      weighted_std_histogram.num_nan = numeric_stats.num_nan
+      weighted_numeric_stats_proto.histograms.extend([weighted_std_histogram])
+
+      # Construct the weighted quantiles histogram from the quantiles and
+      # add it to the numeric stats proto.
+      weighted_q_histogram = quantiles_util.generate_quantiles_histogram(
+          weighted_quantiles, numeric_stats.min, numeric_stats.max,
+          numeric_stats.weighted_total_num_values,
+          num_quantiles_histogram_buckets)
+      weighted_q_histogram.num_nan = numeric_stats.num_nan
+      weighted_numeric_stats_proto.histograms.extend([weighted_q_histogram])
+
+    numeric_stats_proto.weighted_numeric_stats.CopyFrom(
+        weighted_numeric_stats_proto)
+
   # Create a new FeatureNameStatistics proto.
   result = statistics_pb2.FeatureNameStatistics()
   result.name = feature_name
@@ -203,6 +275,7 @@ class NumericStatsGenerator(stats_generator.CombinerStatsGenerator):
       self,  # pylint: disable=useless-super-delegation
       name = 'NumericStatsGenerator',
       schema = None,
+      weight_feature = None,
       num_histogram_buckets = 10,
       num_quantiles_histogram_buckets = 10,
       epsilon = 0.01):
@@ -211,6 +284,8 @@ class NumericStatsGenerator(stats_generator.CombinerStatsGenerator):
     Args:
       name: An optional unique name associated with the statistics generator.
       schema: An optional schema for the dataset.
+      weight_feature: An optional feature name whose numeric value represents
+          the weight of an example.
       num_histogram_buckets: An optional number of buckets in a standard
           NumericStatistics.histogram with equal-width buckets.
       num_quantiles_histogram_buckets: An optional number of buckets in a
@@ -224,14 +299,15 @@ class NumericStatsGenerator(stats_generator.CombinerStatsGenerator):
     super(NumericStatsGenerator, self).__init__(name)
     self._categorical_features = set(
         schema_util.get_categorical_numeric_features(schema) if schema else [])
+    self._weight_feature = weight_feature
     self._num_histogram_buckets = num_histogram_buckets
     self._num_quantiles_histogram_buckets = num_quantiles_histogram_buckets
     num_buckets = max(
         self._num_quantiles_histogram_buckets,
         _NUM_QUANTILES_FACTOR_FOR_STD_HISTOGRAM * self._num_histogram_buckets)
     # Initialize quantiles combiner.
-    self._quantiles_combiner = quantiles_util.QuantilesCombiner(num_buckets,
-                                                                epsilon)
+    self._quantiles_combiner = quantiles_util.QuantilesCombiner(
+        num_buckets, epsilon, has_weights=True)
 
   # Create an accumulator, which maps feature name to the partial stats
   # associated with the feature.
@@ -245,21 +321,31 @@ class NumericStatsGenerator(stats_generator.CombinerStatsGenerator):
                 accumulator,
                 input_batch
                ):
+    if self._weight_feature:
+      weights = stats_util.get_weight_feature(input_batch, self._weight_feature)
+
     # Iterate through each feature and update the partial numeric stats.
     for feature_name, values in six.iteritems(input_batch):
+      # Skip the weight feature.
+      if feature_name == self._weight_feature:
+        continue
+
       # If we have a categorical feature, don't generate numeric stats.
       if feature_name in self._categorical_features:
         continue
 
       # Update the numeric statistics for every example in the batch.
-      current_batch = []
-      for value in values:
+      # Keep track of the values and the weights in the current batch. Note
+      # that we store the values in the current batch so that we invoke the
+      # quantiles combiner only once per feature for the input batch.
+      current_batch = [[], []]  # stores values and weights
+      for i, value in enumerate(values):
         # Check if we have a numpy array with at least one value.
         if not isinstance(value, np.ndarray) or value.size == 0:
           continue
 
         # Check if the numpy array is of numeric type.
-        feature_type = stats_util.make_feature_type(value.dtype)
+        feature_type = get_feature_type(value.dtype)
         if feature_type not in [
             statistics_pb2.FeatureNameStatistics.INT,
             statistics_pb2.FeatureNameStatistics.FLOAT
@@ -269,7 +355,7 @@ class NumericStatsGenerator(stats_generator.CombinerStatsGenerator):
         # If we encounter this feature for the first time, create a
         # new partial numeric stats.
         if feature_name not in accumulator:
-          partial_stats = _PartialNumericStats()
+          partial_stats = _PartialNumericStats(self._weight_feature is not None)
           # Store empty summary.
           partial_stats.quantiles_summary = (
               self._quantiles_combiner.create_accumulator())
@@ -277,15 +363,25 @@ class NumericStatsGenerator(stats_generator.CombinerStatsGenerator):
 
         # Update the partial numeric stats and append values
         # to the current batch.
-        _update_numeric_stats(accumulator[feature_name], value, feature_name,
-                              feature_type, current_batch)
+        _update_numeric_stats(
+            accumulator[feature_name], value, feature_name, feature_type,
+            current_batch, weights[i][0] if self._weight_feature else None)
 
       # Update the quantiles summary of the feature based on the current batch.
-      if current_batch:
+      if current_batch[0]:
+        # For the unweighted case, explicitly set the weights to be 1. We do
+        # this so that we can use the same weighted quantiles combiner for both
+        # scenarios.
         accumulator[feature_name].quantiles_summary = (
             self._quantiles_combiner.add_input(
                 accumulator[feature_name].quantiles_summary,
-                [current_batch]))
+                [current_batch[0], [1] * len(current_batch[0])]))
+
+        if self._weight_feature:
+          accumulator[feature_name].weighted_quantiles_summary = (
+              self._quantiles_combiner.add_input(
+                  accumulator[feature_name].weighted_quantiles_summary,
+                  current_batch))
 
     return accumulator
 
@@ -295,6 +391,8 @@ class NumericStatsGenerator(stats_generator.CombinerStatsGenerator):
   ):
     result = {}
     quantiles_summary_per_feature = collections.defaultdict(list)
+    if self._weight_feature:
+      weighted_quantiles_summary_per_feature = collections.defaultdict(list)
 
     for accumulator in accumulators:
       for feature_name, numeric_stats in accumulator.items():
@@ -302,18 +400,32 @@ class NumericStatsGenerator(stats_generator.CombinerStatsGenerator):
           result[feature_name] = numeric_stats
         else:
           result[feature_name] = _merge_numeric_stats(
-              result[feature_name], numeric_stats, feature_name)
+              result[feature_name], numeric_stats, feature_name,
+              self._weight_feature is not None)
 
-        # Keep track of summaries per feature.
+        # Keep track of quantile summaries per feature.
         quantiles_summary_per_feature[feature_name].append(
             numeric_stats.quantiles_summary)
 
+        # Keep track of weighted quantile summaries per feature.
+        if self._weight_feature:
+          weighted_quantiles_summary_per_feature[feature_name].append(
+              numeric_stats.weighted_quantiles_summary)
+
     # Merge the quantiles summaries per feature.
-    for feature_name, quantiles_summaries in \
-        quantiles_summary_per_feature.items():
+    for feature_name, quantiles_summaries in (
+        quantiles_summary_per_feature.items()):
       result[feature_name].quantiles_summary = (
           self._quantiles_combiner.merge_accumulators(
               quantiles_summaries))
+
+    # Merge the weighted quantiles summaries per feature.
+    if self._weight_feature:
+      for feature_name, weighted_quantiles_summaries in (
+          weighted_quantiles_summary_per_feature.items()):
+        result[feature_name].weighted_quantiles_summary = (
+            self._quantiles_combiner.merge_accumulators(
+                weighted_quantiles_summaries))
 
     return result
 
@@ -330,7 +442,8 @@ class NumericStatsGenerator(stats_generator.CombinerStatsGenerator):
       feature_stats_proto = _make_feature_stats_proto(
           numeric_stats, feature_name, self._quantiles_combiner,
           self._num_histogram_buckets,
-          self._num_quantiles_histogram_buckets)
+          self._num_quantiles_histogram_buckets,
+          self._weight_feature is not None)
       # Copy the constructed FeatureNameStatistics proto into the
       # DatasetFeatureStatistics proto.
       new_feature_stats_proto = result.features.add()

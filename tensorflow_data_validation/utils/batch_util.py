@@ -25,7 +25,7 @@ from tensorflow_data_validation import types
 from tensorflow_data_validation.types_compat import List, Optional
 
 
-def _merge_single_batch(batch):
+def merge_single_batch(batch):
   """Merges batched input examples to proper batch format."""
   batch_size = len(batch)
   result = {}
@@ -82,4 +82,4 @@ def BatchExamples(  # pylint: disable=invalid-name
         min_batch_size=desired_batch_size, max_batch_size=desired_batch_size)
   return (examples
           | 'BatchExamples' >> beam.BatchElements(**batch_args)
-          | 'MergeBatch' >> beam.Map(_merge_single_batch))
+          | 'MergeBatch' >> beam.Map(merge_single_batch))

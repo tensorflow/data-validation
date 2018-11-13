@@ -63,6 +63,14 @@ class QuantilesUtilTest(absltest.TestCase):
     q_combiner = quantiles_util.QuantilesCombiner(5, 0.00001)
     _run_quantiles_combiner_test(self, q_combiner, batches, expected_result)
 
+  def test_quantiles_combiner_with_weights(self):
+    batches = [[np.linspace(1, 100, 100), [1] * 100],
+               [np.linspace(101, 200, 100), [2] * 100],
+               [np.linspace(201, 300, 100), [3] * 100]]
+    expected_result = np.array([111.0, 171.0, 221.0, 261.0], dtype=np.float32)
+    q_combiner = quantiles_util.QuantilesCombiner(5, 0.00001, has_weights=True)
+    _run_quantiles_combiner_test(self, q_combiner, batches, expected_result)
+
   def test_generate_quantiles_histogram(self):
     result = quantiles_util.generate_quantiles_histogram(
         quantiles=np.array([61.0, 121.0, 181.0, 241.0], dtype=np.float32),

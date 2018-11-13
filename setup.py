@@ -30,6 +30,10 @@ with open('tensorflow_data_validation/version.py') as fp:
   exec (fp.read(), globals_dict)  # pylint: disable=exec-used
 __version__ = globals_dict['__version__']
 
+# Get the long description from the README file.
+with open('README.md') as fp:
+  _LONG_DESCRIPTION = fp.read()
+
 setup(
     name='tensorflow-data-validation',
     version=__version__,
@@ -55,19 +59,20 @@ setup(
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
     namespace_packages=[],
+    # Make sure to sync the versions of common dependencies (absl-py, numpy,
+    # six, and protobuf) with TF.
     install_requires=[
         'absl-py>=0.1.6',
-        'apache-beam[gcp]>=2.6,<3',
+        'apache-beam[gcp]>=2.8,<3',
         'numpy>=1.13.3,<2',
 
-        # TF now requires protobuf>=3.6.0.
         'protobuf>=3.6.0,<4',
 
         'six>=1.10,<2',
 
 
-        'tensorflow-metadata>=0.9,<1',
-        'tensorflow-transform>=0.9,<1',
+        'tensorflow-metadata>=0.9,<0.10',
+        'tensorflow-transform>=0.11,<0.12',
 
         # Dependencies needed for visualization.
         'IPython>=5.0,<6',
@@ -81,4 +86,9 @@ setup(
     zip_safe=False,
     distclass=BinaryDistribution,
     description='A library for exploring and validating machine learning data.',
+    long_description=_LONG_DESCRIPTION,
+    long_description_content_type='text/markdown',
+    keywords='tensorflow data validation tfx',
+    url='https://www.tensorflow.org/tfx/data_validation',
+    download_url='https://pypi.org/project/tensorflow-data-validation',
     requires=[])

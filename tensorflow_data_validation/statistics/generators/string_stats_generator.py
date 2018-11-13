@@ -28,7 +28,7 @@ import six
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import schema_util
-from tensorflow_data_validation.utils import stats_util
+from tensorflow_data_validation.utils.stats_util import get_feature_type
 from tensorflow_data_validation.types_compat import Dict, List, Optional
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -102,6 +102,8 @@ class StringStatsGenerator(stats_generator.CombinerStatsGenerator):
                ):
     # Iterate through each feature and update the partial string stats.
     for feature_name, values in six.iteritems(input_batch):
+      is_categorical_feature = feature_name in self._categorical_features
+
       # Update the string statistics for every example in the batch.
       for value in values:
         # Check if we have a numpy array with at least one value.
@@ -110,9 +112,8 @@ class StringStatsGenerator(stats_generator.CombinerStatsGenerator):
 
         # If the feature is neither categorical nor of string type, then
         # skip the feature.
-        if not (feature_name in self._categorical_features or
-                stats_util.make_feature_type(value.dtype) ==
-                statistics_pb2.FeatureNameStatistics.STRING):
+        if not (is_categorical_feature or get_feature_type(
+            value.dtype) == statistics_pb2.FeatureNameStatistics.STRING):
           continue
 
         # If we encounter this feature for the first time, create a
@@ -121,7 +122,7 @@ class StringStatsGenerator(stats_generator.CombinerStatsGenerator):
           accumulator[feature_name] = _PartialStringStats()
 
         # If we have a categorical feature, convert the value to string type.
-        if feature_name in self._categorical_features:
+        if is_categorical_feature:
           value = value.astype(str)
 
         # Update the partial string stats.

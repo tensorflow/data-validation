@@ -50,8 +50,7 @@ directions](https://www.scipy.org/scipylib/download.html).
 
 #### Install Bazel
 
-If Bazel is not installed on your system, install it now by following [these
-directions](https://bazel.build/versions/master/docs/install.html).
+If Bazel is not installed on your system, install it now by following [these directions](https://bazel.build/versions/master/docs/install.html).
 
 ### 2. Clone the TFDV repository
 
@@ -93,8 +92,8 @@ TFDV is built and tested on the following 64-bit operating systems:
 ## Dependencies
 
 TFDV requires TensorFlow but does not depend on the `tensorflow`
-[PyPI package](https://pypi.org/project/tensorflow/). See the[TensorFlow install guides](https://www.tensorflow.org/install/)
-for instructions on how to get started with TensorFlow.
+[PyPI package](https://pypi.org/project/tensorflow/). See the [TensorFlow install guides](https://www.tensorflow.org/install/) for
+ instructions on how to get started with TensorFlow.
 
 [Apache Beam](https://beam.apache.org/) is required; it's the way that efficient
 distributed computation is supported. By default, Apache Beam runs in local

@@ -146,8 +146,10 @@ def generate_statistics_from_csv(
         p
         | 'ReadData' >> beam.io.textio.ReadFromText(
             file_pattern=data_location, skip_header_lines=skip_header_lines)
-        | 'DecodeData' >> csv_decoder.DecodeCSV(column_names=column_names,
-                                                delimiter=delimiter)
+        | 'DecodeData' >> csv_decoder.DecodeCSV(
+            column_names=column_names, delimiter=delimiter,
+            schema=stats_options.schema,
+            infer_type_from_schema=stats_options.infer_type_from_schema)
         | 'GenerateStatistics' >> stats_api.GenerateStatistics(stats_options)
         | 'WriteStatsOutput' >> beam.io.WriteToTFRecord(
             output_path,

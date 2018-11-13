@@ -475,32 +475,6 @@ class CommonStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     with self.assertRaises(TypeError):
       self.assertCombinerOutputEqual(batches, generator, None)
 
-  def test_common_stats_generator_invalid_weight_feature(self):
-    batches = [{'a': np.array([np.array([1])])}]
-    generator = common_stats_generator.CommonStatsGenerator(weight_feature='w')
-    with self.assertRaisesRegexp(ValueError, 'Weight feature.*not present.*'):
-      self.assertCombinerOutputEqual(batches, generator, None)
-
-  def test_common_stats_generator_weight_feature_missing(self):
-    batches = [{'a': np.array([np.array([1])]),
-                'w': np.array([None])}]
-    generator = common_stats_generator.CommonStatsGenerator(weight_feature='w')
-    with self.assertRaisesRegexp(ValueError, 'Weight feature.*missing.*'):
-      self.assertCombinerOutputEqual(batches, generator, None)
-
-  def test_common_stats_generator_weight_feature_string_type(self):
-    batches = [{'a': np.array([np.array([1])]),
-                'w': np.array([np.array(['a'])])}]
-    generator = common_stats_generator.CommonStatsGenerator(weight_feature='w')
-    with self.assertRaisesRegexp(ValueError, 'Weight feature.*numeric type.*'):
-      self.assertCombinerOutputEqual(batches, generator, None)
-
-  def test_common_stats_generator_weight_feature_multiple_values(self):
-    batches = [{'a': np.array([np.array([1])]),
-                'w': np.array([np.array([2, 3])])}]
-    generator = common_stats_generator.CommonStatsGenerator(weight_feature='w')
-    with self.assertRaisesRegexp(ValueError, 'Weight feature.*single value.*'):
-      self.assertCombinerOutputEqual(batches, generator, None)
 
 if __name__ == '__main__':
   absltest.main()

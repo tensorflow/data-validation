@@ -20,7 +20,7 @@ TF Data Validation includes:
 *    An anomalies viewer so that you can see what features have anomalies and
      learn more in order to correct them.
 
-For instructions on using TFDV, see the [get started guide](g3doc/get_started.md)
+For instructions on using TFDV, see the [get started guide](https://github.com/tensorflow/data-validation/blob/master/g3doc/get_started.md)
 and try out the [example notebook](https://colab.research.google.com/github/tensorflow/data-validation/blob/master/examples/chicago_taxi/chicago_taxi_tfdv.ipynb).
 
 Caution: TFDV may be backwards incompatible before version 1.0.
@@ -32,14 +32,6 @@ The recommended way to install TFDV is using the
 
 ```bash
 pip install tensorflow-data-validation
-```
-
-TFDV 0.9.0 currently requires TensorFlow Transform 0.9.0. Make sure to
-force install Transform 0.9.0 after installing TFDV, using the following
-command.
-
-```bash
-pip install tensorflow_transform==0.9.0
 ```
 
 ## Installing from source
@@ -55,7 +47,7 @@ directions](https://www.scipy.org/scipylib/download.html).
 
 #### Install Bazel
 
-If bazel is not installed on your system, install it now by following [these
+If Bazel is not installed on your system, install it now by following [these
 directions](https://bazel.build/versions/master/docs/install.html).
 
 ### 2. Clone the TFDV repository
@@ -115,7 +107,8 @@ other *untested* combinations may also work.
 
 |tensorflow-data-validation |tensorflow    |apache-beam[gcp]|
 |---------------------------|--------------|----------------|
-|GitHub master              |nightly (1.x) |2.6.0           |
+|GitHub master              |nightly (1.x) |2.8.0           |
+|0.11.0                     |1.11          |2.8.0           |
 |0.9.0                      |1.9           |2.6.0           |
 
 ## Questions

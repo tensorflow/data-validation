@@ -25,7 +25,7 @@ import six
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import schema_util
-from tensorflow_data_validation.utils import stats_util
+from tensorflow_data_validation.utils.stats_util import get_feature_type
 from tensorflow_data_validation.types_compat import Generator, Optional, Set, Tuple
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -89,9 +89,8 @@ class _UniquesStatsGeneratorImpl(beam.PTransform):
           continue
         # If the feature is neither categorical nor of string type, then
         # skip the feature.
-        if not (is_categorical or
-                stats_util.make_feature_type(values.dtype) ==
-                statistics_pb2.FeatureNameStatistics.STRING):
+        if not (is_categorical or get_feature_type(
+            values.dtype) == statistics_pb2.FeatureNameStatistics.STRING):
           continue
 
         yield (feature_name, values.astype(str) if is_categorical else values)

@@ -56,12 +56,11 @@ class BatchUtilTest(absltest.TestCase):
     def _batched_example_equal_fn(expected_batched_examples):
       """Makes a matcher function for comparing batched examples."""
       def _matcher(actual_batched_examples):
-        sorted_result = sorted(actual_batched_examples)
-        sorted_expected_result = sorted(expected_batched_examples)
-        self.assertEqual(len(sorted_result), len(sorted_expected_result))
-        for idx, batched_example in enumerate(sorted_result):
-          self.assertEqual(sorted(batched_example),
-                           sorted(sorted_expected_result[idx]))
+        self.assertEqual(
+            len(actual_batched_examples), len(expected_batched_examples))
+        for idx, batched_example in enumerate(actual_batched_examples):
+          self.assertCountEqual(batched_example, expected_batched_examples[idx])
+
       return _matcher
 
     with beam.Pipeline() as p:

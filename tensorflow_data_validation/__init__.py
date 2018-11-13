@@ -40,6 +40,9 @@ from tensorflow_data_validation.utils.display_util import visualize_statistics
 # Import schema utilities.
 from tensorflow_data_validation.utils.schema_util import get_domain
 from tensorflow_data_validation.utils.schema_util import get_feature
+from tensorflow_data_validation.utils.schema_util import load_schema_text
+from tensorflow_data_validation.utils.schema_util import set_domain
+from tensorflow_data_validation.utils.schema_util import write_schema_text
 
 # Import stats lib.
 from tensorflow_data_validation.utils.stats_gen_lib import generate_statistics_from_csv

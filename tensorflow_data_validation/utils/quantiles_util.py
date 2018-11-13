@@ -34,22 +34,21 @@ class QuantilesCombiner(object):
   This class wraps tf.transform's QuantilesCombiner.
   """
 
-  def __init__(self, num_quantiles, epsilon):
+  def __init__(self, num_quantiles, epsilon,
+               has_weights = False):
     self._num_quantiles = num_quantiles
     self._epsilon = epsilon
-    # NOTE: this fallback can be removed once TFDV depends on TFT 1.10.
-    try:
-      quantiles_combiner = analyzers.QuantilesCombiner
-    except AttributeError:
-      quantiles_combiner = analyzers._QuantilesCombinerSpec  # pylint: disable=protected-access
-    self._quantiles_spec = quantiles_combiner(
+    self._has_weights = has_weights
+    self._quantiles_spec = analyzers.QuantilesCombiner(
         num_quantiles=num_quantiles, epsilon=epsilon,
-        bucket_numpy_dtype=np.float32, always_return_num_quantiles=True)
+        bucket_numpy_dtype=np.float32, always_return_num_quantiles=True,
+        has_weights=has_weights)
     # Initializes non-pickleable local state of the combiner spec.
     self._quantiles_spec.initialize_local_state()
 
   def __reduce__(self):
-    return QuantilesCombiner, (self._num_quantiles, self._epsilon)
+    return QuantilesCombiner, (self._num_quantiles, self._epsilon,
+                               self._has_weights)
 
   def create_accumulator(self):
     return self._quantiles_spec.create_accumulator()

@@ -30,6 +30,7 @@ from __future__ import print_function
 import collections
 import sys
 
+import apache_beam as beam
 import numpy as np
 import six
 from tensorflow_data_validation import types
@@ -37,10 +38,15 @@ from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import quantiles_util
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
+from tensorflow_data_validation.utils.stats_util import get_feature_type
 from tensorflow_data_validation.types_compat import Dict, List, Optional
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
+
+
+# Namespace for all TFDV metrics.
+METRICS_NAMESPACE = 'tfx.DataValidation'
 
 
 class _PartialCommonStats(object):
@@ -94,7 +100,7 @@ def _update_common_stats(common_stats,
       common_stats.weighted_num_non_missing += weight
       common_stats.weighted_total_num_values += weight * num_values
 
-    feature_type = stats_util.make_feature_type(value.dtype)
+    feature_type = get_feature_type(value.dtype)
     if feature_type is None:
       raise TypeError('Feature %s has value which is a numpy array of type %s, '
                       'should be int, float or str types.' % (feature_name,
@@ -247,6 +253,68 @@ def _make_feature_stats_proto(
   return result
 
 
+# Named tuple containing TFDV metrics.
+_TFDVMetrics = collections.namedtuple(
+    '_TFDVMetrics', ['num_non_missing', 'min_value_count',
+                     'max_value_count', 'total_num_values'])
+_TFDVMetrics.__new__.__defaults__ = (0, sys.maxsize, 0, 0)
+
+
+def _update_tfdv_telemetry(
+    accumulator):
+  """Update TFDV Beam metrics."""
+  num_instances, num_missing_feature_values = 0, 0
+  # Aggregate type specific metrics.
+  metrics = {
+      statistics_pb2.FeatureNameStatistics.INT: _TFDVMetrics(),
+      statistics_pb2.FeatureNameStatistics.FLOAT: _TFDVMetrics(),
+      statistics_pb2.FeatureNameStatistics.STRING: _TFDVMetrics()
+  }
+
+  for common_stats in accumulator.values():
+    if num_instances == 0:
+      num_instances = common_stats.num_missing + common_stats.num_non_missing
+    num_missing_feature_values += common_stats.num_missing
+    if common_stats.type is None:
+      continue
+    # Update type specific metrics.
+    type_metrics = metrics[common_stats.type]
+    num_non_missing = (type_metrics.num_non_missing +
+                       common_stats.num_non_missing)
+    min_value_count = min(type_metrics.min_value_count,
+                          common_stats.min_num_values)
+    max_value_count = max(type_metrics.max_value_count,
+                          common_stats.max_num_values)
+    total_num_values = (type_metrics.total_num_values +
+                        common_stats.total_num_values)
+    metrics[common_stats.type] = _TFDVMetrics(num_non_missing, min_value_count,
+                                              max_value_count, total_num_values)
+
+  # Update Beam counters.
+  beam_metrics = beam.metrics.Metrics.counter
+  beam_metrics(METRICS_NAMESPACE, 'num_instances').inc(
+      num_instances)
+  beam_metrics(METRICS_NAMESPACE, 'num_missing_feature_values').inc(
+      num_missing_feature_values)
+
+  for feature_type in metrics:
+    type_str = statistics_pb2.FeatureNameStatistics.Type.Name(
+        feature_type).lower()
+    type_metrics = metrics[feature_type]
+    beam_metrics(METRICS_NAMESPACE, 'num_' + type_str + '_feature_values').inc(
+        type_metrics.num_non_missing)
+    beam_metrics(METRICS_NAMESPACE, type_str + '_feature_values_min_count').inc(
+        type_metrics.min_value_count if type_metrics.num_non_missing > 0 else -1
+    )
+    beam_metrics(METRICS_NAMESPACE, type_str + '_feature_values_max_count').inc(
+        type_metrics.max_value_count if type_metrics.num_non_missing > 0 else -1
+    )
+    beam_metrics(
+        METRICS_NAMESPACE, type_str + '_feature_values_mean_count').inc(
+            int(type_metrics.total_num_values/type_metrics.num_non_missing)
+            if type_metrics.num_non_missing > 0 else -1)
+
+
 class CommonStatsGenerator(stats_generator.CombinerStatsGenerator):
   """A combiner statistics generator that computes the common statistics
   for all the features."""
@@ -295,10 +363,7 @@ class CommonStatsGenerator(stats_generator.CombinerStatsGenerator):
                 input_batch
                ):
     if self._weight_feature:
-      if self._weight_feature not in input_batch:
-        raise ValueError('Weight feature "{}" not present in the input '
-                         'batch.'.format(self._weight_feature))
-      weights = input_batch[self._weight_feature]
+      weights = stats_util.get_weight_feature(input_batch, self._weight_feature)
 
     # Iterate through each feature and update the partial common stats.
     for feature_name, values in six.iteritems(input_batch):
@@ -318,19 +383,6 @@ class CommonStatsGenerator(stats_generator.CombinerStatsGenerator):
       num_values = []
 
       for i, value in enumerate(values):
-        if self._weight_feature:
-          if weights[i] is None:
-            raise ValueError('Weight feature "{}" missing in an '
-                             'example.'.format(self._weight_feature))
-          elif (stats_util.make_feature_type(weights[i].dtype) ==
-                statistics_pb2.FeatureNameStatistics.STRING):
-            raise ValueError('Weight feature "{}" must be of numeric type. '
-                             'Found {}.'.format(
-                                 self._weight_feature, weights[i]))
-          elif weights[i].size != 1:
-            raise ValueError('Weight feature "{}" must have a single value. '
-                             'Found {}.'.format(
-                                 self._weight_feature, weights[i]))
         _update_common_stats(accumulator[feature_name], value, feature_name,
                              weights[i][0] if self._weight_feature else None)
         # Keep track of the number of values in non-missing examples.
@@ -378,6 +430,9 @@ class CommonStatsGenerator(stats_generator.CombinerStatsGenerator):
   def extract_output(self,
                      accumulator
                     ):
+    # Update TFDV telemetry.
+    _update_tfdv_telemetry(accumulator)
+
     # Create a new DatasetFeatureStatistics proto.
     result = statistics_pb2.DatasetFeatureStatistics()
 

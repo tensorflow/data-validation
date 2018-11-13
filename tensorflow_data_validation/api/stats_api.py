@@ -57,7 +57,6 @@ from tensorflow_data_validation.statistics.generators import string_stats_genera
 from tensorflow_data_validation.statistics.generators import top_k_stats_generator
 from tensorflow_data_validation.statistics.generators import uniques_stats_generator
 from tensorflow_data_validation.utils import batch_util
-from tensorflow_data_validation.utils import profile_util
 from tensorflow_data_validation.types_compat import Generator, List
 
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -67,10 +66,11 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 @beam.typehints.with_input_types(types.Example)
 @beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatisticsList)
 class GenerateStatistics(beam.PTransform):
-  """Public API for generating data statistics.
+  """API for generating data statistics.
 
-  Example usage assuming the input is a tfrecord file of tf.Example:
+  Example:
 
+  ```python
     with beam.Pipeline(runner=...) as p:
       _ = (p
            | 'ReadData' >> beam.io.ReadFromTFRecord(data_location)
@@ -80,6 +80,7 @@ class GenerateStatistics(beam.PTransform):
                output_path, shard_name_template='',
                coder=beam.coders.ProtoCoder(
                    statistics_pb2.DatasetFeatureStatisticsList)))
+  ```
   """
 
   def __init__(
@@ -155,6 +156,7 @@ class GenerateStatistics(beam.PTransform):
         # Create common stats generator.
         common_stats_generator.CommonStatsGenerator(
             schema=self._options.schema,
+            weight_feature=self._options.weight_feature,
             num_values_histogram_buckets=\
                 self._options.num_values_histogram_buckets,
             epsilon=self._options.epsilon),
@@ -162,6 +164,7 @@ class GenerateStatistics(beam.PTransform):
         # Create numeric stats generator.
         numeric_stats_generator.NumericStatsGenerator(
             schema=self._options.schema,
+            weight_feature=self._options.weight_feature,
             num_histogram_buckets=self._options.num_histogram_buckets,
             num_quantiles_histogram_buckets=\
                 self._options.num_quantiles_histogram_buckets,
@@ -174,6 +177,7 @@ class GenerateStatistics(beam.PTransform):
         # Create topk stats generator.
         top_k_stats_generator.TopKStatsGenerator(
             schema=self._options.schema,
+            weight_feature=self._options.weight_feature,
             num_top_values=self._options.num_top_values,
             num_rank_histogram_buckets=\
                 self._options.num_rank_histogram_buckets),
@@ -185,9 +189,6 @@ class GenerateStatistics(beam.PTransform):
     if self._options.generators is not None:
       # Add custom stats generators.
       stats_generators.extend(self._options.generators)
-
-    # Profile the input examples.
-    dataset |= 'ProfileExamples' >> profile_util.Profile()
 
     # Sample input data if sample_count option is provided.
     if self._options.sample_count is not None:
