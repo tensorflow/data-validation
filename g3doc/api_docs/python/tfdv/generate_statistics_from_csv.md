@@ -11,7 +11,7 @@ tfdv.generate_statistics_from_csv(
     column_names=None,
     delimiter=',',
     output_path=None,
-    stats_options=stats_api.StatsOptions(),
+    stats_options=options.StatsOptions(),
     pipeline_options=None
 )
 ```

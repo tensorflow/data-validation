@@ -26,6 +26,8 @@ from tensorflow_data_validation.types_compat import List, Optional
 from tensorflow_metadata.proto.v0 import schema_pb2
 
 
+
+
 class StatsOptions(object):
   """Options for generating statistics."""
 
@@ -34,6 +36,7 @@ class StatsOptions(object):
       generators = None,
       feature_whitelist = None,
       schema = None,
+      weight_feature = None,
       sample_count = None,
       sample_rate = None,
       num_top_values = 20,
@@ -41,7 +44,9 @@ class StatsOptions(object):
       num_values_histogram_buckets = 10,
       num_histogram_buckets = 10,
       num_quantiles_histogram_buckets = 10,
-      epsilon = 0.01):
+      epsilon = 0.01,
+      infer_type_from_schema = False
+      ):
     """Initializes statistics options.
 
     Args:
@@ -52,6 +57,8 @@ class StatsOptions(object):
         statistics for.
       schema: An optional tensorflow_metadata Schema proto. Currently we use the
         schema to infer categorical and bytes features.
+      weight_feature: An optional feature name whose numeric value represents
+          the weight of an example.
       sample_count: An optional number of examples to include in the sample. If
         specified, statistics is computed over the sample. Only one of
         sample_count or sample_rate can be specified.
@@ -74,10 +81,15 @@ class StatsOptions(object):
         epsilon increase the quantile approximation, and hence result in more
         unequal buckets, but could improve performance, and resource
         consumption.
+      infer_type_from_schema: A boolean to indicate whether the feature types
+          should be inferred from the schema. If set to True, an input schema
+          must be provided. This flag is used only when generating statistics
+          on CSV data.
     """
     self.generators = generators
     self.feature_whitelist = feature_whitelist
     self.schema = schema
+    self.weight_feature = weight_feature
     self.sample_count = sample_count
     self.sample_rate = sample_rate
     self.num_top_values = num_top_values
@@ -86,3 +98,4 @@ class StatsOptions(object):
     self.num_histogram_buckets = num_histogram_buckets
     self.num_quantiles_histogram_buckets = num_quantiles_histogram_buckets
     self.epsilon = epsilon
+    self.infer_type_from_schema = infer_type_from_schema

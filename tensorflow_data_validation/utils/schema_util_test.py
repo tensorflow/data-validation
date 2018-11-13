@@ -20,6 +20,7 @@ from __future__ import print_function
 import os
 from absl import flags
 from absl.testing import absltest
+from absl.testing import parameterized
 from tensorflow_data_validation.utils import schema_util
 from google.protobuf import text_format
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -27,7 +28,56 @@ from tensorflow_metadata.proto.v0 import schema_pb2
 FLAGS = flags.FLAGS
 
 
-class SchemaUtilTest(absltest.TestCase):
+SET_DOMAIN_VALID_TESTS = [
+    {
+        'testcase_name': 'int_domain',
+        'input_schema_proto_text': '''feature { name: 'x' }''',
+        'feature_name': 'x',
+        'domain': schema_pb2.IntDomain(min=1, max=5),
+        'output_schema_proto_text': '''
+          feature { name: 'x' int_domain { min: 1 max: 5 } }'''
+    },
+    {
+        'testcase_name': 'float_domain',
+        'input_schema_proto_text': '''feature { name: 'x' }''',
+        'feature_name': 'x',
+        'domain': schema_pb2.FloatDomain(min=1.1, max=5.1),
+        'output_schema_proto_text': '''
+          feature { name: 'x' float_domain { min: 1.1 max: 5.1 } }'''
+    },
+    {
+        'testcase_name': 'string_domain',
+        'input_schema_proto_text': '''feature { name: 'x' }''',
+        'feature_name': 'x',
+        'domain': schema_pb2.StringDomain(value=['a', 'b']),
+        'output_schema_proto_text': '''
+          feature { name: 'x' string_domain { value: 'a' value: 'b' } }'''
+    },
+    {
+        'testcase_name': 'bool_domain',
+        'input_schema_proto_text': '''feature { name: 'x' }''',
+        'feature_name': 'x',
+        'domain': schema_pb2.BoolDomain(true_value='T', false_value='F'),
+        'output_schema_proto_text': '''
+          feature { name: 'x' bool_domain { true_value: 'T' false_value: 'F' } }
+        '''
+    },
+    {
+        'testcase_name': 'global_domain',
+        'input_schema_proto_text': '''
+          string_domain { name: 'global_domain' value: 'a' value: 'b' }
+          feature { name: 'x' }''',
+        'feature_name': 'x',
+        'domain': 'global_domain',
+        'output_schema_proto_text': '''
+          string_domain { name: 'global_domain' value: 'a' value: 'b' }
+          feature { name: 'x' domain: 'global_domain' }
+        '''
+    }
+]
+
+
+class SchemaUtilTest(parameterized.TestCase):
 
   def test_get_feature(self):
     schema = text_format.Parse(
@@ -248,6 +298,32 @@ class SchemaUtilTest(absltest.TestCase):
         schema_util.is_categorical_feature(feature)
         for feature in schema.feature
     ], expected)
+
+  @parameterized.named_parameters(*SET_DOMAIN_VALID_TESTS)
+  def test_set_domain(self, input_schema_proto_text, feature_name, domain,
+                      output_schema_proto_text):
+    actual_schema = schema_pb2.Schema()
+    text_format.Merge(input_schema_proto_text, actual_schema)
+    schema_util.set_domain(actual_schema, feature_name, domain)
+    expected_schema = schema_pb2.Schema()
+    text_format.Merge(output_schema_proto_text, expected_schema)
+    self.assertEqual(actual_schema, expected_schema)
+
+  def test_set_domain_invalid_schema(self):
+    with self.assertRaisesRegexp(TypeError, 'should be a Schema proto'):
+      schema_util.set_domain({}, 'feature', schema_pb2.IntDomain())
+
+  def test_set_domain_invalid_domain(self):
+    with self.assertRaisesRegexp(TypeError, 'domain is of type'):
+      schema_util.set_domain(schema_pb2.Schema(), 'feature', {})
+
+  def test_set_domain_invalid_global_domain(self):
+    schema = schema_pb2.Schema()
+    schema.feature.add(name='feature')
+    schema.string_domain.add(name='domain1', value=['a', 'b'])
+    with self.assertRaisesRegexp(ValueError, 'Invalid global string domain'):
+      schema_util.set_domain(schema, 'feature', 'domain2')
+
 
 if __name__ == '__main__':
   absltest.main()

@@ -46,6 +46,11 @@ message FeatureStatisticsToProtoConfig {
   // If a string field has less than this number of entries, it will be
   // interpreted as an enum.
   optional int32 enum_threshold = 1;
+
+  // If a StringDomain has at least this number of entries, it will be
+  // deleted.
+  optional int32 enum_delete_threshold = 8;
+
   optional EnumsSimilarConfig enums_similar_config = 2;
   // Constraints on various columns.
   repeated ColumnConstraint column_constraint = 5;

@@ -29,6 +29,9 @@ import numpy as np
 from tensorflow_data_validation.coders import csv_decoder
 from tensorflow_data_validation.utils import test_util
 
+from google.protobuf import text_format
+from tensorflow_metadata.proto.v0 import schema_pb2
+
 
 class CSVDecoderTest(absltest.TestCase):
   """Tests for CSV decoder."""
@@ -48,6 +51,36 @@ class CSVDecoderTest(absltest.TestCase):
     with beam.Pipeline() as p:
       result = (p | beam.Create(input_lines) |
                 csv_decoder.DecodeCSV(column_names=column_names))
+      util.assert_that(
+          result,
+          test_util.make_example_dict_equal_fn(self, expected_result))
+
+  def test_csv_decoder_with_schema(self):
+    input_lines = ['1,1,2.0,hello',
+                   '5,5,12.34,world']
+    column_names = ['int_feature_parsed_as_float', 'int_feature',
+                    'float_feature', 'str_feature']
+    schema = text_format.Parse(
+        """
+        feature { name: "int_feature_parsed_as_float" type: FLOAT }
+        feature { name: "int_feature" type: INT }
+        feature { name: "float_feature" type: FLOAT }
+        feature { name: "str_feature" type: BYTES }
+        """, schema_pb2.Schema())
+    expected_result = [
+        {'int_feature_parsed_as_float': np.array([1], dtype=np.floating),
+         'int_feature': np.array([1], dtype=np.integer),
+         'float_feature': np.array([2.0], dtype=np.floating),
+         'str_feature': np.array(['hello'], dtype=np.object)},
+        {'int_feature_parsed_as_float': np.array([5], dtype=np.floating),
+         'int_feature': np.array([5], dtype=np.integer),
+         'float_feature': np.array([12.34], dtype=np.floating),
+         'str_feature': np.array(['world'], dtype=np.object)}]
+
+    with beam.Pipeline() as p:
+      result = (p | beam.Create(input_lines) |
+                csv_decoder.DecodeCSV(column_names=column_names, schema=schema,
+                                      infer_type_from_schema=True))
       util.assert_that(
           result,
           test_util.make_example_dict_equal_fn(self, expected_result))

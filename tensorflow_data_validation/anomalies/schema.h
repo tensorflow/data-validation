@@ -68,6 +68,10 @@ class Schema {
         const FeatureStatsView& feature_stats_view, Schema* schema,
         tensorflow::metadata::v0::AnomalyInfo::Severity* severity) const;
 
+    // Returns true if there is a limit on the size of a string domain and it
+    // should be deleted.
+    bool string_domain_too_big(int size) const;
+
    private:
     // The config being used to create the schema.
     const FeatureStatisticsToProtoConfig config_;
@@ -164,6 +168,9 @@ class Schema {
   // Used in GetRelatedEnums().
   std::map<string, std::set<Path>> EnumNameToPaths() const;
 
+  // Deletes a StringDomain and all references to it.
+  void ClearStringDomain(const string& domain_name);
+
   // Returns simple names of similar enum types.
   // Definition of similar (will be) configured in the
   // FeatureStatisticsToProtoConfig.
@@ -225,7 +232,8 @@ class Schema {
   // Gets a new feature. Assumes that the feature does not already exist.
   Feature* GetNewFeature(const Path& path);
 
-  std::vector<Description> UpdateFeatureInternal(const FeatureStatsView& view,
+  std::vector<Description> UpdateFeatureInternal(const Updater& updater,
+                                                 const FeatureStatsView& view,
                                                  Feature* feature);
 
 

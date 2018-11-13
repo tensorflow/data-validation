@@ -31,7 +31,7 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
   """Tests for TopkStatsGenerator."""
 
-  def test_single_string_feature(self):
+  def test_topk_with_single_string_feature(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
     batches = [{'fa': np.array([np.array(['a', 'b', 'c', 'e']),
                                 np.array(['a', 'c', 'd', 'a'])],
@@ -88,63 +88,114 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         num_top_values=4, num_rank_histogram_buckets=3)
     self.assertTransformOutputEqual(batches, generator, [expected_result])
 
-  def test_single_string_feature_manual(self):
-    # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
+  def test_topk_with_weights(self):
+    # non-weighted ordering
+    # 3 'a', 2 'e', 2 'd', 2 'c', 1 'b'
+    # weighted ordering
+    # fa: 20 'e', 20 'd', 15 'a', 10 'c', 5 'b'
     batches = [{'fa': np.array([np.array(['a', 'b', 'c', 'e']),
                                 np.array(['a', 'c', 'd', 'a'])],
-                               dtype=np.object)},
-               {'fa': np.array([np.array(['a', 'b', 'c', 'd'])],
-                               dtype=np.object)},
-               {}]
-    expected_result = text_format.Parse(
-        """
-      features {
-        name: 'fa'
-        type: STRING
-        string_stats {
-          top_values {
-            value: 'a'
-            frequency: 4
-          }
-          top_values {
-            value: 'c'
-            frequency: 3
-          }
-          top_values {
-            value: 'd'
-            frequency: 2
-          }
-          top_values {
-            value: 'b'
-            frequency: 2
-          }
-          rank_histogram {
-            buckets {
-              low_rank: 0
-              high_rank: 0
-              label: "a"
-              sample_count: 4.0
-            }
-            buckets {
-              low_rank: 1
-              high_rank: 1
-              label: "c"
-              sample_count: 3.0
-            }
-            buckets {
-              low_rank: 2
-              high_rank: 2
-              label: "d"
-              sample_count: 2.0
-            }
-          }
-        }
-      }""", statistics_pb2.DatasetFeatureStatistics())
+                               dtype=np.object),
+                'w': np.array([np.array([5.0]), np.array([5.0])])},
+               {'fa': np.array([np.array(['d', 'e'])], dtype=np.object),
+                'w': np.array([np.array([15.0])])}]
+    expected_result = [
+        text_format.Parse(
+            """
+            features {
+              name: 'fa'
+              type: STRING
+              string_stats {
+                top_values {
+                  value: 'a'
+                  frequency: 3.0
+                }
+                top_values {
+                  value: 'e'
+                  frequency: 2.0
+                }
+                top_values {
+                  value: 'd'
+                  frequency: 2.0
+                }
+                top_values {
+                  value: 'c'
+                  frequency: 2.0
+                }
+                rank_histogram {
+                  buckets {
+                    low_rank: 0
+                    high_rank: 0
+                    label: "a"
+                    sample_count: 3.0
+                  }
+                  buckets {
+                    low_rank: 1
+                    high_rank: 1
+                    label: "e"
+                    sample_count: 2.0
+                  }
+                  buckets {
+                    low_rank: 2
+                    high_rank: 2
+                    label: "d"
+                    sample_count: 2.0
+                  }
+                }
+              }
+            }""", statistics_pb2.DatasetFeatureStatistics()),
+        text_format.Parse(
+            """
+            features {
+              name: 'fa'
+              type: STRING
+              string_stats {
+                weighted_string_stats {
+                  top_values {
+                    value: 'e'
+                    frequency: 20.0
+                  }
+                  top_values {
+                    value: 'd'
+                    frequency: 20.0
+                  }
+                  top_values {
+                    value: 'a'
+                    frequency: 15.0
+                  }
+                  top_values {
+                    value: 'c'
+                    frequency: 10.0
+                  }
+                  rank_histogram {
+                    buckets {
+                      low_rank: 0
+                      high_rank: 0
+                      label: "e"
+                      sample_count: 20.0
+                    }
+                    buckets {
+                      low_rank: 1
+                      high_rank: 1
+                      label: "d"
+                      sample_count: 20.0
+                    }
+                    buckets {
+                      low_rank: 2
+                      high_rank: 2
+                      label: "a"
+                      sample_count: 15.0
+                    }
+                  }
+                }
+              }
+        }""", statistics_pb2.DatasetFeatureStatistics())]
     generator = top_k_stats_generator.TopKStatsGenerator(
+        weight_feature='w',
         num_top_values=4, num_rank_histogram_buckets=3)
-    self.assertTransformOutputEqual(batches, generator, [expected_result])
+    self.assertTransformOutputEqual(batches, generator, expected_result)
 
-  def test_single_unicode_feature(self):
+  def test_topk_with_single_unicode_feature(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
     batches = [{'fa': np.array([np.array(['a', 'b', 'c', 'e']),
                                 np.array(['a', 'c', 'd', 'a'])],
@@ -199,7 +250,7 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         num_top_values=4, num_rank_histogram_buckets=3)
     self.assertTransformOutputEqual(batches, generator, [expected_result])
 
-  def test_multiple_features(self):
+  def test_topk_with_multiple_features(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
     # fb: 1 'a', 2 'b', 3 'c'
     batches = [{'fa': np.array([np.array(['a', 'b', 'c', 'e']), None,
@@ -299,28 +350,28 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
     self.assertTransformOutputEqual(batches, generator,
                                     [expected_result_fa, expected_result_fb])
 
-  def test_with_empty_batch(self):
+  def test_topk_with_empty_batch(self):
     batches = [{'a': np.array([])}]
     expected_result = []
     generator = top_k_stats_generator.TopKStatsGenerator(
         num_top_values=4, num_rank_histogram_buckets=3)
     self.assertTransformOutputEqual(batches, generator, expected_result)
 
-  def test_with_empty_dict(self):
+  def test_topk_with_empty_dict(self):
     batches = [{}]
     expected_result = []
     generator = top_k_stats_generator.TopKStatsGenerator(
         num_top_values=4, num_rank_histogram_buckets=3)
     self.assertTransformOutputEqual(batches, generator, expected_result)
 
-  def test_with_empty_list(self):
+  def test_topk_with_empty_list(self):
     batches = []
     expected_result = []
     generator = top_k_stats_generator.TopKStatsGenerator(
         num_top_values=4, num_rank_histogram_buckets=3)
     self.assertTransformOutputEqual(batches, generator, expected_result)
 
-  def test_with_missing_feature(self):
+  def test_topk_with_missing_feature(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
     # fb: 1 'a', 1 'b', 2 'c'
     batches = [{'fa': np.array([np.array(['a', 'b', 'c', 'e']), None,
@@ -418,7 +469,7 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
     self.assertTransformOutputEqual(batches, generator,
                                     [expected_result_fa, expected_result_fb])
 
-  def test_one_numeric_feature(self):
+  def test_topk_with_numeric_feature(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
     batches = [{'fa': np.array([np.array(['a', 'b', 'c', 'e']), None,
                                 np.array(['a', 'c', 'd'])], dtype=np.object),
@@ -467,7 +518,7 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         num_top_values=2, num_rank_histogram_buckets=3)
     self.assertTransformOutputEqual(batches, generator, [expected_result_fa])
 
-  def test_with_categorical_feature(self):
+  def test_topk_with_categorical_feature(self):
     batches = [{'fa': np.array([np.array([12, 23, 34, 12]),
                                 np.array([45, 23])])},
                {'fa': np.array([np.array([12, 12, 34, 45])])}]
@@ -521,6 +572,7 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         schema=schema,
         num_top_values=2, num_rank_histogram_buckets=3)
     self.assertTransformOutputEqual(batches, generator, [expected_result_fa])
+
 
 if __name__ == '__main__':
   absltest.main()

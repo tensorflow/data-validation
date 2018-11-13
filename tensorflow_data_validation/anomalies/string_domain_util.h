@@ -20,6 +20,7 @@ limitations under the License.
 
 #include "tensorflow_data_validation/anomalies/internal_types.h"
 #include "tensorflow_data_validation/anomalies/proto/feature_statistics_to_proto.pb.h"
+#include "tensorflow_data_validation/anomalies/schema.h"
 #include "tensorflow_data_validation/anomalies/statistics_view.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
 
@@ -44,10 +45,13 @@ std::vector<Description> UpdateStringDomainSelf(
     tensorflow::metadata::v0::StringDomain* string_domain);
 
 // Update a string domain.
+// updater: configuration used to determine if the string domain needs to be
+//   deleted.
 // stats: the statistics of the string domain.
 // max_off_domain: the maximum fraction of mass allowed to be off the domain.
 // string_domain: string_domain to be modified.
 UpdateSummary UpdateStringDomain(
+    const Schema::Updater& updater,
     const FeatureStatsView& stats, double max_off_domain,
     tensorflow::metadata::v0::StringDomain* string_domain);
 

@@ -9,10 +9,11 @@ workspace(name = "tensorflow_data_validation")
 #    reliable downloads.
 load("//tensorflow_data_validation:repo.bzl", "tensorflow_http_archive")
 
+# v1.11.0
 tensorflow_http_archive(
     name = "org_tensorflow",
-    sha256 = "696c4906d6536ed8d9f8f13c4927d3ccf36dcf3e13bb352ab80cba6b1b9038d4",
-    git_commit = "25c197e02393bd44f50079945409009dd4d434f8",
+    sha256 = "025b47263af34475dc75da40c76a87934a70f69611e9b0b88445d65730f0fc73",
+    git_commit = "c19e29306ce1777456b2dbb3a14f511edf7883a8",
 )
 
 # TensorFlow depends on "io_bazel_rules_closure" so we need this here.

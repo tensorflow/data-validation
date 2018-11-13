@@ -152,7 +152,8 @@ std::vector<Description> UpdateStringDomainSelf(
                         absl::StrJoin(repeats, ", "))}};
 }
 
-UpdateSummary UpdateStringDomain(const FeatureStatsView& stats,
+UpdateSummary UpdateStringDomain(const Schema::Updater& updater,
+                                 const FeatureStatsView& stats,
                                  double max_off_domain,
                                  StringDomain* string_domain) {
   UpdateSummary summary;
@@ -200,6 +201,15 @@ UpdateSummary UpdateStringDomain(const FeatureStatsView& stats,
             ". ")};
     summary.descriptions.push_back(description);
     StringDomainAddMissing(missing, string_domain);
+  }
+  const int domain_size = string_domain->value().size();
+  if (updater.string_domain_too_big(domain_size)) {
+    summary.clear_field = true;
+
+    summary.descriptions.push_back({
+      tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
+      "String domain has too many values",
+      Printf("String domain has too many values (%d).", domain_size)});
   }
   return summary;
 }

@@ -24,8 +24,12 @@ toc:
       path: /tfx/data_validation/api_docs/python/tfdv/get_feature
     - title: infer_schema
       path: /tfx/data_validation/api_docs/python/tfdv/infer_schema
+    - title: load_schema_text
+      path: /tfx/data_validation/api_docs/python/tfdv/load_schema_text
     - title: load_statistics
       path: /tfx/data_validation/api_docs/python/tfdv/load_statistics
+    - title: set_domain
+      path: /tfx/data_validation/api_docs/python/tfdv/set_domain
     - title: StatsOptions
       path: /tfx/data_validation/api_docs/python/tfdv/StatsOptions
     - title: TFExampleDecoder
@@ -36,3 +40,5 @@ toc:
       path: /tfx/data_validation/api_docs/python/tfdv/validate_statistics
     - title: visualize_statistics
       path: /tfx/data_validation/api_docs/python/tfdv/visualize_statistics
+    - title: write_schema_text
+      path: /tfx/data_validation/api_docs/python/tfdv/write_schema_text

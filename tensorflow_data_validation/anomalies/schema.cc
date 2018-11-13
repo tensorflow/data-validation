@@ -116,6 +116,20 @@ Feature* GetExistingFeatureHelper(
   return nullptr;
 }
 
+void ClearStringDomainHelper(
+    const string& domain_name,
+    tensorflow::protobuf::RepeatedPtrField<Feature>* features) {
+  for (tensorflow::metadata::v0::Feature& feature : *features) {
+    if (feature.domain() == domain_name) {
+      ::tensorflow::data_validation::ClearDomain(&feature);
+    }
+    if (feature.has_struct_domain()) {
+      ClearStringDomainHelper(
+          domain_name, feature.mutable_struct_domain()->mutable_feature());
+    }
+  }
+}
+
 SparseFeature* GetExistingSparseFeatureHelper(
     const string& name,
     tensorflow::protobuf::RepeatedPtrField<
@@ -157,7 +171,7 @@ tensorflow::Status Schema::Update(
 
 
   if (feature != nullptr) {
-    *descriptions = UpdateFeatureInternal(feature_stats_view, feature);
+    *descriptions = UpdateFeatureInternal(updater, feature_stats_view, feature);
     if (!descriptions->empty()) {
       *severity = tensorflow::metadata::v0::AnomalyInfo::ERROR;
     }
@@ -287,7 +301,7 @@ Status Schema::Updater::CreateColumn(
     if (result == nullptr) {
       result = schema->GetNewStringDomain(enum_name);
     }
-    UpdateStringDomain(feature_stats_view, 0, result);
+    UpdateStringDomain(*this, feature_stats_view, 0, result);
     return Status::OK();
   } else if (feature_stats_view.HasInvalidUTF8Strings() ||
              feature_stats_view.type() == FeatureNameStatistics::BYTES) {
@@ -305,13 +319,20 @@ Status Schema::Updater::CreateColumn(
                                      config_.enum_threshold())) {
     StringDomain* string_domain =
         schema->GetNewStringDomain(feature_stats_view.name());
-    UpdateStringDomain(feature_stats_view, 0, string_domain);
+    UpdateStringDomain(*this, feature_stats_view, 0, string_domain);
     *feature->mutable_domain() = string_domain->name();
     return Status::OK();
   } else {
     // No domain info for this field.
     return Status::OK();
   }
+}
+
+// Returns true if there is a limit on the size of a string domain and it
+// should be deleted.
+bool Schema::Updater::string_domain_too_big(int size) const {
+  return config_.has_enum_delete_threshold() &&
+         config_.enum_delete_threshold() <= size;
 }
 
 bool Schema::IsEmpty() const {
@@ -692,8 +713,16 @@ std::vector<Description> Schema::UpdateSkewComparator(
   return {};
 }
 
+void Schema::ClearStringDomain(const string& domain_name) {
+  ClearStringDomainHelper(domain_name, schema_.mutable_feature());
+  RemoveIf(schema_.mutable_string_domain(),
+           [domain_name](const StringDomain* string_domain) {
+             return (string_domain->name() == domain_name);
+           });
+}
+
 std::vector<Description> Schema::UpdateFeatureInternal(
-    const FeatureStatsView& view, Feature* feature) {
+    const Updater& updater, const FeatureStatsView& view, Feature* feature) {
   std::vector<Description> descriptions = UpdateFeatureSelf(feature);
 
   // feature can be deprecated inside of UpdateFeatureSelf.
@@ -811,13 +840,25 @@ std::vector<Description> Schema::UpdateFeatureInternal(
                             "with domain info."});
   }
   switch (feature->domain_info_case()) {
-    case Feature::kDomain:
-      handle_update_summary(::tensorflow::data_validation::UpdateStringDomain(
-          view,
-          ::tensorflow::data_validation::GetMaxOffDomain(
-              feature->distribution_constraints()),
-          CHECK_NOTNULL(GetExistingStringDomain(feature->domain()))));
-      break;
+    case Feature::kDomain: {
+      UpdateSummary update_summary =
+          ::tensorflow::data_validation::UpdateStringDomain(
+              updater, view,
+              ::tensorflow::data_validation::GetMaxOffDomain(
+                  feature->distribution_constraints()),
+              CHECK_NOTNULL(GetExistingStringDomain(feature->domain())));
+
+      descriptions.insert(descriptions.end(),
+                          update_summary.descriptions.begin(),
+                          update_summary.descriptions.end());
+      if (update_summary.clear_field) {
+        // Note that this clears the oneof field domain_info.
+        const string domain = feature->domain();
+        ClearStringDomain(domain);
+      }
+    }
+
+    break;
     case Feature::kBoolDomain:
       add_to_descriptions(
           ::tensorflow::data_validation::UpdateBoolDomain(view, feature));
@@ -832,7 +873,7 @@ std::vector<Description> Schema::UpdateFeatureInternal(
       break;
     case tensorflow::metadata::v0::Feature::kStringDomain:
       handle_update_summary(::tensorflow::data_validation::UpdateStringDomain(
-          view,
+          updater, view,
           ::tensorflow::data_validation::GetMaxOffDomain(
               feature->distribution_constraints()),
           feature->mutable_string_domain()));

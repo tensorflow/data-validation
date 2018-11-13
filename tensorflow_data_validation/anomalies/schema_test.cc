@@ -140,6 +140,112 @@ TEST(SchemaTest, CreateFromSchemaProto) {
   EXPECT_THAT(actual, EqualsProto(initial));
 }
 
+// The StringDomain is too large after a new value arrives.
+TEST(SchemaTest, StringDomainTooLarge) {
+  const tensorflow::metadata::v0::Schema initial =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
+        string_domain {
+          name: "MyAloneEnum"
+          value: "4"
+          value: "5"
+          value: "6"
+          value: "ALONE_BUT_NORMAL"
+        }
+        feature {
+          name: "annotated_enum"
+          value_count: { min: 1 max: 1 }
+          type: BYTES
+          domain: "MyAloneEnum"
+        })");
+
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(initial));
+  FeatureStatisticsToProtoConfig config;
+  config.set_enum_threshold(4);
+  config.set_enum_delete_threshold(4);
+  const DatasetFeatureStatistics stats =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(
+          R"(
+            num_examples: 10
+            features {
+              name: 'annotated_enum'
+              type: STRING
+              string_stats: {
+                common_stats: {
+                  num_missing: 0
+                  num_non_missing: 10
+                  min_num_values: 1
+                  max_num_values: 1
+                }
+                rank_histogram {
+                  buckets { label: "a" sample_count: 1 }
+                  buckets { label: "b" sample_count: 2 }
+                  buckets { label: "c" sample_count: 7 }
+                }
+              }
+            })");
+  TF_ASSERT_OK(schema.Update(DatasetStatsView(stats), config));
+  const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
+  EXPECT_THAT(actual, EqualsProto(R"(
+                feature {
+                  name: "annotated_enum"
+                  value_count: { min: 1 max: 1 }
+                  type: BYTES
+                })"));
+}
+
+// The StringDomain is too large after a new field arrives.
+TEST(SchemaTest, EmbeddedStringDomainTooLarge) {
+  const tensorflow::metadata::v0::Schema initial =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
+        feature {
+          name: "annotated_enum"
+          value_count: { min: 1 max: 1 }
+          type: BYTES
+          string_domain: {
+            value: "4"
+            value: "5"
+            value: "6"
+            value: "ALONE_BUT_NORMAL"
+          }
+        })");
+
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(initial));
+  FeatureStatisticsToProtoConfig config;
+  config.set_enum_threshold(4);
+  config.set_enum_delete_threshold(4);
+  const DatasetFeatureStatistics stats =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(
+          R"(
+            num_examples: 10
+            features {
+              name: 'annotated_enum'
+              type: STRING
+              string_stats: {
+                common_stats: {
+                  num_missing: 0
+                  num_non_missing: 10
+                  min_num_values: 1
+                  max_num_values: 1
+                }
+                rank_histogram {
+                  buckets { label: "a" sample_count: 1 }
+                  buckets { label: "b" sample_count: 2 }
+                  buckets { label: "c" sample_count: 7 }
+                }
+              }
+            })");
+  TF_ASSERT_OK(schema.Update(DatasetStatsView(stats), config));
+  const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
+  EXPECT_THAT(actual, EqualsProto(R"(
+                feature {
+                  name: "annotated_enum"
+                  value_count: { min: 1 max: 1 }
+                  type: BYTES
+                })"));
+}
+
 // Test that initializing from a schema proto, then exporting a schema v1 proto,
 // does not change the schema proto. See
 // CreateFromProtoWithEmbeddedStringDomain for when this doesn't work.

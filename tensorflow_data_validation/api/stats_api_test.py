@@ -497,6 +497,174 @@ class StatsAPITest(absltest.TestCase):
           result, test_util.make_dataset_feature_stats_list_proto_equal_fn(
               self, expected_result))
 
+  def test_stats_pipeline_with_weight_feature(self):
+    # input with four examples.
+    examples = [
+        {'a': np.array([1.0, 2.0]),
+         'b': np.array(['a', 'b', 'c', 'e']),
+         'w': np.array([1.0])},
+        {'a': np.array([3.0, 4.0, 5.0]),
+         'b': None,
+         'w': np.array([2.0])},
+        {'a': np.array([1.0,]),
+         'b': np.array(['d', 'e']),
+         'w': np.array([3.0,])},
+        {'a': None,
+         'b': np.array(['a', 'c', 'd', 'a']),
+         'w': np.array([1.0])}
+    ]
+
+    expected_result = text_format.Parse("""
+    datasets {
+      num_examples: 4
+      features {
+        name: 'a'
+        type: FLOAT
+        num_stats {
+          common_stats {
+            num_non_missing: 3
+            num_missing: 1
+            min_num_values: 1
+            max_num_values: 3
+            avg_num_values: 2.0
+            tot_num_values: 6
+            num_values_histogram {
+              buckets { low_value: 1.0 high_value: 2.0 sample_count: 1 }
+              buckets { low_value: 2.0 high_value: 3.0 sample_count: 1 }
+              buckets { low_value: 3.0 high_value: 3.0 sample_count: 1 }
+              type: QUANTILES
+            }
+            weighted_common_stats {
+              num_non_missing: 6.0
+              num_missing: 1.0
+              avg_num_values: 1.83333333
+              tot_num_values: 11.0
+            }
+          }
+          mean: 2.66666666
+          std_dev: 1.49071198
+          num_zeros: 0
+          min: 1.0
+          max: 5.0
+          median: 3.0
+          histograms {
+            buckets {
+              low_value: 1.0
+              high_value: 2.3333333
+              sample_count: 2.9866667
+            }
+            buckets {
+              low_value: 2.3333333
+              high_value: 3.6666667
+              sample_count: 1.0066667
+            }
+            buckets {
+              low_value: 3.6666667
+              high_value: 5.0
+              sample_count: 2.0066667
+            }
+            type: STANDARD
+          }
+          histograms {
+            buckets { low_value: 1.0 high_value: 1.0 sample_count: 1.5 }
+            buckets { low_value: 1.0 high_value: 3.0 sample_count: 1.5 }
+            buckets { low_value: 3.0 high_value: 4.0 sample_count: 1.5 }
+            buckets { low_value: 4.0 high_value: 5.0 sample_count: 1.5 }
+            type: QUANTILES
+          }
+          weighted_numeric_stats {
+            mean: 2.7272727
+            std_dev: 1.5427784
+            median: 3.0
+            histograms {
+              buckets {
+              low_value: 1.0
+                high_value: 2.3333333
+                sample_count: 4.9988889
+              }
+              buckets {
+                low_value: 2.3333333
+                high_value: 3.6666667
+                sample_count: 1.9922222
+              }
+              buckets {
+                low_value: 3.6666667
+                high_value: 5.0
+                sample_count: 4.0088889
+              }
+            }
+            histograms {
+              buckets { low_value: 1.0 high_value: 1.0 sample_count: 2.75 }
+              buckets { low_value: 1.0 high_value: 3.0 sample_count: 2.75 }
+              buckets { low_value: 3.0 high_value: 4.0 sample_count: 2.75 }
+              buckets { low_value: 4.0 high_value: 5.0 sample_count: 2.75 }
+              type: QUANTILES
+            }
+          }
+        }
+      }
+      features {
+        name: 'b'
+        type: STRING
+        string_stats {
+          common_stats {
+            num_non_missing: 3
+            num_missing: 1
+            min_num_values: 2
+            max_num_values: 4
+            avg_num_values: 3.33333301544
+            num_values_histogram {
+              buckets { low_value: 2.0 high_value: 4.0 sample_count: 1.0 }
+              buckets { low_value: 4.0 high_value: 4.0 sample_count: 1.0 }
+              buckets { low_value: 4.0 high_value: 4.0 sample_count: 1.0 }
+              type: QUANTILES
+            }
+            weighted_common_stats {
+              num_non_missing: 5.0
+              num_missing: 2.0
+              avg_num_values: 2.8
+              tot_num_values: 14.0
+            }
+            tot_num_values: 10
+          }
+          avg_length: 1.0
+          unique: 5
+          top_values { value: 'a' frequency: 3.0 }
+          top_values { value: 'e' frequency: 2.0 }
+          rank_histogram {
+            buckets { low_rank: 0 high_rank: 0 label: "a" sample_count: 3.0 }
+            buckets { low_rank: 1 high_rank: 1 label: "e" sample_count: 2.0 }
+            buckets { low_rank: 2 high_rank: 2 label: "d" sample_count: 2.0 }
+          }
+          weighted_string_stats {
+            top_values { value: 'e' frequency: 4.0 }
+            top_values { value: 'd' frequency: 4.0 }
+            rank_histogram {
+              buckets { low_rank: 0 high_rank: 0 label: "e" sample_count: 4.0 }
+              buckets { low_rank: 1 high_rank: 1 label: "d" sample_count: 4.0 }
+              buckets { low_rank: 2 high_rank: 2 label: "a" sample_count: 3.0 }
+            }
+          }
+        }
+      }
+    }
+    """, statistics_pb2.DatasetFeatureStatisticsList())
+
+    with beam.Pipeline() as p:
+      options = stats_options.StatsOptions(
+          weight_feature='w',
+          num_top_values=2,
+          num_rank_histogram_buckets=3,
+          num_values_histogram_buckets=3,
+          num_histogram_buckets=3,
+          num_quantiles_histogram_buckets=4)
+      result = (
+          p | beam.Create(examples) | stats_api.GenerateStatistics(options))
+      util.assert_that(
+          result,
+          test_util.make_dataset_feature_stats_list_proto_equal_fn(
+              self, expected_result))
+
   _sampling_test_expected_result = text_format.Parse("""
     datasets {
       num_examples: 1

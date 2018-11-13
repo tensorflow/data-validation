@@ -33,6 +33,14 @@ namespace tensorflow {
 namespace data_validation {
 namespace {
 
+const int64 kDefaultEnumThreshold = 400;
+
+FeatureStatisticsToProtoConfig GetDefaultFeatureStatisticsToProtoConfig() {
+  FeatureStatisticsToProtoConfig feature_statistics_to_proto_config;
+  feature_statistics_to_proto_config.set_enum_threshold(kDefaultEnumThreshold);
+  return feature_statistics_to_proto_config;
+}
+
 using ::tensorflow::metadata::v0::FeatureNameStatistics;
 using ::tensorflow::metadata::v0::StringDomain;
 using ::testing::ElementsAre;
@@ -162,6 +170,7 @@ TEST(EnumType, IsValid) {
     StringDomain string_domain = GetStringDomain(test.name, test.values);
     const StringDomain original = string_domain;
     UpdateSummary result = UpdateStringDomain(
+        Schema::Updater(GetDefaultFeatureStatisticsToProtoConfig()),
         testing::DatasetForTesting(test.input).feature_stats_view(), 0,
         &string_domain);
     // If it is valid, then there should be no descriptions.
@@ -245,6 +254,7 @@ TEST(EnumType, IsValidWithMassConstraint) {
     StringDomain string_domain = GetStringDomain(test.name, test.values);
     const StringDomain original = string_domain;
     UpdateSummary result = UpdateStringDomain(
+        Schema::Updater(GetDefaultFeatureStatisticsToProtoConfig()),
         testing::DatasetForTesting(test.input).feature_stats_view(), 0.2,
         &string_domain);
     EXPECT_EQ(test.expected, result.descriptions.empty());
@@ -341,6 +351,7 @@ TEST(EnumType, Update) {
     StringDomain to_modify = GetStringDomain(test.name, test.values);
     std::vector<Description> descriptions;
     UpdateSummary summary = UpdateStringDomain(
+        Schema::Updater(GetDefaultFeatureStatisticsToProtoConfig()),
         testing::DatasetForTesting(test.input).feature_stats_view(), 0,
         &to_modify);
     EXPECT_EQ(summary.clear_field, test.expected_clear_field)
@@ -358,7 +369,9 @@ TEST(EnumType, SurfaceFrequenciesOfMissingValues) {
         R"(name: "MyEnum" value: "alpha" value: "beta")");
     std::vector<Description> descriptions;
     UpdateSummary summary =
-        UpdateStringDomain(testing::DatasetForTesting(
+        UpdateStringDomain(
+          Schema::Updater(GetDefaultFeatureStatisticsToProtoConfig()),
+          testing::DatasetForTesting(
           ParseTextProtoOrDie<FeatureNameStatistics>(R"(
             name: 'bar'
             type: STRING
@@ -391,7 +404,9 @@ TEST(EnumType, SurfaceFrequenciesOfMissingValues) {
         R"(name: "MyEnum" value: "alpha" value: "beta")");
 
     UpdateSummary summary =
-        UpdateStringDomain(testing::DatasetForTesting(
+        UpdateStringDomain(
+          Schema::Updater(GetDefaultFeatureStatisticsToProtoConfig()),
+          testing::DatasetForTesting(
           ParseTextProtoOrDie<FeatureNameStatistics>(R"(
             name: 'bar'
             type: STRING
@@ -417,6 +432,89 @@ TEST(EnumType, SurfaceFrequenciesOfMissingValues) {
     EXPECT_THAT(summary.descriptions,
                 ElementsAre(Field(&Description::long_description,
                                   HasSubstr("gamma (<1%)"))));
+  }
+}
+
+TEST(EnumType, DomainSizeLimit) {
+  // Case: Percentage of new value >= 1%
+  {
+    StringDomain string_domain = ParseTextProtoOrDie<StringDomain>(
+        R"(name: "MyEnum" value: "alpha" value: "beta")");
+    std::vector<Description> descriptions;
+    FeatureStatisticsToProtoConfig config
+        = GetDefaultFeatureStatisticsToProtoConfig();
+    config.set_enum_delete_threshold(1);
+    const UpdateSummary summary =
+        UpdateStringDomain(
+          Schema::Updater(config),
+          testing::DatasetForTesting(
+          ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+            name: 'bar'
+            type: STRING
+            string_stats: {
+              common_stats: {
+                tot_num_values: 10
+                num_missing: 3
+                max_num_values: 2
+                avg_num_values: 1
+              }
+              unique: 3
+              rank_histogram: {
+                buckets: {
+                  label: "alpha"
+                  sample_count: 7
+                }
+                buckets: {
+                  label: "gamma"
+                  sample_count: 3}}})"))
+                               .feature_stats_view(),
+                           0, &string_domain);
+    EXPECT_TRUE(summary.clear_field);
+    EXPECT_THAT(summary.descriptions,
+                ElementsAre(
+                    Field(&Description::long_description,
+                                  HasSubstr("gamma (~30%)")),
+                    Field(&Description::long_description,
+                                  HasSubstr("too many values"))
+                    ));
+  }
+  // Don't delete.
+  {
+    StringDomain string_domain = ParseTextProtoOrDie<StringDomain>(
+        R"(name: "MyEnum" value: "alpha" value: "beta")");
+    std::vector<Description> descriptions;
+    FeatureStatisticsToProtoConfig config
+        = GetDefaultFeatureStatisticsToProtoConfig();
+    config.set_enum_delete_threshold(10);
+    const UpdateSummary summary =
+        UpdateStringDomain(
+          Schema::Updater(config),
+          testing::DatasetForTesting(
+          ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+            name: 'bar'
+            type: STRING
+            string_stats: {
+              common_stats: {
+                tot_num_values: 10
+                num_missing: 3
+                max_num_values: 2
+                avg_num_values: 1
+              }
+              unique: 3
+              rank_histogram: {
+                buckets: {
+                  label: "alpha"
+                  sample_count: 7
+                }
+                buckets: {
+                  label: "gamma"
+                  sample_count: 3}}})"))
+                               .feature_stats_view(),
+                           0, &string_domain);
+    EXPECT_FALSE(summary.clear_field);
+    EXPECT_THAT(summary.descriptions,
+                ElementsAre(Field(&Description::long_description,
+                                  HasSubstr("gamma (~30%)"))));
   }
 }
 
@@ -448,7 +546,9 @@ TEST(Enum, Add) {
                label: "beta"
                sample_count: 234 }}})");
   const testing::DatasetForTesting dataset_for_testing(stats);
-  UpdateStringDomain(dataset_for_testing.feature_stats_view(), 0, &to_modify);
+  UpdateStringDomain(
+      Schema::Updater(GetDefaultFeatureStatisticsToProtoConfig()),
+      dataset_for_testing.feature_stats_view(), 0, &to_modify);
   EXPECT_THAT(to_modify, EqualsProto(R"(
       name: "MyEnum"
       value: "alpha"
@@ -476,7 +576,9 @@ TEST(Enum, GetMissingUnweighted) {
                label: "beta"
                sample_count: 234 }}})");
   const testing::DatasetForTesting dataset(stats);
-  UpdateStringDomain(dataset.feature_stats_view(), 0, &to_modify);
+  UpdateStringDomain(
+      Schema::Updater(GetDefaultFeatureStatisticsToProtoConfig()),
+      dataset.feature_stats_view(), 0, &to_modify);
   EXPECT_THAT(to_modify,
               EqualsProto(R"(name: "MyEnum" value: "alpha" value: "beta")"));
 }
@@ -504,7 +606,9 @@ TEST(Enum, GetMissingWeighted) {
                label: "beta"
                sample_count: 234 }}}})");
   const testing::DatasetForTesting dataset(stats, true);
-  UpdateStringDomain(dataset.feature_stats_view(), 0, &to_modify);
+  UpdateStringDomain(
+      Schema::Updater(GetDefaultFeatureStatisticsToProtoConfig()),
+      dataset.feature_stats_view(), 0, &to_modify);
   EXPECT_THAT(to_modify,
               EqualsProto(R"(name: "MyEnum" value: "alpha" value: "beta")"));
 }

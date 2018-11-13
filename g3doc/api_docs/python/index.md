@@ -14,6 +14,9 @@
 *  <a href="./tfdv/get_domain.md"><code>tfdv.get_domain</code></a>
 *  <a href="./tfdv/get_feature.md"><code>tfdv.get_feature</code></a>
 *  <a href="./tfdv/infer_schema.md"><code>tfdv.infer_schema</code></a>
+*  <a href="./tfdv/load_schema_text.md"><code>tfdv.load_schema_text</code></a>
 *  <a href="./tfdv/load_statistics.md"><code>tfdv.load_statistics</code></a>
+*  <a href="./tfdv/set_domain.md"><code>tfdv.set_domain</code></a>
 *  <a href="./tfdv/validate_statistics.md"><code>tfdv.validate_statistics</code></a>
 *  <a href="./tfdv/visualize_statistics.md"><code>tfdv.visualize_statistics</code></a>
+*  <a href="./tfdv/write_schema_text.md"><code>tfdv.write_schema_text</code></a>

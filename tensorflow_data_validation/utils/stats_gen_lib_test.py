@@ -27,6 +27,7 @@ from tensorflow_data_validation.utils import test_util
 
 from google.protobuf import text_format
 from tensorflow.core.example import example_pb2
+from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
@@ -413,6 +414,70 @@ class StatsGenTest(absltest.TestCase):
     result = stats_gen_lib.generate_statistics_from_csv(
         data_location=input_data_path,
         column_names=None,
+        delimiter=',',
+        stats_options=self._default_stats_options)
+    compare_fn = test_util.make_dataset_feature_stats_list_proto_equal_fn(
+        self, expected_result)
+    compare_fn([result])
+
+  def test_stats_gen_with_csv_with_schema(self):
+    records = ['feature1', '1']
+    input_data_path = self._write_records_to_csv(records, self._get_temp_dir(),
+                                                 'input_data.csv')
+    schema = text_format.Parse(
+        """
+        feature { name: "feature1" type: BYTES }
+        """, schema_pb2.Schema())
+
+    expected_result = text_format.Parse(
+        """
+    datasets {
+  num_examples: 1
+  features {
+    name: "feature1"
+    type: STRING
+    string_stats {
+      common_stats {
+        num_non_missing: 1
+        min_num_values: 1
+        max_num_values: 1
+        avg_num_values: 1.0
+        num_values_histogram {
+          buckets {
+            low_value: 1.0
+            high_value: 1.0
+            sample_count: 0.5
+          }
+          buckets {
+            low_value: 1.0
+            high_value: 1.0
+            sample_count: 0.5
+          }
+          type: QUANTILES
+        }
+        tot_num_values: 1
+      }
+      unique: 1
+      top_values {
+        value: "1"
+        frequency: 1.0
+      }
+      avg_length: 1.0
+      rank_histogram {
+        buckets {
+          label: "1"
+          sample_count: 1.0
+        }
+      }
+    }
+  }
+    }
+    """, statistics_pb2.DatasetFeatureStatisticsList())
+
+    self._default_stats_options.schema = schema
+    self._default_stats_options.infer_type_from_schema = True
+    result = stats_gen_lib.generate_statistics_from_csv(
+        data_location=input_data_path,
         delimiter=',',
         stats_options=self._default_stats_options)
     compare_fn = test_util.make_dataset_feature_stats_list_proto_equal_fn(

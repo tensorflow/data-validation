@@ -25,6 +25,7 @@ import numpy as np
 from tensorflow_data_validation import types
 from tensorflow_data_validation.types_compat import Dict, List, Optional, Text, Union
 
+from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 # Type for representing a CSV record and a field value.
@@ -48,7 +49,9 @@ class DecodeCSV(beam.PTransform):
   def __init__(self,
                column_names,
                delimiter = ',',
-               skip_blank_lines = True):
+               skip_blank_lines = True,
+               schema = None,
+               infer_type_from_schema = False):
     """Initializes the CSV decoder.
 
     Args:
@@ -57,6 +60,10 @@ class DecodeCSV(beam.PTransform):
       delimiter: A one-character string used to separate fields.
       skip_blank_lines: A boolean to indicate whether to skip over blank lines
           rather than interpreting them as missing values.
+      schema: An optional schema of the input data.
+      infer_type_from_schema: A boolean to indicate whether the feature types
+          should be inferred from the schema. If set to True, an input schema
+          must be provided.
     """
     if not isinstance(column_names, list):
       raise TypeError('column_names is of type %s, should be a list' %
@@ -64,6 +71,8 @@ class DecodeCSV(beam.PTransform):
     self._column_names = column_names
     self._delimiter = delimiter
     self._skip_blank_lines = skip_blank_lines
+    self._schema = schema
+    self._infer_type_from_schema = infer_type_from_schema
 
   def expand(self, lines):
     """Decodes the input CSV records into an in-memory dict representation.
@@ -78,17 +87,41 @@ class DecodeCSV(beam.PTransform):
         lines | 'ParseCSVRecords' >> beam.Map(
             CSVParser(delimiter=self._delimiter).parse))
 
-    column_info = (
-        input_rows | 'InferFeatureTypes' >> beam.CombineGlobally(
-            _FeatureTypeInferrer(
-                column_names=self._column_names,
-                skip_blank_lines=self._skip_blank_lines)))
+    if self._infer_type_from_schema:
+      column_info = _get_feature_types_from_schema(self._schema,
+                                                   self._column_names)
+    else:
+      column_info = (
+          input_rows | 'InferFeatureTypes' >> beam.CombineGlobally(
+              _FeatureTypeInferrer(
+                  column_names=self._column_names,
+                  skip_blank_lines=self._skip_blank_lines)))
+      column_info = beam.pvalue.AsSingleton(column_info)
 
     # Do second pass to generate the in-memory dict representation.
     return (input_rows | 'CreateInMemoryDict' >> beam.FlatMap(
         _make_example_dict,
         skip_blank_lines=self._skip_blank_lines,
-        column_info=beam.pvalue.AsSingleton(column_info)))
+        column_info=column_info))
+
+
+def _get_feature_types_from_schema(schema,
+                                   column_names
+                                  ):
+  """Get statistics feature types from the input schema."""
+  schema_type_to_stats_type = {
+      schema_pb2.INT: statistics_pb2.FeatureNameStatistics.INT,
+      schema_pb2.FLOAT: statistics_pb2.FeatureNameStatistics.FLOAT,
+      schema_pb2.BYTES: statistics_pb2.FeatureNameStatistics.STRING
+  }
+  feature_type_map = {}
+  for feature in schema.feature:
+    feature_type_map[feature.name] = schema_type_to_stats_type[feature.type]
+
+  return [
+      ColumnInfo(col_name, feature_type_map.get(col_name, None))
+      for col_name in column_names
+  ]
 
 
 class _LineGenerator(object):
@@ -198,6 +231,10 @@ def _make_example_dict(
   return [result]
 
 
+_INT64_MIN = np.iinfo(np.int64).min
+_INT64_MAX = np.iinfo(np.int64).max
+
+
 def _infer_value_type(value):
   """Infer feature type from the input value."""
   # If the value is an empty string, we can set the feature type to be
@@ -207,9 +244,7 @@ def _infer_value_type(value):
 
   # Check if the value is of type INT.
   try:
-    int_or_long_value = int(value)
-    int64_info = np.iinfo(np.int64)
-    if int64_info.min <= int_or_long_value <= int64_info.max:
+    if _INT64_MIN <= int(value) <= _INT64_MAX:
       return statistics_pb2.FeatureNameStatistics.INT
     # We infer STRING type when we have long integer values.
     return statistics_pb2.FeatureNameStatistics.STRING
@@ -222,28 +257,6 @@ def _infer_value_type(value):
     except ValueError:
       return statistics_pb2.FeatureNameStatistics.STRING
     return statistics_pb2.FeatureNameStatistics.FLOAT
-
-
-def _type_hierarchy_level(feature_type):
-  """Get level of the input type in the type hierarchy.
-
-  Our type hierarchy is as follows,
-      INT (level 0) --> FLOAT (level 1) --> STRING (level 2)
-
-  Args:
-    feature_type: A statistics_pb2.FeatureNameStatistics.Type value.
-
-  Returns:
-    The hierarchy level of the input type.
-  """
-  if feature_type == statistics_pb2.FeatureNameStatistics.INT:
-    return 0
-  elif feature_type == statistics_pb2.FeatureNameStatistics.FLOAT:
-    return 1
-  elif feature_type == statistics_pb2.FeatureNameStatistics.STRING:
-    return 2
-  else:
-    raise TypeError('Unknown feature type %s.' % feature_type)
 
 
 @beam.typehints.with_input_types(List[CSVCell])
@@ -301,8 +314,7 @@ class _FeatureTypeInferrer(beam.CombineFn):
       # hierarchy compared to the already inferred type, we update the type.
       # The type hierarchy is,
       #   INT (level 0) --> FLOAT (level 1) --> STRING (level 2)
-      if (previous_type is None or (_type_hierarchy_level(current_type) >
-                                    _type_hierarchy_level(previous_type))):
+      if previous_type is None or current_type > previous_type:
         accumulator[feature_name] = current_type
     return accumulator
 
@@ -325,9 +337,7 @@ class _FeatureTypeInferrer(beam.CombineFn):
       # Specifically, whenever we observe a type higher in the type hierarchy
       # we update the type.
       for feature_name, feature_type in shard_types.items():
-        if (feature_name not in result or
-            (_type_hierarchy_level(feature_type) > _type_hierarchy_level(
-                result[feature_name]))):
+        if feature_name not in result or feature_type > result[feature_name]:
           result[feature_name] = feature_type
     return result
 
