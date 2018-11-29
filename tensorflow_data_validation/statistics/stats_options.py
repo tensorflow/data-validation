@@ -99,3 +99,110 @@ class StatsOptions(object):
     self.num_quantiles_histogram_buckets = num_quantiles_histogram_buckets
     self.epsilon = epsilon
     self.infer_type_from_schema = infer_type_from_schema
+
+  @property
+  def generators(self):
+    return self._generators
+
+  @generators.setter
+  def generators(
+      self, generators):
+    if generators is not None:
+      if not isinstance(generators, list):
+        raise TypeError('generators is of type %s, should be a list.' %
+                        type(generators).__name__)
+      for generator in generators:
+        if not isinstance(generator, (stats_generator.CombinerStatsGenerator,
+                                      stats_generator.TransformStatsGenerator)):
+          raise TypeError(
+              'Statistics generator must extend one of '
+              'CombinerStatsGenerator or TransformStatsGenerator, '
+              'found object of type %s.' % generator.__class__.__name__)
+    self._generators = generators
+
+  @property
+  def feature_whitelist(self):
+    return self._feature_whitelist
+
+  @feature_whitelist.setter
+  def feature_whitelist(
+      self, feature_whitelist):
+    if feature_whitelist is not None and not isinstance(feature_whitelist,
+                                                        list):
+      raise TypeError('feature_whitelist is of type %s, should be a list.' %
+                      type(feature_whitelist).__name__)
+    self._feature_whitelist = feature_whitelist
+
+  @property
+  def schema(self):
+    return self._schema
+
+  @schema.setter
+  def schema(self, schema):
+    if schema is not None and not isinstance(schema, schema_pb2.Schema):
+      raise TypeError('schema is of type %s, should be a Schema proto.' %
+                      type(schema).__name__)
+    self._schema = schema
+
+  @property
+  def sample_count(self):
+    return self._sample_count
+
+  @sample_count.setter
+  def sample_count(self, sample_count):
+    if sample_count is not None:
+      if hasattr(self, 'sample_rate') and self.sample_rate is not None:
+        raise ValueError('Only one of sample_count or sample_rate can be '
+                         'specified.')
+      if sample_count < 1:
+        raise ValueError('Invalid sample_count %d' % sample_count)
+    self._sample_count = sample_count
+
+  @property
+  def sample_rate(self):
+    return self._sample_rate
+
+  @sample_rate.setter
+  def sample_rate(self, sample_rate):
+    if sample_rate is not None:
+      if hasattr(self, 'sample_count') and self.sample_count is not None:
+        raise ValueError('Only one of sample_count or sample_rate can be '
+                         'specified.')
+      if not 0 < sample_rate <= 1:
+        raise ValueError('Invalid sample_rate %f' % sample_rate)
+    self._sample_rate = sample_rate
+
+  @property
+  def num_values_histogram_buckets(self):
+    return self._num_values_histogram_buckets
+
+  @num_values_histogram_buckets.setter
+  def num_values_histogram_buckets(self,
+                                   num_values_histogram_buckets):
+    if num_values_histogram_buckets < 1:
+      raise ValueError('Invalid num_values_histogram_buckets %d' %
+                       num_values_histogram_buckets)
+    self._num_values_histogram_buckets = num_values_histogram_buckets
+
+  @property
+  def num_histogram_buckets(self):
+    return self._num_histogram_buckets
+
+  @num_histogram_buckets.setter
+  def num_histogram_buckets(self, num_histogram_buckets):
+    if num_histogram_buckets < 1:
+      raise ValueError(
+          'Invalid num_histogram_buckets %d' % num_histogram_buckets)
+    self._num_histogram_buckets = num_histogram_buckets
+
+  @property
+  def num_quantiles_histogram_buckets(self):
+    return self._num_quantiles_histogram_buckets
+
+  @num_quantiles_histogram_buckets.setter
+  def num_quantiles_histogram_buckets(
+      self, num_quantiles_histogram_buckets):
+    if num_quantiles_histogram_buckets < 1:
+      raise ValueError('Invalid num_quantiles_histogram_buckets %d' %
+                       num_quantiles_histogram_buckets)
+    self._num_quantiles_histogram_buckets = num_quantiles_histogram_buckets

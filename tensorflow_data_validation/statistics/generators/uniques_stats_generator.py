@@ -108,11 +108,11 @@ class _UniquesStatsGeneratorImpl(beam.PTransform):
         beam.FlatMap(lambda name_and_value_list:  # pylint: disable=g-long-lambda
                      [(name_and_value_list[0], value)
                       for value in name_and_value_list[1]])
-        | 'Uniques_CountFeatureNameValueTuple' >>
-        beam.combiners.Count().PerElement()
+        | 'Uniques_RemoveDuplicateFeatureNameValueTuples' >>
+        beam.RemoveDuplicates()
         # Drop the values to only have the feature_name with each repeated the
         # number of unique values times.
-        | 'Uniques_DropValues' >> beam.Map(lambda x: x[0][0])
+        | 'Uniques_DropValues' >> beam.Keys()
         | 'Uniques_CountPerFeatureName' >> beam.combiners.Count().PerElement()
         | 'Uniques_ConvertToSingleFeatureStats' >> beam.Map(
             _make_dataset_feature_stats_proto_with_single_feature,

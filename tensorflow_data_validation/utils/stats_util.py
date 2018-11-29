@@ -24,22 +24,13 @@ from tensorflow_data_validation.types_compat import Dict, Optional
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
-_NP_TYPE_TO_FEATURE_TYPE = {
-    np.float: statistics_pb2.FeatureNameStatistics.FLOAT,
-    np.float16: statistics_pb2.FeatureNameStatistics.FLOAT,
-    np.float32: statistics_pb2.FeatureNameStatistics.FLOAT,
-    np.float64: statistics_pb2.FeatureNameStatistics.FLOAT,
-    np.int: statistics_pb2.FeatureNameStatistics.INT,
-    np.int8: statistics_pb2.FeatureNameStatistics.INT,
-    np.int16: statistics_pb2.FeatureNameStatistics.INT,
-    np.int32: statistics_pb2.FeatureNameStatistics.INT,
-    np.int64: statistics_pb2.FeatureNameStatistics.INT,
-    np.object: statistics_pb2.FeatureNameStatistics.STRING,
-    np.object_: statistics_pb2.FeatureNameStatistics.STRING,
-    np.str: statistics_pb2.FeatureNameStatistics.STRING,
-    np.str_: statistics_pb2.FeatureNameStatistics.STRING,
-    np.string_: statistics_pb2.FeatureNameStatistics.STRING,
-    np.unicode_: statistics_pb2.FeatureNameStatistics.STRING,
+_NP_DTYPE_KIND_TO_FEATURE_TYPE = {
+    'f': statistics_pb2.FeatureNameStatistics.FLOAT,
+    'i': statistics_pb2.FeatureNameStatistics.INT,
+    'u': statistics_pb2.FeatureNameStatistics.INT,
+    'S': statistics_pb2.FeatureNameStatistics.STRING,
+    'O': statistics_pb2.FeatureNameStatistics.STRING,
+    'U': statistics_pb2.FeatureNameStatistics.STRING,
 }
 
 
@@ -53,7 +44,7 @@ def get_feature_type(
   Returns:
     A statistics_pb2.FeatureNameStatistics.Type value.
   """
-  return _NP_TYPE_TO_FEATURE_TYPE.get(dtype.type)
+  return _NP_DTYPE_KIND_TO_FEATURE_TYPE.get(dtype.kind)
 
 
 def make_dataset_feature_stats_proto(

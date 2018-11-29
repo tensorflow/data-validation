@@ -102,9 +102,9 @@ def _update_common_stats(common_stats,
 
     feature_type = get_feature_type(value.dtype)
     if feature_type is None:
-      raise TypeError('Feature %s has value which is a numpy array of type %s, '
-                      'should be int, float or str types.' % (feature_name,
-                                                              value.dtype.name))
+      raise TypeError('Feature {} has value {} which is a numpy array of'
+                      ' type {}, should be int, float or str types.'.format(
+                          feature_name, value, value.dtype.name))
 
     if common_stats.type is None:
       common_stats.type = feature_type

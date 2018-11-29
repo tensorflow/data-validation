@@ -53,22 +53,38 @@ processing framework to scale the computation of statistics over large datasets.
 For applications that wish to integrate deeper with TFDV (e.g. attach statistics
 generation at the end of a data-generation pipeline,
 [generate statistics for data in custom format](#writing-custom-data-connector)),
-the API also exposes a Beam PTransform for statistics generation. The following
-snippet shows an example usage:
+the API also exposes a Beam PTransform for statistics generation.
+
+To run TFDV on Google Cloud, the TFDV wheel file must be downloaded and provided
+to the Dataflow workers. Download the wheel file to the current directory as
+follows:
+
+```python
+pip download tensorflow_data_validation \
+--no-deps \
+--platform manylinux1_x86_64 \
+--only-binary=:all:
+
+```
+
+The following snippet shows an example usage of TFDV on Google Cloud:
 
 ```python
 
 import tensorflow_data_validation as tfdv
-import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions, GoogleCloudOptions, StandardOptions, SetupOptions
-from tensorflow_metadata.proto.v0 import statistics_pb2
 
 PROJECT_ID = ''
 JOB_NAME = ''
 GCS_STAGING_LOCATION = ''
 GCS_TMP_LOCATION = ''
 GCS_DATA_LOCATION = ''
-GCS_OUTPUT_LOCATION = ''
+# GCS_STATS_OUTPUT_PATH is the file path to which to output the data statistics
+# result.
+GCS_STATS_OUTPUT_PATH = ''
+
+PATH_TO_WHL_FILE = ''
+
 
 # Create and set your PipelineOptions.
 options = PipelineOptions()
@@ -82,26 +98,18 @@ google_cloud_options.staging_location = GCS_STAGING_LOCATION
 google_cloud_options.temp_location = GCS_TMP_LOCATION
 options.view_as(StandardOptions).runner = 'DataflowRunner'
 
-with beam.Pipeline(options=options) as p:
-    _ = (
-    p
-    | 'ReadData' >> beam.io.ReadFromTFRecord(file_pattern=GCS_DATA_LOCATION)
-    | 'DecodeData' >> beam.Map(tfdv.TFExampleDecoder().decode)
-    | 'GenerateStatistics' >> tfdv.GenerateStatistics()
-    | 'WriteStatsOutput' >> beam.io.WriteToTFRecord(
-        file_path_prefix = GCS_OUTPUT_LOCATION,
-        shard_name_template='',
-        coder=beam.coders.ProtoCoder(
-            statistics_pb2.DatasetFeatureStatisticsList)))
+setup_options = pipeline_options.view_as(SetupOptions)
+# PATH_TO_WHL_FILE should point to the downloaded tfdv wheel file.
+setup_options.extra_packages = [PATH_TO_WHL_FILE]
 
-stats = tfdv.load_statistics(GCS_OUTPUT_LOCATION)
-schema = tfdv.infer_schema(stats)
-
-print(schema)
+tfdv.generate_statistics_from_tfrecord(GCS_DATA_LOCATION,
+                                       output_path=GCS_STATS_OUTPUT_PATH,
+                                       pipeline_options=pipeline_options)
 
 ```
 
-In this case, the generated statistics proto is stored in `GCS_OUTPUT_LOCATION`.
+In this case, the generated statistics proto is stored in a TFRecord file
+written to `GCS_STATS_OUTPUT_PATH`.
 
 ## Inferring a schema over the data
 
@@ -202,7 +210,7 @@ This produces an anomaly
 ```
 
 indicating that an out of domain value was found in the stats in < 1% of
-the examples.
+the feature values.
 
 If this was expected, then the schema can be updated as follows:
 

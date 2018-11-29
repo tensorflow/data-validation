@@ -1,3 +1,15 @@
+# Current version (not yet released; still in development)
+
+## Major Features and Improvements
+
+## Bug Fixes and Other Changes
+
+* Use constant '__BYTES_VALUE__' in the statistics proto to represent a bytes value which cannot be decoded as a utf-8 string.
+
+## Breaking changes
+
+## Deprecations
+
 # Release 0.11.0
 
 ## Major Features and Improvements

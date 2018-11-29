@@ -21,44 +21,104 @@ from __future__ import print_function
 
 import apache_beam as beam
 from tensorflow_data_validation import types
+from tensorflow_data_validation.statistics import stats_options
+from tensorflow_data_validation.statistics.generators import common_stats_generator
+from tensorflow_data_validation.statistics.generators import numeric_stats_generator
 from tensorflow_data_validation.statistics.generators import stats_generator
+from tensorflow_data_validation.statistics.generators import string_stats_generator
+from tensorflow_data_validation.statistics.generators import top_k_stats_generator
+from tensorflow_data_validation.statistics.generators import top_k_uniques_combiner_stats_generator
+from tensorflow_data_validation.statistics.generators import uniques_stats_generator
+
+from tensorflow_data_validation.utils import batch_util
 from tensorflow_data_validation.types_compat import List, TypeVar
 
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
-@beam.typehints.with_input_types(types.ExampleBatch)
+@beam.typehints.with_input_types(types.Example)
 @beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatisticsList)
 class GenerateStatisticsImpl(beam.PTransform):
   """PTransform that applies a set of generators."""
 
   def __init__(
       self,
-      generators):
-    self._generators = generators
+      options = stats_options.StatsOptions()
+      ):
+    self._options = options
 
-  def expand(self, pcoll):
+  def expand(self, dataset):
+    # Initialize a list of stats generators to run.
+    stats_generators = [
+        # Create common stats generator.
+        common_stats_generator.CommonStatsGenerator(
+            schema=self._options.schema,
+            weight_feature=self._options.weight_feature,
+            num_values_histogram_buckets=\
+                self._options.num_values_histogram_buckets,
+            epsilon=self._options.epsilon),
+
+        # Create numeric stats generator.
+        numeric_stats_generator.NumericStatsGenerator(
+            schema=self._options.schema,
+            weight_feature=self._options.weight_feature,
+            num_histogram_buckets=self._options.num_histogram_buckets,
+            num_quantiles_histogram_buckets=\
+                self._options.num_quantiles_histogram_buckets,
+            epsilon=self._options.epsilon),
+
+        # Create string stats generator.
+        string_stats_generator.StringStatsGenerator(
+            schema=self._options.schema),
+
+        # Create topk stats generator.
+        top_k_stats_generator.TopKStatsGenerator(
+            schema=self._options.schema,
+            weight_feature=self._options.weight_feature,
+            num_top_values=self._options.num_top_values,
+            num_rank_histogram_buckets=\
+                self._options.num_rank_histogram_buckets),
+
+        # Create uniques stats generator.
+        uniques_stats_generator.UniquesStatsGenerator(
+            schema=self._options.schema)
+    ]
+    if self._options.generators is not None:
+      # Add custom stats generators.
+      stats_generators.extend(self._options.generators)
+
+    # Batch the input examples.
+    desired_batch_size = (None if self._options.sample_count is None else
+                          self._options.sample_count)
+    dataset = (dataset | 'BatchExamples' >> batch_util.BatchExamples(
+        desired_batch_size=desired_batch_size))
+
+    # If a set of whitelist features are provided, keep only those features.
+    if self._options.feature_whitelist:
+      dataset |= ('RemoveNonWhitelistedFeatures' >> beam.Map(
+          _filter_features, feature_whitelist=self._options.feature_whitelist))
+
     result_protos = []
     # Iterate over the stats generators. For each generator,
     #   a) if it is a CombinerStatsGenerator, wrap it as a beam.CombineFn
     #      and run it.
     #   b) if it is a TransformStatsGenerator, wrap it as a beam.PTransform
     #      and run it.
-    for generator in self._generators:
+    for generator in stats_generators:
       if isinstance(generator, stats_generator.CombinerStatsGenerator):
         result_protos.append(
-            pcoll |
-            generator.name >> beam.CombineGlobally(
+            dataset
+            | generator.name >> beam.CombineGlobally(
                 _CombineFnWrapper(generator)))
       elif isinstance(generator, stats_generator.TransformStatsGenerator):
         result_protos.append(
-            pcoll |
-            generator.name >> generator.ptransform)
+            dataset
+            | generator.name >> generator.ptransform)
       else:
         raise TypeError('Statistics generator must extend one of '
                         'CombinerStatsGenerator or TransformStatsGenerator, '
                         'found object of type %s' %
-                        type(generator).__class__.__name__)
+                        generator.__class__.__name__)
 
     # Each stats generator will output a PCollection of DatasetFeatureStatistics
     # protos. We now flatten the list of PCollections into a single PCollection,
@@ -69,6 +129,25 @@ class GenerateStatisticsImpl(beam.PTransform):
             beam.CombineGlobally(_merge_dataset_feature_stats_protos)
             | 'MakeDatasetFeatureStatisticsListProto' >>
             beam.Map(_make_dataset_feature_statistics_list_proto))
+
+
+def _filter_features(
+    batch,
+    feature_whitelist):
+  """Remove features that are not whitelisted.
+
+  Args:
+    batch: A dict containing the input batch of examples.
+    feature_whitelist: A list of feature names to whitelist.
+
+  Returns:
+    A dict containing only the whitelisted features of the input batch.
+  """
+  return {
+      feature_name: batch[feature_name]
+      for feature_name in feature_whitelist
+      if feature_name in batch
+  }
 
 
 def _merge_dataset_feature_stats_protos(
@@ -174,3 +253,72 @@ class _CombineFnWrapper(beam.CombineFn):
       accumulator
   ):  # pytype: disable=invalid-annotation
     return self._generator.extract_output(accumulator)
+
+
+def generate_statistics_in_memory(
+    examples,
+    options = stats_options.StatsOptions()
+):
+  """Generates statistics for an in-memory list of examples.
+
+  Args:
+    examples: A list of input examples.
+    options: Options for generating data statistics.
+
+  Returns:
+    A DatasetFeatureStatisticsList proto.
+  """
+
+  stats_generators = [
+      common_stats_generator.CommonStatsGenerator(
+          schema=options.schema,
+          weight_feature=options.weight_feature,
+          num_values_histogram_buckets=\
+            options.num_values_histogram_buckets,
+          epsilon=options.epsilon),
+
+      numeric_stats_generator.NumericStatsGenerator(
+          schema=options.schema,
+          weight_feature=options.weight_feature,
+          num_histogram_buckets=options.num_histogram_buckets,
+          num_quantiles_histogram_buckets=\
+            options.num_quantiles_histogram_buckets,
+          epsilon=options.epsilon),
+
+      string_stats_generator.StringStatsGenerator(schema=options.schema),
+
+      top_k_uniques_combiner_stats_generator.TopKUniquesCombinerStatsGenerator(
+          schema=options.schema,
+          weight_feature=options.weight_feature,
+          num_top_values=options.num_top_values,
+          num_rank_histogram_buckets=options.num_rank_histogram_buckets),
+  ]
+
+  if options.generators is not None:
+    for generator in options.generators:
+      if isinstance(generator, stats_generator.CombinerStatsGenerator):
+        stats_generators.append(generator)
+      else:
+        raise TypeError('Statistics generator used in '
+                        'generate_statistics_in_memory must '
+                        'extend CombinerStatsGenerator, found object of type '
+                        '%s.' %
+                        generator.__class__.__name__)
+
+  batch = batch_util.merge_single_batch(examples)
+
+  # If whitelist features are provided, keep only those features.
+  if options.feature_whitelist:
+    batch = {
+        feature_name: batch[feature_name]
+        for feature_name in options.feature_whitelist
+    }
+
+  outputs = [
+      generator.extract_output(
+          generator.add_input(generator.create_accumulator(), batch))
+      for generator in stats_generators
+  ]
+
+  return _make_dataset_feature_statistics_list_proto(
+      _merge_dataset_feature_stats_protos(outputs))
