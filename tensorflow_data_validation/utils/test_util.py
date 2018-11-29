@@ -85,19 +85,8 @@ def make_dataset_feature_stats_list_proto_equal_fn(
       actual_stats = actual[0].datasets[0]
       expected_stats = expected_result.datasets[0]
 
-      test.assertEqual(actual_stats.num_examples, expected_stats.num_examples)
-      test.assertEqual(len(actual_stats.features), len(expected_stats.features))
-
-      expected_features = {}
-      for feature in expected_stats.features:
-        expected_features[feature.name] = feature
-
-      for feature in actual_stats.features:
-        compare.assertProtoEqual(
-            test,
-            feature,
-            expected_features[feature.name],
-            normalize_numbers=True)
+      assert_dataset_feature_stats_proto_equal(test, actual_stats,
+                                               expected_stats)
     except AssertionError as e:
       raise util.BeamAssertException('Failed assert: ' + str(e))
 
@@ -154,6 +143,33 @@ def assert_feature_proto_equal_with_error_on_custom_stats(
     compare.assertProtoEqual(test, actual, expected, normalize_numbers=True)
 
 
+def assert_dataset_feature_stats_proto_equal(
+    test, actual,
+    expected):
+  """Compares DatasetFeatureStatistics protos.
+
+  This function can be used to test whether two DatasetFeatureStatistics protos
+  contain the same information, even if the order of the features differs.
+
+  Args:
+    test: The test case.
+    actual: The actual DatasetFeatureStatistics proto.
+    expected: The expected DatasetFeatureStatistics proto.
+  """
+  test.assertEqual(actual.num_examples, expected.num_examples)
+  test.assertEqual(len(actual.features), len(expected.features))
+
+  expected_features = {}
+  for feature in expected.features:
+    expected_features[feature.name] = feature
+
+  for feature in actual.features:
+    if feature.name not in expected_features:
+      raise AssertionError
+    compare.assertProtoEqual(
+        test, feature, expected_features[feature.name], normalize_numbers=True)
+
+
 class CombinerStatsGeneratorTest(absltest.TestCase):
   """Test class with extra combiner stats generator related functionality."""
 
@@ -163,14 +179,41 @@ class CombinerStatsGeneratorTest(absltest.TestCase):
       self, batches,
       generator,
       expected_result):
-    """Tests a combiner statistics generator."""
+    """Tests a combiner statistics generator.
+
+    This runs the generator twice to cover different behavior. There must be at
+    least two input batches in order to test the generator's merging behavior.
+
+    Args:
+      batches: A list of batches of test data.
+      generator: The CombinerStatsGenerator to test.
+      expected_result: Dict mapping feature name to FeatureNameStatistics proto
+        that it is expected the generator will return for the feature.
+    """
+    # Run generator to check that merge_accumulators() works correctly.
     accumulators = [
         generator.add_input(generator.create_accumulator(), batch)
         for batch in batches
     ]
     result = generator.extract_output(
         generator.merge_accumulators(accumulators))
-    self.assertEqual(len(result.features), len(expected_result))
+    self.assertEqual(len(result.features), len(expected_result))  # pylint: disable=g-generic-assert
+    for actual_feature_stats in result.features:
+      compare.assertProtoEqual(
+          self,
+          actual_feature_stats,
+          expected_result[actual_feature_stats.name],
+          normalize_numbers=True)
+
+    # Run generator to check that add_input() works correctly when adding
+    # inputs to a non-empty accumulator.
+    accumulator = generator.create_accumulator()
+
+    for batch in batches:
+      accumulator = generator.add_input(accumulator, batch)
+
+    result = generator.extract_output(accumulator)
+    self.assertEqual(len(result.features), len(expected_result))  # pylint: disable=g-generic-assert
     for actual_feature_stats in result.features:
       compare.assertProtoEqual(
           self,

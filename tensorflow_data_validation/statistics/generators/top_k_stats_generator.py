@@ -20,6 +20,7 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
+import logging
 import apache_beam as beam
 import numpy as np
 import six
@@ -32,21 +33,50 @@ from tensorflow_data_validation.types_compat import Iterator, List, Optional, Se
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
-_FeatureValueCount = collections.namedtuple('_FeatureValueCount',
-                                            ['feature_value', 'count'])
+FeatureValueCount = collections.namedtuple('FeatureValueCount',
+                                           ['feature_value', 'count'])
 
 _FeatureNameAndValueListWithWeight = collections.namedtuple(
     '_FeatureNameAndValueListWithWeight',
     ['feature_name', 'value_list', 'weight'])
 
+_INVALID_STRING = '__BYTES_VALUE__'
 
-def _make_feature_stats_proto(
+
+def _is_valid_utf8(value):
+  try:
+    value.decode('utf-8')
+  except UnicodeError:
+    return False
+  return True
+
+
+def make_feature_stats_proto_with_topk_stats(
     feature_name,
     top_k_value_count_list, is_categorical,
-    is_weighted_stats,
-    num_top_values,
+    is_weighted_stats, num_top_values,
     num_rank_histogram_buckets):
-  """Makes a FeatureNameStatistics proto containing the top k stats."""
+  """Makes a FeatureNameStatistics proto containing the top-k stats.
+
+  Args:
+    feature_name: The feature name.
+    top_k_value_count_list: A list of FeatureValueCount tuples.
+    is_categorical: Whether the feature is categorical.
+    is_weighted_stats: Whether top_k_value_count_list incorporates weights.
+    num_top_values: The number of most frequent feature values to keep for
+      string features.
+    num_rank_histogram_buckets: The number of buckets in the rank histogram for
+      string features.
+  Returns:
+    A FeatureNameStatistics proto containing the top-k stats.
+  """
+  # Sort the top_k_value_count_list in descending order by count. Where
+  # multiple feature values have the same count, consider the feature with the
+  # 'larger' feature value to be larger for purposes of breaking the tie.
+  top_k_value_count_list.sort(
+      key=lambda counts: (counts[1], counts[0]),
+      reverse=True)
+
   result = statistics_pb2.FeatureNameStatistics()
   result.name = feature_name
   # If we have a categorical feature, we preserve the type to be the original
@@ -61,6 +91,13 @@ def _make_feature_stats_proto(
 
   for i in range(len(top_k_value_count_list)):
     value, count = top_k_value_count_list[i]
+    # Check if we have a valid utf-8 string. If not, assign a default invalid
+    # string value.
+    if isinstance(value, bytes) and not _is_valid_utf8(value):
+      logging.warning('Feature "%s" has bytes value "%s" which cannot be '
+                      'decoded as a UTF-8 string.', feature_name, value)
+      value = _INVALID_STRING
+
     if i < num_top_values:
       freq_and_value = string_stats.top_values.add()
       freq_and_value.value = value
@@ -76,19 +113,17 @@ def _make_feature_stats_proto(
 
 def _make_dataset_feature_stats_proto_with_single_feature(
     feature_name_to_value_count_list,
-    categorical_features,
-    is_weighted_stats,
+    categorical_features, is_weighted_stats,
     num_top_values,
     num_rank_histogram_buckets):
   """Makes a DatasetFeatureStatistics containing one single feature."""
   result = statistics_pb2.DatasetFeatureStatistics()
   result.features.add().CopyFrom(
-      _make_feature_stats_proto(
+      make_feature_stats_proto_with_topk_stats(
           feature_name_to_value_count_list[0],
           feature_name_to_value_count_list[1],
           feature_name_to_value_count_list[0] in categorical_features,
-          is_weighted_stats,
-          num_top_values, num_rank_histogram_buckets))
+          is_weighted_stats, num_top_values, num_rank_histogram_buckets))
   return result
 
 
@@ -176,7 +211,7 @@ def _flatten_weighted_value_list(
 
 def _feature_value_count_comparator(a,
                                     b):
-  """Compares two _FeatureValueCount tuples."""
+  """Compares two FeatureValueCount tuples."""
   # To keep the result deterministic, if two feature values have the same
   # number of appearances, the one with the 'larger' feature value will be
   # larger.
@@ -242,13 +277,12 @@ class _ComputeTopKStats(beam.PTransform):
         # Convert from ((feature_name, feature_value), count) to
         # (feature_name, (feature_value, count))
         | 'TopK_ModifyKeyToFeatureName' >>
-        beam.Map(lambda x: (x[0][0], _FeatureValueCount(x[0][1], x[1])))
+        beam.Map(lambda x: (x[0][0], FeatureValueCount(x[0][1], x[1])))
         # Obtain the top-k most frequent feature value for each feature.
         | 'TopK_GetTopK' >> beam.combiners.Top().PerKey(
             max(self._num_top_values, self._num_rank_histogram_buckets),
             _feature_value_count_comparator)
-        | 'TopK_ConvertToSingleFeatureStats' >>
-        beam.Map(
+        | 'TopK_ConvertToSingleFeatureStats' >> beam.Map(
             _make_dataset_feature_stats_proto_with_single_feature,
             categorical_features=self._categorical_features,
             is_weighted_stats=False,
@@ -267,18 +301,16 @@ class _ComputeTopKStats(beam.PTransform):
           beam.FlatMap(_flatten_weighted_value_list)
           # Sum the weights of each feature_value. Output is a
           # PCollection of ((feature_name, feature_value), weighted_count)
-          | 'TopKWeighted_CountFeatureNameValueTuple' >>
-          beam.CombinePerKey(sum)
+          | 'TopKWeighted_CountFeatureNameValueTuple' >> beam.CombinePerKey(sum)
           # Convert from ((feature_name, feature_value), weighted_count) to
           # (feature_name, (feature_value, weighted_count))
           | 'TopKWeighted_ModifyKeyToFeatureName' >>
-          beam.Map(lambda x: (x[0][0], _FeatureValueCount(x[0][1], x[1])))
+          beam.Map(lambda x: (x[0][0], FeatureValueCount(x[0][1], x[1])))
           # Obtain the top-k most frequent feature value for each feature.
           | 'TopKWeighted_GetTopK' >> beam.combiners.Top().PerKey(
               max(self._num_top_values, self._num_rank_histogram_buckets),
               _feature_value_count_comparator)
-          | 'TopKWeighted_ConvertToSingleFeatureStats' >>
-          beam.Map(
+          | 'TopKWeighted_ConvertToSingleFeatureStats' >> beam.Map(
               _make_dataset_feature_stats_proto_with_single_feature,
               categorical_features=self._categorical_features,
               is_weighted_stats=True,

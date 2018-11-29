@@ -276,7 +276,6 @@ class ValidationApiTest(absltest.TestCase):
 
   def _assert_equal_anomalies(self, actual_anomalies, expected_anomalies):
     # Check if the actual anomalies matches with the expected anomalies.
-    # Doesn't compare the diff_regions.
     for feature_name in expected_anomalies:
       self.assertIn(feature_name, actual_anomalies.anomaly_info)
       actual_anomalies.anomaly_info[feature_name].ClearField('path')

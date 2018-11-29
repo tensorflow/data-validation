@@ -50,16 +50,8 @@ import apache_beam as beam
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options
-from tensorflow_data_validation.statistics.generators import common_stats_generator
-from tensorflow_data_validation.statistics.generators import numeric_stats_generator
-from tensorflow_data_validation.statistics.generators import stats_generator
-from tensorflow_data_validation.statistics.generators import string_stats_generator
-from tensorflow_data_validation.statistics.generators import top_k_stats_generator
-from tensorflow_data_validation.statistics.generators import uniques_stats_generator
-from tensorflow_data_validation.utils import batch_util
-from tensorflow_data_validation.types_compat import Generator, List
+from tensorflow_data_validation.types_compat import Generator
 
-from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
@@ -93,103 +85,14 @@ class GenerateStatistics(beam.PTransform):
       options: Options for generating data statistics.
 
     Raises:
-      TypeError: If any of the input options is not of the expected type.
-      ValueError: If any of the input options is invalid.
+      TypeError: If options is not of the expected type.
     """
-
-    self._check_options(options)
-    self._options = options
-
-  def _check_options(self, options):
     if not isinstance(options, stats_options.StatsOptions):
       raise TypeError('options is of type %s, should be a StatsOptions.' %
                       type(options).__name__)
-
-    if options.generators is not None:
-      if not isinstance(options.generators, list):
-        raise TypeError('generators is of type %s, should be a list' % type(
-            options.generators).__name__)
-      for generator in options.generators:
-        if (not isinstance(generator,
-                           (stats_generator.CombinerStatsGenerator,
-                            stats_generator.TransformStatsGenerator))):
-          raise TypeError(
-              'Statistics generator must extend one of '
-              'CombinerStatsGenerator or TransformStatsGenerator, '
-              'found object of type %s' % type(generator).__class__.__name__)
-
-    if (options.feature_whitelist is not None and
-        not isinstance(options.feature_whitelist, list)):
-      raise TypeError('feature_whitelist is of type %s, should be a list' %
-                      type(options.feature_whitelist).__name__)
-
-    if options.schema is not None and not isinstance(options.schema,
-                                                     schema_pb2.Schema):
-      raise TypeError('schema is of type %s, should be a Schema proto.' % type(
-          options.schema).__name__)
-
-    if options.sample_count is not None and options.sample_rate is not None:
-      raise ValueError('Only one of sample_count or sample_rate can be '
-                       'specified.')
-
-    if options.sample_count is not None and options.sample_count < 1:
-      raise ValueError('Invalid sample_count %d' % options.sample_count)
-
-    if options.sample_rate is not None and not 0 < options.sample_rate <= 1:
-      raise ValueError('Invalid sample_rate %f' % options.sample_rate)
-
-    if options.num_values_histogram_buckets < 1:
-      raise ValueError('Invalid num_values_histogram_buckets %d' %
-                       options.num_values_histogram_buckets)
-
-    if options.num_histogram_buckets < 1:
-      raise ValueError(
-          'Invalid num_histogram_buckets %d' % options.num_histogram_buckets)
-
-    if options.num_quantiles_histogram_buckets < 1:
-      raise ValueError('Invalid num_quantiles_histogram_buckets %d' %
-                       options.num_quantiles_histogram_buckets)
+    self._options = options
 
   def expand(self, dataset):
-    # Initialize a list of stats generators to run.
-    stats_generators = [
-        # Create common stats generator.
-        common_stats_generator.CommonStatsGenerator(
-            schema=self._options.schema,
-            weight_feature=self._options.weight_feature,
-            num_values_histogram_buckets=\
-                self._options.num_values_histogram_buckets,
-            epsilon=self._options.epsilon),
-
-        # Create numeric stats generator.
-        numeric_stats_generator.NumericStatsGenerator(
-            schema=self._options.schema,
-            weight_feature=self._options.weight_feature,
-            num_histogram_buckets=self._options.num_histogram_buckets,
-            num_quantiles_histogram_buckets=\
-                self._options.num_quantiles_histogram_buckets,
-            epsilon=self._options.epsilon),
-
-        # Create string stats generator.
-        string_stats_generator.StringStatsGenerator(
-            schema=self._options.schema),
-
-        # Create topk stats generator.
-        top_k_stats_generator.TopKStatsGenerator(
-            schema=self._options.schema,
-            weight_feature=self._options.weight_feature,
-            num_top_values=self._options.num_top_values,
-            num_rank_histogram_buckets=\
-                self._options.num_rank_histogram_buckets),
-
-        # Create uniques stats generator.
-        uniques_stats_generator.UniquesStatsGenerator(
-            schema=self._options.schema)
-    ]
-    if self._options.generators is not None:
-      # Add custom stats generators.
-      stats_generators.extend(self._options.generators)
-
     # Sample input data if sample_count option is provided.
     if self._options.sample_count is not None:
       # beam.combiners.Sample.FixedSizeGlobally returns a
@@ -204,19 +107,8 @@ class GenerateStatistics(beam.PTransform):
                   beam.FlatMap(_sample_at_rate,
                                sample_rate=self._options.sample_rate))
 
-    # Batch the input examples.
-    desired_batch_size = (None if self._options.sample_count is None else
-                          self._options.sample_count)
-    dataset = (dataset | 'BatchExamples' >> batch_util.BatchExamples(
-        desired_batch_size=desired_batch_size))
-
-    # If a set of whitelist features are provided, keep only those features.
-    if self._options.feature_whitelist:
-      dataset |= ('RemoveNonWhitelistedFeatures' >> beam.Map(
-          _filter_features, feature_whitelist=self._options.feature_whitelist))
-
     return (dataset | 'RunStatsGenerators' >>
-            stats_impl.GenerateStatisticsImpl(stats_generators))
+            stats_impl.GenerateStatisticsImpl(self._options))
 
 
 def _sample_at_rate(example, sample_rate
@@ -224,22 +116,3 @@ def _sample_at_rate(example, sample_rate
   """Sample examples at input sampling rate."""
   if random.random() <= sample_rate:
     yield example
-
-
-def _filter_features(
-    batch,
-    feature_whitelist):
-  """Remove features that are not whitelisted.
-
-  Args:
-    batch: A dict containing the input batch of examples.
-    feature_whitelist: A list of feature names to whitelist.
-
-  Returns:
-    A dict containing only the whitelisted features of the input batch.
-  """
-  return {
-      feature_name: batch[feature_name]
-      for feature_name in feature_whitelist
-      if feature_name in batch
-  }

@@ -24,8 +24,184 @@ from tensorflow_data_validation.statistics.generators import top_k_stats_generat
 from tensorflow_data_validation.utils import test_util
 
 from google.protobuf import text_format
+from tensorflow.python.util.protobuf import compare
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
+
+
+class MakeFeatureStatsProtoTest(absltest.TestCase):
+  """Tests for the make_feature_stats_proto_with_topk_stats function."""
+
+  def test_make_feature_stats_proto_with_topk_stats(self):
+    expected_result = text_format.Parse(
+        """
+        name: 'fa'
+        type: STRING
+        string_stats {
+          top_values {
+            value: 'a'
+            frequency: 4
+          }
+          top_values {
+            value: 'c'
+            frequency: 3
+          }
+          top_values {
+            value: 'd'
+            frequency: 2
+          }
+          rank_histogram {
+            buckets {
+              low_rank: 0
+              high_rank: 0
+              label: "a"
+              sample_count: 4.0
+            }
+            buckets {
+              low_rank: 1
+              high_rank: 1
+              label: "c"
+              sample_count: 3.0
+            }
+          }
+    }""", statistics_pb2.FeatureNameStatistics())
+    value_counts = [('a', 4), ('c', 3), ('d', 2), ('b', 2)]
+    top_k_value_count_list = [
+        top_k_stats_generator.FeatureValueCount(value_count[0], value_count[1])
+        for value_count in value_counts
+    ]
+    result = top_k_stats_generator.make_feature_stats_proto_with_topk_stats(
+        'fa', top_k_value_count_list, False, False, 3, 2)
+    compare.assertProtoEqual(self, result, expected_result)
+
+  def test_make_feature_stats_proto_with_topk_stats_unsorted_value_counts(self):
+    expected_result = text_format.Parse(
+        """
+        name: 'fa'
+        type: STRING
+        string_stats {
+          top_values {
+            value: 'a'
+            frequency: 4
+          }
+          top_values {
+            value: 'c'
+            frequency: 3
+          }
+          top_values {
+            value: 'd'
+            frequency: 2
+          }
+          rank_histogram {
+            buckets {
+              low_rank: 0
+              high_rank: 0
+              label: "a"
+              sample_count: 4.0
+            }
+            buckets {
+              low_rank: 1
+              high_rank: 1
+              label: "c"
+              sample_count: 3.0
+            }
+          }
+    }""", statistics_pb2.FeatureNameStatistics())
+    # 'b' has a lower count than 'c'.
+    value_counts = [('a', 4), ('b', 2), ('c', 3), ('d', 2)]
+    top_k_value_count_list = [
+        top_k_stats_generator.FeatureValueCount(value_count[0], value_count[1])
+        for value_count in value_counts
+    ]
+    result = top_k_stats_generator.make_feature_stats_proto_with_topk_stats(
+        'fa', top_k_value_count_list, False, False, 3, 2)
+    compare.assertProtoEqual(self, result, expected_result)
+
+  def test_make_feature_stats_proto_with_topk_stats_categorical_feature(self):
+    expected_result = text_format.Parse(
+        """
+        name: 'fa'
+        type: INT
+        string_stats {
+          top_values {
+            value: 'a'
+            frequency: 4
+          }
+          top_values {
+            value: 'c'
+            frequency: 3
+          }
+          top_values {
+            value: 'd'
+            frequency: 2
+          }
+          rank_histogram {
+            buckets {
+              low_rank: 0
+              high_rank: 0
+              label: "a"
+              sample_count: 4.0
+            }
+            buckets {
+              low_rank: 1
+              high_rank: 1
+              label: "c"
+              sample_count: 3.0
+            }
+          }
+    }""", statistics_pb2.FeatureNameStatistics())
+    value_counts = [('a', 4), ('c', 3), ('d', 2), ('b', 2)]
+    top_k_value_count_list = [
+        top_k_stats_generator.FeatureValueCount(value_count[0], value_count[1])
+        for value_count in value_counts
+    ]
+    result = top_k_stats_generator.make_feature_stats_proto_with_topk_stats(
+        'fa', top_k_value_count_list, True, False, 3, 2)
+    compare.assertProtoEqual(self, result, expected_result)
+
+  def test_make_feature_stats_proto_with_topk_stats_weighted(self):
+    expected_result = text_format.Parse(
+        """
+        name: 'fa'
+        type: STRING
+        string_stats {
+          weighted_string_stats {
+            top_values {
+              value: 'a'
+              frequency: 4
+            }
+            top_values {
+              value: 'c'
+              frequency: 3
+            }
+            top_values {
+              value: 'd'
+              frequency: 2
+            }
+            rank_histogram {
+              buckets {
+                low_rank: 0
+                high_rank: 0
+                label: "a"
+                sample_count: 4.0
+              }
+              buckets {
+                low_rank: 1
+                high_rank: 1
+                label: "c"
+                sample_count: 3.0
+              }
+            }
+          }
+    }""", statistics_pb2.FeatureNameStatistics())
+    value_counts = [('a', 4), ('c', 3), ('d', 2), ('b', 2)]
+    top_k_value_count_list = [
+        top_k_stats_generator.FeatureValueCount(value_count[0], value_count[1])
+        for value_count in value_counts
+    ]
+    result = top_k_stats_generator.make_feature_stats_proto_with_topk_stats(
+        'fa', top_k_value_count_list, False, True, 3, 2)
+    compare.assertProtoEqual(self, result, expected_result)
 
 
 class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
@@ -573,6 +749,44 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         num_top_values=2, num_rank_histogram_buckets=3)
     self.assertTransformOutputEqual(batches, generator, [expected_result_fa])
 
+  def test_topk_with_invalid_utf8_value(self):
+    # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
+    batches = [{'fa': np.array([
+        np.array(['a', b'\x80abc', 'a', b'\x80abc', 'a'], dtype=np.object)])}]
+
+    expected_result = text_format.Parse(
+        """
+      features {
+        name: 'fa'
+        type: STRING
+        string_stats {
+          top_values {
+            value: 'a'
+            frequency: 3
+          }
+          top_values {
+            value: '__BYTES_VALUE__'
+            frequency: 2
+          }
+          rank_histogram {
+            buckets {
+              low_rank: 0
+              high_rank: 0
+              label: "a"
+              sample_count: 3.0
+            }
+            buckets {
+              low_rank: 1
+              high_rank: 1
+              label: "__BYTES_VALUE__"
+              sample_count: 2.0
+            }
+          }
+        }
+      }""", statistics_pb2.DatasetFeatureStatistics())
+    generator = top_k_stats_generator.TopKStatsGenerator(
+        num_top_values=4, num_rank_histogram_buckets=3)
+    self.assertTransformOutputEqual(batches, generator, [expected_result])
 
 if __name__ == '__main__':
   absltest.main()
