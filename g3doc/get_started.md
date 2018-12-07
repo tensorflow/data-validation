@@ -59,12 +59,11 @@ To run TFDV on Google Cloud, the TFDV wheel file must be downloaded and provided
 to the Dataflow workers. Download the wheel file to the current directory as
 follows:
 
-```python
+```sh
 pip download tensorflow_data_validation \
---no-deps \
---platform manylinux1_x86_64 \
---only-binary=:all:
-
+  --no-deps \
+  --platform manylinux1_x86_64 \
+  --only-binary=:all:
 ```
 
 The following snippet shows an example usage of TFDV on Google Cloud:
