@@ -324,6 +324,101 @@ class SchemaUtilTest(parameterized.TestCase):
     with self.assertRaisesRegexp(ValueError, 'Invalid global string domain'):
       schema_util.set_domain(schema, 'feature', 'domain2')
 
+  def test_get_categorical_features(self):
+    schema = text_format.Parse(
+        """
+        feature {
+          name: "fa"
+          type: INT
+          int_domain {
+            is_categorical: true
+          }
+        }
+        feature {
+          name: "fb"
+          type: BYTES
+        }
+        feature {
+          name: "fc"
+          type: FLOAT
+        }
+        feature {
+          name: "fd"
+          type: INT
+        }
+        """, schema_pb2.Schema())
+    expected = set(['fa', 'fb'])
+    self.assertEqual(schema_util.get_categorical_features(schema), expected)
+
+
+def test_get_multivalent_features(self):
+  schema = text_format.Parse(
+      """
+        feature {
+          name: "fa"
+          shape {
+            dim {
+              size: 1
+            }
+          }
+        }
+        feature {
+          name: "fb"
+          type: BYTES
+          value_count {
+            min: 0
+            max: 1
+          }
+        }
+        feature {
+          name: "fc"
+          value_count {
+            min: 1
+            max: 18
+          }
+        }
+        feature {
+          name: "fd"
+          value_count {
+            min: 1
+            max: 1
+          }
+        }
+        feature {
+          name: "fe"
+          shape {
+            dim {
+              size: 2
+            }
+          }
+        }
+        feature {
+          name: "ff"
+          shape {
+            dim {
+              size: 1
+            }
+            dim {
+              size: 1
+            }
+          }
+        }
+        feature {
+          name: "fg"
+          value_count {
+            min: 2
+          }
+        }
+        feature {
+          name: "fh"
+          value_count {
+            min: 0
+            max: 2
+          }
+        }""", schema_pb2.Schema())
+  expected = set(['fc', 'fe', 'ff', 'fg', 'fh'])
+  self.assertEqual(schema_util.get_multivalent_features(schema), expected)
+
 
 if __name__ == '__main__':
   absltest.main()

@@ -60,7 +60,7 @@ class TFExampleDecoder(object):
 
 
 @beam.typehints.with_input_types(bytes)
-@beam.typehints.with_output_types(types.Example)
+@beam.typehints.with_output_types(types.BeamExample)
 class DecodeTFExample(beam.PTransform):
   """Decodes TF examples into an in-memory dict representation. """
 

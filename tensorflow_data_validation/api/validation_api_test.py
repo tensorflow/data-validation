@@ -20,11 +20,160 @@ from __future__ import division
 from __future__ import print_function
 
 from absl.testing import absltest
+from absl.testing import parameterized
+import apache_beam as beam
+from apache_beam.testing import util
+import numpy as np
 from tensorflow_data_validation.api import validation_api
+from tensorflow_data_validation.statistics import stats_options
 from google.protobuf import text_format
 from tensorflow_metadata.proto.v0 import anomalies_pb2
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
+
+
+IDENTIFY_ANOMALOUS_EXAMPLES_VALID_INPUTS = [
+    {
+        'testcase_name':
+            'no_anomalies',
+        'examples': [{
+            'annotated_enum': np.array(['A'])
+        }, {
+            'annotated_enum': np.array(['C'])
+        }],
+        'schema_text':
+            """
+              string_domain {
+                name: "MyAloneEnum"
+                value: "A"
+                value: "B"
+                value: "C"
+              }
+              feature {
+                name: "annotated_enum"
+                value_count {
+                  min:1
+                  max:1
+                }
+                presence {
+                  min_count: 1
+                }
+                type: BYTES
+                domain: "MyAloneEnum"
+              }
+              feature {
+                name: "ignore_this"
+                lifecycle_stage: DEPRECATED
+                value_count {
+                  min:1
+                }
+                presence {
+                  min_count: 1
+                }
+                type: BYTES
+              }
+              """,
+        'expected_result': []
+    },
+    {
+        'testcase_name':
+            'same_anomaly_reason',
+        'examples': [{
+            'annotated_enum': np.array(['D'])
+        }, {
+            'annotated_enum': np.array(['D'])
+        }, {
+            'annotated_enum': np.array(['C'])
+        }],
+        'schema_text':
+            """
+              string_domain {
+                name: "MyAloneEnum"
+                value: "A"
+                value: "B"
+                value: "C"
+              }
+              feature {
+                name: "annotated_enum"
+                value_count {
+                  min:1
+                  max:1
+                }
+                presence {
+                  min_count: 1
+                }
+                type: BYTES
+                domain: "MyAloneEnum"
+              }
+              feature {
+                name: "ignore_this"
+                lifecycle_stage: DEPRECATED
+                value_count {
+                  min:1
+                }
+                presence {
+                  min_count: 1
+                }
+                type: BYTES
+              }
+              """,
+        'expected_result':
+            [('annotated_enum_ENUM_TYPE_UNEXPECTED_STRING_VALUES', [{
+                'annotated_enum': np.array(['D'])
+            }, {
+                'annotated_enum': np.array(['D'])
+            }])]
+    },
+    {
+        'testcase_name':
+            'different_anomaly_reasons',
+        'examples': [{
+            'annotated_enum': np.array(['D'])
+        }, {
+            'annotated_enum': np.array(['C'])
+        }, {
+            'feature_not_in_schema': np.array([1])
+        }],
+        'schema_text':
+            """
+              string_domain {
+                name: "MyAloneEnum"
+                value: "A"
+                value: "B"
+                value: "C"
+              }
+              feature {
+                name: "annotated_enum"
+                value_count {
+                  min:1
+                  max:1
+                }
+                presence {
+                  min_count: 0
+                }
+                type: BYTES
+                domain: "MyAloneEnum"
+              }
+              feature {
+                name: "ignore_this"
+                lifecycle_stage: DEPRECATED
+                value_count {
+                  min:1
+                }
+                presence {
+                  min_count: 1
+                }
+                type: BYTES
+              }
+              """,
+        'expected_result':
+            [('annotated_enum_ENUM_TYPE_UNEXPECTED_STRING_VALUES', [{
+                'annotated_enum': np.array(['D'])
+            }]), ('feature_not_in_schema_SCHEMA_NEW_COLUMN', [{
+                'feature_not_in_schema': np.array([1])
+            }])]
+    }
+]
 
 
 class ValidationApiTest(absltest.TestCase):
@@ -806,6 +955,323 @@ class ValidationApiTest(absltest.TestCase):
         ValueError, 'serving_statistics proto contains multiple datasets.*'):
       _ = validation_api.validate_statistics(current_stats, schema,
                                              serving_statistics=serving_stats)
+
+  def test_validate_instance(self):
+    instance = {'annotated_enum': np.array(['D'])}
+    schema = text_format.Parse(
+        """
+        string_domain {
+          name: "MyAloneEnum"
+          value: "A"
+          value: "B"
+          value: "C"
+        }
+        feature {
+          name: "annotated_enum"
+          value_count {
+            min:1
+            max:1
+          }
+          presence {
+            min_count: 1
+          }
+          type: BYTES
+          domain: "MyAloneEnum"
+        }
+        feature {
+          name: "ignore_this"
+          lifecycle_stage: DEPRECATED
+          value_count {
+            min:1
+          }
+          presence {
+            min_count: 1
+          }
+          type: BYTES
+        }
+        """, schema_pb2.Schema())
+    expected_anomalies = {
+        'annotated_enum':
+            text_format.Parse(
+                """
+      description: "Examples contain values missing from the schema: D "
+        "(~100%). "
+      severity: ERROR
+      short_description: "Unexpected string values"
+      reason {
+        type: ENUM_TYPE_UNEXPECTED_STRING_VALUES
+        short_description: "Unexpected string values"
+        description: "Examples contain values missing from the schema: D "
+          "(~100%). "
+      }
+            """, anomalies_pb2.AnomalyInfo())
+    }
+    options = stats_options.StatsOptions(schema=schema)
+    anomalies = validation_api.validate_instance(instance, options)
+    self._assert_equal_anomalies(anomalies, expected_anomalies)
+
+  def test_validate_instance_global_only_anomaly_type(self):
+    instance = {'annotated_enum': np.array(['D'])}
+    # This schema has a presence.min_count > 1, which will generate an anomaly
+    # of type FEATURE_TYPE_LOW_NUMBER_PRESENT when any single example is
+    # validated using this schema. This test checks that this anomaly type
+    # (which is not meaningful in per-example validation) is not included in the
+    # Anomalies proto that validate_instance returns.
+    schema = text_format.Parse(
+        """
+        string_domain {
+          name: "MyAloneEnum"
+          value: "A"
+          value: "B"
+          value: "C"
+        }
+        feature {
+          name: "annotated_enum"
+          value_count {
+            min:1
+            max:1
+          }
+          presence {
+            min_count: 5
+          }
+          type: BYTES
+          domain: "MyAloneEnum"
+        }
+        feature {
+          name: "ignore_this"
+          lifecycle_stage: DEPRECATED
+          value_count {
+            min:1
+          }
+          presence {
+            min_count: 1
+          }
+          type: BYTES
+        }
+        """, schema_pb2.Schema())
+    expected_anomalies = {
+        'annotated_enum':
+            text_format.Parse(
+                """
+      description: "Examples contain values missing from the schema: D "
+        "(~100%). "
+      severity: ERROR
+      short_description: "Unexpected string values"
+      reason {
+        type: ENUM_TYPE_UNEXPECTED_STRING_VALUES
+        short_description: "Unexpected string values"
+        description: "Examples contain values missing from the schema: D "
+          "(~100%). "
+      }
+            """, anomalies_pb2.AnomalyInfo())
+    }
+    options = stats_options.StatsOptions(schema=schema)
+    anomalies = validation_api.validate_instance(instance, options)
+    self._assert_equal_anomalies(anomalies, expected_anomalies)
+
+  def test_validate_instance_environment(self):
+    instance = {'feature': np.array(['A'])}
+    schema = text_format.Parse(
+        """
+        default_environment: "TRAINING"
+        default_environment: "SERVING"
+        feature {
+          name: "label"
+          not_in_environment: "SERVING"
+          value_count { min: 1 max: 1 }
+          presence { min_count: 1 }
+          type: BYTES
+        }
+        feature {
+          name: "feature"
+          value_count { min: 1 max: 1 }
+          presence { min_count: 1 }
+          type: BYTES
+        }
+        """, schema_pb2.Schema())
+    options = stats_options.StatsOptions(schema=schema)
+
+    # Validate the instance in TRAINING environment.
+    expected_anomalies_training = {
+        'label':
+            text_format.Parse(
+                """
+            description: "Column is completely missing"
+            severity: ERROR
+            short_description: "Column dropped"
+            reason {
+              type: SCHEMA_MISSING_COLUMN
+              short_description: "Column dropped"
+              description: "Column is completely missing"
+            }
+            """, anomalies_pb2.AnomalyInfo())
+    }
+    anomalies_training = validation_api.validate_instance(
+        instance, options, environment='TRAINING')
+    self._assert_equal_anomalies(anomalies_training,
+                                 expected_anomalies_training)
+
+    # Validate the instance in SERVING environment.
+    anomalies_serving = validation_api.validate_instance(
+        instance, options, environment='SERVING')
+    self._assert_equal_anomalies(anomalies_serving, {})
+
+  def test_validate_instance_invalid_environment(self):
+    instance = {'feature': np.array(['A'])}
+    schema = text_format.Parse(
+        """
+        default_environment: "TRAINING"
+        default_environment: "SERVING"
+        feature {
+          name: "label"
+          not_in_environment: "SERVING"
+          value_count { min: 1 max: 1 }
+          presence { min_count: 1 }
+          type: BYTES
+        }
+        feature {
+          name: "feature"
+          value_count { min: 1 max: 1 }
+          presence { min_count: 1 }
+          type: BYTES
+        }
+        """, schema_pb2.Schema())
+    options = stats_options.StatsOptions(schema=schema)
+
+    with self.assertRaisesRegexp(
+        ValueError, 'Environment.*not found in the schema.*'):
+      _ = validation_api.validate_instance(
+          instance, options, environment='INVALID')
+
+  def test_validate_instance_invalid_options(self):
+    instance = {'feature': np.array(['A'])}
+    with self.assertRaisesRegexp(ValueError,
+                                 'options must be a StatsOptions object.'):
+      _ = validation_api.validate_instance(instance, {})
+
+  def test_validate_instance_stats_options_without_schema(self):
+    instance = {'feature': np.array(['A'])}
+    # This instance of StatsOptions has no schema.
+    options = stats_options.StatsOptions()
+    with self.assertRaisesRegexp(ValueError, 'options must include a schema.'):
+      _ = validation_api.validate_instance(instance, options)
+
+
+class IdentifyAnomalousExamplesTest(parameterized.TestCase):
+
+  @parameterized.named_parameters(*IDENTIFY_ANOMALOUS_EXAMPLES_VALID_INPUTS)
+  def test_identify_anomalous_examples(self, examples, schema_text,
+                                       expected_result):
+    schema = text_format.Parse(schema_text, schema_pb2.Schema())
+    options = stats_options.StatsOptions(schema=schema)
+    with beam.Pipeline() as p:
+      result = (
+          p | beam.Create(examples)
+          | validation_api.IdentifyAnomalousExamples(options))
+      util.assert_that(result, util.equal_to(expected_result))
+
+  def test_identify_anomalous_examples_with_max_examples_per_anomaly(self):
+    examples = [
+        {'annotated_enum': np.array(['D'])},
+        {'annotated_enum': np.array(['D'])},
+        {'annotated_enum': np.array(['C'])},
+        {'feature_not_in_schema': np.array([1])},
+        {'feature_not_in_schema': np.array([1])}
+    ]
+    schema = text_format.Parse(
+        """
+        string_domain {
+          name: "MyAloneEnum"
+          value: "A"
+          value: "B"
+          value: "C"
+        }
+        feature {
+          name: "annotated_enum"
+          value_count {
+            min:1
+            max:1
+          }
+          presence {
+            min_count: 0
+          }
+          type: BYTES
+          domain: "MyAloneEnum"
+        }
+        feature {
+          name: "ignore_this"
+          lifecycle_stage: DEPRECATED
+          value_count {
+            min:1
+          }
+          presence {
+            min_count: 1
+          }
+          type: BYTES
+        }
+        """, schema_pb2.Schema())
+    options = stats_options.StatsOptions(schema=schema)
+    max_examples_per_anomaly = 1
+    expected_result = [
+        ('annotated_enum_ENUM_TYPE_UNEXPECTED_STRING_VALUES',
+         [{'annotated_enum': np.array(['D'])}]
+        ),
+        ('feature_not_in_schema_SCHEMA_NEW_COLUMN',
+         [{'feature_not_in_schema': np.array([1])}]
+        )
+    ]
+    with beam.Pipeline() as p:
+      result = (
+          p | beam.Create(examples)
+          | validation_api.IdentifyAnomalousExamples(options,
+                                                     max_examples_per_anomaly))
+      util.assert_that(result, util.equal_to(expected_result))
+
+  def test_identify_anomalous_examples_options_of_wrong_type(self):
+    examples = [{'annotated_enum': np.array(['D'])}]
+    options = 1
+    with self.assertRaisesRegexp(ValueError, 'options must be a `StatsOptions` '
+                                 'object.'):
+      with beam.Pipeline() as p:
+        _ = (
+            p | beam.Create(examples)
+            | validation_api.IdentifyAnomalousExamples(options))
+
+  def test_identify_anomalous_examples_options_without_schema(self):
+    examples = [{'annotated_enum': np.array(['D'])}]
+    options = stats_options.StatsOptions()
+    with self.assertRaisesRegexp(ValueError, 'options must include a schema'):
+      with beam.Pipeline() as p:
+        _ = (
+            p | beam.Create(examples)
+            | validation_api.IdentifyAnomalousExamples(options))
+
+  def test_identify_anomalous_examples_invalid_max_examples_type(
+      self):
+    examples = [{'annotated_enum': np.array(['D'])}]
+    options = stats_options.StatsOptions(schema=schema_pb2.Schema())
+    max_examples_per_anomaly = 1.5
+    with self.assertRaisesRegexp(
+        TypeError, 'max_examples_per_anomaly must be an integer.'):
+      with beam.Pipeline() as p:
+        _ = (
+            p | beam.Create(examples)
+            | validation_api.IdentifyAnomalousExamples(
+                options, max_examples_per_anomaly))
+
+  def test_identify_anomalous_examples_invalid_max_examples_value(
+      self):
+    examples = [{'annotated_enum': np.array(['D'])}]
+    options = stats_options.StatsOptions(schema=schema_pb2.Schema())
+    max_examples_per_anomaly = -1
+    with self.assertRaisesRegexp(ValueError, 'Invalid max_examples_per_anomaly '
+                                 '-1.'):
+      with beam.Pipeline() as p:
+        _ = (
+            p | beam.Create(examples)
+            | validation_api.IdentifyAnomalousExamples(
+                options, max_examples_per_anomaly))
+
 
 if __name__ == '__main__':
   absltest.main()

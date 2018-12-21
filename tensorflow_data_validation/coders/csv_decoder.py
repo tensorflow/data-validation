@@ -22,6 +22,9 @@ import collections
 import csv
 import apache_beam as beam
 import numpy as np
+import six
+from tensorflow.compat import as_bytes
+from tensorflow.compat import as_text
 from tensorflow_data_validation import types
 from tensorflow_data_validation.types_compat import Dict, List, Optional, Text, Union
 
@@ -39,7 +42,7 @@ ColumnInfo = collections.namedtuple('ColumnInfo', ['name', 'type'])
 
 
 @beam.typehints.with_input_types(CSVRecord)
-@beam.typehints.with_output_types(types.Example)
+@beam.typehints.with_output_types(types.BeamExample)
 class DecodeCSV(beam.PTransform):
   """Decodes CSV records into an in-memory dict representation.
 
@@ -55,15 +58,15 @@ class DecodeCSV(beam.PTransform):
     """Initializes the CSV decoder.
 
     Args:
-      column_names: List of feature names. Order must match the order in the
-          CSV file.
+      column_names: List of feature names. Order must match the order in the CSV
+        file.
       delimiter: A one-character string used to separate fields.
       skip_blank_lines: A boolean to indicate whether to skip over blank lines
-          rather than interpreting them as missing values.
+        rather than interpreting them as missing values.
       schema: An optional schema of the input data.
       infer_type_from_schema: A boolean to indicate whether the feature types
-          should be inferred from the schema. If set to True, an input schema
-          must be provided.
+        should be inferred from the schema. If set to True, an input schema must
+        be provided.
     """
     if not isinstance(column_names, list):
       raise TypeError('column_names is of type %s, should be a list' %
@@ -105,9 +108,9 @@ class DecodeCSV(beam.PTransform):
         column_info=column_info))
 
 
-def _get_feature_types_from_schema(schema,
-                                   column_names
-                                  ):
+def _get_feature_types_from_schema(
+    schema,
+    column_names):
   """Get statistics feature types from the input schema."""
   schema_type_to_stats_type = {
       schema_pb2.INT: statistics_pb2.FeatureNameStatistics.INT,
@@ -138,7 +141,7 @@ class _LineGenerator(object):
   def __iter__(self):
     return self
 
-  def next(self):
+  def __next__(self):
     """Gets the next line to process."""
     # This API currently supports only one line at a time.
     num_lines = len(self._lines)
@@ -151,12 +154,7 @@ class _LineGenerator(object):
     # to maintain order and timecomplexity we would switch to deque.popleft.
     return self._lines.pop()
 
-
-# This is in agreement with Tensorflow conversions for Unicode values for both
-# Python 2 and 3 (and also works for non-Unicode objects).
-def _to_utf8_string(s):
-  """Encodes the input csv line as a utf-8 string when applicable."""
-  return s if isinstance(s, bytes) else s.encode('utf-8')
+  next = __next__
 
 
 class CSVParser(object):
@@ -171,8 +169,11 @@ class CSVParser(object):
       self._reader = csv.reader(self._line_generator, delimiter=delimiter)
 
     def read_record(self, csv_string):
-      self._line_generator.push_line(_to_utf8_string(csv_string))
-      return self._reader.next()  # pytype: disable=attribute-error
+      """Reads out bytes for PY2 and Unicode for PY3."""
+      self._line_generator.push_line(
+          as_bytes(csv_string) if six.PY2 else as_text(csv_string))
+      output = next(self._reader)
+      return [as_bytes(x) for x in output]  # pytype: disable=attribute-error
 
     def __getstate__(self):
       return self._state
@@ -197,9 +198,8 @@ class CSVParser(object):
     return self._reader.read_record(csv_string)
 
 
-def _make_example_dict(
-    row, skip_blank_lines,
-    column_info):
+def _make_example_dict(row, skip_blank_lines,
+                       column_info):
   """Create the in-memory representation from the CSV record.
 
   Args:
@@ -286,7 +286,6 @@ class _FeatureTypeInferrer(beam.CombineFn):
       accumulator: A dict containing the already inferred feature types.
       input_row: A list containing feature values of a CSV record.
 
-
     Returns:
       A dict containing the updated feature types based on input row.
 
@@ -298,8 +297,8 @@ class _FeatureTypeInferrer(beam.CombineFn):
     if not input_row and not self._skip_blank_lines:
       input_row = ['' for _ in range(len(self._column_names))]
     elif input_row and len(input_row) != len(self._column_names):
-      raise ValueError('Columns do not match specified csv headers: %s -> %s'
-                       % (self._column_names, input_row))
+      raise ValueError('Columns do not match specified csv headers: %s -> %s' %
+                       (self._column_names, input_row))
 
     # Iterate over each feature value and update the type.
     for index, field in enumerate(input_row):
@@ -319,14 +318,13 @@ class _FeatureTypeInferrer(beam.CombineFn):
     return accumulator
 
   def merge_accumulators(
-      self,
-      accumulators
+      self, accumulators
   ):
     """Merge the feature types inferred from the different partitions.
 
     Args:
       accumulators: A list of dicts containing the feature types inferred from
-          the different partitions of the data.
+        the different partitions of the data.
 
     Returns:
       A dict containing the merged feature types.

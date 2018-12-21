@@ -1,6 +1,10 @@
 <!-- See: www.tensorflow.org/tfx/data_validation/ -->
 
-# TensorFlow Data Validation [![PyPI](https://img.shields.io/pypi/pyversions/tensorflow-data-validation.svg?style=plastic)](https://github.com/tensorflow/data-validation)
+# TensorFlow Data Validation
+
+[![Python](https://img.shields.io/pypi/pyversions/tensorflow-data-validation.svg?style=plastic)](https://github.com/tensorflow/data-validation)
+[![PyPI](https://badge.fury.io/py/tensorflow-data-validation.svg)](https://badge.fury.io/py/tensorflow-data-validation)
+[![Documentation](https://img.shields.io/badge/api-reference-blue.svg)](https://www.tensorflow.org/tfx/data_validation/api_docs/python/tfdv)
 
 *TensorFlow Data Validation* (TFDV) is a library for exploring and validating
 machine learning data. It is designed to be highly scalable

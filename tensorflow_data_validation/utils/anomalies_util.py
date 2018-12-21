@@ -18,6 +18,7 @@ from __future__ import division
 
 from __future__ import print_function
 
+from tensorflow_data_validation import types
 from tensorflow_data_validation.types_compat import List, Set, Text, Tuple
 from tensorflow_metadata.proto.v0 import anomalies_pb2
 
@@ -80,3 +81,27 @@ def remove_anomaly_types(
 
   for feature_name in features_to_remove:
     del anomaly_proto.anomaly_info[feature_name]
+
+
+def anomalies_slicer(
+    unused_example,
+    anomaly_proto):
+  """Returns slice keys for an example based on the given Anomalies proto.
+
+  This slicer will generate a slice key for each anomaly reason in the proto.
+
+  Args:
+    unused_example: The example for which to generate slice keys.
+    anomaly_proto: An Anomalies proto from which to generate the list of slice
+      keys.
+
+  Returns:
+    A list of slice keys.
+  """
+  slice_keys = []
+  for feature_name, anomaly_info in anomaly_proto.anomaly_info.items():
+    for anomaly_reason in anomaly_info.reason:
+      slice_keys.append(
+          feature_name + '_' +
+          anomalies_pb2.AnomalyInfo.Type.Name(anomaly_reason.type))
+  return slice_keys

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Beam implementation of statistics generators."""
+"""Implementation of statistics generators."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -36,7 +36,7 @@ from tensorflow_data_validation.types_compat import List, TypeVar
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
-@beam.typehints.with_input_types(types.Example)
+@beam.typehints.with_input_types(types.BeamExample)
 @beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatisticsList)
 class GenerateStatisticsImpl(beam.PTransform):
   """PTransform that applies a set of generators."""
@@ -49,40 +49,8 @@ class GenerateStatisticsImpl(beam.PTransform):
 
   def expand(self, dataset):
     # Initialize a list of stats generators to run.
-    stats_generators = [
-        # Create common stats generator.
-        common_stats_generator.CommonStatsGenerator(
-            schema=self._options.schema,
-            weight_feature=self._options.weight_feature,
-            num_values_histogram_buckets=\
-                self._options.num_values_histogram_buckets,
-            epsilon=self._options.epsilon),
+    stats_generators = _get_default_generators(self._options)
 
-        # Create numeric stats generator.
-        numeric_stats_generator.NumericStatsGenerator(
-            schema=self._options.schema,
-            weight_feature=self._options.weight_feature,
-            num_histogram_buckets=self._options.num_histogram_buckets,
-            num_quantiles_histogram_buckets=\
-                self._options.num_quantiles_histogram_buckets,
-            epsilon=self._options.epsilon),
-
-        # Create string stats generator.
-        string_stats_generator.StringStatsGenerator(
-            schema=self._options.schema),
-
-        # Create topk stats generator.
-        top_k_stats_generator.TopKStatsGenerator(
-            schema=self._options.schema,
-            weight_feature=self._options.weight_feature,
-            num_top_values=self._options.num_top_values,
-            num_rank_histogram_buckets=\
-                self._options.num_rank_histogram_buckets),
-
-        # Create uniques stats generator.
-        uniques_stats_generator.UniquesStatsGenerator(
-            schema=self._options.schema)
-    ]
     if self._options.generators is not None:
       # Add custom stats generators.
       stats_generators.extend(self._options.generators)
@@ -129,6 +97,55 @@ class GenerateStatisticsImpl(beam.PTransform):
             beam.CombineGlobally(_merge_dataset_feature_stats_protos)
             | 'MakeDatasetFeatureStatisticsListProto' >>
             beam.Map(_make_dataset_feature_statistics_list_proto))
+
+
+def _get_default_generators(
+    options, in_memory = False
+):
+  """Initialize default list of stats generators.
+
+  Args:
+    options: A StatsOptions object.
+    in_memory: Whether the generators will be used to generate statistics in
+      memory (True) or using Beam (False).
+
+  Returns:
+    A list of stats generator objects.
+  """
+  stats_generators = [
+      common_stats_generator.CommonStatsGenerator(
+          schema=options.schema,
+          weight_feature=options.weight_feature,
+          num_values_histogram_buckets=options.num_values_histogram_buckets,
+          epsilon=options.epsilon),
+      numeric_stats_generator.NumericStatsGenerator(
+          schema=options.schema,
+          weight_feature=options.weight_feature,
+          num_histogram_buckets=options.num_histogram_buckets,
+          num_quantiles_histogram_buckets=\
+            options.num_quantiles_histogram_buckets,
+          epsilon=options.epsilon),
+      string_stats_generator.StringStatsGenerator(
+          schema=options.schema)
+  ]
+  if in_memory:
+    stats_generators.append(
+        top_k_uniques_combiner_stats_generator.
+        TopKUniquesCombinerStatsGenerator(
+            schema=options.schema,
+            weight_feature=options.weight_feature,
+            num_top_values=options.num_top_values,
+            num_rank_histogram_buckets=options.num_rank_histogram_buckets))
+  else:
+    stats_generators.extend([
+        top_k_stats_generator.TopKStatsGenerator(
+            schema=options.schema,
+            weight_feature=options.weight_feature,
+            num_top_values=options.num_top_values,
+            num_rank_histogram_buckets=options.num_rank_histogram_buckets),
+        uniques_stats_generator.UniquesStatsGenerator(schema=options.schema)
+    ])
+  return stats_generators
 
 
 def _filter_features(
@@ -268,31 +285,7 @@ def generate_statistics_in_memory(
   Returns:
     A DatasetFeatureStatisticsList proto.
   """
-
-  stats_generators = [
-      common_stats_generator.CommonStatsGenerator(
-          schema=options.schema,
-          weight_feature=options.weight_feature,
-          num_values_histogram_buckets=\
-            options.num_values_histogram_buckets,
-          epsilon=options.epsilon),
-
-      numeric_stats_generator.NumericStatsGenerator(
-          schema=options.schema,
-          weight_feature=options.weight_feature,
-          num_histogram_buckets=options.num_histogram_buckets,
-          num_quantiles_histogram_buckets=\
-            options.num_quantiles_histogram_buckets,
-          epsilon=options.epsilon),
-
-      string_stats_generator.StringStatsGenerator(schema=options.schema),
-
-      top_k_uniques_combiner_stats_generator.TopKUniquesCombinerStatsGenerator(
-          schema=options.schema,
-          weight_feature=options.weight_feature,
-          num_top_values=options.num_top_values,
-          num_rank_histogram_buckets=options.num_rank_histogram_buckets),
-  ]
+  stats_generators = _get_default_generators(options, in_memory=True)
 
   if options.generators is not None:
     for generator in options.generators:
@@ -317,7 +310,11 @@ def generate_statistics_in_memory(
   outputs = [
       generator.extract_output(
           generator.add_input(generator.create_accumulator(), batch))
-      for generator in stats_generators
+      # The type checker raises a false positive here because the type hint for
+      # the return value of _get_default_generators (which created the list of
+      # stats_generators) is StatsGenerator, but add_input, create_accumulator,
+      # and extract_output can be called only on CombinerStatsGenerators.
+      for generator in stats_generators  # pytype: disable=attribute-error
   ]
 
   return _make_dataset_feature_statistics_list_proto(

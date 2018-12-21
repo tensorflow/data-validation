@@ -55,7 +55,7 @@ from tensorflow_data_validation.types_compat import Generator
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
-@beam.typehints.with_input_types(types.Example)
+@beam.typehints.with_input_types(types.BeamExample)
 @beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatisticsList)
 class GenerateStatistics(beam.PTransform):
   """API for generating data statistics.

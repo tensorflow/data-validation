@@ -57,6 +57,22 @@ INVALID_STATS_OPTIONS = [
         'error_message': 'schema is of type dict, should be a Schema proto.'
     },
     {
+        'testcase_name': 'invalid_slice_functions_list',
+        'stats_options_kwargs': {
+            'slice_functions': {}
+        },
+        'exception_type': TypeError,
+        'error_message': 'slice_functions is of type dict, should be a list.'
+    },
+    {
+        'testcase_name': 'invalid_slice_function_type',
+        'stats_options_kwargs': {
+            'slice_functions': [1]
+        },
+        'exception_type': TypeError,
+        'error_message': 'slice_functions must contain functions only.'
+    },
+    {
         'testcase_name': 'sample_count_zero',
         'stats_options_kwargs': {
             'sample_count': 0
@@ -105,6 +121,22 @@ INVALID_STATS_OPTIONS = [
         },
         'exception_type': ValueError,
         'error_message': 'Invalid sample_rate 2'
+    },
+    {
+        'testcase_name': 'num_values_histogram_buckets_one',
+        'stats_options_kwargs': {
+            'num_values_histogram_buckets': 1
+        },
+        'exception_type': ValueError,
+        'error_message': 'Invalid num_values_histogram_buckets 1'
+    },
+    {
+        'testcase_name': 'num_values_histogram_buckets_zero',
+        'stats_options_kwargs': {
+            'num_values_histogram_buckets': 0
+        },
+        'exception_type': ValueError,
+        'error_message': 'Invalid num_values_histogram_buckets 0'
     },
     {
         'testcase_name': 'num_values_histogram_buckets_negative',

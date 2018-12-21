@@ -22,19 +22,37 @@ from __future__ import division
 from __future__ import print_function
 
 import logging
+import apache_beam as beam
 import tensorflow as tf
+from tensorflow_data_validation import types
 from tensorflow_data_validation.anomalies import pywrap_tensorflow_data_validation
+from tensorflow_data_validation.statistics import stats_impl
+from tensorflow_data_validation.statistics import stats_options
+from tensorflow_data_validation.utils import anomalies_util
+from tensorflow_data_validation.utils import slicing_util
 from tensorflow_data_validation.types_compat import Optional
 from tensorflow_metadata.proto.v0 import anomalies_pb2
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
+
+# Set of anomaly types that do not apply on a per-example basis.
+_GLOBAL_ONLY_ANOMALY_TYPES = set([
+    anomalies_pb2.AnomalyInfo.FEATURE_TYPE_LOW_FRACTION_PRESENT,
+    anomalies_pb2.AnomalyInfo.FEATURE_TYPE_LOW_NUMBER_PRESENT,
+    anomalies_pb2.AnomalyInfo.FEATURE_TYPE_NOT_PRESENT,
+    anomalies_pb2.AnomalyInfo.SCHEMA_TRAINING_SERVING_SKEW,
+    anomalies_pb2.AnomalyInfo.COMPARATOR_CONTROL_DATA_MISSING,
+    anomalies_pb2.AnomalyInfo.COMPARATOR_TREATMENT_DATA_MISSING,
+    anomalies_pb2.AnomalyInfo.COMPARATOR_L_INFTY_HIGH,
+    anomalies_pb2.AnomalyInfo.NO_DATA_IN_SPAN,
+])
 
 
 def infer_schema(statistics,
                  infer_feature_shape = True,
                  max_string_domain_size = 100
                 ):
-  """Infer schema from the input statistics.
+  """Infers schema from the input statistics.
 
   Args:
     statistics: A DatasetFeatureStatisticsList protocol buffer. Schema
@@ -78,7 +96,7 @@ def infer_schema(statistics,
 
 
 def _infer_shape(schema):
-  """Infer shapes of the features."""
+  """Infers shapes of the features."""
   for feature in schema.feature:
     # Currently we infer shape only for features with valency 1.
     if (feature.presence.min_fraction == 1 and
@@ -93,7 +111,7 @@ def validate_statistics(
     previous_statistics = None,
     serving_statistics = None,
 ):
-  """Validate the input statistics against the provided input schema.
+  """Validates the input statistics against the provided input schema.
 
   This method validates the `statistics` against the `schema`. If an optional
   `environment` is specified, the `schema` is filtered using the
@@ -218,7 +236,7 @@ def validate_statistics(
 
 
 def _check_for_unsupported_schema_fields(schema):
-  """Log warnings when we encounter unsupported fields in the schema."""
+  """Logs warnings when we encounter unsupported fields in the schema."""
   if schema.sparse_feature:
     logging.warning('The input schema has sparse features which'
                     ' are currently not supported.')
@@ -227,8 +245,140 @@ def _check_for_unsupported_schema_fields(schema):
 def _check_for_unsupported_stats_fields(
     stats,
     stats_type):
-  """Log warnings when we encounter unsupported fields in the statistics."""
+  """Logs warnings when we encounter unsupported fields in the statistics."""
   for feature in stats.features:
     if feature.HasField('struct_stats'):
       logging.warning('Feature "%s" in the %s has a struct_stats field which '
                       'is currently not supported.', feature.name, stats_type)
+
+
+def validate_instance(
+    instance,
+    options,
+    environment = None
+):
+  """Validates a single example against the schema provided in `options`.
+
+  If an optional `environment` is specified, the schema is filtered using the
+  `environment` and the `instance` is validated against the filtered schema.
+
+  Args:
+    instance: A single example in the form of a dict mapping a feature name to a
+      numpy array.
+    options: Options for generating data statistics. This must contain a
+      schema.
+    environment: An optional string denoting the validation environment. Must be
+      one of the default environments specified in the schema. In some cases
+      introducing slight schema variations is necessary, for instance features
+      used as labels are required during training (and should be validated), but
+      are missing during serving. Environments can be used to express such
+      requirements. For example, assume a feature named 'LABEL' is required for
+      training, but is expected to be missing from serving. This can be
+      expressed by defining two distinct environments in the schema: ["SERVING",
+      "TRAINING"] and associating 'LABEL' only with environment "TRAINING".
+
+  Returns:
+    An Anomalies protocol buffer.
+
+  Raises:
+    ValueError: If `options` is not a StatsOptions object.
+    ValueError: If `options` does not contain a schema.
+  """
+  if not isinstance(options, stats_options.StatsOptions):
+    raise ValueError('options must be a StatsOptions object.')
+  if options.schema is None:
+    raise ValueError('options must include a schema.')
+  feature_statistics_list = (
+      stats_impl.generate_statistics_in_memory([instance], options))
+  anomalies = validate_statistics(feature_statistics_list, options.schema,
+                                  environment)
+  if anomalies.anomaly_info:
+    # If anomalies were found, remove anomaly types that do not apply on a
+    # per-example basis from the Anomalies proto.
+    anomalies_util.remove_anomaly_types(anomalies, _GLOBAL_ONLY_ANOMALY_TYPES)
+  return anomalies
+
+
+def _detect_anomalies_in_example(example,
+                                 options):
+  """Validates the example against the schema provided in `options`."""
+  return (example, validate_instance(example, options))
+
+
+@beam.typehints.with_input_types(
+    beam.typehints.Tuple[types.BeamExample, anomalies_pb2.Anomalies])
+@beam.typehints.with_output_types(
+    beam.typehints.Tuple[types.BeamSliceKey, types.BeamExample])
+class _GenerateAnomalyReasonSliceKeys(beam.DoFn):
+  """Yields a slice key for each anomaly reason in the Anomalies proto."""
+
+  def process(self, element):
+    example, anomalies_proto = element
+    for slice_key_and_example in slicing_util.generate_slices(
+        example, [anomalies_util.anomalies_slicer],
+        anomaly_proto=anomalies_proto):
+      yield slice_key_and_example
+
+
+@beam.typehints.with_input_types(types.BeamExample)
+@beam.typehints.with_output_types(
+    beam.typehints.KV[types.BeamSliceKey, beam.typehints
+                      .Iterable[types.BeamExample]])
+class IdentifyAnomalousExamples(beam.PTransform):
+  """API for identifying anomalous examples.
+
+  Validates each input example against the schema provided in `options` and
+  outputs a sample of the anomalous examples found per anomaly reason.
+  """
+
+  def __init__(
+      self,
+      options,
+      max_examples_per_anomaly = 10):
+    """Initializes pipeline that identifies anomalous examples.
+
+    Args:
+      options: Options for generating data statistics. This must contain a
+        schema.
+      max_examples_per_anomaly: The maximum number of anomalous examples to
+        output per anomaly reason.
+    """
+
+    self.options = options
+    self.max_examples_per_anomaly = max_examples_per_anomaly
+
+  @property
+  def options(self):
+    return self._options
+
+  @options.setter
+  def options(self, options):
+    if not isinstance(options, stats_options.StatsOptions):
+      raise ValueError('options must be a `StatsOptions` object.')
+    if options.schema is None:
+      raise ValueError('options must include a schema.')
+    self._options = options
+
+  @property
+  def max_examples_per_anomaly(self):
+    return self._max_examples_per_anomaly
+
+  @max_examples_per_anomaly.setter
+  def max_examples_per_anomaly(self, max_examples_per_anomaly):
+    if not isinstance(max_examples_per_anomaly, int):
+      raise TypeError('max_examples_per_anomaly must be an integer.')
+    if max_examples_per_anomaly < 1:
+      raise ValueError(
+          'Invalid max_examples_per_anomaly %d.' % max_examples_per_anomaly)
+    self._max_examples_per_anomaly = max_examples_per_anomaly
+
+  def expand(self, dataset):
+    dataset = (
+        dataset
+        | 'DetectAnomaliesInExamples' >> beam.Map(
+            _detect_anomalies_in_example, options=self.options)
+        | 'GenerateAnomalyReasonKeys' >> beam.ParDo(
+            _GenerateAnomalyReasonSliceKeys()))
+    return (
+        dataset | 'SampleExamplesPerAnomalyReason' >>
+        beam.combiners.Sample.FixedSizePerKey(self.max_examples_per_anomaly))
