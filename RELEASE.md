@@ -2,6 +2,8 @@
 
 ## Major Features and Improvements
 
+* Add a `validate_instance` function, which checks a single example for anomalies.
+
 ## Bug Fixes and Other Changes
 
 * Use constant '__BYTES_VALUE__' in the statistics proto to represent a bytes value which cannot be decoded as a utf-8 string.

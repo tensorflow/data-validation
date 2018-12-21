@@ -86,15 +86,15 @@ class StatsGenTest(absltest.TestCase):
     examples = [
         self._make_example({
             'a': ('float', [1.0, 2.0]),
-            'b': ('bytes', ['a', 'b', 'c', 'e'])
+            'b': ('bytes', [b'a', b'b', b'c', b'e'])
         }),
         self._make_example({
             'a': ('float', [3.0, 4.0, float('nan'), 5.0]),
-            'b': ('bytes', ['a', 'c', 'd', 'a'])
+            'b': ('bytes', [b'a', b'c', b'd', b'a'])
         }),
         self._make_example({
             'a': ('float', [1.0]),
-            'b': ('bytes', ['a', 'b', 'c', 'd'])
+            'b': ('bytes', [b'a', b'b', b'c', b'd'])
         })
     ]
     input_data_path = self._write_tfexamples_to_tfrecords(examples)

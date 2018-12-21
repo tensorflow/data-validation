@@ -941,7 +941,7 @@ TEST(SchemaTest, CreateColumnsDeepAll) {
 
   DatasetStatsView view(stats);
   TF_ASSERT_OK(schema.Update(view, FeatureStatisticsToProtoConfig()));
-  EXPECT_THAT(schema.GetSchema(), ::testing::EqualsProto(R"(
+  EXPECT_THAT(schema.GetSchema(), EqualsProto(R"(
                 feature {
                   name: "struct"
                   value_count { min: 1 }
@@ -1015,7 +1015,7 @@ TEST(SchemaTest, CreateColumnsDeep) {
 
   DatasetStatsView view(stats);
   TF_ASSERT_OK(schema.Update(view, FeatureStatisticsToProtoConfig()));
-  EXPECT_THAT(schema.GetSchema(), ::testing::EqualsProto(R"(
+  EXPECT_THAT(schema.GetSchema(), EqualsProto(R"(
                 feature {
                   name: "struct"
                   type: STRUCT
@@ -1071,7 +1071,7 @@ TEST(SchemaTest, CreateColumnsDeepDeprecated) {
 
   DatasetStatsView view(stats);
   TF_ASSERT_OK(schema.Update(view, FeatureStatisticsToProtoConfig()));
-  EXPECT_THAT(schema.GetSchema(), ::testing::EqualsProto(initial));
+  EXPECT_THAT(schema.GetSchema(), EqualsProto(initial));
 }
 
 // Test that FeatureIsDeprecated is correct when the output should be false.
@@ -1340,7 +1340,7 @@ TEST(SchemaTest, CreateDeepFieldUpdateRecursivelyStructFoo) {
       *view.GetByPath(Path({"struct", "foo"})), absl::nullopt, &descriptions,
       &severity));
   EXPECT_THAT(schema.GetSchema(),
-              testing::EqualsProto(R"(feature {
+              EqualsProto(R"(feature {
                                         name: "struct"
                                         value_count { min: 1 max: 1 }
                                         type: STRUCT
@@ -1407,7 +1407,7 @@ TEST(SchemaTest, CreateDeepFieldUpdateRecursivelyStruct) {
       &severity));
 
   EXPECT_THAT(schema.GetSchema(),
-              testing::EqualsProto(R"(feature {
+              EqualsProto(R"(feature {
                                         name: "struct"
                                         value_count { max: 1 }
                                         type: STRUCT
@@ -1471,7 +1471,7 @@ TEST(SchemaTest, UpdateStruct) {
   TF_ASSERT_OK(schema.Update(Schema::Updater(FeatureStatisticsToProtoConfig()),
                              *view.GetByPath(Path({"struct"})), &descriptions,
                              &severity));
-  EXPECT_THAT(schema.GetSchema(), testing::EqualsProto(initial));
+  EXPECT_THAT(schema.GetSchema(), EqualsProto(initial));
 }
 
 // This tests if Update can create a deep feature.
@@ -1518,7 +1518,7 @@ TEST(SchemaTest, CreateDeepFieldWithUpdate) {
   DatasetStatsView view(stats);
 
   TF_ASSERT_OK(schema.Update(view, FeatureStatisticsToProtoConfig()));
-  EXPECT_THAT(schema.GetSchema(), testing::EqualsProto(R"(
+  EXPECT_THAT(schema.GetSchema(), EqualsProto(R"(
                 feature {
                   name: "struct"
                   value_count { max: 2 }

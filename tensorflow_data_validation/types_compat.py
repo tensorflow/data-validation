@@ -14,10 +14,11 @@
 """Types for backwards compatibility with versions that don't support typing."""
 
 
-from apache_beam.typehints import Any, Dict, Generator, Iterator, List, Optional, Set, Tuple, Union  # pylint: disable=unused-import,g-multiple-import
+from apache_beam.typehints import Any, Dict, Generator, Iterable, Iterator, List, Optional, Set, Tuple, Union  # pylint: disable=unused-import,g-multiple-import
 
 # pylint: disable=invalid-name
 Callable = None
+Mapping = None
 Text = Any
 TypeVar = None
 

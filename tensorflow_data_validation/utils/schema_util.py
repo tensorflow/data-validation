@@ -21,7 +21,7 @@ from __future__ import print_function
 import logging
 import six
 from tensorflow_data_validation import types
-from tensorflow_data_validation.types_compat import List, Union
+from tensorflow_data_validation.types_compat import List, Set, Union
 from google.protobuf import text_format
 from tensorflow.python.lib.io import file_io
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -232,3 +232,43 @@ def get_categorical_numeric_features(
     if feature.type == schema_pb2.INT and is_categorical_feature(feature):
       categorical_features.append(feature.name)
   return categorical_features
+
+
+def get_categorical_features(
+    schema):
+  """Gets the set containing the names of all categorical features.
+
+  Args:
+    schema: The schema for the data.
+
+  Returns:
+    A set containing the names of all categorical features.
+  """
+  return {
+      feature.name
+      for feature in schema.feature
+      if is_categorical_feature(get_feature(schema, feature.name))
+  }
+
+
+def get_multivalent_features(
+    schema):
+  """Gets the set containing the names of all multivalent features.
+
+  Args:
+    schema: The schema for the data.
+
+  Returns:
+    A set containing the names of all multivalent features.
+  """
+
+  # Check if the feature is not univalent. A univalent feature will either
+  # have the shape field set with one dimension of size 1 or the value_count
+  # field set with a max value_count of 1.
+  return {
+      feature.name
+      for feature in schema.feature
+      if not ((feature.shape and feature.shape.dim and
+               len(feature.shape.dim) == feature.shape.dim[0].size == 1) or
+              (feature.value_count and feature.value_count.max == 1))
+  }

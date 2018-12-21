@@ -43,10 +43,10 @@ class CSVDecoderTest(absltest.TestCase):
     expected_result = [
         {'int_feature': np.array([1], dtype=np.integer),
          'float_feature': np.array([2.0], dtype=np.floating),
-         'str_feature': np.array(['hello'], dtype=np.object)},
+         'str_feature': np.array([b'hello'], dtype=np.object)},
         {'int_feature': np.array([5], dtype=np.integer),
          'float_feature': np.array([12.34], dtype=np.floating),
-         'str_feature': np.array(['world'], dtype=np.object)}]
+         'str_feature': np.array([b'world'], dtype=np.object)}]
 
     with beam.Pipeline() as p:
       result = (p | beam.Create(input_lines) |
@@ -71,11 +71,11 @@ class CSVDecoderTest(absltest.TestCase):
         {'int_feature_parsed_as_float': np.array([1], dtype=np.floating),
          'int_feature': np.array([1], dtype=np.integer),
          'float_feature': np.array([2.0], dtype=np.floating),
-         'str_feature': np.array(['hello'], dtype=np.object)},
+         'str_feature': np.array([b'hello'], dtype=np.object)},
         {'int_feature_parsed_as_float': np.array([5], dtype=np.floating),
          'int_feature': np.array([5], dtype=np.integer),
          'float_feature': np.array([12.34], dtype=np.floating),
-         'str_feature': np.array(['world'], dtype=np.object)}]
+         'str_feature': np.array([b'world'], dtype=np.object)}]
 
     with beam.Pipeline() as p:
       result = (p | beam.Create(input_lines) |
@@ -92,7 +92,7 @@ class CSVDecoderTest(absltest.TestCase):
     expected_result = [
         {'int_feature': np.array([1.0], dtype=np.floating),
          'float_feature': None,
-         'str_feature': np.array(['hello'], dtype=np.object)},
+         'str_feature': np.array([b'hello'], dtype=np.object)},
         {'int_feature': None,
          'float_feature': np.array([12.34], dtype=np.floating),
          'str_feature': None}]
@@ -126,10 +126,10 @@ class CSVDecoderTest(absltest.TestCase):
                    'abc,2']
     column_names = ['str_feature1', 'str_feature2']
     expected_result = [
-        {'str_feature1': np.array(['2'], dtype=np.object),
-         'str_feature2': np.array(['abc'], dtype=np.object)},
-        {'str_feature1': np.array(['abc'], dtype=np.object),
-         'str_feature2': np.array(['2'], dtype=np.object)}]
+        {'str_feature1': np.array([b'2'], dtype=np.object),
+         'str_feature2': np.array([b'abc'], dtype=np.object)},
+        {'str_feature1': np.array([b'abc'], dtype=np.object),
+         'str_feature2': np.array([b'2'], dtype=np.object)}]
 
     with beam.Pipeline() as p:
       result = (p | beam.Create(input_lines) |
@@ -143,10 +143,10 @@ class CSVDecoderTest(absltest.TestCase):
                    'abc,2.3']
     column_names = ['str_feature1', 'str_feature2']
     expected_result = [
-        {'str_feature1': np.array(['2.3'], dtype=np.object),
-         'str_feature2': np.array(['abc'], dtype=np.object)},
-        {'str_feature1': np.array(['abc'], dtype=np.object),
-         'str_feature2': np.array(['2.3'], dtype=np.object)}]
+        {'str_feature1': np.array([b'2.3'], dtype=np.object),
+         'str_feature2': np.array([b'abc'], dtype=np.object)},
+        {'str_feature1': np.array([b'abc'], dtype=np.object),
+         'str_feature2': np.array([b'2.3'], dtype=np.object)}]
 
     with beam.Pipeline() as p:
       result = (p | beam.Create(input_lines) |
@@ -164,7 +164,7 @@ class CSVDecoderTest(absltest.TestCase):
          'unicode_feature': np.array([u'שקרכלשהו'.encode('utf-8')],
                                      dtype=np.object),
          'float_feature': np.array([22.34], dtype=np.floating),
-         'str_feature': np.array(['text field'], dtype=np.object)}]
+         'str_feature': np.array([b'text field'], dtype=np.object)}]
 
     with beam.Pipeline() as p:
       result = (p | beam.Create(input_lines) |
@@ -179,9 +179,9 @@ class CSVDecoderTest(absltest.TestCase):
     column_names = ['int_feature', 'str_feature']
     expected_result = [
         {'int_feature': np.array([1], dtype=np.integer),
-         'str_feature': np.array(['ab,cd,ef'], dtype=np.object)},
+         'str_feature': np.array([b'ab,cd,ef'], dtype=np.object)},
         {'int_feature': np.array([5], dtype=np.integer),
-         'str_feature': np.array(['wx,xy,yz'], dtype=np.object)}]
+         'str_feature': np.array([b'wx,xy,yz'], dtype=np.object)}]
 
     with beam.Pipeline() as p:
       result = (p | beam.Create(input_lines) |
@@ -196,9 +196,9 @@ class CSVDecoderTest(absltest.TestCase):
     column_names = ['int_feature', 'str_feature']
     expected_result = [
         {'int_feature': np.array([1], dtype=np.integer),
-         'str_feature': np.array(['ab,cd,ef'], dtype=np.object)},
+         'str_feature': np.array([b'ab,cd,ef'], dtype=np.object)},
         {'int_feature': np.array([5], dtype=np.integer),
-         'str_feature': np.array(['wx,xy,yz'], dtype=np.object)}]
+         'str_feature': np.array([b'wx,xy,yz'], dtype=np.object)}]
 
     with beam.Pipeline() as p:
       result = (p | beam.Create(input_lines) |
@@ -214,7 +214,7 @@ class CSVDecoderTest(absltest.TestCase):
     column_names = ['int_feature', 'str_feature']
     expected_result = [
         {'int_feature': np.array([1], dtype=np.integer),
-         'str_feature': np.array(['this is a \ttext'], dtype=np.object)},
+         'str_feature': np.array([b'this is a \ttext'], dtype=np.object)},
         {'int_feature': np.array([5], dtype=np.integer),
          'str_feature': None}]
 
@@ -257,9 +257,14 @@ class CSVDecoderTest(absltest.TestCase):
   def test_csv_decoder_large_int_categorical_pos(self):
     input_lines = ['34', str(sys.maxsize+1)]
     column_names = ['feature']
-    expected_result = [
-        {'feature': np.array(['34'], dtype=np.object)},
-        {'feature': np.array([str(sys.maxsize+1)], dtype=np.object)}]
+    expected_result = [{
+        'feature': np.array([b'34'], dtype=np.object)
+    },
+                       {
+                           'feature':
+                               np.array([str(sys.maxsize + 1).encode('utf-8')],
+                                        dtype=np.object)
+                       }]
 
     with beam.Pipeline() as p:
       result = (p | beam.Create(input_lines) |
@@ -271,9 +276,15 @@ class CSVDecoderTest(absltest.TestCase):
   def test_csv_decoder_large_int_categorical_neg(self):
     input_lines = ['34', str(-(sys.maxsize+2))]
     column_names = ['feature']
-    expected_result = [
-        {'feature': np.array(['34'], dtype=np.object)},
-        {'feature': np.array([str(-(sys.maxsize+2))], dtype=np.object)}]
+    expected_result = [{
+        'feature': np.array([b'34'], dtype=np.object)
+    },
+                       {
+                           'feature':
+                               np.array(
+                                   [str(-(sys.maxsize + 2)).encode('utf-8')],
+                                   dtype=np.object)
+                       }]
 
     with beam.Pipeline() as p:
       result = (p | beam.Create(input_lines) |
@@ -285,9 +296,16 @@ class CSVDecoderTest(absltest.TestCase):
   def test_csv_decoder_large_int_categorical_pos_and_neg(self):
     input_lines = [str(sys.maxsize+1), str(-(sys.maxsize+2))]
     column_names = ['feature']
-    expected_result = [
-        {'feature': np.array([str(sys.maxsize+1)], dtype=np.object)},
-        {'feature': np.array([str(-(sys.maxsize+2))], dtype=np.object)}]
+    expected_result = [{
+        'feature':
+            np.array([str(sys.maxsize + 1).encode('utf-8')], dtype=np.object)
+    },
+                       {
+                           'feature':
+                               np.array(
+                                   [str(-(sys.maxsize + 2)).encode('utf-8')],
+                                   dtype=np.object)
+                       }]
 
     with beam.Pipeline() as p:
       result = (p | beam.Create(input_lines) |
@@ -306,7 +324,7 @@ class CSVDecoderTest(absltest.TestCase):
          'str_feature': None},
         {'int_feature': np.array([1.0], dtype=np.floating),
          'float_feature': np.array([2.0], dtype=np.floating),
-         'str_feature': np.array(['hello'], dtype=np.object)}]
+         'str_feature': np.array([b'hello'], dtype=np.object)}]
 
     with beam.Pipeline() as p:
       result = (p | beam.Create(input_lines) |

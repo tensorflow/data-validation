@@ -11,14 +11,14 @@ from google.protobuf import text_format
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
-class TestAssertFeatureProtoWithinErrorOnCustomStats(absltest.TestCase):
-  """Tests assert_feature_proto_equal_with_error_on_custom_stats."""
+class TestAssertFeatureProtoEqual(absltest.TestCase):
+  """Tests assert_feature_proto_equal."""
 
-  class SampleTestUsingAssertFeatureProtoWithinErrorOnCustomStats(
+  class SampleTestUsingAssertFeatureProtoEqual(
       absltest.TestCase):
     """A mock test case.
 
-    Calls assert_feature_proto_equal_with_error_on_custom_stats.
+    Calls assert_feature_proto_equal.
     """
 
     # This is a work around for unittest in Python 2. It requires the runTest
@@ -27,27 +27,37 @@ class TestAssertFeatureProtoWithinErrorOnCustomStats(absltest.TestCase):
     def runTest(self):
       pass
 
-    def assert_on_two_protos_within_valid_error(self):
+    def assert_on_equal_feature_protos(self):
       expected = text_format.Parse(
           """
               name: 'a'
+              type: BYTES
               custom_stats {
-                name: 'MI'
+                name: 'A'
                 num: 2.5
+              }
+              custom_stats {
+                name: 'B'
+                num: 3.0
               }
              """, statistics_pb2.FeatureNameStatistics())
       actual = text_format.Parse(
           """
               name: 'a'
+              type: BYTES
               custom_stats {
-                name: 'MI'
-                num: 2.45
+                name: 'B'
+                num: 3.0
+              }
+              custom_stats {
+                name: 'A'
+                num: 2.5
               }
              """, statistics_pb2.FeatureNameStatistics())
-      test_util.assert_feature_proto_equal_with_error_on_custom_stats(
+      test_util.assert_feature_proto_equal(
           self, actual, expected)
 
-    def assert_on_two_protos_not_within_valid_error(self):
+    def assert_on_unequal_feature_protos(self):
       expected = text_format.Parse(
           """
               name: 'a'
@@ -64,44 +74,19 @@ class TestAssertFeatureProtoWithinErrorOnCustomStats(absltest.TestCase):
                 num: 2.0
               }
              """, statistics_pb2.FeatureNameStatistics())
-      test_util.assert_feature_proto_equal_with_error_on_custom_stats(
-          self, actual, expected)
-
-    def assert_on_two_protos_within_valid_error_but_different_name(self):
-      expected = text_format.Parse(
-          """
-              name: 'a'
-              custom_stats {
-                name: 'MI'
-                num: 2.5
-              }
-                 """, statistics_pb2.FeatureNameStatistics())
-      actual = text_format.Parse(
-          """
-              name: 'b'
-              custom_stats {
-                name: 'MI'
-                num: 2.45
-              }
-                 """, statistics_pb2.FeatureNameStatistics())
-      test_util.assert_feature_proto_equal_with_error_on_custom_stats(
+      test_util.assert_feature_proto_equal(
           self, actual, expected)
 
   def setUp(self):
-    super(TestAssertFeatureProtoWithinErrorOnCustomStats, self).setUp()
-    self._test = self.SampleTestUsingAssertFeatureProtoWithinErrorOnCustomStats(
-    )
+    super(TestAssertFeatureProtoEqual, self).setUp()
+    self._test = self.SampleTestUsingAssertFeatureProtoEqual()
 
-  def test_proto_within_valid_error(self):
-    self.assertIsNone(self._test.assert_on_two_protos_within_valid_error())
+  def test_feature_protos_equal(self):
+    self.assertIsNone(self._test.assert_on_equal_feature_protos())
 
-  def test_proto_not_within_valid_error(self):
+  def test_feature_protos_unequal(self):
     with self.assertRaises(AssertionError):
-      self._test.assert_on_two_protos_not_within_valid_error()
-
-  def test_proto_within_valid_error_but_different_name(self):
-    with self.assertRaises(AssertionError):
-      self._test.assert_on_two_protos_within_valid_error_but_different_name()
+      self._test.assert_on_unequal_feature_protos()
 
 
 class TestAssertDatasetFeatureStatsProtoEqual(absltest.TestCase):

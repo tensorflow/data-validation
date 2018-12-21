@@ -213,7 +213,7 @@ def load_statistics(
   Returns:
     A DatasetFeatureStatisticsList proto.
   """
-  serialized_stats = tf.python_io.tf_record_iterator(input_path).next()
+  serialized_stats = next(tf.python_io.tf_record_iterator(input_path))
   result = statistics_pb2.DatasetFeatureStatisticsList()
   result.ParseFromString(serialized_stats)
   return result

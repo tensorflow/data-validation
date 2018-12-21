@@ -64,6 +64,7 @@ pip download tensorflow_data_validation \
   --no-deps \
   --platform manylinux1_x86_64 \
   --only-binary=:all:
+
 ```
 
 The following snippet shows an example usage of TFDV on Google Cloud:

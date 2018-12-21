@@ -19,6 +19,8 @@ from __future__ import division
 
 from __future__ import print_function
 
+import logging
+import types as python_types
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.types_compat import List, Optional
@@ -37,6 +39,7 @@ class StatsOptions(object):
       feature_whitelist = None,
       schema = None,
       weight_feature = None,
+      slice_functions = None,
       sample_count = None,
       sample_rate = None,
       num_top_values = 20,
@@ -59,6 +62,9 @@ class StatsOptions(object):
         schema to infer categorical and bytes features.
       weight_feature: An optional feature name whose numeric value represents
           the weight of an example.
+      slice_functions: An optional list of functions that generate slice keys
+        for each example. Each slice function should take an example dict as
+        input and return a list of zero or more slice keys.
       sample_count: An optional number of examples to include in the sample. If
         specified, statistics is computed over the sample. Only one of
         sample_count or sample_rate can be specified.
@@ -90,6 +96,7 @@ class StatsOptions(object):
     self.feature_whitelist = feature_whitelist
     self.schema = schema
     self.weight_feature = weight_feature
+    self.slice_functions = slice_functions
     self.sample_count = sample_count
     self.sample_rate = sample_rate
     self.num_top_values = num_top_values
@@ -145,6 +152,22 @@ class StatsOptions(object):
     self._schema = schema
 
   @property
+  def slice_functions(self):
+    return self._slice_functions
+
+  @slice_functions.setter
+  def slice_functions(
+      self, slice_functions):
+    if slice_functions is not None:
+      logging.warning('Slicing is currently not supported.')
+      if not isinstance(slice_functions, list):
+        raise TypeError('slice_functions is of type %s, should be a list.' %
+                        type(slice_functions).__name__)
+      for slice_function in slice_functions:
+        if not isinstance(slice_function, python_types.FunctionType):
+          raise TypeError('slice_functions must contain functions only.')
+
+  @property
   def sample_count(self):
     return self._sample_count
 
@@ -179,7 +202,7 @@ class StatsOptions(object):
   @num_values_histogram_buckets.setter
   def num_values_histogram_buckets(self,
                                    num_values_histogram_buckets):
-    if num_values_histogram_buckets < 1:
+    if num_values_histogram_buckets <= 1:
       raise ValueError('Invalid num_values_histogram_buckets %d' %
                        num_values_histogram_buckets)
     self._num_values_histogram_buckets = num_values_histogram_buckets

@@ -37,7 +37,7 @@ SET_REMOVE_ANOMALY_TYPES_CHANGES_PROTO_TESTS = [
         'input_anomalies_proto_text':
             """
              anomaly_info {
-               key: "example_1"
+               key: "feature_1"
                value {
                   description: "Examples contain values missing from the "
                     "schema."
@@ -61,7 +61,7 @@ SET_REMOVE_ANOMALY_TYPES_CHANGES_PROTO_TESTS = [
         'input_anomalies_proto_text':
             """
             anomaly_info {
-              key: "example_1"
+              key: "feature_1"
               value {
                 description: "Expected bytes but got string. Examples "
                    "contain values missing from the schema."
@@ -83,7 +83,7 @@ SET_REMOVE_ANOMALY_TYPES_CHANGES_PROTO_TESTS = [
         'expected_anomalies_proto_text':
             """
             anomaly_info {
-              key: "example_1"
+              key: "feature_1"
               value {
                  description: "Examples contain values missing from the "
                    "schema."
@@ -109,7 +109,7 @@ SET_REMOVE_ANOMALY_TYPES_CHANGES_PROTO_TESTS = [
         'input_anomalies_proto_text':
             """
             anomaly_info {
-              key: "example_1"
+              key: "feature_1"
               value {
                  description: "Expected bytes but got string. Examples "
                    "contain values missing from the schema."
@@ -139,7 +139,7 @@ SET_REMOVE_ANOMALY_TYPES_CHANGES_PROTO_TESTS = [
         'input_anomalies_proto_text':
             """
              anomaly_info {
-               key: "example_1"
+               key: "feature_1"
                value {
                   description: "Expected bytes but got string. Examples "
                     "contain values missing from the schema."
@@ -159,7 +159,7 @@ SET_REMOVE_ANOMALY_TYPES_CHANGES_PROTO_TESTS = [
                 }
               }
             anomaly_info {
-              key: "example_2"
+              key: "feature_2"
               value {
                 description: "Examples contain values missing from the schema."
                 severity: ERROR
@@ -175,7 +175,7 @@ SET_REMOVE_ANOMALY_TYPES_CHANGES_PROTO_TESTS = [
         'expected_anomalies_proto_text':
             """
              anomaly_info {
-               key: "example_1"
+               key: "feature_1"
                value {
                  description: "Expected bytes but got string."
                  severity: ERROR
@@ -199,7 +199,7 @@ SET_REMOVE_ANOMALY_TYPES_CHANGES_PROTO_TESTS = [
         'input_anomalies_proto_text':
             """
              anomaly_info {
-               key: "example_1"
+               key: "feature_1"
                value {
                   description: "Expected bytes but got string. Examples "
                     "contain values missing from the schema."
@@ -219,7 +219,7 @@ SET_REMOVE_ANOMALY_TYPES_CHANGES_PROTO_TESTS = [
                 }
               }
             anomaly_info {
-              key: "example_2"
+              key: "feature_2"
               value {
                 description: "Examples contain values missing from the schema."
                 severity: ERROR
@@ -248,7 +248,7 @@ SET_REMOVE_ANOMALY_TYPES_DOES_NOT_CHANGE_PROTO_TESTS = [
         'input_anomalies_proto_text':
             """
              anomaly_info {
-               key: "example_1"
+               key: "feature_1"
                value {
                   description: "Examples contain values missing from the "
                     "schema."
@@ -274,7 +274,7 @@ SET_REMOVE_ANOMALY_TYPES_DOES_NOT_CHANGE_PROTO_TESTS = [
         'input_anomalies_proto_text':
             """
              anomaly_info {
-               key: "example_1"
+               key: "feature_1"
                value {
                   description: "Expected bytes but got string. Examples "
                     "contain values missing from the schema."
@@ -305,7 +305,7 @@ SET_REMOVE_ANOMALY_TYPES_DOES_NOT_CHANGE_PROTO_TESTS = [
         'input_anomalies_proto_text':
             """
              anomaly_info {
-               key: "example_1"
+               key: "feature_1"
                value {
                   description: "Expected bytes but got string."
                   severity: ERROR
@@ -318,7 +318,7 @@ SET_REMOVE_ANOMALY_TYPES_DOES_NOT_CHANGE_PROTO_TESTS = [
                 }
               }
               anomaly_info {
-                key: "example_2"
+                key: "feature_2"
                 value {
                    description: "Examples contain values missing from the "
                      "schema."
@@ -333,6 +333,72 @@ SET_REMOVE_ANOMALY_TYPES_DOES_NOT_CHANGE_PROTO_TESTS = [
                 }
               }"""
     }
+]
+ANOMALIES_SLICER_TESTS = [
+    {
+        'testcase_name': 'multiple_anomaly_reasons',
+        'input_anomalies_proto_text': """
+           anomaly_info {
+             key: "feature_1"
+             value {
+                  description: "Expected bytes but got string. Examples contain "
+                    "values missing from the schema."
+                  severity: ERROR
+                  short_description: "Multiple errors"
+                  reason {
+                    type: ENUM_TYPE_BYTES_NOT_STRING
+                    short_description: "Bytes not string"
+                    description: "Expected bytes but got string."
+                  }
+                  reason {
+                    type: ENUM_TYPE_UNEXPECTED_STRING_VALUES
+                    short_description: "Unexpected string values"
+                    description: "Examples contain values missing from the schema."
+                  }
+              }
+            }""",
+        'expected_slice_keys': ['feature_1_ENUM_TYPE_BYTES_NOT_STRING',
+                                'feature_1_ENUM_TYPE_UNEXPECTED_STRING_VALUES']
+    },
+    {
+        'testcase_name': 'multiple_features',
+        'input_anomalies_proto_text': """
+             anomaly_info {
+               key: "feature_1"
+               value {
+                  description: "Expected bytes but got string. Examples "
+                    "contain values missing from the schema."
+                  severity: ERROR
+                  short_description: "Multiple errors"
+                  reason {
+                    type: ENUM_TYPE_BYTES_NOT_STRING
+                    short_description: "Bytes not string"
+                    description: "Expected bytes but got string."
+                  }
+                }
+              }
+            anomaly_info {
+              key: "feature_2"
+              value {
+                description: "Examples contain values missing from the schema."
+                severity: ERROR
+                short_description: "Unexpected string values"
+                reason {
+                  type: ENUM_TYPE_UNEXPECTED_STRING_VALUES
+                  short_description: "Unexpected string values"
+                  description: "Examples contain values missing from the "
+                    "schema."
+                }
+              }
+            }""",
+        'expected_slice_keys': ['feature_1_ENUM_TYPE_BYTES_NOT_STRING',
+                                'feature_2_ENUM_TYPE_UNEXPECTED_STRING_VALUES']
+    },
+    {
+        'testcase_name': 'no_anomalies',
+        'input_anomalies_proto_text': '',
+        'expected_slice_keys': []
+    },
 ]
 
 
@@ -366,6 +432,15 @@ class AnomaliesUtilTest(parameterized.TestCase):
     compare.assertProtoEqual(self, input_anomalies_proto,
                              expected_anomalies_proto)
 
+
+  @parameterized.named_parameters(*ANOMALIES_SLICER_TESTS)
+  def test_anomalies_slicer(self, input_anomalies_proto_text,
+                            expected_slice_keys):
+    example = {}
+    anomalies = text_format.Parse(input_anomalies_proto_text,
+                                  anomalies_pb2.Anomalies())
+    slice_keys = anomalies_util.anomalies_slicer(example, anomalies)
+    self.assertCountEqual(slice_keys, expected_slice_keys)
 
 
 if __name__ == '__main__':

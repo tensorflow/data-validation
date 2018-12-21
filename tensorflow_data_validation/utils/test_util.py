@@ -93,29 +93,15 @@ def make_dataset_feature_stats_list_proto_equal_fn(
   return _matcher
 
 
-def assert_feature_proto_equal_with_error_on_custom_stats(
-    test,
-    actual,
-    expected,
-    relative_error_threshold = 0.05,
-    absolute_error_threshold = 0.05):
-  """Compares feature protos and ensures custom stats are almost equal.
-
-  A numeric custom stat is almost equal if
-  expected * (1 - relative_error_threshold) - absolute_error_threshold < actual
-  AND
-  actual < expected * (1 + relative_error_threshold) + absolute_error_threshold
-
-  All other proto fields are compared directly.
+def assert_feature_proto_equal(
+    test, actual,
+    expected):
+  """Ensures feature protos are equal.
 
   Args:
     test: The test case.
     actual: The actual feature proto.
     expected: The expected feature proto.
-    relative_error_threshold: The relative error permitted between custom stats
-      in expected and actual.
-    absolute_error_threshold: The absolute error permitted between custom stats
-      in expected and actual.
   """
 
   test.assertEqual(len(actual.custom_stats), len(expected.custom_stats))
@@ -123,24 +109,16 @@ def assert_feature_proto_equal_with_error_on_custom_stats(
   for expected_custom_stat in expected.custom_stats:
     expected_custom_stats[expected_custom_stat.name] = expected_custom_stat
 
-  for i, actual_custom_stat in enumerate(actual.custom_stats):
+  for actual_custom_stat in actual.custom_stats:
     test.assertTrue(actual_custom_stat.name in expected_custom_stats)
     expected_custom_stat = expected_custom_stats[actual_custom_stat.name]
-    # Compare numeric custom stats with error margin
-    if actual_custom_stat.WhichOneof(
-        'val') == 'num' and expected_custom_stat.WhichOneof('val') == 'num':
-      test.assertBetween(
-          actual_custom_stat.num,
-          expected_custom_stat.num * (1 - relative_error_threshold) -
-          absolute_error_threshold,
-          expected_custom_stat.num * (1 + relative_error_threshold) +
-          absolute_error_threshold,
-          msg=actual_custom_stat.name + ' is not within the expected range.')
-      del actual.custom_stats[i]
-      del expected.custom_stats[i]
+    compare.assertProtoEqual(
+        test, actual_custom_stat, expected_custom_stat, normalize_numbers=True)
+  del actual.custom_stats[:]
+  del expected.custom_stats[:]
 
-    # Compare the rest of the proto without numeric custom stats
-    compare.assertProtoEqual(test, actual, expected, normalize_numbers=True)
+  # Compare the rest of the proto without numeric custom stats
+  compare.assertProtoEqual(test, actual, expected, normalize_numbers=True)
 
 
 def assert_dataset_feature_stats_proto_equal(
@@ -166,8 +144,7 @@ def assert_dataset_feature_stats_proto_equal(
   for feature in actual.features:
     if feature.name not in expected_features:
       raise AssertionError
-    compare.assertProtoEqual(
-        test, feature, expected_features[feature.name], normalize_numbers=True)
+    assert_feature_proto_equal(test, feature, expected_features[feature.name])
 
 
 class CombinerStatsGeneratorTest(absltest.TestCase):
@@ -240,7 +217,7 @@ class TransformStatsGeneratorTest(absltest.TestCase):
 
       def _equal(actual_results):
         """Matcher for comparing a list of DatasetFeatureStatistics protos."""
-        test.assertEquals(len(expected_results), len(actual_results))
+        test.assertLen(expected_results, len(actual_results))
         # Sort both list of protos based on their string presentation to make
         # sure the sort is stable.
         sorted_expected_results = sorted(expected_results, key=str)
