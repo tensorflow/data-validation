@@ -98,13 +98,13 @@ google_cloud_options.staging_location = GCS_STAGING_LOCATION
 google_cloud_options.temp_location = GCS_TMP_LOCATION
 options.view_as(StandardOptions).runner = 'DataflowRunner'
 
-setup_options = pipeline_options.view_as(SetupOptions)
+setup_options = options.view_as(SetupOptions)
 # PATH_TO_WHL_FILE should point to the downloaded tfdv wheel file.
 setup_options.extra_packages = [PATH_TO_WHL_FILE]
 
 tfdv.generate_statistics_from_tfrecord(GCS_DATA_LOCATION,
                                        output_path=GCS_STATS_OUTPUT_PATH,
-                                       pipeline_options=pipeline_options)
+                                       pipeline_options=options)
 
 ```
 
