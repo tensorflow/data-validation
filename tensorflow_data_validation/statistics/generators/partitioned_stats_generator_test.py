@@ -123,16 +123,18 @@ class AssignToPartitionTest(absltest.TestCase):
     """
 
     np.random.seed(TEST_SEED)
-    batch = {'a': np.random.randint(0, 3, (4500, 1))}
+    examples = [{'a': x} for x in np.random.randint(0, 3, (4500, 1))]
     num_partitions = 3
 
     # The i,jth value of result represents the number of examples with value j
     # assigned to partition i.
     result = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
 
-    for partition_key, example in (
-        partitioned_stats_generator._assign_to_partition(batch,
-                                                         num_partitions)):
+    partitioned_examples = [
+        partitioned_stats_generator._assign_to_partition(example,
+                                                         num_partitions)
+        for example in examples]
+    for partition_key, example in partitioned_examples:
       result[partition_key][example['a'][0]] += 1
 
     for partition in result:
@@ -265,85 +267,53 @@ class NonStreamingCustomStatsGeneratorTest(
     # itself are included in sklearn_mutual_information_test.
 
     # fa is categorical, fb is numeric, fc is multivalent and fd has null values
-    batches = [{
-        'fa':
-            np.array([
-                np.array(['Red']),
-                np.array(['Green']),
-                np.array(['Blue']),
-                np.array(['Green'])
-            ]),
-        'fb':
-            np.array([
-                np.array([1.0]),
-                np.array([2.2]),
-                np.array([3.3]),
-                np.array([1.3])
-            ]),
-        'fc':
-            np.array([
-                np.array([1, 3, 1]),
-                np.array([2, 6]),
-                np.array([4, 6]),
-                None
-            ]),
-        'fd':
-            np.array([
-                np.array([0.4]),
-                np.array([0.4]),
-                np.array([0.3]),
-                np.array([0.2])
-            ]),
-        'label_key':
-            np.array([
-                np.array(['Label']),
-                np.array(['Label']),
-                np.array(['Label']),
-                np.array(['Label'])
-            ])
-    },
-               {
-                   'fa':
-                       np.array([
-                           np.array(['Red']),
-                           np.array(['Blue']),
-                           np.array(['Blue']),
-                           np.array(['Green']),
-                           np.array(['Green'])
-                       ]),
-                   'fb':
-                       np.array([
-                           np.array([1.2]),
-                           np.array([0.5]),
-                           np.array([1.3]),
-                           np.array([2.3]),
-                           np.array([0.3])
-                       ]),
-                   'fc':
-                       np.array([
-                           np.array([1]),
-                           np.array([3, 2]),
-                           np.array([1, 4]),
-                           np.array([0]),
-                           np.array([3])
-                       ]),
-                   'fd':
-                       np.array([
-                           np.array([0.3]),
-                           np.array([0.4]),
-                           np.array([1.7]),
-                           np.array([np.NaN]),
-                           np.array([4.4])
-                       ]),
-                   'label_key':
-                       np.array([
-                           np.array(['Label']),
-                           np.array(['Label']),
-                           np.array(['Label']),
-                           np.array(['Label']),
-                           np.array(['Label'])
-                       ])
-               }]
+    examples = [
+        {'fa': np.array(['Red']),
+         'fb': np.array([1.0]),
+         'fc': np.array([1, 3, 1]),
+         'fd': np.array([0.4]),
+         'label_key': np.array(['Label'])},
+        {'fa': np.array(['Green']),
+         'fb': np.array([2.2]),
+         'fc': np.array([2, 6]),
+         'fd': np.array([0.4]),
+         'label_key': np.array(['Label'])},
+        {'fa': np.array(['Blue']),
+         'fb': np.array([3.3]),
+         'fc': np.array([4, 6]),
+         'fd': np.array([0.3]),
+         'label_key': np.array(['Label'])},
+        {'fa': np.array(['Green']),
+         'fb': np.array([1.3]),
+         'fc': None,
+         'fd': np.array([0.2]),
+         'label_key': np.array(['Label'])},
+        {'fa': np.array(['Red']),
+         'fb': np.array([1.2]),
+         'fc': np.array([1]),
+         'fd': np.array([0.3]),
+         'label_key': np.array(['Label'])},
+        {'fa': np.array(['Blue']),
+         'fb': np.array([0.5]),
+         'fc': np.array([3, 2]),
+         'fd': np.array([0.4]),
+         'label_key': np.array(['Label'])},
+        {'fa': np.array(['Blue']),
+         'fb': np.array([1.3]),
+         'fc': np.array([1, 4]),
+         'fd': np.array([1.7]),
+         'label_key': np.array(['Label'])},
+        {'fa': np.array(['Green']),
+         'fb': np.array([2.3]),
+         'fc': np.array([0]),
+         'fd': np.array([np.NaN]),
+         'label_key': np.array(['Label'])},
+        {'fa': np.array(['Green']),
+         'fb': np.array([0.3]),
+         'fc': np.array([3]),
+         'fd': np.array([4.4]),
+         'label_key': np.array(['Label'])}
+    ]
 
     schema = text_format.Parse(
         """
@@ -557,7 +527,7 @@ class NonStreamingCustomStatsGeneratorTest(
         seed=TEST_SEED,
         max_examples_per_partition=1000,
         name='NonStreaming Mutual Information')
-    self.assertTransformOutputEqual(batches, generator, expected_result)
+    self.assertTransformOutputEqual(examples, generator, expected_result)
 
 if __name__ == '__main__':
   absltest.main()

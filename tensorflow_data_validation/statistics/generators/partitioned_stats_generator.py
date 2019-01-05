@@ -31,7 +31,7 @@ from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import batch_util
 from tensorflow_data_validation.utils import stats_util
-from tensorflow_data_validation.types_compat import Dict, Generator, List, Optional, Tuple
+from tensorflow_data_validation.types_compat import Dict, List, Optional, Tuple
 
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
@@ -70,17 +70,10 @@ def _flatten_examples(batches):
   return result
 
 
-def _assign_to_partition(input_batch, num_partitions
+def _assign_to_partition(example, num_partitions
                         ):
   """Assigns an example to a partition key."""
-  feature_keys = input_batch.keys()
-  # Iterate over all examples
-  for i in range(_num_examples(input_batch)):
-    example = {}
-    for feature_name in feature_keys:
-      example[feature_name] = input_batch[feature_name][i]
-    # Randomly assign it to a partition
-    yield (np.random.randint(num_partitions), example)
+  return np.random.randint(num_partitions), example
 
 
 def _get_partitioned_statistics_summary(
@@ -213,7 +206,7 @@ class PartitionedStatisticsAnalyzer(beam.CombineFn):
 
 # Input type check is commented out, as beam python will fail the type check
 # when input is an empty dict.
-# @beam.typehints.with_input_types(types.ExampleBatch)
+# @beam.typehints.with_input_types(types.Example)
 @beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatistics)
 class _GenerateNonStreamingCustomStats(beam.PTransform):
   """A beam.PTransform that implements NonStreamingCustomStatsGenerator."""
@@ -237,7 +230,7 @@ class _GenerateNonStreamingCustomStats(beam.PTransform):
 
     return (
         pcoll
-        | 'AssignExampleToPartition' >> beam.FlatMap(
+        | 'AssignExampleToPartition' >> beam.Map(
             _assign_to_partition, num_partitions=self._num_partitions)
         | 'GroupPartitionsIntoList' >> beam.CombinePerKey(
             beam.combiners.SampleCombineFn(self._max_examples_per_partition))

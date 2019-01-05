@@ -20,6 +20,7 @@ from __future__ import division
 from __future__ import print_function
 
 import apache_beam as beam
+from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.statistics.generators import common_stats_generator
@@ -31,7 +32,7 @@ from tensorflow_data_validation.statistics.generators import top_k_uniques_combi
 from tensorflow_data_validation.statistics.generators import uniques_stats_generator
 
 from tensorflow_data_validation.utils import batch_util
-from tensorflow_data_validation.types_compat import List, TypeVar
+from tensorflow_data_validation.types_compat import Iterable, List, Optional, TypeVar
 
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
@@ -55,12 +56,6 @@ class GenerateStatisticsImpl(beam.PTransform):
       # Add custom stats generators.
       stats_generators.extend(self._options.generators)
 
-    # Batch the input examples.
-    desired_batch_size = (None if self._options.sample_count is None else
-                          self._options.sample_count)
-    dataset = (dataset | 'BatchExamples' >> batch_util.BatchExamples(
-        desired_batch_size=desired_batch_size))
-
     # If a set of whitelist features are provided, keep only those features.
     if self._options.feature_whitelist:
       dataset |= ('RemoveNonWhitelistedFeatures' >> beam.Map(
@@ -77,7 +72,7 @@ class GenerateStatisticsImpl(beam.PTransform):
         result_protos.append(
             dataset
             | generator.name >> beam.CombineGlobally(
-                _CombineFnWrapper(generator)))
+                _BatchedCombineFnWrapper(generator)).with_fanout(16))
       elif isinstance(generator, stats_generator.TransformStatsGenerator):
         result_protos.append(
             dataset
@@ -92,7 +87,8 @@ class GenerateStatisticsImpl(beam.PTransform):
     # protos. We now flatten the list of PCollections into a single PCollection,
     # then merge the DatasetFeatureStatistics protos in the PCollection into a
     # single DatasetFeatureStatisticsList proto.
-    return (result_protos | 'FlattenFeatureStatistics' >> beam.Flatten()
+    return (result_protos
+            | 'FlattenFeatureStatistics' >> beam.Flatten()
             | 'MergeDatasetFeatureStatisticsProtos' >>
             beam.CombineGlobally(_merge_dataset_feature_stats_protos)
             | 'MakeDatasetFeatureStatisticsListProto' >>
@@ -149,21 +145,21 @@ def _get_default_generators(
 
 
 def _filter_features(
-    batch,
+    example,
     feature_whitelist):
   """Remove features that are not whitelisted.
 
   Args:
-    batch: A dict containing the input batch of examples.
+    example: Input example.
     feature_whitelist: A list of feature names to whitelist.
 
   Returns:
-    A dict containing only the whitelisted features of the input batch.
+    An example containing only the whitelisted features of the input example.
   """
   return {
-      feature_name: batch[feature_name]
+      feature_name: example[feature_name]
       for feature_name in feature_whitelist
-      if feature_name in batch
+      if feature_name in example
   }
 
 
@@ -241,8 +237,7 @@ def _make_dataset_feature_statistics_list_proto(
 
 
 @beam.typehints.with_input_types(types.ExampleBatch)
-@beam.typehints.with_output_types(
-    statistics_pb2.DatasetFeatureStatistics)
+@beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatistics)
 class _CombineFnWrapper(beam.CombineFn):
   """Class to wrap a CombinerStatsGenerator as a beam.CombineFn."""
 
@@ -250,9 +245,6 @@ class _CombineFnWrapper(beam.CombineFn):
       self,
       generator):
     self._generator = generator
-
-  def __reduce__(self):
-    return _CombineFnWrapper, (self._generator,)
 
   def create_accumulator(self
                         ):  # pytype: disable=invalid-annotation
@@ -270,6 +262,121 @@ class _CombineFnWrapper(beam.CombineFn):
       accumulator
   ):  # pytype: disable=invalid-annotation
     return self._generator.extract_output(accumulator)
+
+
+class _BatchedCombineFnAcc(object):
+  """Batched combiner wrapper accumulator."""
+
+  def __init__(self, partial_accumulator):  # pytype: disable=invalid-annotation
+    # Partial accumulator state of the underlying CombinerStatsGenerator.
+    self.partial_accumulator = partial_accumulator
+    # Input examples to be processed.
+    self.input_examples = []
+
+
+@beam.typehints.with_input_types(types.Example)
+@beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatistics)
+class _BatchedCombineFnWrapper(beam.CombineFn):
+  """A beam.CombineFn wrapping CombinerStatsGenerator with batching.
+
+  This wrapper does two things:
+    1. Wraps a combiner stats generator as a beam.CombineFn
+    2. Batches input examples before passing it to the underlying
+       stats generator.
+
+  We do this by accumulating examples in the combiner state until we
+  accumulate a large enough batch, at which point we send them through the
+  add_input step of the underlying combiner stats generator. When merging,
+  we merge the accumulators of the stats generator and accumulate
+  examples accordingly. We finally process any remaining examples
+  before producing the final output value.
+
+  This wrapper is needed to support slicing as we need the ability to
+  perform slice-aware batching. But currently there is no way to do key-aware
+  batching in Beam. Hence, this wrapper does batching and combining together.
+
+  See also:
+  BEAM-3737: Key-aware batching function
+  (https://issues.apache.org/jira/browse/BEAM-3737).
+  """
+
+  # This needs to be large enough to allow for efficient TF invocations during
+  # batch flushing, but shouldn't be too large as it could lead to large amount
+  # of data being shuffled for non-flushed batches.
+  _DEFAULT_DESIRED_BATCH_SIZE = 100
+
+  def __init__(
+      self,
+      generator,
+      desired_batch_size = None):
+    self._generator = generator
+
+    # We really want the batch size to be adaptive like it is in
+    # beam.BatchElements(), but there isn't an easy way to make it so.
+    if desired_batch_size and desired_batch_size > 0:
+      self._desired_batch_size = desired_batch_size
+    else:
+      self._desired_batch_size = self._DEFAULT_DESIRED_BATCH_SIZE
+
+    # Metrics
+    self._combine_batch_size = beam.metrics.Metrics.distribution(
+        constants.METRICS_NAMESPACE,
+        'combine_batch_size_' + self._generator.name)
+    self._num_compacts = beam.metrics.Metrics.counter(
+        constants.METRICS_NAMESPACE, 'num_compacts_' + self._generator.name)
+
+  def create_accumulator(self
+                        ):  # pytype: disable=invalid-annotation
+    return _BatchedCombineFnAcc(self._generator.create_accumulator())
+
+  def _maybe_do_batch(self, accumulator,
+                      force = False):
+    """Maybe update accumulator in place.
+
+    Checks if accumulator has enough examples for a batch, and if so, does the
+    stats computation for the batch and updates accumulator in place.
+
+    Args:
+      accumulator: Accumulator. Will be updated in place.
+      force: Force computation of stats even if accumulator has less examples
+        than the batch size.
+    """
+    batch_size = len(accumulator.input_examples)
+    if (force and batch_size > 0) or batch_size >= self._desired_batch_size:
+      self._combine_batch_size.update(batch_size)
+      accumulator.partial_accumulator = self._generator.add_input(
+          accumulator.partial_accumulator,
+          batch_util.merge_single_batch(accumulator.input_examples))
+      del accumulator.input_examples[:]  # Clear processed examples.
+
+  def add_input(self, accumulator,
+                input_example):
+    accumulator.input_examples.append(input_example)
+    self._maybe_do_batch(accumulator)
+    return accumulator
+
+  def merge_accumulators(self, accumulators
+                        ):
+    result = self.create_accumulator()
+    for acc in accumulators:
+      result.partial_accumulator = self._generator.merge_accumulators(
+          [result.partial_accumulator, acc.partial_accumulator])
+      result.input_examples.extend(acc.input_examples)
+      self._maybe_do_batch(result)
+    return result
+
+  def compact(self, accumulator):
+    self._maybe_do_batch(accumulator, force=True)
+    self._num_compacts.inc(1)
+    return accumulator
+
+  def extract_output(
+      self,
+      accumulator
+  ):  # pytype: disable=invalid-annotation
+    # Make sure we have processed all the examples.
+    self._maybe_do_batch(accumulator, force=True)
+    return self._generator.extract_output(accumulator.partial_accumulator)
 
 
 def generate_statistics_in_memory(

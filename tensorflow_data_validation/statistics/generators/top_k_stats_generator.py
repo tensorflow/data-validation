@@ -23,11 +23,9 @@ import collections
 import logging
 import apache_beam as beam
 import numpy as np
-import six
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import schema_util
-from tensorflow_data_validation.utils import stats_util
 from tensorflow_data_validation.utils.stats_util import get_feature_type
 from tensorflow_data_validation.types_compat import Iterator, List, Optional, Set, Text, Tuple, Union
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -114,8 +112,7 @@ def make_feature_stats_proto_with_topk_stats(
 def _make_dataset_feature_stats_proto_with_single_feature(
     feature_name_to_value_count_list,
     categorical_features, is_weighted_stats,
-    num_top_values,
-    num_rank_histogram_buckets):
+    num_top_values, num_rank_histogram_buckets):
   """Makes a DatasetFeatureStatistics containing one single feature."""
   result = statistics_pb2.DatasetFeatureStatistics()
   result.features.add().CopyFrom(
@@ -124,22 +121,22 @@ def _make_dataset_feature_stats_proto_with_single_feature(
           feature_name_to_value_count_list[1],
           feature_name_to_value_count_list[0] in categorical_features,
           is_weighted_stats, num_top_values, num_rank_histogram_buckets))
-  return result
+  return result.SerializeToString()
 
 
-def _unbatch_input_to_feature_values_with_weights(
-    input_batch,
+def _convert_input_to_feature_values_with_weights(
+    example,
     categorical_features,
     weight_feature = None
 ):
-  """Unbatches the input to output tuples containing feature values and weights.
+  """Converts input example to tuples containing feature values and weights.
 
-  Specifically, iterates over all the STRING features in the input batch and
+  Specifically, iterates over all the STRING features in the input example and
   outputs tuples containing feature name, feature value and the weight
   associated with the value (if a weight feature is provided).
 
   Args:
-    input_batch: Current batch of examples.
+    example: Input example.
     categorical_features: Set of names of categorical features.
     weight_feature: Name of the weight feature. None if there is no
         weight feature.
@@ -148,31 +145,30 @@ def _unbatch_input_to_feature_values_with_weights(
     A tuple (feature_name, feature_value_list, optional weight).
   """
   if weight_feature is not None:
-    weights = stats_util.get_weight_feature(input_batch, weight_feature)
+    weight = example[weight_feature][0]
 
-  for feature_name, values_batch in six.iteritems(input_batch):
+  for feature_name, values in example.items():
     if feature_name == weight_feature:
       continue
 
     is_categorical = feature_name in categorical_features
-    for i, values in enumerate(values_batch):
-      # Check if we have a numpy array with at least one value.
-      if not isinstance(values, np.ndarray) or values.size == 0:
-        continue
-      # If the feature is neither categorical nor of string type, then
-      # skip the feature.
-      if not (is_categorical or
-              get_feature_type(values.dtype) ==
-              statistics_pb2.FeatureNameStatistics.STRING):
-        continue
+    # Check if we have a numpy array with at least one value.
+    if not isinstance(values, np.ndarray) or values.size == 0:
+      continue
+    # If the feature is neither categorical nor of string type, then
+    # skip the feature.
+    if not (is_categorical or
+            get_feature_type(values.dtype) ==
+            statistics_pb2.FeatureNameStatistics.STRING):
+      continue
 
-      yield _FeatureNameAndValueListWithWeight(
-          feature_name,
-          values.astype(str) if is_categorical else values,
-          weights[i][0] if weight_feature else None)
+    yield _FeatureNameAndValueListWithWeight(
+        feature_name,
+        values.astype(str) if is_categorical else values,
+        weight if weight_feature else None)
 
 
-_StringFeatureValue = Union[Text, bytes]  # pylint: disable=invalid-name
+_StringFeatureValue = Union[Text, bytes]
 
 
 def _flatten_value_list(
@@ -221,7 +217,7 @@ def _feature_value_count_comparator(a,
 
 # Input type check is commented out, as beam python will fail the type check
 # when input is an empty dict.
-# @beam.typehints.with_input_types(types.ExampleBatch)
+# @beam.typehints.with_input_types(types.Example)
 @beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatistics)
 class _ComputeTopKStats(beam.PTransform):
   """A ptransform that computes the top-k most frequent feature values for
@@ -250,14 +246,14 @@ class _ComputeTopKStats(beam.PTransform):
 
   def expand(self, pcoll):
     """Computes top-k most frequent values for string features."""
-    # Convert input batch to tuples of form
+    # Convert input example to tuples of form
     # (feature_name, feature_value_list, optional weight)
     # corresponding to each example.
     feature_values_with_weights = (
         pcoll
-        | 'TopK_UnbatchInputToFeatureValuesWithWeights' >>
+        | 'TopK_ConvertInputToFeatureValuesWithWeights' >>
         beam.FlatMap(
-            _unbatch_input_to_feature_values_with_weights,
+            _convert_input_to_feature_values_with_weights,
             categorical_features=self._categorical_features,
             weight_feature=self._weight_feature).with_output_types(
                 beam.typehints.KV[types.BeamFeatureName, np.ndarray]))
@@ -288,6 +284,7 @@ class _ComputeTopKStats(beam.PTransform):
             is_weighted_stats=False,
             num_top_values=self._num_top_values,
             num_rank_histogram_buckets=self._num_rank_histogram_buckets))
+
     result_protos.append(topk)
 
     # If a weight feature is provided, find the weighted topk values for each
@@ -318,7 +315,15 @@ class _ComputeTopKStats(beam.PTransform):
               num_rank_histogram_buckets=self._num_rank_histogram_buckets))
       result_protos.append(weighted_topk)
 
-    return result_protos | 'FlattenTopKResults' >> beam.Flatten()
+    def _deserialize_feature_stats_proto(serialized_feature_stats_proto):
+      result = statistics_pb2.DatasetFeatureStatistics()
+      result.ParseFromString(serialized_feature_stats_proto)
+      return result
+
+    return (result_protos
+            | 'FlattenTopKResults' >> beam.Flatten()
+            | 'DeserializeTopKFeatureStatsProto' >> beam.Map(
+                _deserialize_feature_stats_proto))
 
 
 class TopKStatsGenerator(stats_generator.TransformStatsGenerator):

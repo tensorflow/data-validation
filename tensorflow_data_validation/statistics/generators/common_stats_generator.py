@@ -33,6 +33,7 @@ import sys
 import apache_beam as beam
 import numpy as np
 import six
+from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import quantiles_util
@@ -43,10 +44,6 @@ from tensorflow_data_validation.types_compat import Dict, List, Optional
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
-
-
-# Namespace for all TFDV metrics.
-METRICS_NAMESPACE = 'tfx.DataValidation'
 
 
 class _PartialCommonStats(object):
@@ -291,28 +288,30 @@ def _update_tfdv_telemetry(
                                               max_value_count, total_num_values)
 
   # Update Beam counters.
-  beam_metrics = beam.metrics.Metrics.counter
-  beam_metrics(METRICS_NAMESPACE, 'num_instances').inc(
-      num_instances)
-  beam_metrics(METRICS_NAMESPACE, 'num_missing_feature_values').inc(
+  counter = beam.metrics.Metrics.counter
+  counter(constants.METRICS_NAMESPACE, 'num_instances').inc(num_instances)
+  counter(constants.METRICS_NAMESPACE, 'num_missing_feature_values').inc(
       num_missing_feature_values)
 
   for feature_type in metrics:
     type_str = statistics_pb2.FeatureNameStatistics.Type.Name(
         feature_type).lower()
     type_metrics = metrics[feature_type]
-    beam_metrics(METRICS_NAMESPACE, 'num_' + type_str + '_feature_values').inc(
-        type_metrics.num_non_missing)
-    beam_metrics(METRICS_NAMESPACE, type_str + '_feature_values_min_count').inc(
-        type_metrics.min_value_count if type_metrics.num_non_missing > 0 else -1
-    )
-    beam_metrics(METRICS_NAMESPACE, type_str + '_feature_values_max_count').inc(
-        type_metrics.max_value_count if type_metrics.num_non_missing > 0 else -1
-    )
-    beam_metrics(
-        METRICS_NAMESPACE, type_str + '_feature_values_mean_count').inc(
+    counter(constants.METRICS_NAMESPACE,
+            'num_' + type_str + '_feature_values').inc(
+                type_metrics.num_non_missing)
+    is_present = type_metrics.num_non_missing > 0
+    counter(constants.METRICS_NAMESPACE,
+            type_str + '_feature_values_min_count').inc(
+                type_metrics.min_value_count if is_present else -1)
+    counter(constants.METRICS_NAMESPACE,
+            type_str + '_feature_values_max_count').inc(
+                type_metrics.max_value_count if is_present else -1)
+    counter(
+        constants.METRICS_NAMESPACE,
+        type_str + '_feature_values_mean_count').inc(
             int(type_metrics.total_num_values/type_metrics.num_non_missing)
-            if type_metrics.num_non_missing > 0 else -1)
+            if is_present else -1)
 
 
 class CommonStatsGenerator(stats_generator.CombinerStatsGenerator):

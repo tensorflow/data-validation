@@ -24,6 +24,7 @@ from absl.testing import parameterized
 import apache_beam as beam
 from apache_beam.testing import util
 import numpy as np
+from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options
@@ -851,7 +852,7 @@ class StatsImplTest(parameterized.TestCase):
 
     num_metrics = len(
         result_metrics.query(beam.metrics.metric.MetricsFilter().with_namespace(
-            common_stats_generator.METRICS_NAMESPACE))['counters'])
+            constants.METRICS_NAMESPACE))['counters'])
     self.assertEqual(num_metrics, 14)
 
     expected_result = {
@@ -873,7 +874,7 @@ class StatsImplTest(parameterized.TestCase):
     # Check number of counters.
     actual_metrics = result_metrics.query(
         beam.metrics.metric.MetricsFilter().with_namespace(
-            common_stats_generator.METRICS_NAMESPACE))['counters']
+            constants.METRICS_NAMESPACE))['counters']
     self.assertLen(actual_metrics, len(expected_result))
 
     # Check each counter.

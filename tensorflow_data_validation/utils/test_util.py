@@ -205,7 +205,7 @@ class TransformStatsGeneratorTest(absltest.TestCase):
   # Runs the provided transform statistics generator and tests if the output
   # matches the expected result.
   def assertTransformOutputEqual(
-      self, batches,
+      self, examples,
       generator,
       expected_results):
     """Tests a transform statistics generator."""
@@ -232,5 +232,5 @@ class TransformStatsGeneratorTest(absltest.TestCase):
       return _equal
 
     with beam.Pipeline() as p:
-      result = p | beam.Create(batches) | generator.ptransform
+      result = p | beam.Create(examples) | generator.ptransform
       util.assert_that(result, _make_result_matcher(self, expected_results))
