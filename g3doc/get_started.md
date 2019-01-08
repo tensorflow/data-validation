@@ -302,7 +302,7 @@ examples with feature `payement_type` having value `Cash`, this produces a skew
 anomaly
 
 ```python
-   payment_type  High Linfty distance between serving and training  The Linfty distance between serving and training is 0.0435984 (up to six significant digits), above the threshold 0.01. The feature value with maximum difference is: Cash
+   payment_type  High L-infinity distance between serving and training  The L-infinity distance between serving and training is 0.0435984 (up to six significant digits), above the threshold 0.01. The feature value with maximum difference is: Cash
 ```
 
 If the anomaly truly indicates a skew between training and serving data, then

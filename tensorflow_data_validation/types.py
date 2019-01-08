@@ -10,6 +10,7 @@ import numpy as np
 
 from tensorflow_data_validation.types_compat import Callable, Dict, List, Optional, Text, Union
 
+# Type of the feature name we support in the input batch.
 FeatureName = Union[bytes, Text]
 
 # Feature type enum value.
@@ -27,7 +28,6 @@ SliceKey = Union[bytes, Text]
 # Type of list of slice keys.
 SliceKeysList = List[SliceKey]
 
-# pylint: enable=invalid-name
 
 # For use in Beam type annotations, because Beam's support for Python types
 # in Beam type annotations is not complete.

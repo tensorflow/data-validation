@@ -23,6 +23,7 @@
 * Add utility methods `write_schema_text` and `load_schema_text` to write and load the schema protocol buffer.
 * Add option to compute statistics over a sample.
 * Optimize performance of statistics computation (~2x improvement on benchmark datasets).
+* Added Getting Started Example Colab and removed previous Jupyter notebook
 
 ## Bug Fixes and Other Changes
 

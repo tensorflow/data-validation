@@ -32,10 +32,8 @@ from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 # Type for representing a CSV record and a field value.
-# pylint: disable=invalid-name
 CSVRecord = Union[bytes, Text]
 CSVCell = Union[bytes, Text]
-# pylint: enable=invalid-name
 
 # Named tuple with column name and its type.
 ColumnInfo = collections.namedtuple('ColumnInfo', ['name', 'type'])

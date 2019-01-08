@@ -21,12 +21,11 @@ from __future__ import print_function
 
 import apache_beam as beam
 import numpy as np
-import six
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils.stats_util import get_feature_type
-from tensorflow_data_validation.types_compat import Generator, Optional, Set, Tuple
+from tensorflow_data_validation.types_compat import Iterator, Optional, Set, Tuple
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
@@ -61,7 +60,7 @@ def _make_dataset_feature_stats_proto_with_single_feature(
 
 # Input type check is commented out, as beam python will fail the type check
 # when input is an empty dict.
-# @beam.typehints.with_input_types(types.ExampleBatch)
+# @beam.typehints.with_input_types(types.Example)
 @beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatistics)
 class _UniquesStatsGeneratorImpl(beam.PTransform):
   """A PTransform that computes the number of unique values
@@ -78,22 +77,21 @@ class _UniquesStatsGeneratorImpl(beam.PTransform):
         schema_util.get_categorical_numeric_features(schema) if schema else [])
 
   def _filter_irrelevant_features(
-      self, input_batch
+      self, example
   ):
     """Filters out non-string features."""
-    for feature_name, values_batch in six.iteritems(input_batch):
+    for feature_name, values in example.items():
       is_categorical = feature_name in self._categorical_features
-      for values in values_batch:
-        # Check if we have a numpy array with at least one value.
-        if not isinstance(values, np.ndarray) or values.size == 0:
-          continue
-        # If the feature is neither categorical nor of string type, then
-        # skip the feature.
-        if not (is_categorical or get_feature_type(
-            values.dtype) == statistics_pb2.FeatureNameStatistics.STRING):
-          continue
+      # Check if we have a numpy array with at least one value.
+      if not isinstance(values, np.ndarray) or values.size == 0:
+        continue
+      # If the feature is neither categorical nor of string type, then
+      # skip the feature.
+      if not (is_categorical or get_feature_type(
+          values.dtype) == statistics_pb2.FeatureNameStatistics.STRING):
+        continue
 
-        yield (feature_name, values.astype(str) if is_categorical else values)
+      yield (feature_name, values.astype(str) if is_categorical else values)
 
   def expand(self, pcoll):
     """Computes number of unique values for string features."""

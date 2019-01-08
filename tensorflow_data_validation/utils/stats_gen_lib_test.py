@@ -117,11 +117,11 @@ class StatsGenTest(absltest.TestCase):
             num_values_histogram {
               buckets {
                 low_value: 1.0
-                high_value: 2.0
+                high_value: 4.0
                 sample_count: 1.5
               }
               buckets {
-                low_value: 2.0
+                low_value: 4.0
                 high_value: 4.0
                 sample_count: 1.5
               }

@@ -31,35 +31,31 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 class UniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
   """Tests for UniquesStatsGenerator."""
 
-  def test_with_empty_batch(self):
-    batches = [{'a': np.array([])}]
-    expected_result = []
-    generator = uniques_stats_generator.UniquesStatsGenerator()
-    self.assertTransformOutputEqual(batches, generator, expected_result)
-
   def test_with_empty_dict(self):
-    batches = [{}]
+    examples = [{}]
     expected_result = []
     generator = uniques_stats_generator.UniquesStatsGenerator()
-    self.assertTransformOutputEqual(batches, generator, expected_result)
+    self.assertTransformOutputEqual(examples, generator, expected_result)
 
   def test_with_empty_list(self):
-    batches = []
+    examples = []
     expected_result = []
     generator = uniques_stats_generator.UniquesStatsGenerator()
-    self.assertTransformOutputEqual(batches, generator, expected_result)
+    self.assertTransformOutputEqual(examples, generator, expected_result)
 
   def test_all_string_features(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
     # fb: 1 'a', 2 'b', 3 'c'
-    batches = [{'fa': np.array([np.array(['a', 'b', 'c', 'e']), None,
-                                np.array(['a', 'c', 'd'])], dtype=np.object),
-                'fb': np.array([np.array(['a', 'c', 'c']), np.array(['b']),
-                                None], dtype=np.object)},
-               {'fa': np.array([np.array(['a', 'a', 'b', 'c', 'd']), None],
-                               dtype=np.object),
-                'fb': np.array([None, np.array(['b', 'c'])],
-                               dtype=np.object)}]
+    examples = [{'fa': np.array(['a', 'b', 'c', 'e']),
+                 'fb': np.array(['a', 'c', 'c'])},
+                {'fa': None,
+                 'fb': np.array(['a', 'c', 'c'])},
+                {'fa': np.array(['a', 'c', 'd']),
+                 'fb': None},
+                {'fa': np.array(['a', 'a', 'b', 'c', 'd']),
+                 'fb': None},
+                {'fa': None,
+                 'fb': np.array(['b', 'c'])}]
     expected_result_fa = text_format.Parse(
         """
       features {
@@ -79,16 +75,14 @@ class UniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         }
       }""", statistics_pb2.DatasetFeatureStatistics())
     generator = uniques_stats_generator.UniquesStatsGenerator()
-    self.assertTransformOutputEqual(batches, generator,
+    self.assertTransformOutputEqual(examples, generator,
                                     [expected_result_fa, expected_result_fb])
 
   def test_single_unicode_feature(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
-    batches = [{'fa': np.array([np.array(['a', 'b', 'c', 'e']),
-                                np.array(['a', 'c', 'd', 'a'])],
-                               dtype=np.unicode_)},
-               {'fa': np.array([np.array(['a', 'b', 'c', 'd'])],
-                               dtype=np.unicode_)}]
+    examples = [{'fa': np.array(['a', 'b', 'c', 'e'], dtype=np.unicode_)},
+                {'fa': np.array(['a', 'c', 'd', 'a'], dtype=np.unicode_)},
+                {'fa': np.array(['a', 'b', 'c', 'd'], dtype=np.unicode_)}]
     expected_result_fa = text_format.Parse(
         """
       features {
@@ -99,17 +93,19 @@ class UniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         }
       }""", statistics_pb2.DatasetFeatureStatistics())
     generator = uniques_stats_generator.UniquesStatsGenerator()
-    self.assertTransformOutputEqual(batches, generator, [expected_result_fa])
+    self.assertTransformOutputEqual(examples, generator, [expected_result_fa])
 
   def test_with_missing_feature(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
     # fb: 1 'a', 1 'b', 2 'c'
-    batches = [{'fa': np.array([np.array(['a', 'b', 'c', 'e']), None,
-                                np.array(['a', 'c', 'd'])], dtype=np.object),
-                'fb': np.array([np.array(['a', 'c', 'c']), np.array(['b']),
-                                None], dtype=np.object)},
-               {'fa': np.array([np.array(['a', 'a', 'b', 'c', 'd']), None],
-                               dtype=np.object)}]
+    examples = [{'fa': np.array(['a', 'b', 'c', 'e']),
+                 'fb': np.array(['a', 'c', 'c'])},
+                {'fa': None,
+                 'fb': np.array(['b'])},
+                {'fa': np.array(['a', 'c', 'd']),
+                 'fb': None},
+                {'fa': np.array(['a', 'a', 'b', 'c', 'd'])},
+                {'fa': None}]
     expected_result_fa = text_format.Parse(
         """
       features {
@@ -129,18 +125,19 @@ class UniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         }
       }""", statistics_pb2.DatasetFeatureStatistics())
     generator = uniques_stats_generator.UniquesStatsGenerator()
-    self.assertTransformOutputEqual(batches, generator,
+    self.assertTransformOutputEqual(examples, generator,
                                     [expected_result_fa, expected_result_fb])
 
   def test_one_numeric_feature(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
-    batches = [{'fa': np.array([np.array(['a', 'b', 'c', 'e']), None,
-                                np.array(['a', 'c', 'd'])], dtype=np.object),
-                'fb': np.array([np.array([1.0, 2.0, 3.0]),
-                                np.array([4.0, 5.0]), None])},
-               {'fa': np.array([np.array(['a', 'a', 'b', 'c', 'd'])],
-                               dtype=np.object),
-                'fb': np.array([None])}]
+    examples = [{'fa': np.array(['a', 'b', 'c', 'e']),
+                 'fb': np.array([1.0, 2.0, 3.0])},
+                {'fa': None,
+                 'fb': np.array([4.0, 5.0])},
+                {'fa': np.array(['a', 'c', 'd']),
+                 'fb': None},
+                {'fa': np.array(['a', 'a', 'b', 'c', 'd']),
+                 'fb': None}]
     expected_result_fa = text_format.Parse(
         """
       features {
@@ -151,12 +148,12 @@ class UniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         }
       }""", statistics_pb2.DatasetFeatureStatistics())
     generator = uniques_stats_generator.UniquesStatsGenerator()
-    self.assertTransformOutputEqual(batches, generator, [expected_result_fa])
+    self.assertTransformOutputEqual(examples, generator, [expected_result_fa])
 
   def test_with_categorical_feature(self):
-    batches = [{'fa': np.array([np.array([12, 23, 34, 12]),
-                                np.array([45, 23])])},
-               {'fa': np.array([np.array([12, 12, 34, 45])])}]
+    examples = [{'fa': np.array([12, 23, 34, 12])},
+                {'fa': np.array([45, 23])},
+                {'fa': np.array([12, 12, 34, 45])}]
     expected_result_fa = text_format.Parse(
         """
       features {
@@ -177,7 +174,7 @@ class UniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         }
         """, schema_pb2.Schema())
     generator = uniques_stats_generator.UniquesStatsGenerator(schema=schema)
-    self.assertTransformOutputEqual(batches, generator, [expected_result_fa])
+    self.assertTransformOutputEqual(examples, generator, [expected_result_fa])
 
 if __name__ == '__main__':
   absltest.main()
