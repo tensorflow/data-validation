@@ -177,11 +177,12 @@ def get_statistics_html(
     lhs_name: Name of the lhs_statistics dataset.
     rhs_name: Name of the rhs_statistics dataset.
 
+  Returns:
+    HTML to be embedded for visualization.
+
   Raises:
     TypeError: If the input argument is not of the expected type.
     ValueError: If the input statistics protos does not have only one dataset.
-
-  Returns: HTML to be embedded for visualization
   """
   if not isinstance(lhs_statistics,
                     statistics_pb2.DatasetFeatureStatisticsList):
