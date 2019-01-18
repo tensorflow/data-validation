@@ -255,6 +255,7 @@ class DisplayUtilTest(absltest.TestCase):
     }
     """, statistics_pb2.DatasetFeatureStatisticsList())
 
+    # pylint: disable=line-too-long
     expected_output = """<iframe id='facets-iframe' width="100%" height="500px"></iframe>
         <script>
         facets_iframe = document.getElementById('facets-iframe');
@@ -265,6 +266,7 @@ class DisplayUtilTest(absltest.TestCase):
            facets_iframe.setAttribute('height', facets_iframe.contentWindow.document.body.offsetHeight + 'px')
          }, 1500)
          </script>"""
+    # pylint: enable=line-too-long
 
     display_html = display_util.get_statistics_html(statistics, statistics)
 
