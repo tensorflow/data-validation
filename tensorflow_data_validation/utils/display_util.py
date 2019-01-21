@@ -161,14 +161,14 @@ def display_anomalies(anomalies):
     display(anomalies_df)
 
 
-def visualize_statistics(
+def get_statistics_html(
     lhs_statistics,
     rhs_statistics
      = None,
     lhs_name = 'lhs_statistics',
     rhs_name = 'rhs_statistics'
 ):
-  """Visualize the input statistics using Facets.
+  """Build the HTML for visualizing the input statistics using Facets.
 
   Args:
     lhs_statistics: A DatasetFeatureStatisticsList protocol buffer.
@@ -176,6 +176,9 @@ def visualize_statistics(
         to compare with lhs_statistics.
     lhs_name: Name of the lhs_statistics dataset.
     rhs_name: Name of the rhs_statistics dataset.
+
+  Returns:
+    HTML to be embedded for visualization.
 
   Raises:
     TypeError: If the input argument is not of the expected type.
@@ -245,4 +248,28 @@ def visualize_statistics(
   # pylint: enable=line-too-long
   html = html_template.replace('protostr', protostr)
 
+  return html
+
+def visualize_statistics(
+    lhs_statistics,
+    rhs_statistics
+     = None,
+    lhs_name = 'lhs_statistics',
+    rhs_name = 'rhs_statistics'
+):
+  """Visualize the input statistics using Facets.
+
+  Args:
+    lhs_statistics: A DatasetFeatureStatisticsList protocol buffer.
+    rhs_statistics: An optional DatasetFeatureStatisticsList protocol buffer
+        to compare with lhs_statistics.
+    lhs_name: Name of the lhs_statistics dataset.
+    rhs_name: Name of the rhs_statistics dataset.
+
+  Raises:
+    TypeError: If the input argument is not of the expected type.
+    ValueError: If the input statistics protos does not have only one dataset.
+  """
+  html = get_statistics_html(lhs_statistics, rhs_statistics, lhs_name, rhs_name)
   display(HTML(html))
+
