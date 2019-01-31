@@ -53,7 +53,7 @@ from __future__ import print_function
 
 import apache_beam as beam
 from tensorflow_data_validation import types
-from tensorflow_data_validation.types_compat import Iterable, Optional, TypeVar
+from tensorflow_data_validation.types_compat import Iterable, Optional, Text, TypeVar
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
@@ -80,6 +80,9 @@ class StatsGenerator(object):
   def schema(self):
     return self._schema
 
+# Have a type variable to represent the type of the accumulator
+# in a combiner stats generator.
+ACCTYPE = TypeVar('ACCTYPE')
 
 
 class CombinerStatsGenerator(StatsGenerator):

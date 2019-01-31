@@ -1,6 +1,7 @@
 """TensorFlow Data Validation external dependencies that can be loaded in WORKSPACE files.
 """
 
+load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 load("@org_tensorflow//tensorflow:workspace.bzl", "tf_workspace")
 
 def tf_data_validation_workspace():
@@ -11,9 +12,8 @@ def tf_data_validation_workspace():
     )
 
     # Fetch tf.Metadata repo from GitHub.
-    native.git_repository(
+    git_repository(
         name = "com_github_tensorflow_metadata",
-        # v0.9.0dev
-        commit = "223923d04c75de71ae782c51872d0e14ce7e657d",
+        commit = "59db34716a6b76a15e2f1662442392cda462c4fe",
         remote = "https://github.com/tensorflow/metadata.git",
     )

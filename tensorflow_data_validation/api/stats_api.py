@@ -55,6 +55,7 @@ from tensorflow_data_validation.types_compat import Generator
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
+# TODO(b/112146483): Test the Stats API with unicode input.
 @beam.typehints.with_input_types(types.BeamExample)
 @beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatisticsList)
 class GenerateStatistics(beam.PTransform):
@@ -94,6 +95,8 @@ class GenerateStatistics(beam.PTransform):
 
   def expand(self, dataset):
     # Sample input data if sample_count option is provided.
+    # TODO(b/117229955): Consider providing an option to write the sample
+    # to a file.
     if self._options.sample_count is not None:
       # beam.combiners.Sample.FixedSizeGlobally returns a
       # PCollection[List[types.Example]], which we then flatten to get a
@@ -114,5 +117,7 @@ class GenerateStatistics(beam.PTransform):
 def _sample_at_rate(example, sample_rate
                    ):
   """Sample examples at input sampling rate."""
+  # TODO(pachristopher): Revisit this to decide if we need to fix a seed
+  # or add an optional seed argument.
   if random.random() <= sample_rate:
     yield example

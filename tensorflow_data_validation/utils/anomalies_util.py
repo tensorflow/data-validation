@@ -22,6 +22,7 @@ from tensorflow_data_validation import types
 from tensorflow_data_validation.types_compat import List, Set, Text, Tuple
 from tensorflow_metadata.proto.v0 import anomalies_pb2
 
+# LINT.IfChange
 MULTIPLE_ERRORS_SHORT_DESCRIPTION = 'Multiple errors'
 
 
@@ -38,8 +39,7 @@ def _make_updated_descriptions(
   else:
     return (' '.join([reason.description for reason in reasons]),
             MULTIPLE_ERRORS_SHORT_DESCRIPTION)
-
-
+# LINT.ThenChange(../anomalies/schema_anomalies.cc)
 
 
 def remove_anomaly_types(

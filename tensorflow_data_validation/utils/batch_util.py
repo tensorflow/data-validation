@@ -38,6 +38,8 @@ def merge_single_batch(batch):
   return result
 
 
+# TODO(pachristopher): Consider removing this ptransform as it currently not
+# being used by GenerateStatistics ptransform.
 @beam.ptransform_fn
 @beam.typehints.with_input_types(types.BeamExample)
 @beam.typehints.with_output_types(types.ExampleBatch)

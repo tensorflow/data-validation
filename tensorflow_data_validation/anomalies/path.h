@@ -87,6 +87,10 @@ class Path {
 
   Path GetChild(absl::string_view last_step) const;
 
+  // Returns ("foo", Path({"rest","of", "path"})) if this is
+  // Path({"foo", "rest", "of", "path"}).
+  std::pair<string, Path> PopHead() const;
+
  private:
   // Returns true iff this is equal to p.
   // Part of the implementation of Compare().

@@ -148,6 +148,12 @@ TEST(Path, GetLastStep) {
   EXPECT_EQ("a", Path({"a"}).last_step());
 }
 
+TEST(Path, PopHead) {
+  EXPECT_THAT(Path({"foo", "rest", "of", "path"}).PopHead(),
+              ::testing::Pair("foo", Path({"rest", "of", "path"})));
+  EXPECT_THAT(Path({"foo"}).PopHead(), ::testing::Pair("foo", Path()));
+}
+
 TEST(Path, PrintTo) {
   Path p({"a", "b", "c"});
   std::ostringstream os;

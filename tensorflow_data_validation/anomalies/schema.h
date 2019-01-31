@@ -39,6 +39,7 @@ namespace data_validation {
 
 // This class is used to generate schemas, and to check the validity of data,
 // and to update schemas.
+// See https://github.com/tensorflow/metadata/blob/master/tensorflow_metadata/proto/v0/schema.proto
 // Example:
 // DatasetStatsView statistics; // Original statistics.
 // FeatureStatisticsToProtoConfig config;
@@ -236,6 +237,13 @@ class Schema {
                                                  const FeatureStatsView& view,
                                                  Feature* feature);
 
+  // Validates the dataset_stats of a sparse feature:
+  // - Ensures that referred features are either all present, or all absent.
+  // - If they are present, they have the same length.
+  // If any of the validations fail it deprecates the sparse_feature.
+  // Note that TFDV doesn't generate sparse feature statistics currently.
+  std::vector<Description> UpdateSparseFeature(const FeatureStatsView& view,
+                                               SparseFeature* sparse_feature);
 
   // Note: do not manually add string_domains or features.
   // Call GetNewEnum() or GetNewFeature().

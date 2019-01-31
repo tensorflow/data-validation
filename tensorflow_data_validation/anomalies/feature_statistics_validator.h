@@ -15,6 +15,7 @@ limitations under the License.
 
 // Validates a dataset by identifying anomalies in statistics computed over
 // data with respect to a known dataset schema.
+// TODO(b/113284855): cleanup the multiple APIs.
 #ifndef TENSORFLOW_DATA_VALIDATION_ANOMALIES_FEATURE_STATISTICS_VALIDATOR_H_
 #define TENSORFLOW_DATA_VALIDATION_ANOMALIES_FEATURE_STATISTICS_VALIDATOR_H_
 

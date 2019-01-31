@@ -31,10 +31,12 @@ from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import batch_util
 from tensorflow_data_validation.utils import stats_util
-from tensorflow_data_validation.types_compat import Dict, List, Optional, Tuple
+from tensorflow_data_validation.types_compat import Dict, List, Text, Tuple
 
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
+# TODO(b/117270483): Memory concerns when accumulating ExampleBatches in future
+# call to beam.transforms.combiners.ToList.
 
 
 # Returns the number of examples in the batch.
@@ -70,6 +72,7 @@ def _flatten_examples(batches):
   return result
 
 
+# TODO(b/117937992): Seed RNG so MI and partitioner are determenistic in test
 def _assign_to_partition(example, num_partitions
                         ):
   """Assigns an example to a partition key."""

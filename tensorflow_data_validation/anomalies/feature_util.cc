@@ -45,6 +45,11 @@ ComparatorContext GetContext(ComparatorType comparator_type) {
   }
 }
 
+// TODO(martinz): These functions show that the interface in
+// FeatureStatsView was "too cute", in that I might as well get the appropriate
+// treatment dataset view, and then get the right FeatureStatsView.
+// Should probably remove FeatureStatsView::GetServing and
+// FeatureStatsView::GetPrevious.
 bool HasTreatmentDataset(const FeatureStatsView& stats,
                          ComparatorType comparator_type) {
   switch (comparator_type) {
@@ -195,6 +200,7 @@ std::vector<Description> UpdateFeatureComparatorDirect(
 
   } else if (HasTreatmentDataset(stats, comparator_type)) {
     // Treatment is missing.
+    // TODO(martinz): Consider clearing entire object.
     comparator->mutable_infinity_norm()->clear_threshold();
     return {{tensorflow::metadata::v0::AnomalyInfo::
                  COMPARATOR_TREATMENT_DATA_MISSING,
@@ -211,6 +217,9 @@ double GetMaxOffDomain(const tensorflow::metadata::v0::DistributionConstraints&
              : 0.0;
 }
 
+// TODO(b/117184825): Currently the clear_oneof_name() method is private.
+// Clean up the code to use this method if it is made public or if there is a
+// better way to clear oneof fields.
 void ClearDomain(Feature* feature) {
   feature->mutable_int_domain();
   // Note that this clears the oneof field domain_info.
@@ -252,6 +261,9 @@ void InitValueCountAndPresence(const FeatureStatsView& feature_stats_view,
     feature->mutable_value_count()->set_max(1);
   } else {
     // OPTIONAL
+    // TODO(martinz): notice that min_cardinality_ is set even if
+    // min_num_values() == 0. This is to agree with the current implementation,
+    // but probably should be changed.
     feature->mutable_value_count()->set_min(1);
     feature->mutable_value_count()->set_max(1);
   }
@@ -289,6 +301,7 @@ std::vector<Description> UpdatePresence(
         // such that floating point error can hide it. We treat this case
         // separately, and set a threshold that is numerically distant from
         // 1.0.
+        // TODO(martinz): update the anomaly type here to be unique.
         presence->set_min_fraction(0.9999);
         descriptions.push_back(
             {tensorflow::metadata::v0::AnomalyInfo::

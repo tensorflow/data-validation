@@ -28,8 +28,12 @@ from tensorflow_data_validation.types_compat import List, Optional
 from tensorflow_metadata.proto.v0 import schema_pb2
 
 
+# TODO(b/68277922): Currently we use a single epsilon (error tolerance)
+# parameter for all histograms. Set this parameter specific to each
+# histogram based on the number of buckets.
 
 
+# TODO(b/118833241): Set MI default configs when MI is a default generator
 class StatsOptions(object):
   """Options for generating statistics."""
 
@@ -202,6 +206,9 @@ class StatsOptions(object):
   @num_values_histogram_buckets.setter
   def num_values_histogram_buckets(self,
                                    num_values_histogram_buckets):
+    # TODO(b/120164508): Disallow num_values_histogram_buckets = 1 because it
+    # causes the underlying quantile op to fail. If the quantile op is modified
+    # to support num_quantiles = 1, then allow num_values_histogram_buckets = 1.
     if num_values_histogram_buckets <= 1:
       raise ValueError('Invalid num_values_histogram_buckets %d' %
                        num_values_histogram_buckets)

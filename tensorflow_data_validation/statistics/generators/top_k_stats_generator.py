@@ -322,6 +322,8 @@ class _ComputeTopKStats(beam.PTransform):
 
     return (result_protos
             | 'FlattenTopKResults' >> beam.Flatten()
+            # TODO(b/121152126): This deserialization stage is a workaround.
+            # Remove this once it is no longer needed.
             | 'DeserializeTopKFeatureStatsProto' >> beam.Map(
                 _deserialize_feature_stats_proto))
 

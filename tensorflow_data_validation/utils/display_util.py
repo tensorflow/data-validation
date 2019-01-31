@@ -25,7 +25,7 @@ from IPython.display import display
 from IPython.display import HTML
 import pandas as pd
 from tensorflow_data_validation import types
-from tensorflow_data_validation.types_compat import Optional, Text, Union
+from tensorflow_data_validation.types_compat import Optional, Text
 from tensorflow_metadata.proto.v0 import anomalies_pb2
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -163,8 +163,7 @@ def display_anomalies(anomalies):
 
 def get_statistics_html(
     lhs_statistics,
-    rhs_statistics
-     = None,
+    rhs_statistics = None,
     lhs_name = 'lhs_statistics',
     rhs_name = 'rhs_statistics'
 ):
@@ -172,8 +171,8 @@ def get_statistics_html(
 
   Args:
     lhs_statistics: A DatasetFeatureStatisticsList protocol buffer.
-    rhs_statistics: An optional DatasetFeatureStatisticsList protocol buffer
-        to compare with lhs_statistics.
+    rhs_statistics: An optional DatasetFeatureStatisticsList protocol buffer to
+      compare with lhs_statistics.
     lhs_name: Name of the lhs_statistics dataset.
     rhs_name: Name of the rhs_statistics dataset.
 
@@ -250,19 +249,18 @@ def get_statistics_html(
 
   return html
 
+
 def visualize_statistics(
     lhs_statistics,
-    rhs_statistics
-     = None,
+    rhs_statistics = None,
     lhs_name = 'lhs_statistics',
-    rhs_name = 'rhs_statistics'
-):
+    rhs_name = 'rhs_statistics'):
   """Visualize the input statistics using Facets.
 
   Args:
     lhs_statistics: A DatasetFeatureStatisticsList protocol buffer.
-    rhs_statistics: An optional DatasetFeatureStatisticsList protocol buffer
-        to compare with lhs_statistics.
+    rhs_statistics: An optional DatasetFeatureStatisticsList protocol buffer to
+      compare with lhs_statistics.
     lhs_name: Name of the lhs_statistics dataset.
     rhs_name: Name of the rhs_statistics dataset.
 
@@ -272,4 +270,3 @@ def visualize_statistics(
   """
   html = get_statistics_html(lhs_statistics, rhs_statistics, lhs_name, rhs_name)
   display(HTML(html))
-

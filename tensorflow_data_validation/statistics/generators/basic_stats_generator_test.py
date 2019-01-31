@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests for common statistics generator.
+"""Tests for basic statistics generator.
 """
 
 from __future__ import absolute_import
@@ -21,7 +21,7 @@ from __future__ import print_function
 
 from absl.testing import absltest
 import numpy as np
-from tensorflow_data_validation.statistics.generators import common_stats_generator
+from tensorflow_data_validation.statistics.generators import basic_stats_generator
 from tensorflow_data_validation.utils import test_util
 
 from google.protobuf import text_format
@@ -29,9 +29,9 @@ from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
-class CommonStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
+class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
 
-  def test_common_stats_generator_single_feature(self):
+  def test_basic_stats_generator_single_feature(self):
     # input with two batches: first batch has two examples and second batch
     # has a single example.
     batches = [{'a': np.array([np.array([1.0, 2.0]),
@@ -74,13 +74,61 @@ class CommonStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   type: QUANTILES
                 }
               }
+              mean: 2.66666666
+              std_dev: 1.49071198
+              num_zeros: 0
+              min: 1.0
+              max: 5.0
+              median: 3.0
+              histograms {
+                buckets {
+                  low_value: 1.0
+                  high_value: 2.3333333
+                  sample_count: 2.9866667
+                }
+                buckets {
+                  low_value: 2.3333333
+                  high_value: 3.6666667
+                  sample_count: 1.0066667
+                }
+                buckets {
+                  low_value: 3.6666667
+                  high_value: 5.0
+                  sample_count: 2.0066667
+                }
+                type: STANDARD
+              }
+              histograms {
+                buckets {
+                  low_value: 1.0
+                  high_value: 1.0
+                  sample_count: 1.5
+                }
+                buckets {
+                  low_value: 1.0
+                  high_value: 3.0
+                  sample_count: 1.5
+                }
+                buckets {
+                  low_value: 3.0
+                  high_value: 4.0
+                  sample_count: 1.5
+                }
+                buckets {
+                  low_value: 4.0
+                  high_value: 5.0
+                  sample_count: 1.5
+                }
+                type: QUANTILES
+              }
             }
             """, statistics_pb2.FeatureNameStatistics())}
-    generator = common_stats_generator.CommonStatsGenerator(
-        num_values_histogram_buckets=4)
+    generator = basic_stats_generator.BasicStatsGenerator(
+        num_values_histogram_buckets=4, num_histogram_buckets=3,
+        num_quantiles_histogram_buckets=4)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_common_stats_generator_with_weight_feature(self):
+  def test_basic_stats_generator_with_weight_feature(self):
     # input with two batches: first batch has two examples and second batch
     # has a single example.
     batches = [{'a': np.array([np.array([1.0, 2.0]),
@@ -131,14 +179,107 @@ class CommonStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   tot_num_values: 11.0
                 }
               }
+              mean: 2.66666666
+              std_dev: 1.49071198
+              num_zeros: 0
+              min: 1.0
+              max: 5.0
+              median: 3.0
+              histograms {
+                buckets {
+                  low_value: 1.0
+                  high_value: 2.3333333
+                  sample_count: 2.9866667
+                }
+                buckets {
+                  low_value: 2.3333333
+                  high_value: 3.6666667
+                  sample_count: 1.0066667
+                }
+                buckets {
+                  low_value: 3.6666667
+                  high_value: 5.0
+                  sample_count: 2.0066667
+                }
+                type: STANDARD
+              }
+              histograms {
+                buckets {
+                  low_value: 1.0
+                  high_value: 1.0
+                  sample_count: 1.5
+                }
+                buckets {
+                  low_value: 1.0
+                  high_value: 3.0
+                  sample_count: 1.5
+                }
+                buckets {
+                  low_value: 3.0
+                  high_value: 4.0
+                  sample_count: 1.5
+                }
+                buckets {
+                  low_value: 4.0
+                  high_value: 5.0
+                  sample_count: 1.5
+                }
+                type: QUANTILES
+              }
+              weighted_numeric_stats {
+                mean: 2.7272727
+                std_dev: 1.5427784
+                median: 3.0
+                histograms {
+                  buckets {
+                    low_value: 1.0
+                    high_value: 2.3333333
+                    sample_count: 4.9988889
+                  }
+                  buckets {
+                    low_value: 2.3333333
+                    high_value: 3.6666667
+                    sample_count: 1.9922222
+                  }
+                  buckets {
+                    low_value: 3.6666667
+                    high_value: 5.0
+                    sample_count: 4.0088889
+                  }
+                }
+                histograms {
+                  buckets {
+                    low_value: 1.0
+                    high_value: 1.0
+                    sample_count: 2.75
+                  }
+                  buckets {
+                    low_value: 1.0
+                    high_value: 3.0
+                    sample_count: 2.75
+                  }
+                  buckets {
+                    low_value: 3.0
+                    high_value: 4.0
+                    sample_count: 2.75
+                  }
+                  buckets {
+                    low_value: 4.0
+                    high_value: 5.0
+                    sample_count: 2.75
+                  }
+                  type: QUANTILES
+                }
+              }
             }
             """, statistics_pb2.FeatureNameStatistics())}
-    generator = common_stats_generator.CommonStatsGenerator(
+    generator = basic_stats_generator.BasicStatsGenerator(
         weight_feature='w',
-        num_values_histogram_buckets=4)
+        num_values_histogram_buckets=4, num_histogram_buckets=3,
+        num_quantiles_histogram_buckets=4)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_common_stats_generator_with_entire_feature_value_list_missing(self):
+  def test_basic_stats_generator_with_entire_feature_value_list_missing(self):
     # input with two batches: first batch has three examples and second batch
     # has two examples.
     batches = [{'a': np.array([np.array([1.0, 2.0]), None,
@@ -179,6 +320,53 @@ class CommonStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   type: QUANTILES
                 }
               }
+              mean: 2.66666666
+              std_dev: 1.49071198
+              num_zeros: 0
+              min: 1.0
+              max: 5.0
+              median: 3.0
+              histograms {
+                buckets {
+                  low_value: 1.0
+                  high_value: 2.3333333
+                  sample_count: 2.9866667
+                }
+                buckets {
+                  low_value: 2.3333333
+                  high_value: 3.6666667
+                  sample_count: 1.0066667
+                }
+                buckets {
+                  low_value: 3.6666667
+                  high_value: 5.0
+                  sample_count: 2.0066667
+                }
+                type: STANDARD
+              }
+              histograms {
+                buckets {
+                  low_value: 1.0
+                  high_value: 1.0
+                  sample_count: 1.5
+                }
+                buckets {
+                  low_value: 1.0
+                  high_value: 3.0
+                  sample_count: 1.5
+                }
+                buckets {
+                  low_value: 3.0
+                  high_value: 4.0
+                  sample_count: 1.5
+                }
+                buckets {
+                  low_value: 4.0
+                  high_value: 5.0
+                  sample_count: 1.5
+                }
+                type: QUANTILES
+              }
             }
             """, statistics_pb2.FeatureNameStatistics()),
         'b': text_format.Parse(
@@ -212,18 +400,21 @@ class CommonStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   type: QUANTILES
                 }
               }
+              avg_length: 1.85714285
             }
             """, statistics_pb2.FeatureNameStatistics())}
-    generator = common_stats_generator.CommonStatsGenerator(
-        num_values_histogram_buckets=3)
+    generator = basic_stats_generator.BasicStatsGenerator(
+        num_values_histogram_buckets=3, num_histogram_buckets=3,
+        num_quantiles_histogram_buckets=4)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_common_stats_generator_with_individual_feature_value_missing(self):
+  def test_basic_stats_generator_with_individual_feature_value_missing(self):
     # input with two batches: first batch has two examples and second batch
     # has a single example.
-    batches = [{'a': np.array([np.array([1.0, np.NaN]),
-                               np.array([3.0, np.NaN, 5.0])])},
-               {'a': np.array([np.array([np.NaN])])}]
+    batches = [{'a': np.array([np.array([1.0, 2.0]),
+                               np.array([3.0, 4.0, np.NaN, 5.0])])},
+               {'a': np.array([np.array([np.NaN, 1.0])])}]
+
     expected_result = {
         'a': text_format.Parse(
             """
@@ -233,51 +424,97 @@ class CommonStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               common_stats {
                 num_non_missing: 3
                 num_missing: 0
-                min_num_values: 1
-                max_num_values: 3
-                avg_num_values: 2.0
-                tot_num_values: 6
+                min_num_values: 2
+                max_num_values: 4
+                avg_num_values: 2.66666666
+                tot_num_values: 8
                 num_values_histogram {
                   buckets {
-                    low_value: 1.0
-                    high_value: 1.0
-                    sample_count: 0.75
-                  }
-                  buckets {
-                    low_value: 1.0
+                    low_value: 2.0
                     high_value: 2.0
-                    sample_count: 0.75
+                    sample_count: 1.0
                   }
                   buckets {
                     low_value: 2.0
-                    high_value: 3.0
-                    sample_count: 0.75
+                    high_value: 4.0
+                    sample_count: 1.0
                   }
                   buckets {
-                    low_value: 3.0
-                    high_value: 3.0
-                    sample_count: 0.75
+                    low_value: 4.0
+                    high_value: 4.0
+                    sample_count: 1.0
                   }
                   type: QUANTILES
                 }
               }
+              mean: 2.66666666
+              std_dev: 1.49071198
+              num_zeros: 0
+              min: 1.0
+              max: 5.0
+              median: 3.0
+              histograms {
+                num_nan: 2
+                buckets {
+                  low_value: 1.0
+                  high_value: 2.3333333
+                  sample_count: 2.9866667
+                }
+                buckets {
+                  low_value: 2.3333333
+                  high_value: 3.6666667
+                  sample_count: 1.0066667
+                }
+                buckets {
+                  low_value: 3.6666667
+                  high_value: 5.0
+                  sample_count: 2.0066667
+                }
+                type: STANDARD
+              }
+              histograms {
+                num_nan: 2
+                buckets {
+                  low_value: 1.0
+                  high_value: 1.0
+                  sample_count: 1.5
+                }
+                buckets {
+                  low_value: 1.0
+                  high_value: 3.0
+                  sample_count: 1.5
+                }
+                buckets {
+                  low_value: 3.0
+                  high_value: 4.0
+                  sample_count: 1.5
+                }
+                buckets {
+                  low_value: 4.0
+                  high_value: 5.0
+                  sample_count: 1.5
+                }
+                type: QUANTILES
+              }
             }
             """, statistics_pb2.FeatureNameStatistics())}
-    generator = common_stats_generator.CommonStatsGenerator(
-        num_values_histogram_buckets=4)
+    generator = basic_stats_generator.BasicStatsGenerator(
+        num_values_histogram_buckets=3, num_histogram_buckets=3,
+        num_quantiles_histogram_buckets=4)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_common_stats_generator_with_multiple_features(self):
+  def test_basic_stats_generator_with_multiple_features(self):
     # input with two batches: first batch has two examples and second batch
     # has a single example.
     batches = [{'a': np.array([np.array([1.0, 2.0]),
                                np.array([3.0, 4.0, 5.0])]),
                 'b': np.array([np.array(['x', 'y', 'z', 'w']),
                                np.array(['qwe', 'abc'])]),
-                'c': np.array([np.array([1, 5, 10]), np.array([0])])},
+                'c': np.array([np.linspace(1, 1000, 1000, dtype=np.int32),
+                               np.linspace(1001, 2000, 1000, dtype=np.int32)])},
                {'a': np.array([np.array([1.0])]),
                 'b': np.array([np.array(['ab'])]),
-                'c': np.array([np.array([1, 1, 1, 5, 15])])}]
+                'c': np.array([np.linspace(2001, 3000, 1000, dtype=np.int32)])}]
     expected_result = {
         'a': text_format.Parse(
             """
@@ -309,6 +546,53 @@ class CommonStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   }
                   type: QUANTILES
                 }
+              }
+              mean: 2.66666666
+              std_dev: 1.49071198
+              num_zeros: 0
+              min: 1.0
+              max: 5.0
+              median: 3.0
+              histograms {
+                buckets {
+                  low_value: 1.0
+                  high_value: 2.3333333
+                  sample_count: 2.9866667
+                }
+                buckets {
+                  low_value: 2.3333333
+                  high_value: 3.6666667
+                  sample_count: 1.0066667
+                }
+                buckets {
+                  low_value: 3.6666667
+                  high_value: 5.0
+                  sample_count: 2.0066667
+                }
+                type: STANDARD
+              }
+              histograms {
+                buckets {
+                  low_value: 1.0
+                  high_value: 1.0
+                  sample_count: 1.5
+                }
+                buckets {
+                  low_value: 1.0
+                  high_value: 3.0
+                  sample_count: 1.5
+                }
+                buckets {
+                  low_value: 3.0
+                  high_value: 4.0
+                  sample_count: 1.5
+                }
+                buckets {
+                  low_value: 4.0
+                  high_value: 5.0
+                  sample_count: 1.5
+                }
+                type: QUANTILES
               }
             }
             """, statistics_pb2.FeatureNameStatistics()),
@@ -343,6 +627,7 @@ class CommonStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   type: QUANTILES
                 }
               }
+              avg_length: 1.71428571
             }
             """, statistics_pb2.FeatureNameStatistics()),
         'c': text_format.Parse(
@@ -353,36 +638,83 @@ class CommonStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               common_stats {
                 num_non_missing: 3
                 num_missing: 0
-                min_num_values: 1
-                max_num_values: 5
-                avg_num_values: 3.0
-                tot_num_values: 9
+                min_num_values: 1000
+                max_num_values: 1000
+                avg_num_values: 1000.0
+                tot_num_values: 3000
                 num_values_histogram {
                   buckets {
-                    low_value: 1.0
-                    high_value: 3.0
+                    low_value: 1000.0
+                    high_value: 1000.0
                     sample_count: 1.0
                   }
                   buckets {
-                    low_value: 3.0
-                    high_value: 5.0
+                    low_value: 1000.0
+                    high_value: 1000.0
                     sample_count: 1.0
                   }
                   buckets {
-                    low_value: 5.0
-                    high_value: 5.0
+                    low_value: 1000.0
+                    high_value: 1000.0
                     sample_count: 1.0
                   }
                   type: QUANTILES
                 }
               }
+              mean: 1500.5
+              std_dev: 866.025355672
+              min: 1.0
+              max: 3000.0
+              median: 1501.0
+              histograms {
+                buckets {
+                  low_value: 1.0
+                  high_value: 1000.66666667
+                  sample_count: 999.666666667
+                }
+                buckets {
+                  low_value: 1000.66666667
+                  high_value: 2000.33333333
+                  sample_count: 999.666666667
+                }
+                buckets {
+                  low_value: 2000.33333333
+                  high_value: 3000.0
+                  sample_count: 1000.66666667
+                }
+                type: STANDARD
+              }
+              histograms {
+                buckets {
+                  low_value: 1.0
+                  high_value: 751.0
+                  sample_count: 750.0
+                }
+                buckets {
+                  low_value: 751.0
+                  high_value: 1501.0
+                  sample_count: 750.0
+                }
+                buckets {
+                  low_value: 1501.0
+                  high_value: 2251.0
+                  sample_count: 750.0
+                }
+                buckets {
+                  low_value: 2251.0
+                  high_value: 3000.0
+                  sample_count: 750.0
+                }
+                type: QUANTILES
+              }
             }
             """, statistics_pb2.FeatureNameStatistics())}
-    generator = common_stats_generator.CommonStatsGenerator(
-        num_values_histogram_buckets=3, epsilon=0.001)
+    generator = basic_stats_generator.BasicStatsGenerator(
+        num_values_histogram_buckets=3, num_histogram_buckets=3,
+        num_quantiles_histogram_buckets=4, epsilon=0.001)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_common_stats_generator_categorical_feature(self):
+  def test_basic_stats_generator_categorical_feature(self):
     batches = [{'c': np.array([np.array([1, 5, 10]), np.array([0])])},
                {'c': np.array([np.array([1, 1, 1, 5, 15])])}]
     expected_result = {
@@ -417,6 +749,7 @@ class CommonStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   type: QUANTILES
                 }
               }
+              avg_length: 1.22222222
             }
             """, statistics_pb2.FeatureNameStatistics())}
     schema = text_format.Parse(
@@ -429,11 +762,13 @@ class CommonStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
           }
         }
         """, schema_pb2.Schema())
-    generator = common_stats_generator.CommonStatsGenerator(
-        schema=schema, num_values_histogram_buckets=3)
+    generator = basic_stats_generator.BasicStatsGenerator(
+        schema=schema,
+        num_values_histogram_buckets=3, num_histogram_buckets=3,
+        num_quantiles_histogram_buckets=4)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_common_stats_generator_empty_batch(self):
+  def test_basic_stats_generator_empty_batch(self):
     batches = [{'a': np.array([])}]
     expected_result = {
         'a': text_format.Parse(
@@ -448,30 +783,30 @@ class CommonStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               }
             }
             """, statistics_pb2.FeatureNameStatistics())}
-    generator = common_stats_generator.CommonStatsGenerator()
+    generator = basic_stats_generator.BasicStatsGenerator()
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_common_stats_generator_empty_dict(self):
+  def test_basic_stats_generator_empty_dict(self):
     batches = [{}]
     expected_result = {}
-    generator = common_stats_generator.CommonStatsGenerator()
+    generator = basic_stats_generator.BasicStatsGenerator()
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_common_stats_generator_empty_list(self):
+  def test_basic_stats_generator_empty_list(self):
     batches = []
     expected_result = {}
-    generator = common_stats_generator.CommonStatsGenerator()
+    generator = basic_stats_generator.BasicStatsGenerator()
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_common_stats_generator_invalid_value_type(self):
+  def test_basic_stats_generator_invalid_value_type(self):
     batches = [{'a': np.array([{}])}]
-    generator = common_stats_generator.CommonStatsGenerator()
+    generator = basic_stats_generator.BasicStatsGenerator()
     with self.assertRaises(TypeError):
       self.assertCombinerOutputEqual(batches, generator, None)
 
-  def test_common_stats_generator_invalid_value_numpy_dtype(self):
+  def test_basic_stats_generator_invalid_value_numpy_dtype(self):
     batches = [{'a': np.array([np.array([1+2j])])}]
-    generator = common_stats_generator.CommonStatsGenerator()
+    generator = basic_stats_generator.BasicStatsGenerator()
     with self.assertRaises(TypeError):
       self.assertCombinerOutputEqual(batches, generator, None)
 

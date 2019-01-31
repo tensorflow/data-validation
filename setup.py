@@ -50,7 +50,13 @@ setup(
         'Programming Language :: Python',
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
+        # TODO(b/110842625): Once we support Python 3, remove this line.
         'Programming Language :: Python :: 2 :: Only',
+        # TODO(b/110842625): Once we support Python 3, uncomment these lines.
+        # 'Programming Language :: Python :: 3',
+        # 'Programming Language :: Python :: 3.4',
+        # 'Programming Language :: Python :: 3.5',
+        # 'Programming Language :: Python :: 3.6',
         'Topic :: Scientific/Engineering',
         'Topic :: Scientific/Engineering :: Artificial Intelligence',
         'Topic :: Scientific/Engineering :: Mathematics',
@@ -70,6 +76,11 @@ setup(
 
         'six>=1.10,<2',
 
+        # TODO(pachristopher): Add a method to check if we are using a
+        # compatible TF version. If not, fail with a clear error.
+        # TODO(pachristopher): Uncomment this once TF can automatically
+        # select between CPU and GPU installation.
+        # 'tensorflow>=1.11,<2',
 
         'tensorflow-metadata>=0.9,<0.10',
         'tensorflow-transform>=0.11,<0.12',
@@ -81,6 +92,7 @@ setup(
         # Dependency for mutual information computation.
         'scikit-learn>=0.18,<1',
     ],
+    # TODO(b/110842625): Once we support Python 3, remove the <3 requirement.
     python_requires='>=2.7,<3',
     packages=find_packages(),
     include_package_data=True,
