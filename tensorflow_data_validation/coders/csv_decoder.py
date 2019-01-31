@@ -23,8 +23,7 @@ import csv
 import apache_beam as beam
 import numpy as np
 import six
-from tensorflow.compat import as_bytes
-from tensorflow.compat import as_text
+import tensorflow as tf
 from tensorflow_data_validation import types
 from tensorflow_data_validation.types_compat import Dict, List, Optional, Text, Union
 
@@ -39,6 +38,8 @@ CSVCell = Union[bytes, Text]
 ColumnInfo = collections.namedtuple('ColumnInfo', ['name', 'type'])
 
 
+# TODO(b/111831548): Add support for a secondary delimiter to parse
+# value lists.
 @beam.typehints.with_input_types(CSVRecord)
 @beam.typehints.with_output_types(types.BeamExample)
 class DecodeCSV(beam.PTransform):
@@ -92,6 +93,8 @@ class DecodeCSV(beam.PTransform):
       column_info = _get_feature_types_from_schema(self._schema,
                                                    self._column_names)
     else:
+      # TODO(b/72746442): Consider using a DeepCopy optimization similar to TFT.
+      # Do first pass to infer the feature types.
       column_info = (
           input_rows | 'InferFeatureTypes' >> beam.CombineGlobally(
               _FeatureTypeInferrer(
@@ -125,6 +128,9 @@ def _get_feature_types_from_schema(
   ]
 
 
+# The code for parsing CSV records has been copied from https://github.com/tensorflow/transform/blob/master/tensorflow_transform/coders/csv_coder.py  # pylint: disable=line-too-long
+# TODO(b/112061319): Clean up the parsing logic to use the CSV coder from TFT
+# once it adds support for an optional schema.
 class _LineGenerator(object):
   """A csv line generator that allows feeding lines to a csv.DictReader."""
 
@@ -168,10 +174,15 @@ class CSVParser(object):
 
     def read_record(self, csv_string):
       """Reads out bytes for PY2 and Unicode for PY3."""
-      self._line_generator.push_line(
-          as_bytes(csv_string) if six.PY2 else as_text(csv_string))
+      if six.PY2:
+        # TODO(caveness): Test performance impact of removing nested dots
+        # throughout file and possibly update decoder based on results.
+        line = tf.compat.as_bytes(csv_string)
+      else:
+        line = tf.compat.as_text(csv_string)
+      self._line_generator.push_line(line)
       output = next(self._reader)
-      return [as_bytes(x) for x in output]  # pytype: disable=attribute-error
+      return [tf.compat.as_bytes(x) for x in output]
 
     def __getstate__(self):
       return self._state

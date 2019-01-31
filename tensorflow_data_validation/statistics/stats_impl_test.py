@@ -28,7 +28,7 @@ from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options
-from tensorflow_data_validation.statistics.generators import common_stats_generator
+from tensorflow_data_validation.statistics.generators import basic_stats_generator
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import test_util
 from tensorflow_data_validation.types_compat import List
@@ -817,34 +817,35 @@ class StatsImplTest(parameterized.TestCase):
         expected)
 
   def test_tfdv_telemetry(self):
-    batches = [
+    examples = [
         {
-            'a': np.array([
-                np.array([1.0, 2.0], dtype=np.floating),
-                np.array([3.0, 4.0, np.NaN, 5.0], dtype=np.floating)]),
-            'b': np.array([
-                np.array(['a', 'b', 'c', 'e'], dtype=np.object),
-                np.array(['d', 'e', 'f'], dtype=np.object)]),
-            'c': np.array([None, None])
+            'a': np.array([1.0, 2.0], dtype=np.floating),
+            'b': np.array(['a', 'b', 'c', 'e'], dtype=np.object),
+            'c': None
         },
         {
-            'a': np.array([None]),
-            'b': np.array([np.array(['a', 'b', 'c'], dtype=np.object)]),
-            'c': np.array([np.array([10, 20, 30], dtype=np.integer)])
+            'a': np.array([3.0, 4.0, np.NaN, 5.0], dtype=np.floating),
+            'b': np.array(['d', 'e', 'f'], dtype=np.object),
+            'c': None
         },
         {
-            'a': np.array([np.array([5.0], dtype=np.floating)]),
-            'b': np.array([np.array(['d', 'e', 'f'], dtype=np.object)]),
-            'c': np.array([np.array([1], dtype=np.integer)])
+            'a': None,
+            'b': np.array(['a', 'b', 'c'], dtype=np.object),
+            'c': np.array([10, 20, 30], dtype=np.integer)
+        },
+        {
+            'a': np.array([5.0], dtype=np.floating),
+            'b': np.array(['d', 'e', 'f'], dtype=np.object),
+            'c': np.array([1], dtype=np.integer)
         }
     ]
 
     p = beam.Pipeline()
     _ = (p
-         | 'CreateBatches' >> beam.Create(batches)
-         | 'CommonStatsCombiner' >> beam.CombineGlobally(
-             stats_impl._CombineFnWrapper(
-                 common_stats_generator.CommonStatsGenerator())))
+         | 'CreateBatches' >> beam.Create(examples)
+         | 'BasicStatsCombiner' >> beam.CombineGlobally(
+             stats_impl._BatchedCombineFnWrapper(
+                 basic_stats_generator.BasicStatsGenerator())))
 
     runner = p.run()
     runner.wait_until_finish()

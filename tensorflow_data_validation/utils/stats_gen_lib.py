@@ -24,11 +24,14 @@ import tempfile
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
+import numpy as np
+import pandas as pd
 import tensorflow as tf
 from tensorflow_data_validation import types
 from tensorflow_data_validation.api import stats_api
 from tensorflow_data_validation.coders import csv_decoder
 from tensorflow_data_validation.coders import tf_example_decoder
+from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options as options
 from tensorflow_data_validation.types_compat import List, Optional
 
@@ -80,8 +83,9 @@ def generate_statistics_from_tfrecord(
     _ = (
         p
         | 'ReadData' >> beam.io.ReadFromTFRecord(file_pattern=data_location)
-        | 'DecodeData' >> beam.Map(tf_example_decoder.TFExampleDecoder().decode)
+        | 'DecodeData' >> tf_example_decoder.DecodeTFExample()
         | 'GenerateStatistics' >> stats_api.GenerateStatistics(stats_options)
+        # TODO(b/112014711) Implement a custom sink to write the stats proto.
         | 'WriteStatsOutput' >> beam.io.WriteToTFRecord(
             output_path,
             shard_name_template='',
@@ -151,12 +155,52 @@ def generate_statistics_from_csv(
             schema=stats_options.schema,
             infer_type_from_schema=stats_options.infer_type_from_schema)
         | 'GenerateStatistics' >> stats_api.GenerateStatistics(stats_options)
+        # TODO(b/112014711) Implement a custom sink to write the stats proto.
         | 'WriteStatsOutput' >> beam.io.WriteToTFRecord(
             output_path,
             shard_name_template='',
             coder=beam.coders.ProtoCoder(
                 statistics_pb2.DatasetFeatureStatisticsList)))
   return load_statistics(output_path)
+
+
+def generate_statistics_from_dataframe(
+    dataframe,
+    stats_options = options.StatsOptions(),
+):
+  """Compute data statistics for the input pandas DataFrame.
+
+  This is a utility method for users with in-memory data represented
+  as a pandas DataFrame.
+
+  Args:
+    dataframe: Input pandas DataFrame.
+    stats_options: Options for generating data statistics.
+
+  Returns:
+    A DatasetFeatureStatisticsList proto.
+  """
+  if not isinstance(dataframe, pd.DataFrame):
+    raise TypeError('dataframe argument is of type {}. Must be a '
+                    'pandas DataFrame.'.format(type(dataframe).__name__))
+
+  column_names = list(dataframe.columns)
+  column_types = list(dataframe.dtypes)
+  num_columns = len(column_names)
+
+  inmemory_dicts = []
+  for row in dataframe.itertuples(index=False):
+    row_dict = {}
+    for i in range(num_columns):
+      if pd.isnull(row[i]):
+        row_dict[column_names[i]] = None
+      elif column_types[i] == np.object:
+        row_dict[column_names[i]] = np.array([str(row[i])], dtype=np.object)
+      else:
+        row_dict[column_names[i]] = np.array([row[i]], dtype=column_types[i])
+    inmemory_dicts.append(row_dict)
+
+  return stats_impl.generate_statistics_in_memory(inmemory_dicts, stats_options)
 
 
 def _get_csv_header(data_location,

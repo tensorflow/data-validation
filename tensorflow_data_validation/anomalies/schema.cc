@@ -56,6 +56,13 @@ using ::tensorflow::metadata::v0::StringDomain;
 
 constexpr char kTrainingServingSkew[] = "Training/Serving skew";
 
+// Statistics generated.
+// Keep the following constants consistent with the constants used
+// when generating sparse feature statistics.
+static constexpr char kMissingValue[] = "missing_value";
+static constexpr char kMissingIndex[] = "missing_index";
+static constexpr char kMaxLengthDiff[] = "max_length_diff";
+static constexpr char kMinLengthDiff[] = "min_length_diff";
 
 template <typename Container>
 bool ContainsValue(const Container& a, const string& value) {
@@ -169,6 +176,28 @@ tensorflow::Status Schema::Update(
 
   Feature* feature = GetExistingFeature(feature_stats_view.GetPath());
 
+  SparseFeature* sparse_feature =
+      GetExistingSparseFeature(feature_stats_view.GetPath());
+  if (sparse_feature != nullptr &&
+      !::tensorflow::data_validation::SparseFeatureIsDeprecated(
+          *sparse_feature)) {
+    if (feature != nullptr &&
+        !::tensorflow::data_validation::FeatureIsDeprecated(*feature)) {
+      descriptions->push_back(
+          {tensorflow::metadata::v0::AnomalyInfo::SPARSE_FEATURE_NAME_COLLISION,
+           "Sparse feature name collision", "Sparse feature name collision"});
+      ::tensorflow::data_validation::DeprecateSparseFeature(sparse_feature);
+      ::tensorflow::data_validation::DeprecateFeature(feature);
+      *severity = tensorflow::metadata::v0::AnomalyInfo::ERROR;
+      return Status::OK();
+    } else {
+      *descriptions = UpdateSparseFeature(feature_stats_view, sparse_feature);
+      if (!descriptions->empty()) {
+        *severity = tensorflow::metadata::v0::AnomalyInfo::ERROR;
+      }
+      return Status::OK();
+    }
+  }
 
   if (feature != nullptr) {
     *descriptions = UpdateFeatureInternal(updater, feature_stats_view, feature);
@@ -436,6 +465,8 @@ std::vector<Path> Schema::GetMissingPaths(
   return paths_absent;
 }
 
+// TODO(martinz): currently, only looks at top-level features.
+// See also b/114757721.
 std::map<string, std::set<Path>> Schema::EnumNameToPaths() const {
   std::map<string, std::set<Path>> result;
   for (const Feature& feature : schema_.feature()) {
@@ -446,6 +477,7 @@ std::map<string, std::set<Path>> Schema::EnumNameToPaths() const {
   return result;
 }
 
+// TODO(114757721): expose this.
 Status Schema::GetRelatedEnums(const DatasetStatsView& dataset_stats,
                                FeatureStatisticsToProtoConfig* config) {
   Schema schema;
@@ -572,6 +604,9 @@ bool Schema::IsExistenceRequired(
   return IsFeatureInEnvironment(feature, environment);
 }
 
+// TODO(martinz): Switch AnomalyInfo::Type from UNKNOWN_TYPE.
+// TODO(martinz): Handle missing FeatureType more elegantly, inferring it
+// when necessary.
 std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
   std::vector<Description> descriptions;
   if (::tensorflow::data_validation::FeatureIsDeprecated(*feature)) {
@@ -589,6 +624,7 @@ std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
   }
 
   if (!feature->has_type()) {
+    // TODO(martinz): UNKNOWN_TYPE means the anomaly type is unknown.
 
     if (feature->has_domain() || feature->has_string_domain()) {
       descriptions.push_back(
@@ -632,6 +668,7 @@ std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
                    feature->type())) {
     // Note that this clears the oneof field domain_info.
     ::tensorflow::data_validation::ClearDomain(feature);
+    // TODO(martinz): Give more detail here.
     descriptions.push_back({tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
                             "The domain does not match the type"});
   }
@@ -732,6 +769,8 @@ std::vector<Description> Schema::UpdateFeatureInternal(
 
   // This is to cover the rare case where there is actually no examples with
   // this feature, but there is still a dataset_stats object.
+  // TODO(martinz): consider not returning a feature dataset_stats view for a
+  // path if the number present are zero.
   const bool feature_missing = view.GetNumPresent() == 0;
 
   // If the feature is missing, but should be present, create an anomaly.
@@ -906,6 +945,57 @@ std::vector<Description> Schema::UpdateFeatureInternal(
   return descriptions;
 }
 
+std::vector<Description> Schema::UpdateSparseFeature(
+    const FeatureStatsView& view, SparseFeature* sparse_feature) {
+  std::vector<Description> descriptions;
+  for (const tensorflow::metadata::v0::CustomStatistic& custom_stat :
+       view.custom_stats()) {
+    const string& stat_name = custom_stat.name();
+    // Stat names should be in-sync with the sparse_feature_stats_generator.
+    if (stat_name == kMissingValue && custom_stat.num() != 0) {
+      descriptions.push_back(
+          {tensorflow::metadata::v0::AnomalyInfo::SPARSE_FEATURE_MISSING_VALUE,
+           "Missing value feature",
+           absl::StrCat("Found ", custom_stat.num(),
+                        " examples missing value feature")});
+    } else if (stat_name == kMissingIndex) {
+      for (const auto& bucket : custom_stat.rank_histogram().buckets()) {
+        // This represents the index_feature name of this sparse feature.
+        const string& index_feature_name = bucket.label();
+        const int freq = bucket.sample_count();
+        if (freq != 0) {
+          descriptions.push_back(
+              {tensorflow::metadata::v0::AnomalyInfo::
+                   SPARSE_FEATURE_MISSING_INDEX,
+               "Missing index feature",
+               absl::StrCat("Found ", freq, " examples missing index feature: ",
+                            index_feature_name)});
+        }
+      }
+    } else if (stat_name == kMaxLengthDiff || stat_name == kMinLengthDiff) {
+      for (const auto& bucket : custom_stat.rank_histogram().buckets()) {
+        if (bucket.sample_count() != 0) {
+          // This represents the index_feature name of this sparse feature.
+          const string& index_feature_name = bucket.label();
+          const int difference = bucket.sample_count();
+          descriptions.push_back(
+              {tensorflow::metadata::v0::AnomalyInfo::
+                   SPARSE_FEATURE_LENGTH_MISMATCH,
+               "Length mismatch between value and index feature",
+               absl::StrCat(
+                   "Mismatch between index feature: ", index_feature_name,
+                   " and value column, with ", stat_name, " = ", difference)});
+        }
+      }
+    }
+    // Intentionally not generating anomalies for unknown custom stats for
+    // forward compatibility.
+  }
+  if (!descriptions.empty()) {
+    ::tensorflow::data_validation::DeprecateSparseFeature(sparse_feature);
+  }
+  return descriptions;
+}
 
 }  // namespace data_validation
 }  // namespace tensorflow

@@ -26,8 +26,7 @@ from tensorflow_data_validation import types
 from tensorflow_data_validation.types_compat import Optional
 
 
-def _convert_to_example_dict_value(feature
-                                  ):
+def _make_example_dict_value(feature):
   """Converts a single TF feature to its example Dict value."""
   kind = feature.WhichOneof('kind')
   if kind == 'int64_list':
@@ -44,37 +43,45 @@ def _convert_to_example_dict_value(feature
     raise ValueError('Unsupported value type found in feature: {}'.format(kind))
 
 
+# TODO(b/118385481): Maybe reuse tft.ExampleProtoCoder when data schema is
+# provided. The difference between this decoder and tensorflow transform's
+# ExampleProtoCoder class is that this decoder does not accept data schema as
+# input, thus we do not know the list of features and their types in advance.
 class TFExampleDecoder(object):
   """A decoder for decoding TF examples into tf data validation datasets.
   """
 
+  def __init__(self):
+    # Using pre-allocated tf.train.Example object for performance reasons.
+    # Note that we don't violate the Beam programming model as we don't
+    # return this mutable object.
+    self._decode_example_cache = tf.train.Example()
+
+  def __reduce__(self):
+    return TFExampleDecoder, ()
+
   def decode(self, serialized_example_proto):
     """Decodes serialized tf.Example to tf data validation input dict."""
-    example = tf.train.Example()
-    example.ParseFromString(serialized_example_proto)
-    feature_map = example.features.feature
+    self._decode_example_cache.ParseFromString(serialized_example_proto)
+    feature_map = self._decode_example_cache.features.feature
     return {
-        feature_name: _convert_to_example_dict_value(feature_map[feature_name])
+        feature_name: _make_example_dict_value(feature_map[feature_name])
         for feature_name in feature_map
     }
 
 
+@beam.ptransform_fn
 @beam.typehints.with_input_types(bytes)
 @beam.typehints.with_output_types(types.BeamExample)
-class DecodeTFExample(beam.PTransform):
-  """Decodes TF examples into an in-memory dict representation. """
+def DecodeTFExample(examples
+                   ):  # pylint: disable=invalid-name
+  """Decodes serialized TF examples into an in-memory dict representation.
 
-  def __init__(self):
-    """Initializes DecodeTFExample ptransform."""
-    self._decoder = TFExampleDecoder()
+  Args:
+    examples: A PCollection of strings representing serialized TF examples.
 
-  def expand(self, examples):
-    """Decodes serialized TF examples into an in-memory dict representation.
-
-    Args:
-      examples: A PCollection of strings representing serialized TF examples.
-
-    Returns:
-      A PCollection of dicts representing the TF examples.
-    """
-    return examples | 'ParseTFExamples' >> beam.Map(self._decoder.decode)
+  Returns:
+    A PCollection of dicts representing the TF examples.
+  """
+  decoder = TFExampleDecoder()
+  return examples | 'ParseTFExamples' >> beam.Map(decoder.decode)

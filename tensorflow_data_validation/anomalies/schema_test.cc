@@ -2481,6 +2481,8 @@ TEST(SchemaTest, ValidTestAnnotatedFieldsMessage) {
     TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics),
                                FeatureStatisticsToProtoConfig()));
     const tensorflow::metadata::v0::Schema result = schema.GetSchema();
+    // TODO(martinz): go back over invalid schemas and confirm that they
+    // are not the same.
     if (test.expected_is_valid) {
       EXPECT_THAT(result, EqualsProto(GetAnnotatedFieldsMessage()));
     }

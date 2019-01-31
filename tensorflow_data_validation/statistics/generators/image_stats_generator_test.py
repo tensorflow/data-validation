@@ -48,6 +48,7 @@ class FakeImageDecoder(image_stats_generator.ImageDecoderInterface):
     return (image_metadata['height'], image_metadata['width'])
 
 
+# TODO(b/119735769): use parameterized test case here.
 class ImageStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
 
   # Input batch only having one feature, and all feature values are images.

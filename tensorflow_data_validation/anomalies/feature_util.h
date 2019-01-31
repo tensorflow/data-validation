@@ -14,6 +14,7 @@ limitations under the License.
 ==============================================================================*/
 
 // Utilities to modify a feature in the schema.
+// TODO(martinz): add UpdateFixedShape too.
 #ifndef TENSORFLOW_DATA_VALIDATION_ANOMALIES_FEATURE_UTIL_H_
 #define TENSORFLOW_DATA_VALIDATION_ANOMALIES_FEATURE_UTIL_H_
 
@@ -80,6 +81,7 @@ void DeprecateSparseFeature(
 // If lifecycle_stage is in {UNKNOWN_STAGE, BETA, PRODUCTION}
 //   it is not deprecated.
 // Setting deprecated==false has no effect.
+// TODO(martinz): consider if PLANNED is really deprecated.
 bool FeatureIsDeprecated(const tensorflow::metadata::v0::Feature& feature);
 
 // Same as above for SparseFeature.

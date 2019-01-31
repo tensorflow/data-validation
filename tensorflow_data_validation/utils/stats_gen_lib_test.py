@@ -19,6 +19,7 @@ from __future__ import print_function
 import os
 import tempfile
 from absl.testing import absltest
+import pandas as pd
 import tensorflow as tf
 
 from tensorflow_data_validation.statistics import stats_options
@@ -234,7 +235,7 @@ class StatsGenTest(absltest.TestCase):
   def _get_csv_test(self, delimiter=',', with_header=False):
     fields = [['feature1', 'feature2'], ['1.0', 'aa'], ['2.0', 'bb'],
               ['3.0', 'cc'], ['4.0', 'dd'], ['5.0', 'ee'], ['6.0', 'ff'],
-              ['7.0', 'gg']]
+              ['7.0', 'gg'], ['', '']]
     records = []
     for row in fields:
       records.append(delimiter.join(row))
@@ -242,13 +243,14 @@ class StatsGenTest(absltest.TestCase):
     expected_result = text_format.Parse(
         """
     datasets {
-  num_examples: 7
+  num_examples: 8
   features {
     name: "feature1"
     type: FLOAT
     num_stats {
       common_stats {
         num_non_missing: 7
+        num_missing: 1
         min_num_values: 1
         max_num_values: 1
         avg_num_values: 1.0
@@ -305,6 +307,7 @@ class StatsGenTest(absltest.TestCase):
     string_stats {
       common_stats {
         num_non_missing: 7
+        num_missing: 1
         min_num_values: 1
         max_num_values: 1
         avg_num_values: 1.0
@@ -547,6 +550,21 @@ class StatsGenTest(absltest.TestCase):
         ValueError, 'Found empty file when reading the header.*'):
       _ = stats_gen_lib.generate_statistics_from_csv(
           data_location=input_data_path, column_names=None, delimiter=',')
+
+  def test_stats_gen_with_dataframe(self):
+    records, _, expected_result = self._get_csv_test(delimiter=',',
+                                                     with_header=True)
+    input_data_path = self._write_records_to_csv(records, self._get_temp_dir(),
+                                                 'input_data.csv')
+
+    dataframe = pd.read_csv(input_data_path)
+    result = stats_gen_lib.generate_statistics_from_dataframe(
+        dataframe=dataframe,
+        stats_options=self._default_stats_options)
+    self.assertLen(result.datasets, 1)
+    test_util.assert_dataset_feature_stats_proto_equal(
+        self, result.datasets[0], expected_result.datasets[0])
+
 
 if __name__ == '__main__':
   absltest.main()

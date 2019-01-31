@@ -87,6 +87,7 @@ tensorflow::Status ValidateFeatureStatistics(
     const gtl::optional<FeaturesNeeded>& features_needed,
     const ValidationConfig& validation_config,
     tensorflow::metadata::v0::Anomalies* result) {
+  // TODO(b/113295423): Clean up the optional conversions.
   const absl::optional<string> maybe_environment =
       environment ? absl::optional<string>(*environment)
                   : absl::optional<string>();
@@ -101,6 +102,9 @@ tensorflow::Status ValidateFeatureStatistics(
     result->set_data_missing(true);
   } else {
     SchemaAnomalies schema_anomalies(schema_proto);
+    // TODO(martinz): populate previous if possible. Make this happen as we
+    // complete the refactor to make FindChanges also FindDrift at the same
+    // time.
     std::shared_ptr<DatasetStatsView> previous =
         (prev_feature_statistics)
             ? std::make_shared<DatasetStatsView>(
@@ -194,6 +198,17 @@ tensorflow::Status UpdateSchema(
     const gtl::optional<std::vector<Path>>& paths_to_consider,
     const gtl::optional<string>& environment,
     tensorflow::metadata::v0::Schema* result) {
+  // TODO(b/112762449): Add full support for multi-step
+  // paths from paths_to_consider.
+  // In the meantime, there are two ways you could imagine
+  // translating to a string:
+  // 1: As below, using the last step. Since all the paths at present are just
+  //    a single step, this won't break anything. Moreover, since in
+  //    schema_updater.cc, we are populating the string into last_step, this
+  //    is the same as the existing implementation.
+  // 2: As a serialized path. This will break current designs, as the Schema
+  //    Updater will incorrectly handle paths like Path({"foo.bar"}).
+  // TODO(b/113295423): Clean up the optional conversions.
   const absl::optional<string> maybe_environment =
       environment ? absl::optional<string>(*environment) : absl::nullopt;
 

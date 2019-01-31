@@ -91,6 +91,7 @@ class DatasetStatsView {
   // a.name() is a strict prefix of b.name().
   // FeatureStatsView a is the parent of FeatureStatsView b if it is the
   // ancestor with the longest name.
+  // TODO(b/112209670): fix the issues with structural data and paths.
   absl::optional<FeatureStatsView> GetParent(
       const FeatureStatsView& view) const;
 

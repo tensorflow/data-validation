@@ -89,6 +89,8 @@ def infer_schema(statistics,
   result = schema_pb2.Schema()
   result.ParseFromString(schema_proto_string)
 
+  # TODO(b/113605666): Push this shape inference logic into example validation
+  # code.
   if infer_feature_shape:
     _infer_shape(result)
 
@@ -379,6 +381,8 @@ class IdentifyAnomalousExamples(beam.PTransform):
             _detect_anomalies_in_example, options=self.options)
         | 'GenerateAnomalyReasonKeys' >> beam.ParDo(
             _GenerateAnomalyReasonSliceKeys()))
+    # TODO(b/118835367): Add option to generate summary statistics for anomalous
+    # examples on a per-anomaly-reason basis.
     return (
         dataset | 'SampleExamplesPerAnomalyReason' >>
         beam.combiners.Sample.FixedSizePerKey(self.max_examples_per_anomaly))

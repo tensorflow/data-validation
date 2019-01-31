@@ -53,6 +53,8 @@ def get_feature(schema,
   raise ValueError('Feature %s not found in the schema.' % feature_name)
 
 
+FEATURE_DOMAIN = Union[schema_pb2.IntDomain, schema_pb2.FloatDomain,
+                       schema_pb2.StringDomain, schema_pb2.BoolDomain]
 
 
 def get_domain(schema,

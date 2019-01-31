@@ -48,6 +48,8 @@ using tensorflow::protobuf::TextFormat;
 //
 // IMPORTANT: Only use this for protos whose textual representation is
 // deterministic (that may not be the case for the map collection type).
+// This code has been copied from
+// https://github.com/tensorflow/serving/blob/master/tensorflow_serving/test_util/test_util.h
 
 class ProtoStringMatcher {
  public:

@@ -46,7 +46,9 @@ namespace data_validation {
 namespace {
 using ::tensorflow::Status;
 
+// LINT.IfChange
 constexpr char kMultipleErrors[] = "Multiple errors";
+// LINT.ThenChange(../utils/anomalies_util.py)
 constexpr char kColumnDropped[] = "Column dropped";
 
 // For internal use only.
@@ -63,6 +65,7 @@ int NumericalSeverity(tensorflow::metadata::v0::AnomalyInfo::Severity a) {
   }
 }
 
+// LINT.IfChange
 bool AllSchemaNewColumn(const std::vector<Description>& descriptions) {
   for (const Description& description : descriptions) {
     if (description.type != metadata::v0::AnomalyInfo::SCHEMA_NEW_COLUMN) {
@@ -104,6 +107,7 @@ Description UnifyDescriptions(const std::vector<Description>& descriptions) {
         }
       });
 }
+// LINT.ThenChange(../utils/anomalies_util.py)
 
 bool ShouldCreateFeature(const absl::optional<std::set<Path>>& features_needed,
                          const FeatureStatsView& feature) {
@@ -274,6 +278,7 @@ tensorflow::Status SchemaAnomalies::FindChangesRecursively(
   Schema baseline;
   TF_RETURN_IF_ERROR(InitSchema(&baseline));
   if (baseline.FeatureExists(feature_stats_view.GetPath())) {
+    // TODO(martinz): Treat PLANNED separately.
     if (baseline.FeatureIsDeprecated(feature_stats_view.GetPath())) {
       return Status::OK();
     }
@@ -341,6 +346,8 @@ tensorflow::Status SchemaAnomalies::FindChanges(
     for (const auto& p : *features_needed) {
       const Path& path = p.first;
       if (!statistics.GetByPath(path) && !baseline.FeatureExists(path)) {
+        // TODO(114770329): come up with a special error here, as this indicates
+        // that a feature is required that is not in the data.
         LOG(ERROR) << "Required feature missing from data and schema: "
                    << path.Serialize();
       }

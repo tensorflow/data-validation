@@ -653,6 +653,9 @@ const std::vector<UpdateValueCountTest> GetUpdateValueCountTests() {
   return result;
 }
 
+// TODO(martinz): this is too many test cases that test too little.
+// Write a two test cases focusing on min=max=5 (success and failure).
+// Remove redundant tests.
 TEST(FeatureTypeTest, UpdateValueCountTest) {
   for (const auto& test : GetUpdateValueCountTests()) {
     for (bool by_weight : {false, true}) {
@@ -685,6 +688,9 @@ struct UpdatePresenceTest {
   FeaturePresence expected;
 };
 
+// TODO(martinz): this is too many test cases.
+// Wrap MinCountInvalid and MinCount tests into here.
+// Remove redundant tests.
 const std::vector<UpdatePresenceTest> GetUpdatePresenceTests() {
   const std::vector<UpdatePresenceTest> battery_a = {
       {"optional_float_valid",

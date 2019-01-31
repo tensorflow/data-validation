@@ -13,13 +13,21 @@
 # limitations under the License.
 """Types for backwards compatibility with versions that don't support typing."""
 
+# Note:
+# 1. Before open source, "from tensorflow_data_validation.types_compat import" will be replaced by
+#    "from tensorflow_data_validation.types_compat import" via copybara.
+# 2. During development:
+# (a) Any types import from typing directly should be defined within this file.
+# (b) For types supported by typing only, e.g. Callable, all related codes
+#     should be removed by copybara and/or pystrip, except for the import line
+#     which will be dealt by note 1.
 
-from apache_beam.typehints import Any, Dict, Generator, Iterable, Iterator, List, Optional, Set, Tuple, Union  # pylint: disable=unused-import,g-multiple-import
+from apache_beam.typehints import Any, Dict, Generator, Iterable, Iterator, List, Optional, Set, Tuple, TypeVariable, Union  # pylint: disable=unused-import,g-multiple-import
 
 # pylint: disable=invalid-name
 Callable = None
 Mapping = None
 Text = Any
-TypeVar = None
+TypeVar = TypeVariable
 
 # pylint: enable=invalid-name

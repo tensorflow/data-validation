@@ -189,6 +189,10 @@ Path Path::GetChild(absl::string_view last_step) const {
   return Path(std::move(new_steps));
 }
 
+std::pair<string, Path> Path::PopHead() const {
+  return {step_[0], Path({step_.begin() + 1, step_.end()})};
+}
+
 void PrintTo(const Path& p, std::ostream* o) {
   (*o) << p.Serialize();
 }

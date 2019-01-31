@@ -23,10 +23,8 @@ import apache_beam as beam
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics import stats_options
-from tensorflow_data_validation.statistics.generators import common_stats_generator
-from tensorflow_data_validation.statistics.generators import numeric_stats_generator
+from tensorflow_data_validation.statistics.generators import basic_stats_generator
 from tensorflow_data_validation.statistics.generators import stats_generator
-from tensorflow_data_validation.statistics.generators import string_stats_generator
 from tensorflow_data_validation.statistics.generators import top_k_stats_generator
 from tensorflow_data_validation.statistics.generators import top_k_uniques_combiner_stats_generator
 from tensorflow_data_validation.statistics.generators import uniques_stats_generator
@@ -69,10 +67,15 @@ class GenerateStatisticsImpl(beam.PTransform):
     #      and run it.
     for generator in stats_generators:
       if isinstance(generator, stats_generator.CombinerStatsGenerator):
+        # TODO(b/120863006): Consider removing fanout once BEAM-4030 is
+        # resolved, and all the Beam OSS Runners support CombineFn.compact
+        fanout = 16
+        # TODO(b/88250100): Remove fanout once multi-shard combining is enabled
+        # for single-thread cases.
         result_protos.append(
             dataset
             | generator.name >> beam.CombineGlobally(
-                _BatchedCombineFnWrapper(generator)).with_fanout(16))
+                _BatchedCombineFnWrapper(generator)).with_fanout(fanout))
       elif isinstance(generator, stats_generator.TransformStatsGenerator):
         result_protos.append(
             dataset
@@ -109,20 +112,14 @@ def _get_default_generators(
     A list of stats generator objects.
   """
   stats_generators = [
-      common_stats_generator.CommonStatsGenerator(
+      basic_stats_generator.BasicStatsGenerator(
           schema=options.schema,
           weight_feature=options.weight_feature,
           num_values_histogram_buckets=options.num_values_histogram_buckets,
-          epsilon=options.epsilon),
-      numeric_stats_generator.NumericStatsGenerator(
-          schema=options.schema,
-          weight_feature=options.weight_feature,
           num_histogram_buckets=options.num_histogram_buckets,
           num_quantiles_histogram_buckets=\
             options.num_quantiles_histogram_buckets,
-          epsilon=options.epsilon),
-      string_stats_generator.StringStatsGenerator(
-          schema=options.schema)
+          epsilon=options.epsilon)
   ]
   if in_memory:
     stats_generators.append(
@@ -234,34 +231,9 @@ def _make_dataset_feature_statistics_list_proto(
   return result
 
 
-
-
-@beam.typehints.with_input_types(types.ExampleBatch)
-@beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatistics)
-class _CombineFnWrapper(beam.CombineFn):
-  """Class to wrap a CombinerStatsGenerator as a beam.CombineFn."""
-
-  def __init__(
-      self,
-      generator):
-    self._generator = generator
-
-  def create_accumulator(self
-                        ):  # pytype: disable=invalid-annotation
-    return self._generator.create_accumulator()
-
-  def add_input(self, accumulator,
-                input_batch):
-    return self._generator.add_input(accumulator, input_batch)
-
-  def merge_accumulators(self, accumulators):
-    return self._generator.merge_accumulators(accumulators)
-
-  def extract_output(
-      self,
-      accumulator
-  ):  # pytype: disable=invalid-annotation
-    return self._generator.extract_output(accumulator)
+# Have a type variable to represent the type of the accumulator
+# in a combiner stats generator.
+ACCTYPE = TypeVar('ACCTYPE')
 
 
 class _BatchedCombineFnAcc(object):
@@ -301,8 +273,10 @@ class _BatchedCombineFnWrapper(beam.CombineFn):
   """
 
   # This needs to be large enough to allow for efficient TF invocations during
-  # batch flushing, but shouldn't be too large as it could lead to large amount
-  # of data being shuffled for non-flushed batches.
+  # batch flushing, but shouldn't be too large as it also acts as cap on the
+  # maximum memory usage of the computation.
+  # TODO(b/120863006): Consider increasing once BEAM-4030 is
+  # resolved, and all the Beam OSS Runners support CombineFn.compact
   _DEFAULT_DESIRED_BATCH_SIZE = 100
 
   def __init__(
@@ -313,6 +287,7 @@ class _BatchedCombineFnWrapper(beam.CombineFn):
 
     # We really want the batch size to be adaptive like it is in
     # beam.BatchElements(), but there isn't an easy way to make it so.
+    # TODO(b/73789023): Figure out how to make this batch size dynamic.
     if desired_batch_size and desired_batch_size > 0:
       self._desired_batch_size = desired_batch_size
     else:
@@ -365,6 +340,7 @@ class _BatchedCombineFnWrapper(beam.CombineFn):
       self._maybe_do_batch(result)
     return result
 
+  # TODO(pachristopher): Consider adding CombinerStatsGenerator.compact method.
   def compact(self, accumulator):
     self._maybe_do_batch(accumulator, force=True)
     self._num_compacts.inc(1)

@@ -55,6 +55,8 @@ class BatchUtilTest(absltest.TestCase):
 
     def _batched_example_equal_fn(expected_batched_examples):
       """Makes a matcher function for comparing batched examples."""
+      # TODO(pachristopher): Find out the right way to compare the outcome with
+      # the expected output.
       def _matcher(actual_batched_examples):
         self.assertEqual(
             len(actual_batched_examples), len(expected_batched_examples))

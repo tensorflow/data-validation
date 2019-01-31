@@ -9,12 +9,15 @@ workspace(name = "tensorflow_data_validation")
 #    reliable downloads.
 load("//tensorflow_data_validation:repo.bzl", "tensorflow_http_archive")
 
-# v1.11.0
+# v1.13.0-rc0
 tensorflow_http_archive(
     name = "org_tensorflow",
-    sha256 = "025b47263af34475dc75da40c76a87934a70f69611e9b0b88445d65730f0fc73",
-    git_commit = "c19e29306ce1777456b2dbb3a14f511edf7883a8",
+    sha256 = "1677e8e5bf9d5a9041aa5fc12ea6ff82eecc8603f6fd1292f0759b90e7096c21",
+    git_commit = "a8e5c41c5bbe684a88b9285e07bd9838c089e83b",
 )
+
+load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 # TensorFlow depends on "io_bazel_rules_closure" so we need this here.
 # Needs to be kept in sync with the same target in TensorFlow's WORKSPACE file.
@@ -44,4 +47,4 @@ tf_data_validation_workspace()
 # Specify the minimum required bazel version.
 load("@org_tensorflow//tensorflow:version_check.bzl", "check_bazel_version_at_least")
 
-check_bazel_version_at_least("0.15.0")
+check_bazel_version_at_least("0.20.0")

@@ -7,6 +7,9 @@
 namespace tensorflow {
 namespace data_validation {
 
+// TODO(martinz): consider making a protobuf.
+// TODO(martinz): consider adding an environment.
+// TODO(martinz): consider adding a LifecycleStage.
 struct ReasonFeatureNeeded {
   // If there is an issue in creating the field, the comment should help
   // explain why.

@@ -38,6 +38,7 @@ ADJUSTED_MUTUAL_INFORMATION_KEY = "sklearn_adjusted_mutual_information"
 CATEGORICAL_FEATURE_IMPUTATION_FILL_VALUE = "__missing_category__"
 
 
+# TODO(b/117650247): sk-learn MI can't handle NaN, None or multivalent features
 def _remove_unsupported_feature_columns(examples,
                                         schema):
   """Removes feature columns that contain unsupported values.
@@ -135,6 +136,7 @@ class SkLearnMutualInformation(partitioned_stats_generator.PartitionedStatsFn):
       raise ValueError("Label column contains unsupported data.")
 
     flattened_examples = _flatten_examples(examples)
+    # TODO(b/119414212): Use Ranklab struct feature to handle null values for MI
     imputed_examples = self._impute(flattened_examples)
     labels = imputed_examples.pop(self._label_feature)
     df = pd.DataFrame(imputed_examples)

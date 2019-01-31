@@ -31,7 +31,7 @@ import six
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import stats_util
-from tensorflow_data_validation.types_compat import Dict, List, Tuple
+from tensorflow_data_validation.types_compat import Dict, List, Text, Tuple
 
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
@@ -123,6 +123,7 @@ def _make_feature_stats_proto(
   result = statistics_pb2.FeatureNameStatistics()
   result.name = feature_name
 
+  # TODO(mingzhong): Need to add set any other fields?
 
   result.custom_stats.add(name=_IS_IMAGE_STATISTICS, num=1)
 
@@ -182,6 +183,8 @@ class ImageStatsGenerator(stats_generator.CombinerStatsGenerator):
                ):
     # Iterate through each feature and update the partial image stats.
     for feature_name, values in six.iteritems(input_batch):
+      # TODO(mingzhong): Maybe skip features specified as categorical/numerical
+      # features in schema.
       for value in values:
         # Check if we have a numpy arary with at least one value.
         if not isinstance(value, np.ndarray) or value.size == 0:
@@ -193,6 +196,9 @@ class ImageStatsGenerator(stats_generator.CombinerStatsGenerator):
         # Note that it is intentional to not include count this in
         # total_num_values, as tfdv assumes that all values for the same feature
         # have the same numpy array dtype.
+        # TODO(b/120138003): Run image stats gen for only a sample of examples.
+        # TODO(b/118066476): Make image stas gen accept a function for filtering
+        # in examples/features to run image stas gen on.
         if stats_util.get_feature_type(
             value.dtype) != statistics_pb2.FeatureNameStatistics.STRING:
           continue
