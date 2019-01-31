@@ -70,7 +70,7 @@ setup(
     install_requires=[
         'absl-py>=0.1.6',
         'apache-beam[gcp]>=2.8,<3',
-        'numpy>=1.13.3,<2',
+        'numpy>=1.14.5,<2',
 
         'protobuf>=3.6.0,<4',
 

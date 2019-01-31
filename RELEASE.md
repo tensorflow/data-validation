@@ -17,6 +17,7 @@
 
 * Use constant '__BYTES_VALUE__' in the statistics proto to represent a bytes
   value which cannot be decoded as a utf-8 string.
+* Depends on `numpy>=1.14.5,<2`.
 
 ## Breaking changes
 
