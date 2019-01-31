@@ -46,6 +46,7 @@ from tensorflow_data_validation.utils.schema_util import write_schema_text
 
 # Import stats lib.
 from tensorflow_data_validation.utils.stats_gen_lib import generate_statistics_from_csv
+from tensorflow_data_validation.utils.stats_gen_lib import generate_statistics_from_dataframe
 from tensorflow_data_validation.utils.stats_gen_lib import generate_statistics_from_tfrecord
 from tensorflow_data_validation.utils.stats_gen_lib import load_statistics
 
