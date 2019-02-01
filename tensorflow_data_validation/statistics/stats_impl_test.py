@@ -1049,11 +1049,6 @@ class StatsImplTest(parameterized.TestCase):
     runner.wait_until_finish()
     result_metrics = runner.metrics()
 
-    num_metrics = len(
-        result_metrics.query(beam.metrics.metric.MetricsFilter().with_namespace(
-            constants.METRICS_NAMESPACE))['counters'])
-    self.assertEqual(num_metrics, 14)
-
     expected_result = {
         'num_instances': 4,
         'num_missing_feature_values': 3,
@@ -1070,6 +1065,12 @@ class StatsImplTest(parameterized.TestCase):
         'string_feature_values_max_count': 4,
         'string_feature_values_mean_count': 3,
     }
+    # Remove special handling of compact once BEAM-4030 is resolved, and
+    # all the Beam OSS Runners support CombineFn.compact
+    combinefn_compact = getattr(beam.CombineFn, 'compact', None)
+    if combinefn_compact is not None:
+      expected_result['num_compacts_BasicStatsGenerator'] = 1
+
     # Check number of counters.
     actual_metrics = result_metrics.query(
         beam.metrics.metric.MetricsFilter().with_namespace(
