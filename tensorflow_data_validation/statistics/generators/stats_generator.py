@@ -52,6 +52,7 @@ from __future__ import division
 from __future__ import print_function
 
 import apache_beam as beam
+import numpy as np
 from tensorflow_data_validation import types
 from tensorflow_data_validation.types_compat import Iterable, Optional, Text, TypeVar
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -92,7 +93,7 @@ class CombinerStatsGenerator(StatsGenerator):
   """
 
   def create_accumulator(self):  # pytype: disable=invalid-annotation
-    """Return a fresh, empty accumulator.
+    """Returns a fresh, empty accumulator.
 
     Returns:
       An empty accumulator.
@@ -101,13 +102,13 @@ class CombinerStatsGenerator(StatsGenerator):
 
   def add_input(self, accumulator,
                 input_batch):
-    """Return result of folding a batch of inputs into accumulator.
+    """Returns result of folding a batch of inputs into accumulator.
 
     Args:
       accumulator: The current accumulator.
-      input_batch: A Python dict whose keys are strings denoting feature
-          names and values are numpy arrays representing a batch of examples,
-          which should be added to the accumulator.
+      input_batch: A Python dict whose keys are strings denoting feature names
+        and values are numpy arrays representing a batch of examples, which
+        should be added to the accumulator.
 
     Returns:
       The accumulator after updating the statistics for the batch of inputs.
@@ -128,7 +129,60 @@ class CombinerStatsGenerator(StatsGenerator):
   def extract_output(
       self, accumulator
   ):  # pytype: disable=invalid-annotation
-    """Return result of converting accumulator into the output value.
+    """Returns result of converting accumulator into the output value.
+
+    Args:
+      accumulator: The final accumulator value.
+
+    Returns:
+      A proto representing the result of this stats generator.
+    """
+    raise NotImplementedError
+
+
+class CombinerFeatureStatsGenerator(StatsGenerator):
+  """Generate feature level statistics using combiner function.
+
+  This interface is a simplification of CombinerStatsGenerator for the special
+  case of statistics that do not require cross-feature computations. It mirrors
+  a beam.CombineFn for the values of a specific feature.
+  """
+
+  def create_accumulator(self):  # pytype: disable=invalid-annotation
+    """Returns a fresh, empty accumulator.
+
+    Returns:
+      An empty accumulator.
+    """
+    raise NotImplementedError
+
+  def add_input(self, accumulator, input_batch):
+    """Returns result of folding a batch of inputs into accumulator.
+
+    Args:
+      accumulator: The current accumulator.
+      input_batch: A numpy array representing a batch of feature values (one per
+        example) which should be added to the accumulator.
+
+    Returns:
+      The accumulator after updating the statistics for the batch of inputs.
+    """
+    raise NotImplementedError
+
+  def merge_accumulators(self, accumulators):
+    """Merges several accumulators to a single accumulator value.
+
+    Args:
+      accumulators: The accumulators to merge.
+
+    Returns:
+      The merged accumulator.
+    """
+    raise NotImplementedError
+
+  def extract_output(
+      self, accumulator):  # pytype: disable=invalid-annotation
+    """Returns result of converting accumulator into the output value.
 
     Args:
       accumulator: The final accumulator value.

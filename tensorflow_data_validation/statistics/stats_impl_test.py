@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Tests for the statistics generation implementation."""
 
 from __future__ import absolute_import
@@ -37,6 +36,44 @@ from google.protobuf import text_format
 from tensorflow.python.util.protobuf import compare
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
+
+
+# Testing classes for 'custom_feature_generator' testcase.
+# They are defined module level in order to allow pickling.
+class _BaseCounter(stats_generator.CombinerFeatureStatsGenerator):
+  """A base counter implementation as CombinerFeatureStatsGenerator."""
+
+  def __init__(self):
+    super(_BaseCounter, self).__init__(type(self).__name__)
+
+  def create_accumulator(self):
+    return 0
+
+  def merge_accumulators(self, accumulators):
+    return sum(accumulators)
+
+  def extract_output(self,
+                     accumulator):
+    result = statistics_pb2.FeatureNameStatistics()
+    result.custom_stats.add(name=type(self).__name__, num=accumulator)
+    return result
+
+
+class _ValueCounter(_BaseCounter):
+  """A _BaseCounter that counts number of values."""
+
+  def add_input(self, accumulator, input_batch):
+    return accumulator + sum(
+        [len(value) for value in input_batch if value is not None])
+
+
+class _ExampleCounter(_BaseCounter):
+  """A _BaseCounter that counts number of examples with feature set."""
+
+  def add_input(self, accumulator, input_batch):
+    return accumulator + len(
+        [value for value in input_batch if value is not None])
+
 
 GENERATE_STATS_TESTS = [
     {
@@ -419,6 +456,167 @@ GENERATE_STATS_TESTS = [
               }
             }
             """,
+    },
+    {
+        'testcase_name':
+            'custom_feature_generator',
+        'examples': [
+            {
+                'a': np.array(['doing'])
+            },
+            {
+                'b': np.array(['lala'])
+            },
+            {
+                'a': np.array(['din', 'don']),
+                'b': np.array(['lolo']),
+            },
+        ],
+        'options':
+            stats_options.StatsOptions(
+                generators=[_ValueCounter(), _ExampleCounter()],
+                num_top_values=4,
+                num_rank_histogram_buckets=3,
+                num_values_histogram_buckets=3),
+        'expected_result_proto_text':
+            """
+            datasets {
+              num_examples: 3
+              features {
+                name: 'a'
+                type: STRING
+                custom_stats {
+                  name: "_ValueCounter"
+                  num: 3.0
+                }
+                custom_stats {
+                  name: "_ExampleCounter"
+                  num: 2.0
+                }
+                string_stats {
+                  common_stats {
+                    num_non_missing: 2
+                    num_missing: 1
+                    min_num_values: 1
+                    max_num_values: 2
+                    avg_num_values: 1.5
+                    num_values_histogram {
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 0.6666667
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 2.0
+                        sample_count: 0.6666667
+                      }
+                      buckets {
+                        low_value: 2.0
+                        high_value: 2.0
+                        sample_count: 0.6666667
+                      }
+                      type: QUANTILES
+                    }
+                    tot_num_values: 3
+                  }
+                  unique: 3
+                  top_values {
+                    value: "don"
+                    frequency: 1.0
+                  }
+                  top_values {
+                    value: "doing"
+                    frequency: 1.0
+                  }
+                  top_values {
+                    value: "din"
+                    frequency: 1.0
+                  }
+                  avg_length: 3.66666698456
+                  rank_histogram {
+                    buckets {
+                      label: "don"
+                      sample_count: 1.0
+                    }
+                    buckets {
+                      low_rank: 1
+                      high_rank: 1
+                      label: "doing"
+                      sample_count: 1.0
+                    }
+                    buckets {
+                      low_rank: 2
+                      high_rank: 2
+                      label: "din"
+                      sample_count: 1.0
+                    }
+                  }
+                }
+              }
+              features {
+                name: 'b'
+                type: STRING
+                custom_stats {
+                  name: "_ValueCounter"
+                  num: 2.0
+                }
+                custom_stats {
+                  name: "_ExampleCounter"
+                  num: 2.0
+                }
+                string_stats {
+                  common_stats {
+                    num_non_missing: 2
+                    num_missing: 1
+                    min_num_values: 1
+                    max_num_values: 1
+                    avg_num_values: 1.0
+                    num_values_histogram {
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 0.6666667
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 0.6666667
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 0.6666667
+                      }
+                      type: QUANTILES
+                    }
+                    tot_num_values: 2
+                  }
+                  unique: 2
+                  top_values {
+                    value: "lolo"
+                    frequency: 1.0
+                  }
+                  top_values {
+                    value: "lala"
+                    frequency: 1.0
+                  }
+                  avg_length: 4.0
+                  rank_histogram {
+                    buckets {
+                      label: "lolo"
+                      sample_count: 1.0
+                    }
+                    buckets {
+                      low_rank: 1
+                      high_rank: 1
+                      label: "lala"
+                      sample_count: 1.0
+                    }
+                  }
+                }
+              }
+            }""",
     },
 ]
 

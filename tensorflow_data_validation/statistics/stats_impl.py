@@ -20,6 +20,7 @@ from __future__ import division
 from __future__ import print_function
 
 import apache_beam as beam
+import six
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics import stats_options
@@ -30,8 +31,9 @@ from tensorflow_data_validation.statistics.generators import top_k_uniques_combi
 from tensorflow_data_validation.statistics.generators import uniques_stats_generator
 
 from tensorflow_data_validation.utils import batch_util
-from tensorflow_data_validation.types_compat import Iterable, List, Optional, TypeVar
+from tensorflow_data_validation.types_compat import Any, Dict, Iterable, List, Optional, Text, TypeVar
 
+from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
@@ -48,11 +50,7 @@ class GenerateStatisticsImpl(beam.PTransform):
 
   def expand(self, dataset):
     # Initialize a list of stats generators to run.
-    stats_generators = _get_default_generators(self._options)
-
-    if self._options.generators is not None:
-      # Add custom stats generators.
-      stats_generators.extend(self._options.generators)
+    stats_generators = _get_generators(self._options)
 
     # If a set of whitelist features are provided, keep only those features.
     if self._options.feature_whitelist:
@@ -98,10 +96,48 @@ class GenerateStatisticsImpl(beam.PTransform):
             beam.Map(_make_dataset_feature_statistics_list_proto))
 
 
+def _get_generators(options,
+                    in_memory = False
+                   ):
+  """Initializes the list of stats generators, including custom generators.
+
+  Args:
+    options: A StatsOptions object.
+    in_memory: Whether the generators will be used to generate statistics in
+      memory (True) or using Beam (False).
+
+  Returns:
+    A list of stats generator objects.
+  """
+  generators = _get_default_generators(options, in_memory)
+  if options.generators is not None:
+    # Add custom stats generators.
+    generators.extend(options.generators)
+  # Replace all CombinerFeatureStatsGenerator with a single
+  # CombinerFeatureStatsWrapperGenerator.
+  feature_generators = [
+      x for x in generators
+      if isinstance(x, stats_generator.CombinerFeatureStatsGenerator)
+  ]
+  if feature_generators:
+    generators = [
+        x for x in generators
+        if not isinstance(x, stats_generator.CombinerFeatureStatsGenerator)
+    ] + [CombinerFeatureStatsWrapperGenerator(feature_generators)]
+  if in_memory:
+    for generator in generators:
+      if not isinstance(generator, stats_generator.CombinerStatsGenerator):
+        raise TypeError('Statistics generator used in '
+                        'generate_statistics_in_memory must '
+                        'extend CombinerStatsGenerator, found object of type '
+                        '%s.' % generator.__class__.__name__)
+  return generators
+
+
 def _get_default_generators(
     options, in_memory = False
 ):
-  """Initialize default list of stats generators.
+  """Initializes default list of stats generators.
 
   Args:
     options: A StatsOptions object.
@@ -144,7 +180,7 @@ def _get_default_generators(
 def _filter_features(
     example,
     feature_whitelist):
-  """Remove features that are not whitelisted.
+  """Removes features that are not whitelisted.
 
   Args:
     example: Input example.
@@ -163,7 +199,7 @@ def _filter_features(
 def _merge_dataset_feature_stats_protos(
     stats_protos
 ):
-  """Merge together a list of DatasetFeatureStatistics protos.
+  """Merges together a list of DatasetFeatureStatistics protos.
 
   Args:
     stats_protos: A list of DatasetFeatureStatistics protos to merge.
@@ -306,7 +342,7 @@ class _BatchedCombineFnWrapper(beam.CombineFn):
 
   def _maybe_do_batch(self, accumulator,
                       force = False):
-    """Maybe update accumulator in place.
+    """Maybe updates accumulator in place.
 
     Checks if accumulator has enough examples for a batch, and if so, does the
     stats computation for the batch and updates accumulator in place.
@@ -368,18 +404,7 @@ def generate_statistics_in_memory(
   Returns:
     A DatasetFeatureStatisticsList proto.
   """
-  stats_generators = _get_default_generators(options, in_memory=True)
-
-  if options.generators is not None:
-    for generator in options.generators:
-      if isinstance(generator, stats_generator.CombinerStatsGenerator):
-        stats_generators.append(generator)
-      else:
-        raise TypeError('Statistics generator used in '
-                        'generate_statistics_in_memory must '
-                        'extend CombinerStatsGenerator, found object of type '
-                        '%s.' %
-                        generator.__class__.__name__)
+  stats_generators = _get_generators(options, in_memory=True)
 
   batch = batch_util.merge_single_batch(examples)
 
@@ -394,7 +419,7 @@ def generate_statistics_in_memory(
       generator.extract_output(
           generator.add_input(generator.create_accumulator(), batch))
       # The type checker raises a false positive here because the type hint for
-      # the return value of _get_default_generators (which created the list of
+      # the return value of _get_generators (which created the list of
       # stats_generators) is StatsGenerator, but add_input, create_accumulator,
       # and extract_output can be called only on CombinerStatsGenerators.
       for generator in stats_generators  # pytype: disable=attribute-error
@@ -402,3 +427,118 @@ def generate_statistics_in_memory(
 
   return _make_dataset_feature_statistics_list_proto(
       _merge_dataset_feature_stats_protos(outputs))
+
+
+# Type for the wrapper_accumulator of a CombinerFeatureStatsWrapperGenerator.
+# See documentation below for more details.
+WrapperAccumulator = Dict[Text, List[Any]]
+
+
+class CombinerFeatureStatsWrapperGenerator(
+    stats_generator.CombinerStatsGenerator):
+  """A combiner that wraps multiple CombinerFeatureStatsGenerators.
+
+  This combiner wraps multiple CombinerFeatureStatsGenerators by generating
+  and updating wrapper_accumulators where:
+  wrapper_accumulator[feature_name][feature_generator_index] contains the
+  generator specific accumulator for the pair (feature_name,
+  feature_generator_index).
+  """
+
+  def __init__(self,
+               feature_stats_generators,
+               name = 'CombinerFeatureStatsWrapperGenerator',
+               schema = None):
+    """Initializes a CombinerFeatureStatsWrapperGenerator.
+
+    Args:
+      feature_stats_generators: A list of CombinerFeatureStatsGenerator.
+      name: An optional unique name associated with the statistics generator.
+      schema: An optional schema for the dataset.
+    """
+    super(CombinerFeatureStatsWrapperGenerator, self).__init__(name, schema)
+    self._feature_stats_generators = feature_stats_generators
+
+  def _perhaps_initialize_for_feature_name(
+      self, wrapper_accumulator,
+      feature_name):
+    """Initializes the feature_name key if it does not exist."""
+    # Note: This manual initialization could have been avoided if
+    # wrapper_accumulator was a defaultdict, but this breaks pickling.
+    if feature_name not in wrapper_accumulator:
+      wrapper_accumulator[feature_name] = [
+          generator.create_accumulator()
+          for generator in self._feature_stats_generators
+      ]
+
+  def create_accumulator(self):
+    """Returns a fresh, empty wrapper_accumulator.
+
+    Returns:
+      An empty wrapper_accumulator.
+    """
+    return {}
+
+  def add_input(self, wrapper_accumulator,
+                input_batch):
+    """Returns result of folding a batch of inputs into wrapper_accumulator.
+
+    Args:
+      wrapper_accumulator: The current wrapper accumulator.
+      input_batch: A Python dict whose keys are strings denoting feature names
+        and values are numpy arrays representing a batch of examples, which
+        should be added to the accumulator.
+
+    Returns:
+      The wrapper_accumulator after updating the statistics for the batch of
+      inputs.
+    """
+    for feature_name, values in six.iteritems(input_batch):
+      self._perhaps_initialize_for_feature_name(wrapper_accumulator,
+                                                feature_name)
+      for index, generator in enumerate(self._feature_stats_generators):
+        wrapper_accumulator[feature_name][index] = generator.add_input(
+            generator.create_accumulator(), values)
+    return wrapper_accumulator
+
+  def merge_accumulators(
+      self,
+      wrapper_accumulators):
+    """Merges several wrapper_accumulators to a single one.
+
+    Args:
+      wrapper_accumulators: The wrapper accumulators to merge.
+
+    Returns:
+      The merged accumulator.
+    """
+    result = self.create_accumulator()
+    for wrapper_accumulator in wrapper_accumulators:
+      for feature_name, accumulator_for_feature in six.iteritems(
+          wrapper_accumulator):
+        self._perhaps_initialize_for_feature_name(result, feature_name)
+        for index, generator in enumerate(self._feature_stats_generators):
+          result[feature_name][index] = generator.merge_accumulators(
+              [result[feature_name][index], accumulator_for_feature[index]])
+    return result
+
+  def extract_output(self, wrapper_accumulator
+                    ):
+    """Returns result of converting wrapper_accumulator into the output value.
+
+    Args:
+      wrapper_accumulator: The final wrapper_accumulator value.
+
+    Returns:
+      A proto representing the result of this stats generator.
+    """
+    result = statistics_pb2.DatasetFeatureStatistics()
+
+    for feature_name, accumulator_for_feature in six.iteritems(
+        wrapper_accumulator):
+      feature_stats = result.features.add()
+      feature_stats.name = feature_name
+      for index, generator in enumerate(self._feature_stats_generators):
+        feature_stats.MergeFrom(
+            generator.extract_output(accumulator_for_feature[index]))
+    return result

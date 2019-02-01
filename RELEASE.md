@@ -18,6 +18,8 @@
 * Use constant '__BYTES_VALUE__' in the statistics proto to represent a bytes
   value which cannot be decoded as a utf-8 string.
 * Depends on `numpy>=1.14.5,<2`.
+* Introduced CombinerFeatureStatsGenerator, a specialized interface for
+  combiners that do not require cross-feature computations.
 
 ## Breaking changes
 

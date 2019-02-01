@@ -123,12 +123,16 @@ class StatsOptions(object):
         raise TypeError('generators is of type %s, should be a list.' %
                         type(generators).__name__)
       for generator in generators:
-        if not isinstance(generator, (stats_generator.CombinerStatsGenerator,
-                                      stats_generator.TransformStatsGenerator)):
+        if not isinstance(generator, (
+            stats_generator.CombinerStatsGenerator,
+            stats_generator.TransformStatsGenerator,
+            stats_generator.CombinerFeatureStatsGenerator,
+        )):
           raise TypeError(
               'Statistics generator must extend one of '
-              'CombinerStatsGenerator or TransformStatsGenerator, '
-              'found object of type %s.' % generator.__class__.__name__)
+              'CombinerStatsGenerator, TransformStatsGenerator, or '
+              'CombinerFeatureStatsGenerator found object of type %s.' %
+              generator.__class__.__name__)
     self._generators = generators
 
   @property

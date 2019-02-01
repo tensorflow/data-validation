@@ -37,7 +37,8 @@ INVALID_STATS_OPTIONS = [
         },
         'exception_type': TypeError,
         'error_message': 'Statistics generator must extend one of '
-                         'CombinerStatsGenerator or TransformStatsGenerator, '
+                         'CombinerStatsGenerator, TransformStatsGenerator, '
+                         'or CombinerFeatureStatsGenerator '
                          'found object of type dict.'
     },
     {
