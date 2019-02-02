@@ -31,7 +31,8 @@ from tensorflow_data_validation.statistics.generators import top_k_uniques_combi
 from tensorflow_data_validation.statistics.generators import uniques_stats_generator
 
 from tensorflow_data_validation.utils import batch_util
-from tensorflow_data_validation.types_compat import Any, Dict, Iterable, List, Optional, Text, TypeVar
+from tensorflow_data_validation.utils import slicing_util
+from tensorflow_data_validation.types_compat import Any, Dict, Iterable, List, Optional, Text, Tuple, TypeVar
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -40,7 +41,45 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 @beam.typehints.with_input_types(types.BeamExample)
 @beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatisticsList)
 class GenerateStatisticsImpl(beam.PTransform):
-  """PTransform that applies a set of generators."""
+  """PTransform that applies a set of generators over input examples."""
+
+  def __init__(
+      self,
+      options = stats_options.StatsOptions()
+      ):
+    self._options = options
+
+  def expand(self, dataset):
+    # If a set of whitelist features are provided, keep only those features.
+    if self._options.feature_whitelist:
+      dataset |= ('RemoveNonWhitelistedFeatures' >> beam.Map(
+          _filter_features, feature_whitelist=self._options.feature_whitelist))
+
+    if self._options.slice_functions:
+      # Add default slicing function.
+      slice_functions = [slicing_util.default_slicer]
+      slice_functions.extend(self._options.slice_functions)
+      dataset = (
+          dataset
+          | 'GenerateSliceKeys' >> beam.FlatMap(
+              slicing_util.generate_slices, slice_functions=slice_functions))
+    else:
+      # TODO(pachristopher): Remove this special case if this doesn't give any
+      # performance improvement.
+      dataset = (dataset
+                 | 'KeyWithVoid' >> beam.Map(lambda v: (None, v)))
+
+    return dataset | GenerateSlicedStatisticsImpl(self._options)
+
+
+# This transform will be used by the example validation API to compute
+# statistics over anomalous examples. Specifically, it is used to compute
+# statistics over examples found for each anomaly (i.e., the anomaly type
+# will be the slice key).
+@beam.typehints.with_input_types(types.SlicedExample)
+@beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatisticsList)
+class GenerateSlicedStatisticsImpl(beam.PTransform):
+  """PTransform that applies a set of generators to sliced input examples."""
 
   def __init__(
       self,
@@ -51,11 +90,6 @@ class GenerateStatisticsImpl(beam.PTransform):
   def expand(self, dataset):
     # Initialize a list of stats generators to run.
     stats_generators = _get_generators(self._options)
-
-    # If a set of whitelist features are provided, keep only those features.
-    if self._options.feature_whitelist:
-      dataset |= ('RemoveNonWhitelistedFeatures' >> beam.Map(
-          _filter_features, feature_whitelist=self._options.feature_whitelist))
 
     result_protos = []
     # Iterate over the stats generators. For each generator,
@@ -68,12 +102,11 @@ class GenerateStatisticsImpl(beam.PTransform):
         # TODO(b/120863006): Consider removing fanout once BEAM-4030 is
         # resolved, and all the Beam OSS Runners support CombineFn.compact
         fanout = 16
-        # TODO(b/88250100): Remove fanout once multi-shard combining is enabled
-        # for single-thread cases.
         result_protos.append(
             dataset
-            | generator.name >> beam.CombineGlobally(
-                _BatchedCombineFnWrapper(generator)).with_fanout(fanout))
+            | generator.name >> beam.CombinePerKey(
+                _BatchedCombineFnWrapper(
+                    generator)).with_hot_key_fanout(fanout))
       elif isinstance(generator, stats_generator.TransformStatsGenerator):
         result_protos.append(
             dataset
@@ -91,7 +124,11 @@ class GenerateStatisticsImpl(beam.PTransform):
     return (result_protos
             | 'FlattenFeatureStatistics' >> beam.Flatten()
             | 'MergeDatasetFeatureStatisticsProtos' >>
-            beam.CombineGlobally(_merge_dataset_feature_stats_protos)
+            beam.CombinePerKey(_merge_dataset_feature_stats_protos)
+            | 'AddSliceKeyToStatsProto' >> beam.Map(
+                _add_slice_key,
+                is_slicing_enabled=self._options.slice_functions is not None)
+            | 'ToList' >> beam.combiners.ToList()
             | 'MakeDatasetFeatureStatisticsListProto' >>
             beam.Map(_make_dataset_feature_statistics_list_proto))
 
@@ -196,6 +233,18 @@ def _filter_features(
   }
 
 
+def _add_slice_key(
+    stats_proto_per_slice,
+    is_slicing_enabled
+):
+  """Add slice key to stats proto."""
+  result = statistics_pb2.DatasetFeatureStatistics()
+  result.CopyFrom(stats_proto_per_slice[1])
+  if is_slicing_enabled:
+    result.name = stats_proto_per_slice[0]
+  return result
+
+
 def _merge_dataset_feature_stats_protos(
     stats_protos
 ):
@@ -248,22 +297,23 @@ def _merge_dataset_feature_stats_protos(
 
 
 def _make_dataset_feature_statistics_list_proto(
-    stats_proto
+    stats_protos
 ):
   """Constructs a DatasetFeatureStatisticsList proto.
 
   Args:
-    stats_proto: The input DatasetFeatureStatistics proto.
+    stats_protos: List of DatasetFeatureStatistics protos.
 
   Returns:
-    The DatasetFeatureStatisticsList proto containing the input stats proto.
+    The DatasetFeatureStatisticsList proto containing the input stats protos.
   """
   # Create a new DatasetFeatureStatisticsList proto.
   result = statistics_pb2.DatasetFeatureStatisticsList()
 
-  # Add the input DatasetFeatureStatistics proto.
-  dataset_stats_proto = result.datasets.add()
-  dataset_stats_proto.CopyFrom(stats_proto)
+  for stats_proto in stats_protos:
+    # Add the input DatasetFeatureStatistics proto.
+    new_stats_proto = result.datasets.add()
+    new_stats_proto.CopyFrom(stats_proto)
   return result
 
 
@@ -426,7 +476,7 @@ def generate_statistics_in_memory(
   ]
 
   return _make_dataset_feature_statistics_list_proto(
-      _merge_dataset_feature_stats_protos(outputs))
+      [_merge_dataset_feature_stats_protos(outputs)])
 
 
 # Type for the wrapper_accumulator of a CombinerFeatureStatsWrapperGenerator.

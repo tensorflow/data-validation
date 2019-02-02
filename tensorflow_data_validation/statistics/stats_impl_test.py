@@ -29,6 +29,7 @@ from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.statistics.generators import basic_stats_generator
 from tensorflow_data_validation.statistics.generators import stats_generator
+from tensorflow_data_validation.utils import slicing_util
 from tensorflow_data_validation.utils import test_util
 from tensorflow_data_validation.types_compat import List
 
@@ -621,9 +622,542 @@ GENERATE_STATS_TESTS = [
 ]
 
 
+SLICING_TESTS = [
+    {
+        'testcase_name':
+            'feature_value_slicing',
+        'examples': [
+            {
+                'a': np.array([1.0, 2.0]),
+                'b': np.array(['a']),
+                'c': np.linspace(1, 500, 500, dtype=np.int32)
+            },
+            {
+                'a': np.array([3.0, 4.0, np.NaN, 5.0]),
+                'b': np.array(['a', 'b']),
+                'c': np.linspace(501, 1250, 750, dtype=np.int32)
+            },
+            {
+                'a': np.array([1.0]),
+                'b': np.array(['b']),
+                'c': np.linspace(1251, 3000, 1750, dtype=np.int32)
+            }
+        ],
+        'options':
+            stats_options.StatsOptions(
+                slice_functions=[
+                    slicing_util.get_feature_value_slicer({'b': None})
+                ],
+                num_top_values=2,
+                num_rank_histogram_buckets=2,
+                num_values_histogram_buckets=2,
+                num_histogram_buckets=2,
+                num_quantiles_histogram_buckets=2),
+        'expected_result_proto_text':
+            """
+            datasets {
+              name: "All Examples"
+              num_examples: 3
+              features {
+                name: "c"
+                num_stats {
+                  common_stats {
+                    num_non_missing: 3
+                    min_num_values: 500
+                    max_num_values: 1750
+                    avg_num_values: 1000.0
+                    num_values_histogram {
+                      buckets {
+                        low_value: 500.0
+                        high_value: 1750.0
+                        sample_count: 1.5
+                      }
+                      buckets {
+                        low_value: 1750.0
+                        high_value: 1750.0
+                        sample_count: 1.5
+                      }
+                      type: QUANTILES
+                    }
+                    tot_num_values: 3000
+                  }
+                  mean: 1500.5
+                  std_dev: 866.025355672
+                  min: 1.0
+                  median: 1503.0
+                  max: 3000.0
+                  histograms {
+                    buckets {
+                      low_value: 1.0
+                      high_value: 1500.5
+                      sample_count: 1497.65625
+                    }
+                    buckets {
+                      low_value: 1500.5
+                      high_value: 3000.0
+                      sample_count: 1502.34375
+                    }
+                  }
+                  histograms {
+                    buckets {
+                      low_value: 1.0
+                      high_value: 1503.0
+                      sample_count: 1500.0
+                    }
+                    buckets {
+                      low_value: 1503.0
+                      high_value: 3000.0
+                      sample_count: 1500.0
+                    }
+                    type: QUANTILES
+                  }
+                }
+              }
+              features {
+                name: "b"
+                type: STRING
+                string_stats {
+                  common_stats {
+                    num_non_missing: 3
+                    min_num_values: 1
+                    max_num_values: 2
+                    avg_num_values: 1.33333337307
+                    num_values_histogram {
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 1.5
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 2.0
+                        sample_count: 1.5
+                      }
+                      type: QUANTILES
+                    }
+                    tot_num_values: 4
+                  }
+                  unique: 2
+                  top_values {
+                    value: "b"
+                    frequency: 2.0
+                  }
+                  top_values {
+                    value: "a"
+                    frequency: 2.0
+                  }
+                  avg_length: 1.0
+                  rank_histogram {
+                    buckets {
+                      label: "b"
+                      sample_count: 2.0
+                    }
+                    buckets {
+                      low_rank: 1
+                      high_rank: 1
+                      label: "a"
+                      sample_count: 2.0
+                    }
+                  }
+                }
+              }
+              features {
+                name: "a"
+                type: FLOAT
+                num_stats {
+                  common_stats {
+                    num_non_missing: 3
+                    min_num_values: 1
+                    max_num_values: 4
+                    avg_num_values: 2.33333325386
+                    num_values_histogram {
+                      buckets {
+                        low_value: 1.0
+                        high_value: 4.0
+                        sample_count: 1.5
+                      }
+                      buckets {
+                        low_value: 4.0
+                        high_value: 4.0
+                        sample_count: 1.5
+                      }
+                      type: QUANTILES
+                    }
+                    tot_num_values: 7
+                  }
+                  mean: 2.66666666667
+                  std_dev: 1.490711985
+                  min: 1.0
+                  median: 3.0
+                  max: 5.0
+                  histograms {
+                    num_nan: 1
+                    buckets {
+                      low_value: 1.0
+                      high_value: 3.0
+                      sample_count: 3.0
+                    }
+                    buckets {
+                      low_value: 3.0
+                      high_value: 5.0
+                      sample_count: 3.0
+                    }
+                  }
+                  histograms {
+                    num_nan: 1
+                    buckets {
+                      low_value: 1.0
+                      high_value: 3.0
+                      sample_count: 3.0
+                    }
+                    buckets {
+                      low_value: 3.0
+                      high_value: 5.0
+                      sample_count: 3.0
+                    }
+                    type: QUANTILES
+                  }
+                }
+              }
+            }
+            datasets {
+              name: "b_a"
+              num_examples: 2
+              features {
+                name: "c"
+                num_stats {
+                  common_stats {
+                    num_non_missing: 2
+                    min_num_values: 500
+                    max_num_values: 750
+                    avg_num_values: 625.0
+                    num_values_histogram {
+                      buckets {
+                        low_value: 500.0
+                        high_value: 750.0
+                        sample_count: 1.0
+                      }
+                      buckets {
+                        low_value: 750.0
+                        high_value: 750.0
+                        sample_count: 1.0
+                      }
+                      type: QUANTILES
+                    }
+                    tot_num_values: 1250
+                  }
+                  mean: 625.5
+                  std_dev: 360.843802773
+                  min: 1.0
+                  median: 627.0
+                  max: 1250.0
+                  histograms {
+                    buckets {
+                      low_value: 1.0
+                      high_value: 625.5
+                      sample_count: 623.828125
+                    }
+                    buckets {
+                      low_value: 625.5
+                      high_value: 1250.0
+                      sample_count: 626.171875
+                    }
+                  }
+                  histograms {
+                    buckets {
+                      low_value: 1.0
+                      high_value: 627.0
+                      sample_count: 625.0
+                    }
+                    buckets {
+                      low_value: 627.0
+                      high_value: 1250.0
+                      sample_count: 625.0
+                    }
+                    type: QUANTILES
+                  }
+                }
+              }
+              features {
+                name: "b"
+                type: STRING
+                string_stats {
+                  common_stats {
+                    num_non_missing: 2
+                    min_num_values: 1
+                    max_num_values: 2
+                    avg_num_values: 1.5
+                    num_values_histogram {
+                      buckets {
+                        low_value: 1.0
+                        high_value: 2.0
+                        sample_count: 1.0
+                      }
+                      buckets {
+                        low_value: 2.0
+                        high_value: 2.0
+                        sample_count: 1.0
+                      }
+                      type: QUANTILES
+                    }
+                    tot_num_values: 3
+                  }
+                  unique: 2
+                  top_values {
+                    value: "a"
+                    frequency: 2.0
+                  }
+                  top_values {
+                    value: "b"
+                    frequency: 1.0
+                  }
+                  avg_length: 1.0
+                  rank_histogram {
+                    buckets {
+                      label: "a"
+                      sample_count: 2.0
+                    }
+                    buckets {
+                      low_rank: 1
+                      high_rank: 1
+                      label: "b"
+                      sample_count: 1.0
+                    }
+                  }
+                }
+              }
+              features {
+                name: "a"
+                type: FLOAT
+                num_stats {
+                  common_stats {
+                    num_non_missing: 2
+                    min_num_values: 2
+                    max_num_values: 4
+                    avg_num_values: 3.0
+                    num_values_histogram {
+                      buckets {
+                        low_value: 2.0
+                        high_value: 4.0
+                        sample_count: 1.0
+                      }
+                      buckets {
+                        low_value: 4.0
+                        high_value: 4.0
+                        sample_count: 1.0
+                      }
+                      type: QUANTILES
+                    }
+                    tot_num_values: 6
+                  }
+                  mean: 3.0
+                  std_dev: 1.41421356237
+                  min: 1.0
+                  median: 3.0
+                  max: 5.0
+                  histograms {
+                    num_nan: 1
+                    buckets {
+                      low_value: 1.0
+                      high_value: 3.0
+                      sample_count: 2.0
+                    }
+                    buckets {
+                      low_value: 3.0
+                      high_value: 5.0
+                      sample_count: 3.0
+                    }
+                  }
+                  histograms {
+                    num_nan: 1
+                    buckets {
+                      low_value: 1.0
+                      high_value: 3.0
+                      sample_count: 2.5
+                    }
+                    buckets {
+                      low_value: 3.0
+                      high_value: 5.0
+                      sample_count: 2.5
+                    }
+                    type: QUANTILES
+                  }
+                }
+              }
+            }
+            datasets {
+              name: "b_b"
+              num_examples: 2
+              features {
+                name: "c"
+                num_stats {
+                  common_stats {
+                    num_non_missing: 2
+                    min_num_values: 750
+                    max_num_values: 1750
+                    avg_num_values: 1250.0
+                    num_values_histogram {
+                      buckets {
+                        low_value: 750.0
+                        high_value: 1750.0
+                        sample_count: 1.0
+                      }
+                      buckets {
+                        low_value: 1750.0
+                        high_value: 1750.0
+                        sample_count: 1.0
+                      }
+                      type: QUANTILES
+                    }
+                    tot_num_values: 2500
+                  }
+                  mean: 1750.5
+                  std_dev: 721.687778752
+                  min: 501.0
+                  median: 1747.0
+                  max: 3000.0
+                  histograms {
+                    buckets {
+                      low_value: 501.0
+                      high_value: 1750.5
+                      sample_count: 1252.734375
+                    }
+                    buckets {
+                      low_value: 1750.5
+                      high_value: 3000.0
+                      sample_count: 1247.265625
+                    }
+                  }
+                  histograms {
+                    buckets {
+                      low_value: 501.0
+                      high_value: 1747.0
+                      sample_count: 1250.0
+                    }
+                    buckets {
+                      low_value: 1747.0
+                      high_value: 3000.0
+                      sample_count: 1250.0
+                    }
+                    type: QUANTILES
+                  }
+                }
+              }
+              features {
+                name: "b"
+                type: STRING
+                string_stats {
+                  common_stats {
+                    num_non_missing: 2
+                    min_num_values: 1
+                    max_num_values: 2
+                    avg_num_values: 1.5
+                    num_values_histogram {
+                      buckets {
+                        low_value: 1.0
+                        high_value: 2.0
+                        sample_count: 1.0
+                      }
+                      buckets {
+                        low_value: 2.0
+                        high_value: 2.0
+                        sample_count: 1.0
+                      }
+                      type: QUANTILES
+                    }
+                    tot_num_values: 3
+                  }
+                  unique: 2
+                  top_values {
+                    value: "b"
+                    frequency: 2.0
+                  }
+                  top_values {
+                    value: "a"
+                    frequency: 1.0
+                  }
+                  avg_length: 1.0
+                  rank_histogram {
+                    buckets {
+                      label: "b"
+                      sample_count: 2.0
+                    }
+                    buckets {
+                      low_rank: 1
+                      high_rank: 1
+                      label: "a"
+                      sample_count: 1.0
+                    }
+                  }
+                }
+              }
+              features {
+                name: "a"
+                type: FLOAT
+                num_stats {
+                  common_stats {
+                    num_non_missing: 2
+                    min_num_values: 1
+                    max_num_values: 4
+                    avg_num_values: 2.5
+                    num_values_histogram {
+                      buckets {
+                        low_value: 1.0
+                        high_value: 4.0
+                        sample_count: 1.0
+                      }
+                      buckets {
+                        low_value: 4.0
+                        high_value: 4.0
+                        sample_count: 1.0
+                      }
+                      type: QUANTILES
+                    }
+                    tot_num_values: 5
+                  }
+                  mean: 3.25
+                  std_dev: 1.47901994577
+                  min: 1.0
+                  median: 4.0
+                  max: 5.0
+                  histograms {
+                    num_nan: 1
+                    buckets {
+                      low_value: 1.0
+                      high_value: 3.0
+                      sample_count: 1.0
+                    }
+                    buckets {
+                      low_value: 3.0
+                      high_value: 5.0
+                      sample_count: 3.0
+                    }
+                  }
+                  histograms {
+                    num_nan: 1
+                    buckets {
+                      low_value: 1.0
+                      high_value: 4.0
+                      sample_count: 2.0
+                    }
+                    buckets {
+                      low_value: 4.0
+                      high_value: 5.0
+                      sample_count: 2.0
+                    }
+                    type: QUANTILES
+                  }
+                }
+              }
+            }
+            """,
+    },
+]
+
+
 class StatsImplTest(parameterized.TestCase):
 
-  @parameterized.named_parameters(*GENERATE_STATS_TESTS)
+  @parameterized.named_parameters(*(GENERATE_STATS_TESTS + SLICING_TESTS))
   def test_stats_impl(self,
                       examples,
                       options,
@@ -679,7 +1213,8 @@ class StatsImplTest(parameterized.TestCase):
         custom_stat2 = proto2_feat.custom_stats.add()
         custom_stat2.name = 'my_stat_b'
         custom_stat2.str = 'my_val_b'
-        return [stats_proto1, stats_proto2]
+        return [(None, stats_proto1),
+                (None, stats_proto2)]
 
     examples = [{'a': np.array([], dtype=np.int32),
                  'b': np.array([], dtype=np.int32)}]
@@ -1011,7 +1546,7 @@ class StatsImplTest(parameterized.TestCase):
         """, statistics_pb2.DatasetFeatureStatisticsList())
 
     self.assertEqual(
-        stats_impl._make_dataset_feature_statistics_list_proto(input_proto),
+        stats_impl._make_dataset_feature_statistics_list_proto([input_proto]),
         expected)
 
   def test_tfdv_telemetry(self):

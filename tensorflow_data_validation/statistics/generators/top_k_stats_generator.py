@@ -34,9 +34,9 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 FeatureValueCount = collections.namedtuple('FeatureValueCount',
                                            ['feature_value', 'count'])
 
-_FeatureNameAndValueListWithWeight = collections.namedtuple(
-    '_FeatureNameAndValueListWithWeight',
-    ['feature_name', 'value_list', 'weight'])
+_SlicedFeatureNameAndValueListWithWeight = collections.namedtuple(
+    '_SlicedFeatureNameAndValueListWithWeight',
+    ['slice_key', 'feature_name', 'value_list', 'weight'])
 
 _INVALID_STRING = '__BYTES_VALUE__'
 
@@ -112,38 +112,39 @@ def make_feature_stats_proto_with_topk_stats(
 def _make_dataset_feature_stats_proto_with_single_feature(
     feature_name_to_value_count_list,
     categorical_features, is_weighted_stats,
-    num_top_values, num_rank_histogram_buckets):
+    num_top_values, num_rank_histogram_buckets
+):
   """Makes a DatasetFeatureStatistics containing one single feature."""
+  (slice_key, feature_name), value_count_list = feature_name_to_value_count_list
   result = statistics_pb2.DatasetFeatureStatistics()
   result.features.add().CopyFrom(
       make_feature_stats_proto_with_topk_stats(
-          feature_name_to_value_count_list[0],
-          feature_name_to_value_count_list[1],
-          feature_name_to_value_count_list[0] in categorical_features,
+          feature_name, value_count_list, feature_name in categorical_features,
           is_weighted_stats, num_top_values, num_rank_histogram_buckets))
-  return result.SerializeToString()
+  return slice_key, result.SerializeToString()
 
 
 def _convert_input_to_feature_values_with_weights(
-    example,
+    sliced_example,
     categorical_features,
     weight_feature = None
 ):
   """Converts input example to tuples containing feature values and weights.
 
   Specifically, iterates over all the STRING features in the input example and
-  outputs tuples containing feature name, feature value and the weight
-  associated with the value (if a weight feature is provided).
+  outputs tuples containing slice key, feature name, feature value and the
+  weight associated with the value (if a weight feature is provided).
 
   Args:
-    example: Input example.
+    sliced_example: Tuple (slice_key, example).
     categorical_features: Set of names of categorical features.
     weight_feature: Name of the weight feature. None if there is no
         weight feature.
 
   Yields:
-    A tuple (feature_name, feature_value_list, optional weight).
+    A tuple (slice_key, feature_name, feature_value_list, optional weight).
   """
+  slice_key, example = sliced_example
   if weight_feature is not None:
     weight = example[weight_feature][0]
 
@@ -162,7 +163,8 @@ def _convert_input_to_feature_values_with_weights(
             statistics_pb2.FeatureNameStatistics.STRING):
       continue
 
-    yield _FeatureNameAndValueListWithWeight(
+    yield _SlicedFeatureNameAndValueListWithWeight(
+        slice_key,
         feature_name,
         values.astype(str) if is_categorical else values,
         weight if weight_feature else None)
@@ -176,16 +178,16 @@ def _flatten_value_list(
 ):
   """Flatten list of feature values.
 
-  Example: ('x', ['a', 'b'], ?) -> ('x', 'a'), ('x', 'b')
+  Example: ('key', 'x', ['a', 'b'], ?) -> ('key', 'x', 'a'), ('key', 'x', 'b')
 
   Args:
-    entry: A tuple (feature_name, feature_value_list, optional weight)
+    entry: Tuple (slice_key, feature_name, feature_value_list, optional weight)
 
   Yields:
-    A tuple (feature_name, feature_value)
+    Tuple (slice_key, feature_name, feature_value)
   """
   for value in entry.value_list:
-    yield entry.feature_name, value
+    yield entry.slice_key, entry.feature_name, value
 
 
 def _flatten_weighted_value_list(
@@ -193,16 +195,17 @@ def _flatten_weighted_value_list(
 ):
   """Flatten list of weighted feature values.
 
-  Example: ('x', ['a', 'b'], w) -> (('x', 'a'), w), (('x', 'b'), w)
+  Example: ('key', 'x', ['a', 'b'], w) ->
+                    (('key', 'x', 'a'), w), (('key', 'x', 'b'), w)
 
   Args:
-    entry: A tuple (feature_name, feature_value_list, weight)
+    entry: Tuple (slice_key, feature_name, feature_value_list, weight)
 
   Yields:
-    A tuple ((feature_name, feature_value), weight)
+    Tuple ((slice_key, feature_name, feature_value), weight)
   """
   for value in entry.value_list:
-    yield (entry.feature_name, value), entry.weight
+    yield (entry.slice_key, entry.feature_name, value), entry.weight
 
 
 def _feature_value_count_comparator(a,
@@ -217,8 +220,9 @@ def _feature_value_count_comparator(a,
 
 # Input type check is commented out, as beam python will fail the type check
 # when input is an empty dict.
-# @beam.typehints.with_input_types(types.Example)
-@beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatistics)
+# @beam.typehints.with_input_types(types.SlicedExample)
+@beam.typehints.with_output_types(
+    Tuple[types.SliceKey, statistics_pb2.DatasetFeatureStatistics])
 class _ComputeTopKStats(beam.PTransform):
   """A ptransform that computes the top-k most frequent feature values for
   string features.
@@ -247,7 +251,7 @@ class _ComputeTopKStats(beam.PTransform):
   def expand(self, pcoll):
     """Computes top-k most frequent values for string features."""
     # Convert input example to tuples of form
-    # (feature_name, feature_value_list, optional weight)
+    # (slice_key, feature_name, feature_value_list, optional weight)
     # corresponding to each example.
     feature_values_with_weights = (
         pcoll
@@ -255,26 +259,31 @@ class _ComputeTopKStats(beam.PTransform):
         beam.FlatMap(
             _convert_input_to_feature_values_with_weights,
             categorical_features=self._categorical_features,
-            weight_feature=self._weight_feature).with_output_types(
-                beam.typehints.KV[types.BeamFeatureName, np.ndarray]))
+            weight_feature=self._weight_feature))
+
+    # Lambda to convert from ((slice_key, feature_name, feature_value), count)
+    # to ((slice_key, feature_name), (feature_value, count))
+    modify_key = (
+        lambda x: ((x[0][0], x[0][1]), FeatureValueCount(x[0][2], x[1])))
 
     result_protos = []
     # Find topk values for each feature.
     topk = (
         feature_values_with_weights
-        # Flatten (feature_name, feature_value_list, optional weight) to
-        # (feature_name, feature_value)
-        | 'TopK_FlattenToFeatureNameValueTuples' >>
+        # Flatten (slice_key, feature_name, feature_value_list, optional weight)
+        # to (slice_key, feature_name, feature_value)
+        | 'TopK_FlattenToSlicedFeatureNameValueTuples' >>
         beam.FlatMap(_flatten_value_list)
-        # Compute the frequency of each feature_value. Output is a
-        # PCollection of ((feature_name, feature_value), count)
-        | 'TopK_CountFeatureNameValueTuple' >>
+        # Compute the frequency of each feature_value per slice. Output is a
+        # PCollection of ((slice_key, feature_name, feature_value), count)
+        | 'TopK_CountSlicedFeatureNameValueTuple' >>
         beam.combiners.Count().PerElement()
-        # Convert from ((feature_name, feature_value), count) to
-        # (feature_name, (feature_value, count))
-        | 'TopK_ModifyKeyToFeatureName' >>
-        beam.Map(lambda x: (x[0][0], FeatureValueCount(x[0][1], x[1])))
-        # Obtain the top-k most frequent feature value for each feature.
+        # Convert from ((slice_key, feature_name, feature_value), count) to
+        # ((slice_key, feature_name), (feature_value, count))
+        | 'TopK_ModifyKeyToSlicedFeatureName' >>
+        beam.Map(modify_key)
+        # Obtain the top-k most frequent feature value for each feature in a
+        # slice.
         | 'TopK_GetTopK' >> beam.combiners.Top().PerKey(
             max(self._num_top_values, self._num_rank_histogram_buckets),
             _feature_value_count_comparator)
@@ -292,18 +301,22 @@ class _ComputeTopKStats(beam.PTransform):
     if self._weight_feature is not None:
       weighted_topk = (
           feature_values_with_weights
-          # Flatten (feature_name, feature_value_list, weight) to
-          # ((feature_name, feature_value), weight)
-          | 'TopKWeighted_FlattenToFeatureNameValueTuples' >>
+          # Flatten (slice_key, feature_name, feature_value_list, weight) to
+          # ((slice_key, feature_name, feature_value), weight)
+          | 'TopKWeighted_FlattenToSlicedFeatureNameValueTuples' >>
           beam.FlatMap(_flatten_weighted_value_list)
-          # Sum the weights of each feature_value. Output is a
-          # PCollection of ((feature_name, feature_value), weighted_count)
-          | 'TopKWeighted_CountFeatureNameValueTuple' >> beam.CombinePerKey(sum)
-          # Convert from ((feature_name, feature_value), weighted_count) to
-          # (feature_name, (feature_value, weighted_count))
-          | 'TopKWeighted_ModifyKeyToFeatureName' >>
-          beam.Map(lambda x: (x[0][0], FeatureValueCount(x[0][1], x[1])))
-          # Obtain the top-k most frequent feature value for each feature.
+          # Sum the weights of each feature_value per slice. Output is a
+          # PCollection of
+          # ((slice_key, feature_name, feature_value), weighted_count)
+          | 'TopKWeighted_CountSlicedFeatureNameValueTuple' >>
+          beam.CombinePerKey(sum)
+          # Convert from
+          # ((slice_key, feature_name, feature_value), weighted_count) to
+          # ((slice_key, feature_name), (feature_value, weighted_count))
+          | 'TopKWeighted_ModifyKeyToSlicedFeatureName' >>
+          beam.Map(modify_key)
+          # Obtain the top-k most frequent feature value for each feature in a
+          # slice.
           | 'TopKWeighted_GetTopK' >> beam.combiners.Top().PerKey(
               max(self._num_top_values, self._num_rank_histogram_buckets),
               _feature_value_count_comparator)
@@ -315,17 +328,17 @@ class _ComputeTopKStats(beam.PTransform):
               num_rank_histogram_buckets=self._num_rank_histogram_buckets))
       result_protos.append(weighted_topk)
 
-    def _deserialize_feature_stats_proto(serialized_feature_stats_proto):
-      result = statistics_pb2.DatasetFeatureStatistics()
-      result.ParseFromString(serialized_feature_stats_proto)
-      return result
+    def _deserialize_sliced_feature_stats_proto(entry):
+      feature_stats_proto = statistics_pb2.DatasetFeatureStatistics()
+      feature_stats_proto.ParseFromString(entry[1])
+      return entry[0], feature_stats_proto
 
     return (result_protos
             | 'FlattenTopKResults' >> beam.Flatten()
             # TODO(b/121152126): This deserialization stage is a workaround.
             # Remove this once it is no longer needed.
             | 'DeserializeTopKFeatureStatsProto' >> beam.Map(
-                _deserialize_feature_stats_proto))
+                _deserialize_sliced_feature_stats_proto))
 
 
 class TopKStatsGenerator(stats_generator.TransformStatsGenerator):

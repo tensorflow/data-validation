@@ -40,10 +40,11 @@ parallel. We support two types of generators:
 
 2) TransformStatsGenerator
    This generator computes statistics using a user-provided Beam PTransform.
-   The PTransform must accept a Beam PCollection where each element is a Python
-   dict whose keys are feature names and values are numpy arrays representing a
-   batch of examples. It must return a PCollection containing a single element
-   which is a DatasetFeatureStatistics proto.
+   The PTransform must accept a Beam PCollection where each element is a tuple
+   containing a slice key and a dict whose keys are feature names and values
+   are numpy arrays representing an example. It must return a PCollection
+   where each element is a tuple containing a slice key and a
+   DatasetFeatureStatistics proto representing the statistics of a slice.
 """
 
 from __future__ import absolute_import
@@ -194,7 +195,13 @@ class CombinerFeatureStatsGenerator(StatsGenerator):
 
 
 class TransformStatsGenerator(StatsGenerator):
-  """Generate statistics using a Beam PTransform."""
+  """Generate statistics using a Beam PTransform.
+
+  Note that the input PTransform must take a PCollection of sliced
+  examples (tuple of (slice_key, example)) as input and output a
+  PCollection of sliced protos
+  (tuple of (slice_key, DatasetFeatureStatistics proto)).
+  """
 
   def __init__(self,
                name,

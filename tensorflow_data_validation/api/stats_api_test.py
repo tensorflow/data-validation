@@ -31,6 +31,7 @@ from google.protobuf import text_format
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
+# TODO(pachristopher): Add test for empty input case.
 class StatsAPITest(absltest.TestCase):
 
   def test_stats_pipeline(self):
@@ -281,21 +282,6 @@ class StatsAPITest(absltest.TestCase):
           epsilon=0.001)
       result = (
           p | beam.Create(examples) | stats_api.GenerateStatistics(options))
-      util.assert_that(
-          result,
-          test_util.make_dataset_feature_stats_list_proto_equal_fn(
-              self, expected_result))
-
-  def test_empty_input(self):
-    examples = []
-    expected_result = text_format.Parse("""
-    datasets {
-      num_examples: 0
-    }
-    """, statistics_pb2.DatasetFeatureStatisticsList())
-    with beam.Pipeline() as p:
-      result = p | beam.Create(examples) | stats_api.GenerateStatistics(
-          stats_options.StatsOptions())
       util.assert_that(
           result,
           test_util.make_dataset_feature_stats_list_proto_equal_fn(

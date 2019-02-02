@@ -174,6 +174,7 @@ class StatsOptions(object):
       for slice_function in slice_functions:
         if not isinstance(slice_function, python_types.FunctionType):
           raise TypeError('slice_functions must contain functions only.')
+    self._slice_functions = slice_functions
 
   @property
   def sample_count(self):

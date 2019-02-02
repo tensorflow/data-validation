@@ -24,7 +24,7 @@ from apache_beam.testing import util
 import numpy as np
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
-from tensorflow_data_validation.types_compat import Callable, Dict, List
+from tensorflow_data_validation.types_compat import Callable, Dict, List, Tuple, Union
 
 from tensorflow.python.util.protobuf import compare
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -81,12 +81,16 @@ def make_dataset_feature_stats_list_proto_equal_fn(
     """Matcher function for comparing DatasetFeatureStatisticsList proto."""
     try:
       test.assertEqual(len(actual), 1)
-      # Get the dataset stats from DatasetFeatureStatisticsList proto.
-      actual_stats = actual[0].datasets[0]
-      expected_stats = expected_result.datasets[0]
+      test.assertEqual(len(actual[0].datasets), len(expected_result.datasets))
 
-      assert_dataset_feature_stats_proto_equal(test, actual_stats,
-                                               expected_stats)
+      sorted_actual_datasets = sorted(actual[0].datasets, key=lambda d: d.name)
+      sorted_expected_datasets = sorted(expected_result.datasets,
+                                        key=lambda d: d.name)
+
+      for i in range(len(sorted_actual_datasets)):
+        assert_dataset_feature_stats_proto_equal(test,
+                                                 sorted_actual_datasets[i],
+                                                 sorted_expected_datasets[i])
     except AssertionError as e:
       raise util.BeamAssertException('Failed assert: ' + str(e))
 
@@ -134,6 +138,7 @@ def assert_dataset_feature_stats_proto_equal(
     actual: The actual DatasetFeatureStatistics proto.
     expected: The expected DatasetFeatureStatistics proto.
   """
+  test.assertEqual(actual.name, expected.name)
   test.assertEqual(actual.num_examples, expected.num_examples)
   test.assertEqual(len(actual.features), len(expected.features))
 
@@ -202,13 +207,26 @@ class CombinerStatsGeneratorTest(absltest.TestCase):
 class TransformStatsGeneratorTest(absltest.TestCase):
   """Test class with extra transform stats generator related functionality."""
 
-  # Runs the provided transform statistics generator and tests if the output
-  # matches the expected result.
-  def assertTransformOutputEqual(
+  # Runs the provided slicing aware transform statistics generator and tests
+  # if the output matches the expected result.
+  def assertSlicingAwareTransformOutputEqual(
       self, examples,
       generator,
-      expected_results):
-    """Tests a transform statistics generator."""
+      expected_results,
+      add_default_slice_key_to_input = False,
+      add_default_slice_key_to_output = False,
+  ):
+    """Tests a slicing aware transform statistics generator.
+
+    Args:
+      examples: Input sliced examples.
+      generator: A TransformStatsGenerator.
+      expected_results: Expected statistics proto results.
+      add_default_slice_key_to_input: If True, adds the default slice key to
+        the input examples.
+      add_default_slice_key_to_output: If True, adds the default slice key to
+        the result protos.
+    """
 
     def _make_result_matcher(
         test,
@@ -220,17 +238,27 @@ class TransformStatsGeneratorTest(absltest.TestCase):
         test.assertLen(expected_results, len(actual_results))
         # Sort both list of protos based on their string presentation to make
         # sure the sort is stable.
-        sorted_expected_results = sorted(expected_results, key=str)
-        sorted_actual_results = sorted(actual_results, key=str)
+        sorted_expected_results = sorted(
+            expected_results, key=lambda x: (x[0], x[1].SerializeToString()))
+        sorted_actual_results = sorted(
+            actual_results, key=lambda x: (x[0], x[1].SerializeToString()))
         for index, actual in enumerate(sorted_actual_results):
+          test.assertEqual(sorted_expected_results[index][0], actual[0])
           compare.assertProtoEqual(
               test,
-              actual,
-              sorted_expected_results[index],
+              actual[1],
+              sorted_expected_results[index][1],
               normalize_numbers=True)
 
       return _equal
 
+    if add_default_slice_key_to_input:
+      examples = [(None, e) for e in examples]
+    if add_default_slice_key_to_output:
+      expected_results = [(None, p)
+                          for p in expected_results]
+
     with beam.Pipeline() as p:
       result = p | beam.Create(examples) | generator.ptransform
       util.assert_that(result, _make_result_matcher(self, expected_results))
+

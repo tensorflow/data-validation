@@ -73,10 +73,12 @@ def _flatten_examples(batches):
 
 
 # TODO(b/117937992): Seed RNG so MI and partitioner are determenistic in test
-def _assign_to_partition(example, num_partitions
+def _assign_to_partition(sliced_example,
+                         num_partitions
                         ):
   """Assigns an example to a partition key."""
-  return np.random.randint(num_partitions), example
+  slice_key, example = sliced_example
+  return (slice_key, np.random.randint(num_partitions)), example
 
 
 def _get_partitioned_statistics_summary(
@@ -207,10 +209,20 @@ class PartitionedStatisticsAnalyzer(beam.CombineFn):
     return stats_util.make_dataset_feature_stats_proto(valid_stats_summary)
 
 
+def _process_partition(
+    partition,
+    stats_fn
+):
+  """Process examples in a single partition."""
+  (slice_key, _), examples = partition
+  return slice_key, stats_fn.compute(batch_util.merge_single_batch(examples))
+
+
 # Input type check is commented out, as beam python will fail the type check
 # when input is an empty dict.
-# @beam.typehints.with_input_types(types.Example)
-@beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatistics)
+# @beam.typehints.with_input_types(types.SlicedExample)
+@beam.typehints.with_output_types(
+    Tuple[types.SliceKey, statistics_pb2.DatasetFeatureStatistics])
 class _GenerateNonStreamingCustomStats(beam.PTransform):
   """A beam.PTransform that implements NonStreamingCustomStatsGenerator."""
 
@@ -237,10 +249,9 @@ class _GenerateNonStreamingCustomStats(beam.PTransform):
             _assign_to_partition, num_partitions=self._num_partitions)
         | 'GroupPartitionsIntoList' >> beam.CombinePerKey(
             beam.combiners.SampleCombineFn(self._max_examples_per_partition))
-        | 'RemovePartitionKey' >> beam.Values()
-        | 'BatchExamples' >> beam.Map(batch_util.merge_single_batch)
-        | 'ComputeStatsFn' >> beam.Map(self._stats_fn.compute)
-        | 'ComputeMetaStats' >> beam.CombineGlobally(
+        | 'ProcessPartition' >> beam.Map(_process_partition,
+                                         stats_fn=self._stats_fn)
+        | 'ComputeMetaStats' >> beam.CombinePerKey(
             PartitionedStatisticsAnalyzer(min_partitions_stat_presence=self
                                           ._min_partitions_stat_presence)))
 

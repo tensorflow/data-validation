@@ -35,13 +35,19 @@ class UniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
     examples = [{}]
     expected_result = []
     generator = uniques_stats_generator.UniquesStatsGenerator()
-    self.assertTransformOutputEqual(examples, generator, expected_result)
+    self.assertSlicingAwareTransformOutputEqual(
+        examples,
+        generator,
+        expected_result,
+        add_default_slice_key_to_input=True,
+        add_default_slice_key_to_output=True)
 
   def test_with_empty_list(self):
     examples = []
     expected_result = []
     generator = uniques_stats_generator.UniquesStatsGenerator()
-    self.assertTransformOutputEqual(examples, generator, expected_result)
+    self.assertSlicingAwareTransformOutputEqual(examples, generator,
+                                                expected_result)
 
   def test_all_string_features(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
@@ -56,44 +62,61 @@ class UniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
                  'fb': None},
                 {'fa': None,
                  'fb': np.array(['b', 'c'])}]
-    expected_result_fa = text_format.Parse(
-        """
+
+    expected_result = [
+        text_format.Parse(
+            """
       features {
         name: 'fa'
         type: STRING
         string_stats {
           unique: 5
         }
-      }""", statistics_pb2.DatasetFeatureStatistics())
-    expected_result_fb = text_format.Parse(
-        """
+      }""", statistics_pb2.DatasetFeatureStatistics()),
+        text_format.Parse(
+            """
       features {
         name: 'fb'
         type: STRING
         string_stats {
           unique: 3
         }
-      }""", statistics_pb2.DatasetFeatureStatistics())
+    }""", statistics_pb2.DatasetFeatureStatistics())
+    ]
+
     generator = uniques_stats_generator.UniquesStatsGenerator()
-    self.assertTransformOutputEqual(examples, generator,
-                                    [expected_result_fa, expected_result_fb])
+    self.assertSlicingAwareTransformOutputEqual(
+        examples,
+        generator,
+        expected_result,
+        add_default_slice_key_to_input=True,
+        add_default_slice_key_to_output=True)
 
   def test_single_unicode_feature(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
     examples = [{'fa': np.array(['a', 'b', 'c', 'e'], dtype=np.unicode_)},
                 {'fa': np.array(['a', 'c', 'd', 'a'], dtype=np.unicode_)},
                 {'fa': np.array(['a', 'b', 'c', 'd'], dtype=np.unicode_)}]
-    expected_result_fa = text_format.Parse(
-        """
+
+    expected_result = [
+        text_format.Parse(
+            """
       features {
         name: 'fa'
         type: STRING
         string_stats {
           unique: 5
         }
-      }""", statistics_pb2.DatasetFeatureStatistics())
+    }""", statistics_pb2.DatasetFeatureStatistics())
+    ]
+
     generator = uniques_stats_generator.UniquesStatsGenerator()
-    self.assertTransformOutputEqual(examples, generator, [expected_result_fa])
+    self.assertSlicingAwareTransformOutputEqual(
+        examples,
+        generator,
+        expected_result,
+        add_default_slice_key_to_input=True,
+        add_default_slice_key_to_output=True)
 
   def test_with_missing_feature(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
@@ -106,27 +129,35 @@ class UniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
                  'fb': None},
                 {'fa': np.array(['a', 'a', 'b', 'c', 'd'])},
                 {'fa': None}]
-    expected_result_fa = text_format.Parse(
-        """
+
+    expected_result = [
+        text_format.Parse(
+            """
       features {
         name: 'fa'
         type: STRING
         string_stats {
           unique: 5
         }
-      }""", statistics_pb2.DatasetFeatureStatistics())
-    expected_result_fb = text_format.Parse(
-        """
+      }""", statistics_pb2.DatasetFeatureStatistics()),
+        text_format.Parse(
+            """
       features {
         name: 'fb'
         type: STRING
         string_stats {
           unique: 3
         }
-      }""", statistics_pb2.DatasetFeatureStatistics())
+    }""", statistics_pb2.DatasetFeatureStatistics())
+    ]
+
     generator = uniques_stats_generator.UniquesStatsGenerator()
-    self.assertTransformOutputEqual(examples, generator,
-                                    [expected_result_fa, expected_result_fb])
+    self.assertSlicingAwareTransformOutputEqual(
+        examples,
+        generator,
+        expected_result,
+        add_default_slice_key_to_input=True,
+        add_default_slice_key_to_output=True)
 
   def test_one_numeric_feature(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
@@ -138,31 +169,44 @@ class UniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
                  'fb': None},
                 {'fa': np.array(['a', 'a', 'b', 'c', 'd']),
                  'fb': None}]
-    expected_result_fa = text_format.Parse(
-        """
+
+    expected_result = [
+        text_format.Parse(
+            """
       features {
         name: 'fa'
         type: STRING
         string_stats {
           unique: 5
         }
-      }""", statistics_pb2.DatasetFeatureStatistics())
+    }""", statistics_pb2.DatasetFeatureStatistics())
+    ]
+
     generator = uniques_stats_generator.UniquesStatsGenerator()
-    self.assertTransformOutputEqual(examples, generator, [expected_result_fa])
+    self.assertSlicingAwareTransformOutputEqual(
+        examples,
+        generator,
+        expected_result,
+        add_default_slice_key_to_input=True,
+        add_default_slice_key_to_output=True)
 
   def test_with_categorical_feature(self):
     examples = [{'fa': np.array([12, 23, 34, 12])},
                 {'fa': np.array([45, 23])},
                 {'fa': np.array([12, 12, 34, 45])}]
-    expected_result_fa = text_format.Parse(
-        """
+
+    expected_result = [
+        text_format.Parse(
+            """
       features {
         name: 'fa'
         type: INT
         string_stats {
           unique: 4
         }
-      }""", statistics_pb2.DatasetFeatureStatistics())
+    }""", statistics_pb2.DatasetFeatureStatistics())
+    ]
+
     schema = text_format.Parse(
         """
         feature {
@@ -174,7 +218,74 @@ class UniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         }
         """, schema_pb2.Schema())
     generator = uniques_stats_generator.UniquesStatsGenerator(schema=schema)
-    self.assertTransformOutputEqual(examples, generator, [expected_result_fa])
+    self.assertSlicingAwareTransformOutputEqual(
+        examples,
+        generator,
+        expected_result,
+        add_default_slice_key_to_input=True,
+        add_default_slice_key_to_output=True)
+
+  def test_unique_stats_with_slicing(self):
+    examples = [('slice1', {
+        'fa': np.array(['a', 'b', 'a', 'e']),
+        'fb': np.array(['1', '1', '0'])
+    }),
+                ('slice2', {
+                    'fa': np.array(['a', 'a', 'a']),
+                    'fb': np.array(['0', '1', '2', '3', '0'])
+                }), ('slice1', {
+                    'fa': None,
+                    'fb': np.array(['2', '0'])
+                }), ('slice2', {
+                    'fa': np.array(['b', 'a']),
+                    'fb': None
+                })]
+
+    expected_result = [('slice1',
+                        text_format.Parse(
+                            """
+      features {
+        name: 'fa'
+        type: STRING
+        string_stats {
+          unique: 3
+        }
+    }""", statistics_pb2.DatasetFeatureStatistics())),
+                       ('slice1',
+                        text_format.Parse(
+                            """
+      features {
+        name: 'fb'
+        type: STRING
+        string_stats {
+          unique: 3
+        }
+    }""", statistics_pb2.DatasetFeatureStatistics())),
+                       ('slice2',
+                        text_format.Parse(
+                            """
+      features {
+        name: 'fa'
+        type: STRING
+        string_stats {
+          unique: 2
+        }
+    }""", statistics_pb2.DatasetFeatureStatistics())),
+                       ('slice2',
+                        text_format.Parse(
+                            """
+      features {
+        name: 'fb'
+        type: STRING
+        string_stats {
+          unique: 4
+        }
+    }""", statistics_pb2.DatasetFeatureStatistics()))]
+
+    generator = uniques_stats_generator.UniquesStatsGenerator()
+    self.assertSlicingAwareTransformOutputEqual(examples, generator,
+                                                expected_result)
+
 
 if __name__ == '__main__':
   absltest.main()

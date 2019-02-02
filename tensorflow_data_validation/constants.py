@@ -19,5 +19,8 @@ from __future__ import division
 from __future__ import print_function
 
 
+# Name of the default slice containing all examples.
+DEFAULT_SLICE_KEY = 'All Examples'
+
 # Namespace for all TFDV metrics.
 METRICS_NAMESPACE = 'tfx.DataValidation'

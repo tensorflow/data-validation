@@ -25,7 +25,7 @@ from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils.stats_util import get_feature_type
-from tensorflow_data_validation.types_compat import Iterator, Optional, Set, Text, Tuple
+from tensorflow_data_validation.types_compat import Iterator, Optional, Set, Text, Tuple, Union
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
@@ -49,19 +49,19 @@ def _make_dataset_feature_stats_proto_with_single_feature(
     categorical_features
 ):
   """Generates a DatasetFeatureStatistics proto containing a single feature."""
+  (slice_key, feature_name), count = feature_name_to_value_count
   result = statistics_pb2.DatasetFeatureStatistics()
   result.features.add().CopyFrom(
       _make_feature_stats_proto(
-          feature_name_to_value_count[0],
-          feature_name_to_value_count[1],
-          feature_name_to_value_count[0] in categorical_features))
-  return result
+          feature_name, count, feature_name in categorical_features))
+  return slice_key, result
 
 
 # Input type check is commented out, as beam python will fail the type check
 # when input is an empty dict.
-# @beam.typehints.with_input_types(types.Example)
-@beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatistics)
+# @beam.typehints.with_input_types(types.SlicedExample)
+@beam.typehints.with_output_types(
+    Tuple[types.SliceKey, statistics_pb2.DatasetFeatureStatistics])
 class _UniquesStatsGeneratorImpl(beam.PTransform):
   """A PTransform that computes the number of unique values
   for string features.
@@ -76,10 +76,11 @@ class _UniquesStatsGeneratorImpl(beam.PTransform):
     self._categorical_features = set(
         schema_util.get_categorical_numeric_features(schema) if schema else [])
 
-  def _filter_irrelevant_features(
-      self, example
+  def _convert_to_feature_name_value_tuples(
+      self, sliced_example
   ):
-    """Filters out non-string features."""
+    """Converts input to tuples containing slice key, feature name and value."""
+    slice_key, example = sliced_example
     for feature_name, values in example.items():
       is_categorical = feature_name in self._categorical_features
       # Check if we have a numpy array with at least one value.
@@ -91,7 +92,10 @@ class _UniquesStatsGeneratorImpl(beam.PTransform):
           values.dtype) == statistics_pb2.FeatureNameStatistics.STRING):
         continue
 
-      yield (feature_name, values.astype(str) if is_categorical else values)
+      if is_categorical:
+        values = values.astype(str)
+      for value in values:
+        yield slice_key, feature_name, value
 
   def expand(self, pcoll):
     """Computes number of unique values for string features."""
@@ -99,18 +103,13 @@ class _UniquesStatsGeneratorImpl(beam.PTransform):
     # pcollection of DatasetFeatureStatistics protos
     return (
         pcoll
-        | 'Uniques_FilterIrrelevantFeatures' >>
-        (beam.FlatMap(self._filter_irrelevant_features).with_output_types(
-            beam.typehints.KV[types.BeamFeatureName, np.ndarray]))
-        | 'Uniques_FlattenToFeatureNameValueTuples' >>
-        beam.FlatMap(lambda name_and_value_list:  # pylint: disable=g-long-lambda
-                     [(name_and_value_list[0], value)
-                      for value in name_and_value_list[1]])
+        | 'Uniques_ConvertToFeatureNameValueTuples' >>
+        beam.FlatMap(self._convert_to_feature_name_value_tuples)
         | 'Uniques_RemoveDuplicateFeatureNameValueTuples' >>
         beam.RemoveDuplicates()
-        # Drop the values to only have the feature_name with each repeated the
-        # number of unique values times.
-        | 'Uniques_DropValues' >> beam.Keys()
+        # Drop the values to only have the slice_key and feature_name with each
+        # repeated the number of unique values times.
+        | 'Uniques_DropValues' >> beam.Map(lambda entry: (entry[0], entry[1]))
         | 'Uniques_CountPerFeatureName' >> beam.combiners.Count().PerElement()
         | 'Uniques_ConvertToSingleFeatureStats' >> beam.Map(
             _make_dataset_feature_stats_proto_with_single_feature,

@@ -2,6 +2,7 @@
 
 ## Major Features and Improvements
 
+* Add support for computing statistics over slices of data.
 * Performance improvement due to optimizing inner loops in
   BasicStatsGenerator.
 * Add support for generating statistics from a pandas dataframe.

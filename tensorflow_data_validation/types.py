@@ -21,7 +21,7 @@ from __future__ import print_function
 import apache_beam as beam
 import numpy as np
 
-from tensorflow_data_validation.types_compat import Callable, Dict, List, Optional, Text, Union
+from tensorflow_data_validation.types_compat import Callable, Dict, List, Optional, Text, Tuple, Union
 
 # Type of the feature name we support in the input batch.
 FeatureName = Union[bytes, Text]
@@ -36,10 +36,13 @@ Example = Dict[FeatureName, Optional[np.ndarray]]
 ExampleBatch = Dict[FeatureName, np.ndarray]
 
 # Type of slice keys.
-SliceKey = Union[bytes, Text]
+SliceKey = Optional[Union[bytes, Text]]
 
 # Type of list of slice keys.
 SliceKeysList = List[SliceKey]
+
+# Type of the tuple containing an input example along with the slice key.
+SlicedExample = Tuple[SliceKey, Example]
 
 # Type of the function that is used to generate a list of slice keys for a given
 # example. This function should take the form: slice_fn(example, **kwargs) ->
@@ -55,4 +58,4 @@ SliceFunction = Callable
 BeamFeatureName = beam.typehints.Union[bytes, Text]
 BeamExample = beam.typehints.Dict[BeamFeatureName, beam.typehints
                                   .Optional[np.ndarray]]
-BeamSliceKey = beam.typehints.Union[bytes, Text]
+BeamSliceKey = beam.typehints.Optional[beam.typehints.Union[bytes, Text]]

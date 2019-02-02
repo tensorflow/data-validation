@@ -22,11 +22,17 @@ import collections
 import itertools
 import six
 
+from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 
-from tensorflow_data_validation.types_compat import Generator, Iterable, Mapping, Optional, Text, Tuple, Union
+from tensorflow_data_validation.types_compat import Iterable, List, Mapping, Optional, Text, Union
 
 _ValueType = Iterable[Union[Text, int]]
+
+
+def default_slicer(unused_example):
+  """Default slicing function that returns the default slice key."""
+  return [constants.DEFAULT_SLICE_KEY]
 
 
 def get_feature_value_slicer(
@@ -139,7 +145,7 @@ def get_feature_value_slicer(
 def generate_slices(
     example, slice_functions,
     **kwargs):
-  """Yields (slice_key, example) tuples based on provided slice functions.
+  """Returns (slice_key, example) tuples based on provided slice functions.
 
   Args:
     example: An input example.
@@ -147,14 +153,17 @@ def generate_slices(
       example (and zero or more kwargs) and returns a list of slice keys.
     **kwargs: Keyword arguments to pass to each of the slice_functions.
 
-  Yields:
-    A (slice_key, example) tuple for each slice_key in the combined list
-    of slice keys that the slice_functions return.
+  Returns:
+    A list containing a (slice_key, example) tuple for each slice_key that the
+    slice_functions return.
   """
+  slice_keys = set()
   for slice_function in slice_functions:
     try:
-      for slice_key in slice_function(example, **kwargs):
-        yield (slice_key, example)
+      slice_keys.update(slice_function(example, **kwargs))
     except Exception as e:
       raise ValueError('One of the slice_functions %s raised an exception: %s.'
                        % (slice_function.__name__, repr(e)))
+  return [(slice_key, example) for slice_key in slice_keys]
+
+

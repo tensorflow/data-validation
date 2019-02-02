@@ -215,8 +215,9 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
 
     # Note that if two feature values have the same frequency, the one with the
     # lexicographically larger feature value will be higher in the order.
-    expected_result = text_format.Parse(
-        """
+    expected_result = [
+        text_format.Parse(
+            """
       features {
         name: 'fa'
         type: STRING
@@ -258,22 +259,33 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
             }
           }
         }
-      }""", statistics_pb2.DatasetFeatureStatistics())
+    }""", statistics_pb2.DatasetFeatureStatistics())
+    ]
+
     generator = top_k_stats_generator.TopKStatsGenerator(
         num_top_values=4, num_rank_histogram_buckets=3)
-    self.assertTransformOutputEqual(examples, generator, [expected_result])
+    self.assertSlicingAwareTransformOutputEqual(
+        examples,
+        generator,
+        expected_result,
+        add_default_slice_key_to_input=True,
+        add_default_slice_key_to_output=True)
 
   def test_topk_with_weights(self):
     # non-weighted ordering
     # 3 'a', 2 'e', 2 'd', 2 'c', 1 'b'
     # weighted ordering
     # fa: 20 'e', 20 'd', 15 'a', 10 'c', 5 'b'
-    examples = [{'fa': np.array(['a', 'b', 'c', 'e']),
-                 'w': np.array([5.0])},
-                {'fa': np.array(['a', 'c', 'd', 'a']),
-                 'w': np.array([5.0])},
-                {'fa': np.array(['d', 'e']),
-                 'w': np.array([15.0])}]
+    examples = [{
+        'fa': np.array(['a', 'b', 'c', 'e']),
+        'w': np.array([5.0])
+    }, {
+        'fa': np.array(['a', 'c', 'd', 'a']),
+        'w': np.array([5.0])
+    }, {
+        'fa': np.array(['d', 'e']),
+        'w': np.array([15.0])
+    }]
 
     expected_result = [
         text_format.Parse(
@@ -366,10 +378,16 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
                 }
               }
         }""", statistics_pb2.DatasetFeatureStatistics())]
+
     generator = top_k_stats_generator.TopKStatsGenerator(
         weight_feature='w',
         num_top_values=4, num_rank_histogram_buckets=3)
-    self.assertTransformOutputEqual(examples, generator, expected_result)
+    self.assertSlicingAwareTransformOutputEqual(
+        examples,
+        generator,
+        expected_result,
+        add_default_slice_key_to_input=True,
+        add_default_slice_key_to_output=True)
 
   def test_topk_with_single_unicode_feature(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
@@ -377,8 +395,9 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
                 {'fa': np.array(['a', 'c', 'd', 'a'], dtype=np.unicode_)},
                 {'fa': np.array(['a', 'b', 'c', 'd'], dtype=np.unicode_)}]
 
-    expected_result = text_format.Parse(
-        """
+    expected_result = [
+        text_format.Parse(
+            """
       features {
         name: 'fa'
         type: STRING
@@ -420,10 +439,17 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
             }
           }
         }
-      }""", statistics_pb2.DatasetFeatureStatistics())
+    }""", statistics_pb2.DatasetFeatureStatistics())
+    ]
+
     generator = top_k_stats_generator.TopKStatsGenerator(
         num_top_values=4, num_rank_histogram_buckets=3)
-    self.assertTransformOutputEqual(examples, generator, [expected_result])
+    self.assertSlicingAwareTransformOutputEqual(
+        examples,
+        generator,
+        expected_result,
+        add_default_slice_key_to_input=True,
+        add_default_slice_key_to_output=True)
 
   def test_topk_with_multiple_features(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
@@ -439,8 +465,9 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
                 {'fa': None,
                  'fb': np.array(['b', 'c'])}]
 
-    expected_result_fa = text_format.Parse(
-        """
+    expected_result = [
+        text_format.Parse(
+            """
       features {
         name: 'fa'
         type: STRING
@@ -482,9 +509,9 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
             }
           }
         }
-      }""", statistics_pb2.DatasetFeatureStatistics())
-    expected_result_fb = text_format.Parse(
-        """
+      }""", statistics_pb2.DatasetFeatureStatistics()),
+        text_format.Parse(
+            """
       features {
         name: 'fb'
         type: STRING
@@ -522,25 +549,37 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
             }
           }
         }
-      }""", statistics_pb2.DatasetFeatureStatistics())
+    }""", statistics_pb2.DatasetFeatureStatistics())
+    ]
+
     generator = top_k_stats_generator.TopKStatsGenerator(
         num_top_values=4, num_rank_histogram_buckets=3)
-    self.assertTransformOutputEqual(examples, generator,
-                                    [expected_result_fa, expected_result_fb])
+    self.assertSlicingAwareTransformOutputEqual(
+        examples,
+        generator,
+        expected_result,
+        add_default_slice_key_to_input=True,
+        add_default_slice_key_to_output=True)
+
+  def test_topk_empty(self):
+    examples = []
+    expected_result = []
+    generator = top_k_stats_generator.TopKStatsGenerator(
+        num_top_values=4, num_rank_histogram_buckets=3)
+    self.assertSlicingAwareTransformOutputEqual(examples, generator,
+                                                expected_result)
 
   def test_topk_with_empty_dict(self):
     examples = [{}]
     expected_result = []
     generator = top_k_stats_generator.TopKStatsGenerator(
         num_top_values=4, num_rank_histogram_buckets=3)
-    self.assertTransformOutputEqual(examples, generator, expected_result)
-
-  def test_topk_with_empty_list(self):
-    examples = []
-    expected_result = []
-    generator = top_k_stats_generator.TopKStatsGenerator(
-        num_top_values=4, num_rank_histogram_buckets=3)
-    self.assertTransformOutputEqual(examples, generator, expected_result)
+    self.assertSlicingAwareTransformOutputEqual(
+        examples,
+        generator,
+        expected_result,
+        add_default_slice_key_to_input=True,
+        add_default_slice_key_to_output=True)
 
   def test_topk_with_missing_feature(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
@@ -553,8 +592,9 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
                  'fb': None},
                 {'fa': np.array(['a', 'a', 'b', 'c', 'd'])},
                 {'fa': None}]
-    expected_result_fa = text_format.Parse(
-        """
+    expected_result = [
+        text_format.Parse(
+            """
       features {
         name: 'fa'
         type: STRING
@@ -596,9 +636,9 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
             }
           }
         }
-      }""", statistics_pb2.DatasetFeatureStatistics())
-    expected_result_fb = text_format.Parse(
-        """
+      }""", statistics_pb2.DatasetFeatureStatistics()),
+        text_format.Parse(
+            """
       features {
         name: 'fb'
         type: STRING
@@ -636,11 +676,17 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
             }
           }
         }
-      }""", statistics_pb2.DatasetFeatureStatistics())
+    }""", statistics_pb2.DatasetFeatureStatistics())
+    ]
+
     generator = top_k_stats_generator.TopKStatsGenerator(
         num_top_values=4, num_rank_histogram_buckets=3)
-    self.assertTransformOutputEqual(examples, generator,
-                                    [expected_result_fa, expected_result_fb])
+    self.assertSlicingAwareTransformOutputEqual(
+        examples,
+        generator,
+        expected_result,
+        add_default_slice_key_to_input=True,
+        add_default_slice_key_to_output=True)
 
   def test_topk_with_numeric_feature(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
@@ -653,8 +699,9 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
                 {'fa': np.array(['a', 'a', 'b', 'c', 'd']),
                  'fb': None}]
 
-    expected_result_fa = text_format.Parse(
-        """
+    expected_result = [
+        text_format.Parse(
+            """
       features {
         name: 'fa'
         type: STRING
@@ -688,17 +735,26 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
             }
           }
         }
-      }""", statistics_pb2.DatasetFeatureStatistics())
+    }""", statistics_pb2.DatasetFeatureStatistics())
+    ]
+
     generator = top_k_stats_generator.TopKStatsGenerator(
         num_top_values=2, num_rank_histogram_buckets=3)
-    self.assertTransformOutputEqual(examples, generator, [expected_result_fa])
+    self.assertSlicingAwareTransformOutputEqual(
+        examples,
+        generator,
+        expected_result,
+        add_default_slice_key_to_input=True,
+        add_default_slice_key_to_output=True)
 
   def test_topk_with_categorical_feature(self):
     examples = [{'fa': np.array([12, 23, 34, 12])},
                 {'fa': np.array([45, 23])},
                 {'fa': np.array([12, 12, 34, 45])}]
-    expected_result_fa = text_format.Parse(
-        """
+
+    expected_result = [
+        text_format.Parse(
+            """
       features {
         name: 'fa'
         type: INT
@@ -732,7 +788,9 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
             }
           }
         }
-      }""", statistics_pb2.DatasetFeatureStatistics())
+    }""", statistics_pb2.DatasetFeatureStatistics())
+    ]
+
     schema = text_format.Parse(
         """
         feature {
@@ -746,15 +804,20 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
     generator = top_k_stats_generator.TopKStatsGenerator(
         schema=schema,
         num_top_values=2, num_rank_histogram_buckets=3)
-    self.assertTransformOutputEqual(examples, generator, [expected_result_fa])
+    self.assertSlicingAwareTransformOutputEqual(
+        examples,
+        generator,
+        expected_result,
+        add_default_slice_key_to_input=True,
+        add_default_slice_key_to_output=True)
 
   def test_topk_with_invalid_utf8_value(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
     examples = [{'fa': np.array(['a', b'\x80abc', 'a', b'\x80abc', 'a'],
                                 dtype=np.object)}]
-
-    expected_result = text_format.Parse(
-        """
+    expected_result = [
+        text_format.Parse(
+            """
       features {
         name: 'fa'
         type: STRING
@@ -782,10 +845,172 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
             }
           }
         }
-      }""", statistics_pb2.DatasetFeatureStatistics())
+    }""", statistics_pb2.DatasetFeatureStatistics())
+    ]
+
     generator = top_k_stats_generator.TopKStatsGenerator(
         num_top_values=4, num_rank_histogram_buckets=3)
-    self.assertTransformOutputEqual(examples, generator, [expected_result])
+    self.assertSlicingAwareTransformOutputEqual(
+        examples,
+        generator,
+        expected_result,
+        add_default_slice_key_to_input=True,
+        add_default_slice_key_to_output=True)
+
+  def test_topk_with_slicing(self):
+    examples = [('slice1', {
+        'fa': np.array(['a', 'b', 'c', 'e']),
+        'fb': np.array(['1', '1', '0'])
+    }),
+                ('slice2', {
+                    'fa': np.array(['b', 'a', 'e', 'c']),
+                    'fb': np.array(['0', '0', '1'])
+                }),
+                ('slice1', {
+                    'fa': np.array(['a', 'c', 'd', 'a']),
+                    'fb': None
+                }),
+                ('slice2', {
+                    'fa': np.array(['b', 'e', 'd', 'b']),
+                    'fb': None
+                })]
+
+    # Note that if two feature values have the same frequency, the one with the
+    # lexicographically larger feature value will be higher in the order.
+    expected_result = [('slice1',
+                        text_format.Parse(
+                            """
+      features {
+        name: 'fa'
+        type: STRING
+        string_stats {
+          top_values {
+            value: 'a'
+            frequency: 3
+          }
+          top_values {
+            value: 'c'
+            frequency: 2
+          }
+          rank_histogram {
+            buckets {
+              low_rank: 0
+              high_rank: 0
+              label: "a"
+              sample_count: 3.0
+            }
+            buckets {
+              low_rank: 1
+              high_rank: 1
+              label: "c"
+              sample_count: 2.0
+            }
+          }
+        }
+      }
+    """, statistics_pb2.DatasetFeatureStatistics())),
+                       ('slice1',
+                        text_format.Parse(
+                            """
+      features {
+        name: 'fb'
+        type: STRING
+        string_stats {
+          top_values {
+            value: '1'
+            frequency: 2
+          }
+          top_values {
+            value: '0'
+            frequency: 1
+          }
+          rank_histogram {
+            buckets {
+              low_rank: 0
+              high_rank: 0
+              label: "1"
+              sample_count: 2.0
+            }
+            buckets {
+              low_rank: 1
+              high_rank: 1
+              label: "0"
+              sample_count: 1.0
+            }
+          }
+        }
+      }
+    """, statistics_pb2.DatasetFeatureStatistics())),
+                       ('slice2',
+                        text_format.Parse(
+                            """
+      features {
+        name: 'fa'
+        type: STRING
+        string_stats {
+          top_values {
+            value: 'b'
+            frequency: 3
+          }
+          top_values {
+            value: 'e'
+            frequency: 2
+          }
+          rank_histogram {
+            buckets {
+              low_rank: 0
+              high_rank: 0
+              label: "b"
+              sample_count: 3.0
+            }
+            buckets {
+              low_rank: 1
+              high_rank: 1
+              label: "e"
+              sample_count: 2.0
+            }
+          }
+        }
+      }
+    """, statistics_pb2.DatasetFeatureStatistics())),
+                       ('slice2',
+                        text_format.Parse(
+                            """
+      features {
+        name: 'fb'
+        type: STRING
+        string_stats {
+          top_values {
+            value: '0'
+            frequency: 2
+          }
+          top_values {
+            value: '1'
+            frequency: 1
+          }
+          rank_histogram {
+            buckets {
+              low_rank: 0
+              high_rank: 0
+              label: "0"
+              sample_count: 2.0
+            }
+            buckets {
+              low_rank: 1
+              high_rank: 1
+              label: "1"
+              sample_count: 1.0
+            }
+          }
+        }
+      }
+    """, statistics_pb2.DatasetFeatureStatistics()))]
+
+    generator = top_k_stats_generator.TopKStatsGenerator(
+        num_top_values=2, num_rank_histogram_buckets=2)
+    self.assertSlicingAwareTransformOutputEqual(examples, generator,
+                                                expected_result)
+
 
 if __name__ == '__main__':
   absltest.main()

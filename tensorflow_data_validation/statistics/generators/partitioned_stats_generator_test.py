@@ -19,6 +19,7 @@ from __future__ import print_function
 
 from absl.testing import absltest
 import numpy as np
+from tensorflow_data_validation import constants
 from tensorflow_data_validation.statistics.generators import partitioned_stats_generator
 from tensorflow_data_validation.statistics.generators import sklearn_mutual_information
 from tensorflow_data_validation.utils import test_util
@@ -124,6 +125,7 @@ class AssignToPartitionTest(absltest.TestCase):
 
     np.random.seed(TEST_SEED)
     examples = [{'a': x} for x in np.random.randint(0, 3, (4500, 1))]
+    examples = [(constants.DEFAULT_SLICE_KEY, e) for e in examples]
     num_partitions = 3
 
     # The i,jth value of result represents the number of examples with value j
@@ -134,7 +136,7 @@ class AssignToPartitionTest(absltest.TestCase):
         partitioned_stats_generator._assign_to_partition(example,
                                                          num_partitions)
         for example in examples]
-    for partition_key, example in partitioned_examples:
+    for (unused_slice_key, partition_key), example in partitioned_examples:
       result[partition_key][example['a'][0]] += 1
 
     for partition in result:
@@ -252,11 +254,71 @@ class PartitionedStatisticsAnalyzer(absltest.TestCase):
             min_partitions_stat_presence=2), expected)
 
 
+def _get_test_stats_with_mi(feature_names):
+  """Get stats proto for MI test."""
+  result = statistics_pb2.DatasetFeatureStatistics()
+  for feature_name in feature_names:
+    feature_proto = text_format.Parse(
+        """
+                custom_stats {
+                  name: "max_sklearn_adjusted_mutual_information"
+                  num: 0.0
+                }
+                custom_stats {
+                  name: "max_sklearn_mutual_information"
+                  num: 0.0
+                }
+                custom_stats {
+                  name: "mean_sklearn_adjusted_mutual_information"
+                  num: 0.0
+                }
+                custom_stats {
+                  name: "mean_sklearn_mutual_information"
+                  num: 0.0
+                }
+                custom_stats {
+                  name: "median_sklearn_adjusted_mutual_information"
+                  num: 0.0
+                }
+                custom_stats {
+                  name: "median_sklearn_mutual_information"
+                  num: 0.0
+                }
+                custom_stats {
+                  name: "min_sklearn_adjusted_mutual_information"
+                  num: 0.0
+                }
+                custom_stats {
+                  name: "min_sklearn_mutual_information"
+                  num: 0.0
+                }
+                custom_stats {
+                  name: "num_partitions_sklearn_adjusted_mutual_information"
+                  num: 2.0
+                }
+                custom_stats {
+                  name: "num_partitions_sklearn_mutual_information"
+                  num: 2.0
+                }
+                custom_stats {
+                  name: "std_dev_sklearn_adjusted_mutual_information"
+                  num: 0.0
+                }
+                custom_stats {
+                  name: "std_dev_sklearn_mutual_information"
+                  num: 0.0
+                }
+        """, statistics_pb2.FeatureNameStatistics())
+    feature_proto.name = feature_name
+    result.features.add().CopyFrom(feature_proto)
+  return result
+
+
 class NonStreamingCustomStatsGeneratorTest(
     test_util.TransformStatsGeneratorTest):
   """Tests for NonStreamingCustomStatsGenerator."""
 
-  def test_sklearn_mi(self):
+  def setUp(self):
     # Integration tests involving Beam and AMI are challenging to write
     # because Beam PCollections are unordered while the results of adjusted MI
     # depend on the order of the data for small datasets. This test case tests
@@ -267,55 +329,73 @@ class NonStreamingCustomStatsGeneratorTest(
     # itself are included in sklearn_mutual_information_test.
 
     # fa is categorical, fb is numeric, fc is multivalent and fd has null values
-    examples = [
-        {'fa': np.array(['Red']),
-         'fb': np.array([1.0]),
-         'fc': np.array([1, 3, 1]),
-         'fd': np.array([0.4]),
-         'label_key': np.array(['Label'])},
-        {'fa': np.array(['Green']),
-         'fb': np.array([2.2]),
-         'fc': np.array([2, 6]),
-         'fd': np.array([0.4]),
-         'label_key': np.array(['Label'])},
-        {'fa': np.array(['Blue']),
-         'fb': np.array([3.3]),
-         'fc': np.array([4, 6]),
-         'fd': np.array([0.3]),
-         'label_key': np.array(['Label'])},
-        {'fa': np.array(['Green']),
-         'fb': np.array([1.3]),
-         'fc': None,
-         'fd': np.array([0.2]),
-         'label_key': np.array(['Label'])},
-        {'fa': np.array(['Red']),
-         'fb': np.array([1.2]),
-         'fc': np.array([1]),
-         'fd': np.array([0.3]),
-         'label_key': np.array(['Label'])},
-        {'fa': np.array(['Blue']),
-         'fb': np.array([0.5]),
-         'fc': np.array([3, 2]),
-         'fd': np.array([0.4]),
-         'label_key': np.array(['Label'])},
-        {'fa': np.array(['Blue']),
-         'fb': np.array([1.3]),
-         'fc': np.array([1, 4]),
-         'fd': np.array([1.7]),
-         'label_key': np.array(['Label'])},
-        {'fa': np.array(['Green']),
-         'fb': np.array([2.3]),
-         'fc': np.array([0]),
-         'fd': np.array([np.NaN]),
-         'label_key': np.array(['Label'])},
-        {'fa': np.array(['Green']),
-         'fb': np.array([0.3]),
-         'fc': np.array([3]),
-         'fd': np.array([4.4]),
-         'label_key': np.array(['Label'])}
+    self.examples = [
+        {
+            'fa': np.array(['Red']),
+            'fb': np.array([1.0]),
+            'fc': np.array([1, 3, 1]),
+            'fd': np.array([0.4]),
+            'label_key': np.array(['Label'])
+        },
+        {
+            'fa': np.array(['Green']),
+            'fb': np.array([2.2]),
+            'fc': np.array([2, 6]),
+            'fd': np.array([0.4]),
+            'label_key': np.array(['Label'])
+        },
+        {
+            'fa': np.array(['Blue']),
+            'fb': np.array([3.3]),
+            'fc': np.array([4, 6]),
+            'fd': np.array([0.3]),
+            'label_key': np.array(['Label'])
+        },
+        {
+            'fa': np.array(['Green']),
+            'fb': np.array([1.3]),
+            'fc': None,
+            'fd': np.array([0.2]),
+            'label_key': np.array(['Label'])
+        },
+        {
+            'fa': np.array(['Red']),
+            'fb': np.array([1.2]),
+            'fc': np.array([1]),
+            'fd': np.array([0.3]),
+            'label_key': np.array(['Label'])
+        },
+        {
+            'fa': np.array(['Blue']),
+            'fb': np.array([0.5]),
+            'fc': np.array([3, 2]),
+            'fd': np.array([0.4]),
+            'label_key': np.array(['Label'])
+        },
+        {
+            'fa': np.array(['Blue']),
+            'fb': np.array([1.3]),
+            'fc': np.array([1, 4]),
+            'fd': np.array([1.7]),
+            'label_key': np.array(['Label'])
+        },
+        {
+            'fa': np.array(['Green']),
+            'fb': np.array([2.3]),
+            'fc': np.array([0]),
+            'fd': np.array([np.NaN]),
+            'label_key': np.array(['Label'])
+        },
+        {
+            'fa': np.array(['Green']),
+            'fb': np.array([0.3]),
+            'fc': np.array([3]),
+            'fd': np.array([4.4]),
+            'label_key': np.array(['Label'])
+        },
     ]
 
-    schema = text_format.Parse(
+    self.schema = text_format.Parse(
         """
         feature {
           name: "fa"
@@ -362,172 +442,42 @@ class NonStreamingCustomStatsGeneratorTest(
           }
         }""", schema_pb2.Schema())
 
-    expected_result = [
-        text_format.Parse(
-            """
-              features {
-                name: "fa"
-                custom_stats {
-                  name: "max_sklearn_adjusted_mutual_information"
-                  num: 0.0
-                }
-                custom_stats {
-                  name: "max_sklearn_mutual_information"
-                  num: 0.0
-                }
-                custom_stats {
-                  name: "mean_sklearn_adjusted_mutual_information"
-                  num: 0.0
-                }
-                custom_stats {
-                  name: "mean_sklearn_mutual_information"
-                  num: 0.0
-                }
-                custom_stats {
-                  name: "median_sklearn_adjusted_mutual_information"
-                  num: 0.0
-                }
-                custom_stats {
-                  name: "median_sklearn_mutual_information"
-                  num: 0.0
-                }
-                custom_stats {
-                  name: "min_sklearn_adjusted_mutual_information"
-                  num: 0.0
-                }
-                custom_stats {
-                  name: "min_sklearn_mutual_information"
-                  num: 0.0
-                }
-                custom_stats {
-                  name: "num_partitions_sklearn_adjusted_mutual_information"
-                  num: 2.0
-                }
-                custom_stats {
-                  name: "num_partitions_sklearn_mutual_information"
-                  num: 2.0
-                }
-                custom_stats {
-                  name: "std_dev_sklearn_adjusted_mutual_information"
-                  num: 0.0
-                }
-                custom_stats {
-                  name: "std_dev_sklearn_mutual_information"
-                  num: 0.0
-                }
-              }
-              features {
-                name: "fb"
-                custom_stats {
-                  name: "max_sklearn_adjusted_mutual_information"
-                  num: 0.0
-                }
-                custom_stats {
-                  name: "max_sklearn_mutual_information"
-                  num: 0.0
-                }
-                custom_stats {
-                  name: "mean_sklearn_adjusted_mutual_information"
-                  num: 0.0
-                }
-                custom_stats {
-                  name: "mean_sklearn_mutual_information"
-                  num: 0.0
-                }
-                custom_stats {
-                  name: "median_sklearn_adjusted_mutual_information"
-                  num: 0.0
-                }
-                custom_stats {
-                  name: "median_sklearn_mutual_information"
-                  num: 0.0
-                }
-                custom_stats {
-                  name: "min_sklearn_adjusted_mutual_information"
-                  num: 0.0
-                }
-                custom_stats {
-                  name: "min_sklearn_mutual_information"
-                  num: 0.0
-                }
-                custom_stats {
-                  name: "num_partitions_sklearn_adjusted_mutual_information"
-                  num: 2.0
-                }
-                custom_stats {
-                  name: "num_partitions_sklearn_mutual_information"
-                  num: 2.0
-                }
-                custom_stats {
-                  name: "std_dev_sklearn_adjusted_mutual_information"
-                  num: 0.0
-                }
-                custom_stats {
-                  name: "std_dev_sklearn_mutual_information"
-                  num: 0.0
-                }
-              }
-              features {
-                name: "fd"
-                custom_stats {
-                  name: "max_sklearn_adjusted_mutual_information"
-                  num: 0.0
-                }
-                custom_stats {
-                  name: "max_sklearn_mutual_information"
-                  num: 0.0
-                }
-                custom_stats {
-                  name: "mean_sklearn_adjusted_mutual_information"
-                  num: 0.0
-                }
-                custom_stats {
-                  name: "mean_sklearn_mutual_information"
-                  num: 0.0
-                }
-                custom_stats {
-                  name: "median_sklearn_adjusted_mutual_information"
-                  num: 0.0
-                }
-                custom_stats {
-                  name: "median_sklearn_mutual_information"
-                  num: 0.0
-                }
-                custom_stats {
-                  name: "min_sklearn_adjusted_mutual_information"
-                  num: 0.0
-                }
-                custom_stats {
-                  name: "min_sklearn_mutual_information"
-                  num: 0.0
-                }
-                custom_stats {
-                  name: "num_partitions_sklearn_adjusted_mutual_information"
-                  num: 2.0
-                }
-                custom_stats {
-                  name: "num_partitions_sklearn_mutual_information"
-                  num: 2.0
-                }
-                custom_stats {
-                  name: "std_dev_sklearn_adjusted_mutual_information"
-                  num: 0.0
-                }
-                custom_stats {
-                  name: "std_dev_sklearn_mutual_information"
-                  num: 0.0
-                }
-              }""", statistics_pb2.DatasetFeatureStatistics())
-    ]
+  def test_sklearn_mi(self):
+    expected_result = [_get_test_stats_with_mi(['fa', 'fb', 'fd'])]
     generator = partitioned_stats_generator.NonStreamingCustomStatsGenerator(
         sklearn_mutual_information.SkLearnMutualInformation(
-            label_feature='label_key', schema=schema, seed=TEST_SEED),
+            label_feature='label_key', schema=self.schema, seed=TEST_SEED),
         num_partitions=2,
         min_partitions_stat_presence=2,
         seed=TEST_SEED,
         max_examples_per_partition=1000,
         name='NonStreaming Mutual Information')
-    self.assertTransformOutputEqual(examples, generator, expected_result)
+    self.assertSlicingAwareTransformOutputEqual(
+        self.examples,
+        generator,
+        expected_result,
+        add_default_slice_key_to_input=True,
+        add_default_slice_key_to_output=True)
+
+  def test_sklearn_mi_with_slicing(self):
+    sliced_examples = []
+    for slice_key in ['slice1', 'slice2']:
+      for example in self.examples:
+        sliced_examples.append((slice_key, example))
+
+    expected_result = [('slice1', _get_test_stats_with_mi(['fa', 'fb', 'fd'])),
+                       ('slice2', _get_test_stats_with_mi(['fa', 'fb', 'fd']))]
+    generator = partitioned_stats_generator.NonStreamingCustomStatsGenerator(
+        sklearn_mutual_information.SkLearnMutualInformation(
+            label_feature='label_key', schema=self.schema, seed=TEST_SEED),
+        num_partitions=2,
+        min_partitions_stat_presence=2,
+        seed=TEST_SEED,
+        max_examples_per_partition=1000,
+        name='NonStreaming Mutual Information')
+    self.assertSlicingAwareTransformOutputEqual(sliced_examples, generator,
+                                                expected_result)
+
 
 if __name__ == '__main__':
   absltest.main()
