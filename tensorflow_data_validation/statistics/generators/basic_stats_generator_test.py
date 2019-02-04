@@ -133,14 +133,153 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     # has a single example.
     batches = [{'a': np.array([np.array([1.0, 2.0]),
                                np.array([3.0, 4.0, 5.0])]),
+                'b': np.array([np.array([1, 2]),
+                               np.array([3, 4, 5])]),
                 'w': np.array([np.array([1.0]), np.array([2.0])])},
                {'a': np.array([np.array([1.0,]), None]),
+                'b': np.array([np.array([1]), None]),
                 'w': np.array([np.array([3.0]), np.array([2.0])])}]
     expected_result = {
         'a': text_format.Parse(
             """
             name: 'a'
             type: FLOAT
+            num_stats {
+              common_stats {
+                num_non_missing: 3
+                num_missing: 1
+                min_num_values: 1
+                max_num_values: 3
+                avg_num_values: 2.0
+                tot_num_values: 6
+                num_values_histogram {
+                  buckets {
+                    low_value: 1.0
+                    high_value: 1.0
+                    sample_count: 0.75
+                  }
+                  buckets {
+                    low_value: 1.0
+                    high_value: 2.0
+                    sample_count: 0.75
+                  }
+                  buckets {
+                    low_value: 2.0
+                    high_value: 3.0
+                    sample_count: 0.75
+                  }
+                  buckets {
+                    low_value: 3.0
+                    high_value: 3.0
+                    sample_count: 0.75
+                  }
+                  type: QUANTILES
+                }
+                weighted_common_stats {
+                  num_non_missing: 6.0
+                  num_missing: 2.0
+                  avg_num_values: 1.83333333
+                  tot_num_values: 11.0
+                }
+              }
+              mean: 2.66666666
+              std_dev: 1.49071198
+              num_zeros: 0
+              min: 1.0
+              max: 5.0
+              median: 3.0
+              histograms {
+                buckets {
+                  low_value: 1.0
+                  high_value: 2.3333333
+                  sample_count: 2.9866667
+                }
+                buckets {
+                  low_value: 2.3333333
+                  high_value: 3.6666667
+                  sample_count: 1.0066667
+                }
+                buckets {
+                  low_value: 3.6666667
+                  high_value: 5.0
+                  sample_count: 2.0066667
+                }
+                type: STANDARD
+              }
+              histograms {
+                buckets {
+                  low_value: 1.0
+                  high_value: 1.0
+                  sample_count: 1.5
+                }
+                buckets {
+                  low_value: 1.0
+                  high_value: 3.0
+                  sample_count: 1.5
+                }
+                buckets {
+                  low_value: 3.0
+                  high_value: 4.0
+                  sample_count: 1.5
+                }
+                buckets {
+                  low_value: 4.0
+                  high_value: 5.0
+                  sample_count: 1.5
+                }
+                type: QUANTILES
+              }
+              weighted_numeric_stats {
+                mean: 2.7272727
+                std_dev: 1.5427784
+                median: 3.0
+                histograms {
+                  buckets {
+                    low_value: 1.0
+                    high_value: 2.3333333
+                    sample_count: 4.9988889
+                  }
+                  buckets {
+                    low_value: 2.3333333
+                    high_value: 3.6666667
+                    sample_count: 1.9922222
+                  }
+                  buckets {
+                    low_value: 3.6666667
+                    high_value: 5.0
+                    sample_count: 4.0088889
+                  }
+                }
+                histograms {
+                  buckets {
+                    low_value: 1.0
+                    high_value: 1.0
+                    sample_count: 2.75
+                  }
+                  buckets {
+                    low_value: 1.0
+                    high_value: 3.0
+                    sample_count: 2.75
+                  }
+                  buckets {
+                    low_value: 3.0
+                    high_value: 4.0
+                    sample_count: 2.75
+                  }
+                  buckets {
+                    low_value: 4.0
+                    high_value: 5.0
+                    sample_count: 2.75
+                  }
+                  type: QUANTILES
+                }
+              }
+            }
+            """, statistics_pb2.FeatureNameStatistics()),
+        'b': text_format.Parse(
+            """
+            name: 'b'
+            type: INT
             num_stats {
               common_stats {
                 num_non_missing: 3

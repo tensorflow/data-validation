@@ -21,6 +21,7 @@
 * Depends on `numpy>=1.14.5,<2`.
 * Introduced CombinerFeatureStatsGenerator, a specialized interface for
   combiners that do not require cross-feature computations.
+* Expand unit test coverage.
 
 ## Breaking changes
 
