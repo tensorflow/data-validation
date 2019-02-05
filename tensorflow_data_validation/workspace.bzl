@@ -14,6 +14,6 @@ def tf_data_validation_workspace():
     # Fetch tf.Metadata repo from GitHub.
     git_repository(
         name = "com_github_tensorflow_metadata",
-        commit = "59db34716a6b76a15e2f1662442392cda462c4fe",
+        commit = "76b094d957ce551c5725bf1bb9cfe489f1618889",
         remote = "https://github.com/tensorflow/metadata.git",
     )

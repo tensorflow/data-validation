@@ -132,6 +132,9 @@ void DeprecateFeatureType(T* feature) {
 
 template <class T>
 bool FeatureTypeIsDeprecated(const T& feature) {
+  if (feature.deprecated()) {  // NOLINT
+    return true;
+  }
   if (feature.has_lifecycle_stage()) {
     switch (feature.lifecycle_stage()) {
       case tensorflow::metadata::v0::PLANNED:

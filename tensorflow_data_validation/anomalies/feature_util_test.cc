@@ -82,6 +82,12 @@ std::vector<FeatureIsDeprecatedTest> GetFeatureIsDeprecatedTests() {
   return {
       // Do not set deprecated and lifecycle_stage.
       {ParseTextProtoOrDie<Feature>(""), false},
+      // Test the case where we have the "deprecated" field.
+      // Remove this once the "deprecated" field is deleted.
+      {ParseTextProtoOrDie<Feature>(R"(
+               deprecated: true
+               lifecycle_stage: PRODUCTION)"),
+       true},
       {GetFeatureWithLifecycleStage(tensorflow::metadata::v0::DEPRECATED),
        true},
       {GetFeatureWithLifecycleStage(tensorflow::metadata::v0::ALPHA), true},
