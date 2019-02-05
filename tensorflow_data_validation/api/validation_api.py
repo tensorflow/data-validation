@@ -89,12 +89,21 @@ def infer_schema(statistics,
   result = schema_pb2.Schema()
   result.ParseFromString(schema_proto_string)
 
+  _may_be_set_legacy_flag(result)
+
   # TODO(b/113605666): Push this shape inference logic into example validation
   # code.
   if infer_feature_shape:
     _infer_shape(result)
 
   return result
+
+
+# Note that this flag is legacy code.
+def _may_be_set_legacy_flag(schema):
+  """Sets legacy flag to False if it exists."""
+  if getattr(schema, 'generate_legacy_feature_spec', None) is not None:
+    schema.generate_legacy_feature_spec = False
 
 
 def _infer_shape(schema):

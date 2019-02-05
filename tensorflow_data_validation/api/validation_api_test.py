@@ -213,6 +213,7 @@ class ValidationApiTest(absltest.TestCase):
           type: BYTES
         }
         """, schema_pb2.Schema())
+    validation_api._may_be_set_legacy_flag(expected_schema)
 
     # Infer the schema from the stats.
     actual_schema = validation_api.infer_schema(statistics,
@@ -281,6 +282,7 @@ class ValidationApiTest(absltest.TestCase):
           value: "c"
         }
         """, schema_pb2.Schema())
+    validation_api._may_be_set_legacy_flag(expected_schema)
 
     # Infer the schema from the stats.
     actual_schema = validation_api.infer_schema(statistics)
@@ -341,6 +343,7 @@ class ValidationApiTest(absltest.TestCase):
           type: BYTES
         }
         """, schema_pb2.Schema())
+    validation_api._may_be_set_legacy_flag(expected_schema)
 
     # Infer the schema from the stats.
     actual_schema = validation_api.infer_schema(statistics,
@@ -402,6 +405,7 @@ class ValidationApiTest(absltest.TestCase):
           type: BYTES
         }
         """, schema_pb2.Schema())
+    validation_api._may_be_set_legacy_flag(expected_schema)
 
     # Infer the schema from the stats.
     actual_schema = validation_api.infer_schema(statistics,
