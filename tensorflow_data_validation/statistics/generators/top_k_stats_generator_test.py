@@ -71,7 +71,7 @@ class MakeFeatureStatsProtoTest(absltest.TestCase):
         for value_count in value_counts
     ]
     result = top_k_stats_generator.make_feature_stats_proto_with_topk_stats(
-        'fa', top_k_value_count_list, False, False, 3, 2)
+        'fa', top_k_value_count_list, False, False, 3, 1, 2)
     compare.assertProtoEqual(self, result, expected_result)
 
   def test_make_feature_stats_proto_with_topk_stats_unsorted_value_counts(self):
@@ -114,7 +114,7 @@ class MakeFeatureStatsProtoTest(absltest.TestCase):
         for value_count in value_counts
     ]
     result = top_k_stats_generator.make_feature_stats_proto_with_topk_stats(
-        'fa', top_k_value_count_list, False, False, 3, 2)
+        'fa', top_k_value_count_list, False, False, 3, 1, 2)
     compare.assertProtoEqual(self, result, expected_result)
 
   def test_make_feature_stats_proto_with_topk_stats_categorical_feature(self):
@@ -156,7 +156,7 @@ class MakeFeatureStatsProtoTest(absltest.TestCase):
         for value_count in value_counts
     ]
     result = top_k_stats_generator.make_feature_stats_proto_with_topk_stats(
-        'fa', top_k_value_count_list, True, False, 3, 2)
+        'fa', top_k_value_count_list, True, False, 3, 1, 2)
     compare.assertProtoEqual(self, result, expected_result)
 
   def test_make_feature_stats_proto_with_topk_stats_weighted(self):
@@ -200,7 +200,7 @@ class MakeFeatureStatsProtoTest(absltest.TestCase):
         for value_count in value_counts
     ]
     result = top_k_stats_generator.make_feature_stats_proto_with_topk_stats(
-        'fa', top_k_value_count_list, False, True, 3, 2)
+        'fa', top_k_value_count_list, False, True, 3, 1, 2)
     compare.assertProtoEqual(self, result, expected_result)
 
 
@@ -804,6 +804,99 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
     generator = top_k_stats_generator.TopKStatsGenerator(
         schema=schema,
         num_top_values=2, num_rank_histogram_buckets=3)
+    self.assertSlicingAwareTransformOutputEqual(
+        examples,
+        generator,
+        expected_result,
+        add_default_slice_key_to_input=True,
+        add_default_slice_key_to_output=True)
+
+  def test_topk_with_frequency_threshold(self):
+    examples = [{'fa': np.array(['a', 'b', 'y', 'b']),
+                 'w': np.array([5.0])},
+                {'fa': np.array(['a', 'x', 'a', 'z']),
+                 'w': np.array([15.0])}]
+
+    expected_result = [
+        text_format.Parse(
+            """
+      features {
+        name: 'fa'
+        type: STRING
+        string_stats {
+          top_values {
+            value: 'a'
+            frequency: 3
+          }
+          top_values {
+            value: 'b'
+            frequency: 2
+          }
+          rank_histogram {
+            buckets {
+              low_rank: 0
+              high_rank: 0
+              label: "a"
+              sample_count: 3.0
+            }
+            buckets {
+              low_rank: 1
+              high_rank: 1
+              label: "b"
+              sample_count: 2.0
+            }
+          }
+        }
+    }""", statistics_pb2.DatasetFeatureStatistics()),
+        text_format.Parse(
+            """
+      features {
+        name: 'fa'
+        type: STRING
+        string_stats {
+          weighted_string_stats {
+            top_values {
+              value: 'a'
+              frequency: 35.0
+            }
+            top_values {
+              value: 'z'
+              frequency: 15.0
+            }
+            top_values {
+              value: 'x'
+              frequency: 15.0
+            }
+            rank_histogram {
+              buckets {
+                low_rank: 0
+                high_rank: 0
+                label: "a"
+                sample_count: 35.0
+              }
+              buckets {
+                low_rank: 1
+                high_rank: 1
+                label: "z"
+                sample_count: 15.0
+              }
+              buckets {
+                low_rank: 2
+                high_rank: 2
+                label: "x"
+                sample_count: 15.0
+              }
+            }
+          }
+        }
+    }""", statistics_pb2.DatasetFeatureStatistics())
+    ]
+
+    generator = top_k_stats_generator.TopKStatsGenerator(
+        weight_feature='w',
+        num_top_values=5, frequency_threshold=2,
+        weighted_frequency_threshold=15,
+        num_rank_histogram_buckets=3)
     self.assertSlicingAwareTransformOutputEqual(
         examples,
         generator,

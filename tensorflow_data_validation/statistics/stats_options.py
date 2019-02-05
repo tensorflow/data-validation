@@ -47,6 +47,8 @@ class StatsOptions(object):
       sample_count = None,
       sample_rate = None,
       num_top_values = 20,
+      frequency_threshold = 1,
+      weighted_frequency_threshold = 1.0,
       num_rank_histogram_buckets = 1000,
       num_values_histogram_buckets = 10,
       num_histogram_buckets = 10,
@@ -77,6 +79,11 @@ class StatsOptions(object):
         be specified.
       num_top_values: An optional number of most frequent feature values to keep
         for string features.
+      frequency_threshold: An optional minimum number of examples the most
+        frequent values must be present in.
+      weighted_frequency_threshold: An optional minimum weighted number of
+        examples the most frequent weighted values must be present in. This
+        option is only relevant when a weight_feature is specified.
       num_rank_histogram_buckets: An optional number of buckets in the rank
         histogram for string features.
       num_values_histogram_buckets: An optional number of buckets in a quantiles
@@ -104,6 +111,8 @@ class StatsOptions(object):
     self.sample_count = sample_count
     self.sample_rate = sample_rate
     self.num_top_values = num_top_values
+    self.frequency_threshold = frequency_threshold
+    self.weighted_frequency_threshold = weighted_frequency_threshold
     self.num_rank_histogram_buckets = num_rank_histogram_buckets
     self.num_values_histogram_buckets = num_values_histogram_buckets
     self.num_histogram_buckets = num_histogram_buckets

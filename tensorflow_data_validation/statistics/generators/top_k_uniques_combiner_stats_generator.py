@@ -42,14 +42,15 @@ def _make_feature_stats_proto(
     feature_name,
     value_count_list,
     weighted_value_count_list,
-    is_categorical, num_top_values,
+    is_categorical, num_top_values, frequency_threshold,
+    weighted_frequency_threshold,
     num_rank_histogram_buckets):
   """Makes a FeatureNameStatistics proto containing top-k and uniques stats."""
   # Create a FeatureNameStatistics proto that includes the unweighted top-k
   # stats.
   result = top_k_stats_generator.make_feature_stats_proto_with_topk_stats(
       feature_name, value_count_list, is_categorical, False, num_top_values,
-      num_rank_histogram_buckets)
+      frequency_threshold, num_rank_histogram_buckets)
 
   # If weights were provided, create another FeatureNameStatistics proto that
   # includes the weighted top-k stats, and then copy those weighted top-k stats
@@ -58,7 +59,8 @@ def _make_feature_stats_proto(
     weighted_result = (
         top_k_stats_generator.make_feature_stats_proto_with_topk_stats(
             feature_name, weighted_value_count_list, is_categorical, True,
-            num_top_values, num_rank_histogram_buckets))
+            num_top_values, weighted_frequency_threshold,
+            num_rank_histogram_buckets))
 
     result.string_stats.weighted_string_stats.CopyFrom(
         weighted_result.string_stats.weighted_string_stats)
@@ -73,6 +75,7 @@ def _make_dataset_feature_stats_proto_with_multiple_features(
     feature_names_to_value_counts,
     weighted_feature_names_to_value_counts,
     categorical_features, num_top_values,
+    frequency_threshold, weighted_frequency_threshold,
     num_rank_histogram_buckets):
   """Makes a DatasetFeatureStatistics proto containing multiple features."""
   result = statistics_pb2.DatasetFeatureStatistics()
@@ -86,7 +89,9 @@ def _make_dataset_feature_stats_proto_with_multiple_features(
         _make_feature_stats_proto(feature_name, value_count,
                                   weighted_value_count,
                                   feature_name in categorical_features,
-                                  num_top_values, num_rank_histogram_buckets))
+                                  num_top_values, frequency_threshold,
+                                  weighted_frequency_threshold,
+                                  num_rank_histogram_buckets))
   return result
 
 
@@ -115,6 +120,8 @@ class TopKUniquesCombinerStatsGenerator(stats_generator.CombinerStatsGenerator):
       schema = None,
       weight_feature = None,
       num_top_values = 2,
+      frequency_threshold = 1,
+      weighted_frequency_threshold = 1.0,
       num_rank_histogram_buckets = 1000):
     """Initializes a top-k and uniques combiner statistics generator.
 
@@ -125,6 +132,11 @@ class TopKUniquesCombinerStatsGenerator(stats_generator.CombinerStatsGenerator):
         an example. None if there is no weight feature.
       num_top_values: The number of most frequent feature values to keep for
         string features.
+      frequency_threshold: An optional minimum number of examples
+        the most frequent values must be present in (defaults to 1).
+      weighted_frequency_threshold: An optional minimum weighted
+        number of examples the most frequent weighted values must be
+        present in (defaults to 1.0).
       num_rank_histogram_buckets: The number of buckets in the rank histogram
         for string features.
     """
@@ -133,6 +145,8 @@ class TopKUniquesCombinerStatsGenerator(stats_generator.CombinerStatsGenerator):
         schema_util.get_categorical_numeric_features(schema) if schema else [])
     self._weight_feature = weight_feature
     self._num_top_values = num_top_values
+    self._frequency_threshold = frequency_threshold
+    self._weighted_frequency_threshold = weighted_frequency_threshold
     self._num_rank_histogram_buckets = num_rank_histogram_buckets
 
   def create_accumulator(self):
@@ -214,4 +228,5 @@ class TopKUniquesCombinerStatsGenerator(stats_generator.CombinerStatsGenerator):
     return _make_dataset_feature_stats_proto_with_multiple_features(
         feature_names_to_value_counts, feature_names_to_weighted_value_counts,
         self._categorical_features, self._num_top_values,
+        self._frequency_threshold, self._weighted_frequency_threshold,
         self._num_rank_histogram_buckets)

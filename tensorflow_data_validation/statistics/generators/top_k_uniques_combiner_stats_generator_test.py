@@ -666,6 +666,86 @@ class TopKUniquesCombinerStatsGeneratorTest(
             schema=schema, num_top_values=4, num_rank_histogram_buckets=3))
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
+  def test_topk_with_frequency_threshold(self):
+    batches = [{'fa': np.array([np.array(['a', 'b', 'y', 'b'])]),
+                'w': np.array([np.array([5.0])])},
+               {'fa': np.array([np.array(['a', 'x', 'a', 'z'])]),
+                'w': np.array([np.array([15.0])])}]
+
+    expected_result = {
+        'fa': text_format.Parse(
+            """
+        name: 'fa'
+        type: STRING
+        string_stats {
+          unique: 5
+          top_values {
+            value: 'a'
+            frequency: 3
+          }
+          top_values {
+            value: 'b'
+            frequency: 2
+          }
+          rank_histogram {
+            buckets {
+              low_rank: 0
+              high_rank: 0
+              label: "a"
+              sample_count: 3.0
+            }
+            buckets {
+              low_rank: 1
+              high_rank: 1
+              label: "b"
+              sample_count: 2.0
+            }
+          }
+          weighted_string_stats {
+            top_values {
+              value: 'a'
+              frequency: 35.0
+            }
+            top_values {
+              value: 'z'
+              frequency: 15.0
+            }
+            top_values {
+              value: 'x'
+              frequency: 15.0
+            }
+            rank_histogram {
+              buckets {
+                low_rank: 0
+                high_rank: 0
+                label: "a"
+                sample_count: 35.0
+              }
+              buckets {
+                low_rank: 1
+                high_rank: 1
+                label: "z"
+                sample_count: 15.0
+              }
+              buckets {
+                low_rank: 2
+                high_rank: 2
+                label: "x"
+                sample_count: 15.0
+              }
+            }
+          }
+        }""", statistics_pb2.FeatureNameStatistics())
+    }
+
+    generator = (
+        top_k_uniques_combiner_stats_generator
+        .TopKUniquesCombinerStatsGenerator(
+            weight_feature='w',
+            num_top_values=5, frequency_threshold=2,
+            weighted_frequency_threshold=15, num_rank_histogram_buckets=3))
+    self.assertCombinerOutputEqual(batches, generator, expected_result)
+
 
 if __name__ == '__main__':
   absltest.main()

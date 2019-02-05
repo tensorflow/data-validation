@@ -52,7 +52,8 @@ def _is_valid_utf8(value):
 def make_feature_stats_proto_with_topk_stats(
     feature_name,
     top_k_value_count_list, is_categorical,
-    is_weighted_stats, num_top_values,
+    is_weighted_stats,
+    num_top_values, frequency_threshold,
     num_rank_histogram_buckets):
   """Makes a FeatureNameStatistics proto containing the top-k stats.
 
@@ -63,8 +64,11 @@ def make_feature_stats_proto_with_topk_stats(
     is_weighted_stats: Whether top_k_value_count_list incorporates weights.
     num_top_values: The number of most frequent feature values to keep for
       string features.
+    frequency_threshold: The minimum number of examples (possibly weighted) the
+      most frequent values must be present in.
     num_rank_histogram_buckets: The number of buckets in the rank histogram for
       string features.
+
   Returns:
     A FeatureNameStatistics proto containing the top-k stats.
   """
@@ -89,6 +93,8 @@ def make_feature_stats_proto_with_topk_stats(
 
   for i in range(len(top_k_value_count_list)):
     value, count = top_k_value_count_list[i]
+    if count < frequency_threshold:
+      break
     # Check if we have a valid utf-8 string. If not, assign a default invalid
     # string value.
     if isinstance(value, bytes) and not _is_valid_utf8(value):
@@ -112,7 +118,8 @@ def make_feature_stats_proto_with_topk_stats(
 def _make_dataset_feature_stats_proto_with_single_feature(
     feature_name_to_value_count_list,
     categorical_features, is_weighted_stats,
-    num_top_values, num_rank_histogram_buckets
+    num_top_values, frequency_threshold,
+    num_rank_histogram_buckets
 ):
   """Makes a DatasetFeatureStatistics containing one single feature."""
   (slice_key, feature_name), value_count_list = feature_name_to_value_count_list
@@ -120,7 +127,8 @@ def _make_dataset_feature_stats_proto_with_single_feature(
   result.features.add().CopyFrom(
       make_feature_stats_proto_with_topk_stats(
           feature_name, value_count_list, feature_name in categorical_features,
-          is_weighted_stats, num_top_values, num_rank_histogram_buckets))
+          is_weighted_stats, num_top_values, frequency_threshold,
+          num_rank_histogram_buckets))
   return slice_key, result.SerializeToString()
 
 
@@ -230,7 +238,9 @@ class _ComputeTopKStats(beam.PTransform):
 
   def __init__(self, schema,
                weight_feature,
-               num_top_values, num_rank_histogram_buckets):
+               num_top_values, frequency_threshold,
+               weighted_frequency_threshold,
+               num_rank_histogram_buckets):
     """Initializes _ComputeTopKStats.
 
     Args:
@@ -239,6 +249,10 @@ class _ComputeTopKStats(beam.PTransform):
           of an example. None if there is no weight feature.
       num_top_values: The number of most frequent feature values to keep for
           string features.
+      frequency_threshold: The minimum number of examples the most frequent
+          values must be present in.
+      weighted_frequency_threshold: The minimum weighted number of examples the
+          most frequent weighted values must be present in.
       num_rank_histogram_buckets: The number of buckets in the rank histogram
           for string features.
     """
@@ -246,6 +260,8 @@ class _ComputeTopKStats(beam.PTransform):
         schema_util.get_categorical_numeric_features(schema) if schema else [])
     self._weight_feature = weight_feature
     self._num_top_values = num_top_values
+    self._frequency_threshold = frequency_threshold
+    self._weighted_frequency_threshold = weighted_frequency_threshold
     self._num_rank_histogram_buckets = num_rank_histogram_buckets
 
   def expand(self, pcoll):
@@ -292,6 +308,7 @@ class _ComputeTopKStats(beam.PTransform):
             categorical_features=self._categorical_features,
             is_weighted_stats=False,
             num_top_values=self._num_top_values,
+            frequency_threshold=self._frequency_threshold,
             num_rank_histogram_buckets=self._num_rank_histogram_buckets))
 
     result_protos.append(topk)
@@ -325,6 +342,7 @@ class _ComputeTopKStats(beam.PTransform):
               categorical_features=self._categorical_features,
               is_weighted_stats=True,
               num_top_values=self._num_top_values,
+              frequency_threshold=self._weighted_frequency_threshold,
               num_rank_histogram_buckets=self._num_rank_histogram_buckets))
       result_protos.append(weighted_topk)
 
@@ -350,6 +368,8 @@ class TopKStatsGenerator(stats_generator.TransformStatsGenerator):
                schema = None,
                weight_feature = None,
                num_top_values = 2,
+               frequency_threshold = 1,
+               weighted_frequency_threshold = 1.0,
                num_rank_histogram_buckets = 1000):
     """Initializes top-k stats generator.
 
@@ -360,6 +380,11 @@ class TopKStatsGenerator(stats_generator.TransformStatsGenerator):
           (must be of type INT or FLOAT) represents the weight of an example.
       num_top_values: An optional number of most frequent feature values to keep
           for string features (defaults to 2).
+      frequency_threshold: An optional minimum number of examples
+        the most frequent values must be present in (defaults to 1).
+      weighted_frequency_threshold: An optional minimum weighted
+        number of examples the most frequent weighted values must be
+        present in (defaults to 1.0).
       num_rank_histogram_buckets: An optional number of buckets in the rank
           histogram for string features (defaults to 1000).
     """
@@ -370,5 +395,7 @@ class TopKStatsGenerator(stats_generator.TransformStatsGenerator):
             schema=schema,
             weight_feature=weight_feature,
             num_top_values=num_top_values,
+            frequency_threshold=frequency_threshold,
+            weighted_frequency_threshold=weighted_frequency_threshold,
             num_rank_histogram_buckets=num_rank_histogram_buckets)
     )
