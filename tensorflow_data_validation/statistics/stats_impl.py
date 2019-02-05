@@ -101,7 +101,8 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
       if isinstance(generator, stats_generator.CombinerStatsGenerator):
         # TODO(b/120863006): Consider removing fanout once BEAM-4030 is
         # resolved, and all the Beam OSS Runners support CombineFn.compact
-        fanout = 16
+        fanout = 8  if _is_combinefn_compact_supported() else 16
+
         result_protos.append(
             dataset
             | generator.name >> beam.CombinePerKey(
@@ -131,6 +132,11 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
             | 'ToList' >> beam.combiners.ToList()
             | 'MakeDatasetFeatureStatisticsListProto' >>
             beam.Map(_make_dataset_feature_statistics_list_proto))
+
+
+def _is_combinefn_compact_supported():
+  """Checks if compact is supported in beam.CombineFn."""
+  return getattr(beam.CombineFn, 'compact', None) is not None
 
 
 def _get_generators(options,
@@ -361,9 +367,10 @@ class _BatchedCombineFnWrapper(beam.CombineFn):
   # This needs to be large enough to allow for efficient TF invocations during
   # batch flushing, but shouldn't be too large as it also acts as cap on the
   # maximum memory usage of the computation.
-  # TODO(b/120863006): Consider increasing once BEAM-4030 is
+  # TODO(b/120863006): Consider increasing batch size once BEAM-4030 is
   # resolved, and all the Beam OSS Runners support CombineFn.compact
-  _DEFAULT_DESIRED_BATCH_SIZE = 100
+  _DEFAULT_DESIRED_BATCH_SIZE = (1000  if _is_combinefn_compact_supported() else
+                                 100)
 
   def __init__(
       self,

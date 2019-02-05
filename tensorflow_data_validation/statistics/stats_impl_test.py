@@ -1602,8 +1602,7 @@ class StatsImplTest(parameterized.TestCase):
     }
     # Remove special handling of compact once BEAM-4030 is resolved, and
     # all the Beam OSS Runners support CombineFn.compact
-    combinefn_compact = getattr(beam.CombineFn, 'compact', None)
-    if combinefn_compact is not None:
+    if stats_impl._is_combinefn_compact_supported():
       expected_result['num_compacts_BasicStatsGenerator'] = 1
 
     # Check number of counters.
