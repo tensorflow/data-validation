@@ -30,8 +30,7 @@ namespace tensorflow {
 namespace data_validation {
 namespace {
 
-
-#ifdef TFDV_GOOGLE_PLATFORM
+#ifdef HAS_GLOBAL_STRING
 using Re2StringPiece = absl::string_view;
 #else
 using Re2StringPiece = re2::StringPiece;
