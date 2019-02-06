@@ -22,7 +22,6 @@ from __future__ import print_function
 import collections
 import logging
 import apache_beam as beam
-import numpy as np
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import schema_util
@@ -161,8 +160,8 @@ def _convert_input_to_feature_values_with_weights(
       continue
 
     is_categorical = feature_name in categorical_features
-    # Check if we have a numpy array with at least one value.
-    if not isinstance(values, np.ndarray) or values.size == 0:
+    # Check if we have a non-missing feature with at least one value.
+    if values is None or values.size == 0:
       continue
     # If the feature is neither categorical nor of string type, then
     # skip the feature.
@@ -194,8 +193,9 @@ def _flatten_value_list(
   Yields:
     Tuple (slice_key, feature_name, feature_value)
   """
-  for value in entry.value_list:
-    yield entry.slice_key, entry.feature_name, value
+  (slice_key, feature_name, value_list, _) = entry
+  for value in value_list:
+    yield slice_key, feature_name, value
 
 
 def _flatten_weighted_value_list(
@@ -212,8 +212,9 @@ def _flatten_weighted_value_list(
   Yields:
     Tuple ((slice_key, feature_name, feature_value), weight)
   """
-  for value in entry.value_list:
-    yield (entry.slice_key, entry.feature_name, value), entry.weight
+  (slice_key, feature_name, value_list, weight) = entry
+  for value in value_list:
+    yield (slice_key, feature_name, value), weight
 
 
 def _feature_value_count_comparator(a,

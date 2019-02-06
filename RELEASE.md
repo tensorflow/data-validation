@@ -3,8 +3,7 @@
 ## Major Features and Improvements
 
 * Add support for computing statistics over slices of data.
-* Performance improvement due to optimizing inner loops in
-  BasicStatsGenerator.
+* Performance improvement due to optimizing inner loops.
 * Add support for generating statistics from a pandas dataframe.
 * Performance improvement due to pre-allocating tf.Example in TFExampleDecoder.
 * Performance improvement due to merging common stats generator, numeric stats
