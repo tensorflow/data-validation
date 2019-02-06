@@ -49,7 +49,7 @@ PyObject* ValidateFeatureStatistics(
   const string& previous_statistics_proto_string,
   const string& serving_statistics_proto_string) {
   string anomalies_proto_string;
-  const tensorflow::Status status = tensorflow::data_validation::ValidateFeatureStatistics(
+  const tensorflow::Status status = tensorflow::data_validation::ValidateFeatureStatisticsWithoutDiff(
     statistics_proto_string, schema_proto_string, environment,
     previous_statistics_proto_string, serving_statistics_proto_string,
     &anomalies_proto_string);

@@ -40,7 +40,8 @@ void TestFindChanges(
     const std::map<string, testing::ExpectedAnomalyInfo>& expected_anomalies) {
   SchemaAnomalies anomalies(schema);
   TF_CHECK_OK(anomalies.FindChanges(stats_view, absl::nullopt, config));
-  TestAnomalies(anomalies.GetSchemaDiff(), schema, expected_anomalies);
+  TestAnomalies(anomalies.GetSchemaDiff(/*enable_diff_regions=*/false),
+                schema, expected_anomalies);
 }
 
 std::vector<FeatureStatisticsToProtoConfig>
@@ -281,7 +282,8 @@ TEST(SchemaAnomalies, FindSkew) {
       short_description: "High Linfty distance between serving and training"
       description: "The Linfty distance between serving and training is 0.2 (up to six significant digits), above the threshold 0.1. The feature value with maximum difference is: a"
     })");
-  TestAnomalies(skew.GetSchemaDiff(), schema_proto, expected_anomalies);
+  TestAnomalies(skew.GetSchemaDiff(/*enable_diff_regions=*/false),
+                schema_proto, expected_anomalies);
 }
 
 TEST(Schema, FindChangesEmptySchemaProto) {
@@ -570,7 +572,7 @@ TEST(GetSchemaDiff, FindSelectedChanges) {
   SchemaAnomalies anomalies(initial);
   TF_CHECK_OK(anomalies.FindChanges(DatasetStatsView(statistics), features,
                                     FeatureStatisticsToProtoConfig()));
-  auto result = anomalies.GetSchemaDiff();
+  auto result = anomalies.GetSchemaDiff(/*enable_diff_regions=*/false);
 
   TestAnomalies(result, initial, expected_anomalies);
 }
@@ -768,8 +770,9 @@ TEST(SchemaAnomalyTest, CreateNewField) {
           description: "New column (column in data but not in schema)"
         })pb");
 
-  testing::TestAnomalyInfo(anomaly.GetAnomalyInfo(baseline), baseline,
-                           expected_anomaly_info, "CreateNewField failed");
+  testing::TestAnomalyInfo(
+      anomaly.GetAnomalyInfo(baseline, /*enable_diff_regions=*/false),
+      baseline, expected_anomaly_info, "CreateNewField failed");
 }
 
 TEST(SchemaAnomalyTest, CreateNewFieldSome) {
@@ -852,8 +855,9 @@ TEST(SchemaAnomalyTest, CreateNewFieldSome) {
         }
       )pb");
 
-  testing::TestAnomalyInfo(anomaly.GetAnomalyInfo(baseline), baseline,
-                           expected_anomaly_info, "CreateNewField failed");
+  testing::TestAnomalyInfo(
+      anomaly.GetAnomalyInfo(baseline, /*enable_diff_regions=*/false),
+      baseline, expected_anomaly_info, "CreateNewField failed");
 }
 
 // When there is a new structured feature, we create all of its children
@@ -1344,7 +1348,8 @@ TEST(SchemaAnomalies, GetSchemaDiffTwoReasons) {
       short_description: "Superfluous values"
       description: "Some examples have more values than expected."
     })pb");
-  TestAnomalies(anomalies.GetSchemaDiff(), initial, expected_anomalies);
+  TestAnomalies(anomalies.GetSchemaDiff(/*enable_diff_regions=*/false),
+                initial, expected_anomalies);
 }
 
 TEST(GetSchemaDiff, TwoChanges) {

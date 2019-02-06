@@ -79,7 +79,8 @@ class SchemaAnomaly {
   // Returns an AnomalyInfo representing the change.
   // baseline is the original schema.
   tensorflow::metadata::v0::AnomalyInfo GetAnomalyInfo(
-      const tensorflow::metadata::v0::Schema& baseline) const;
+      const tensorflow::metadata::v0::Schema& baseline,
+      bool enable_diff_regions) const;
 
   // Identifies if there is an issue.
   bool is_problem() {
@@ -97,7 +98,8 @@ class SchemaAnomaly {
   // Called as part of GetAnomalyInfoV0(...) and GetAnomalyInfoV1(...) to do
   // the part of the work that is common between them.
   tensorflow::metadata::v0::AnomalyInfo GetAnomalyInfoCommon(
-      const string& existing_schema, const string& new_schema) const;
+      const string& existing_schema, const string& new_schema,
+      bool enable_diff_regions) const;
   // A new schema that will make the anomaly go away.
   std::unique_ptr<Schema> schema_;
   // The name of the feature being fixed.
@@ -132,7 +134,8 @@ class SchemaAnomalies {
   tensorflow::Status FindSkew(const DatasetStatsView& dataset_stats_view);
 
   // Records current anomalies as a schema diff.
-  tensorflow::metadata::v0::Anomalies GetSchemaDiff() const;
+  tensorflow::metadata::v0::Anomalies GetSchemaDiff(
+      bool enable_diff_regions) const;
 
  private:
   // Checks a particular column for any issues, and:

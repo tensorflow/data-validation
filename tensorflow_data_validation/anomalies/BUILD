@@ -134,6 +134,17 @@ cc_test(
 )
 
 cc_library(
+    name = "diff_util",
+    srcs = ["diff_util.cc"],
+    hdrs = ["diff_util.h"],
+    deps = [
+        "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
+        "@com_google_absl//absl/strings",
+        "@org_tensorflow//tensorflow/core:lib",
+    ],
+)
+
+cc_library(
     name = "schema",
     srcs = [
         "bool_domain_util.cc",
@@ -156,6 +167,7 @@ cc_library(
         "string_domain_util.h",
     ],
     deps = [
+        ":diff_util",
         ":features_needed",
         ":internal_types",
         ":map_util",
@@ -305,10 +317,7 @@ cc_test(
     srcs = ["test_util_test.cc"],
     deps = [
         ":test_util",
-        "@com_google_absl//absl/strings",
         "@com_google_googletest//:gtest_main",
-        "@org_tensorflow//tensorflow/core:lib",
-        "@org_tensorflow//tensorflow/core:test",
     ],
 )
 

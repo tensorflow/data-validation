@@ -106,6 +106,35 @@ T ParseTextProtoOrDie(const string& input) {
   return result;
 }
 
+// Creates b_lines given a_lines and the diff_regions.
+// vector<absl::string_view> a_lines;
+// vector<absl::string_view> b_lines;
+// vector<DiffRegion> diff = ComputeDiff(a_lines, b_lines);
+// b_lines_copy = Patch(a_lines, diff);
+// EXPECT_EQ(b_lines, b_lines_copy);
+std::vector<string> Patch(
+    const std::vector<absl::string_view>& a_lines,
+    const std::vector<tensorflow::metadata::v0::DiffRegion>& diff_regions);
+
+// Creates b_proto given a_proto and the diff_regions.
+// T a_proto = ...
+// T b_proto = ...
+// auto diff = ... = ComputeDiff(absl::StrSplit(a_proto.DebugString(), '\n'),
+//                               absl::StrSplit(b_proto.DebugString(), '\n'));
+// result = PatchProto<T>(a_proto, diff);
+// EXPECT_THAT(result, EqualsProto(b_proto));
+template <typename T>
+T PatchProto(const T& original,
+             const tensorflow::protobuf::RepeatedPtrField<
+                 tensorflow::metadata::v0::DiffRegion>& region) {
+  const string baseline = original.DebugString();
+  std::vector<string> result_lines =
+      Patch(absl::StrSplit(baseline, '\n'),
+            std::vector<tensorflow::metadata::v0::DiffRegion>(region.begin(),
+                                                              region.end()));
+  string result_str = absl::StrJoin(result_lines, "\n");
+  return ParseTextProtoOrDie<T>(result_str);
+}
 
 // Store this as a proto, to make it easier to understand and update tests.
 struct ExpectedAnomalyInfo {

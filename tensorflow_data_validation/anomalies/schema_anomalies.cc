@@ -23,6 +23,7 @@ limitations under the License.
 #include <utility>
 #include <vector>
 
+#include "tensorflow_data_validation/anomalies/diff_util.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
@@ -146,8 +147,24 @@ void SchemaAnomaly::UpgradeSeverity(
 }
 
 tensorflow::metadata::v0::AnomalyInfo SchemaAnomaly::GetAnomalyInfoCommon(
-    const string& existing_schema, const string& new_schema) const {
+    const string& existing_schema, const string& new_schema,
+    bool enable_diff_regions) const {
   tensorflow::metadata::v0::AnomalyInfo anomaly_info;
+  if (enable_diff_regions) {
+    // Find diff regions.
+    const std::vector<absl::string_view> existing_schema_lines =
+        absl::StrSplit(existing_schema, '\n');
+
+    const std::vector<absl::string_view> new_schema_lines =
+        absl::StrSplit(new_schema, '\n');
+
+    std::vector<tensorflow::metadata::v0::DiffRegion> diff_regions_vec =
+        ComputeDiff(existing_schema_lines, new_schema_lines);
+
+    copy(diff_regions_vec.begin(), diff_regions_vec.end(),
+         ::tensorflow::protobuf::RepeatedPtrFieldBackInserter(
+             anomaly_info.mutable_diff_regions()));
+  }
   *anomaly_info.mutable_path() = path_.AsProto();
   const std::vector<Description> filtered_descriptions =
       FilterDescriptions(descriptions_);
@@ -170,10 +187,12 @@ tensorflow::metadata::v0::AnomalyInfo SchemaAnomaly::GetAnomalyInfoCommon(
 }
 
 tensorflow::metadata::v0::AnomalyInfo SchemaAnomaly::GetAnomalyInfo(
-    const tensorflow::metadata::v0::Schema& baseline) const {
+    const tensorflow::metadata::v0::Schema& baseline,
+    bool enable_diff_regions) const {
   const string baseline_text = baseline.DebugString();
   const string new_schema_text = schema_->GetSchema().DebugString();
-  return GetAnomalyInfoCommon(baseline_text, new_schema_text);
+  return GetAnomalyInfoCommon(baseline_text, new_schema_text,
+                              enable_diff_regions);
 }
 
 void SchemaAnomaly::ObserveMissing() {
@@ -234,7 +253,8 @@ bool SchemaAnomaly::FeatureIsDeprecated(const Path& path) {
   return false;
 }
 
-tensorflow::metadata::v0::Anomalies SchemaAnomalies::GetSchemaDiff() const {
+tensorflow::metadata::v0::Anomalies SchemaAnomalies::GetSchemaDiff(
+    bool enable_diff_regions) const {
   const tensorflow::metadata::v0::Schema& schema_proto = serialized_baseline_;
   tensorflow::metadata::v0::Anomalies result;
   result.set_anomaly_name_format(
@@ -246,7 +266,7 @@ tensorflow::metadata::v0::Anomalies SchemaAnomalies::GetSchemaDiff() const {
     const Path& feature_path = pair.first;
     const SchemaAnomaly& anomaly = pair.second;
     result_schemas[feature_path.Serialize()] =
-        anomaly.GetAnomalyInfo(schema_proto);
+        anomaly.GetAnomalyInfo(schema_proto, enable_diff_regions);
   }
   return result;
 }

@@ -65,7 +65,7 @@ void TestFeatureStatisticsValidator(
   TF_CHECK_OK(ValidateFeatureStatistics(
       feature_statistics, old_schema, environment, prev_feature_statistics,
       /*serving_feature_statistics=*/gtl::nullopt, features_needed,
-      validation_config, &result));
+      validation_config, /*enable_diff_regions=*/false, &result));
   TestAnomalies(result, old_schema, expected_anomalies);
 }
 
@@ -324,7 +324,8 @@ TEST(FeatureStatisticsValidatorTest, MissingExamples) {
       statistics, schema, /*environment=*/tensorflow::gtl::nullopt,
       /*prev_feature_statistics=*/tensorflow::gtl::nullopt,
       /*serving_feature_statistics=*/gtl::nullopt,
-      /*features_needed=*/absl::nullopt, ValidationConfig(), &got));
+      /*features_needed=*/absl::nullopt, ValidationConfig(),
+      /*enable_diff_regions=*/false, &got));
   EXPECT_THAT(got, EqualsProto(want));
 }
 

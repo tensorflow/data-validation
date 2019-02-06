@@ -13,31 +13,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include "tensorflow_data_validation/anomalies/test_util.h"
+#include "tensorflow_data_validation/anomalies/diff_util.h"
 
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
+#include "tensorflow/core/platform/logging.h"
 
 namespace tensorflow {
 namespace data_validation {
-namespace testing {
-namespace {
 
-TEST(TestAnomalies, Basic) {
-  const tensorflow::metadata::v0::Schema original =
-      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
-        feature {
-          name: "feature_name"
-          type: INT
-          skew_comparator: { infinity_norm: { threshold: 0.1 } }
-        })");
-
-  tensorflow::metadata::v0::Anomalies result;
-  *result.mutable_baseline() = original;
-  TestAnomalies(result, original, std::map<string, ExpectedAnomalyInfo>());
+std::vector<tensorflow::metadata::v0::DiffRegion> ComputeDiff(
+    const std::vector<absl::string_view>& a_lines,
+    const std::vector<absl::string_view>& b_lines) {
+  CHECK(false) << "Schema diff is currently not supported.";
 }
 
-}  // namespace
-}  // namespace testing
 }  // namespace data_validation
 }  // namespace tensorflow

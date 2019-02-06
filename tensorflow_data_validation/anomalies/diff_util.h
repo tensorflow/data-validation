@@ -13,31 +13,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include "tensorflow_data_validation/anomalies/test_util.h"
+#ifndef TENSORFLOW_DATA_VALIDATION_ANOMALIES_DIFF_UTIL_H_
+#define TENSORFLOW_DATA_VALIDATION_ANOMALIES_DIFF_UTIL_H_
 
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
+#include <vector>
+
+#include "absl/strings/string_view.h"
+#include "tensorflow_metadata/proto/v0/anomalies.pb.h"
 
 namespace tensorflow {
 namespace data_validation {
-namespace testing {
-namespace {
 
-TEST(TestAnomalies, Basic) {
-  const tensorflow::metadata::v0::Schema original =
-      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
-        feature {
-          name: "feature_name"
-          type: INT
-          skew_comparator: { infinity_norm: { threshold: 0.1 } }
-        })");
+// The schema diff computation functionality is currently not supported.
+// Tracked in https://github.com/tensorflow/data-validation/issues/39
+std::vector<tensorflow::metadata::v0::DiffRegion> ComputeDiff(
+    const std::vector<absl::string_view>& a_lines,
+    const std::vector<absl::string_view>& b_lines);
 
-  tensorflow::metadata::v0::Anomalies result;
-  *result.mutable_baseline() = original;
-  TestAnomalies(result, original, std::map<string, ExpectedAnomalyInfo>());
-}
-
-}  // namespace
-}  // namespace testing
 }  // namespace data_validation
 }  // namespace tensorflow
+#endif  // TENSORFLOW_DATA_VALIDATION_ANOMALIES_DIFF_UTIL_H_

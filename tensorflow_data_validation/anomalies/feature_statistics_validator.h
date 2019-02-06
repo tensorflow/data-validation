@@ -75,11 +75,13 @@ Status ValidateFeatureStatistics(
         serving_feature_statistics,
     const gtl::optional<FeaturesNeeded>& features_needed,
     const ValidationConfig& validation_config,
+    bool enable_diff_regions,
     metadata::v0::Anomalies* result);
 
 // Similar to the above, but takes all the proto parameters as serialized
-// strings. Mainly used for SWIG.
-Status ValidateFeatureStatistics(
+// strings. This method doesn't compute schema diff and is called by the
+// Python code using SWIG.
+Status ValidateFeatureStatisticsWithoutDiff(
     const string& feature_statistics_proto_string,
     const string& schema_proto_string,
     const string& environment,

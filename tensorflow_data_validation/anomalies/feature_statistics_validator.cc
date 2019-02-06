@@ -86,6 +86,7 @@ tensorflow::Status ValidateFeatureStatistics(
         serving_feature_statistics,
     const gtl::optional<FeaturesNeeded>& features_needed,
     const ValidationConfig& validation_config,
+    bool enable_diff_regions,
     tensorflow::metadata::v0::Anomalies* result) {
   // TODO(b/113295423): Clean up the optional conversions.
   const absl::optional<string> maybe_environment =
@@ -126,13 +127,13 @@ tensorflow::Status ValidateFeatureStatistics(
     TF_RETURN_IF_ERROR(
         schema_anomalies.FindChanges(training, ToAbslOptional(features_needed),
                                      feature_statistics_to_proto_config));
-    *result = schema_anomalies.GetSchemaDiff();
+    *result = schema_anomalies.GetSchemaDiff(enable_diff_regions);
   }
 
   return tensorflow::Status::OK();
 }
 
-tensorflow::Status ValidateFeatureStatistics(
+tensorflow::Status ValidateFeatureStatisticsWithoutDiff(
     const string& feature_statistics_proto_string,
     const string& schema_proto_string, const string& environment,
     const string& previous_statistics_proto_string,
@@ -181,7 +182,7 @@ tensorflow::Status ValidateFeatureStatistics(
   TF_RETURN_IF_ERROR(ValidateFeatureStatistics(
       feature_statistics, schema, may_be_environment, previous_statistics,
       serving_statistics, /*features_needed=*/gtl::nullopt, ValidationConfig(),
-      &anomalies));
+      /*enable_diff_regions=*/false, &anomalies));
 
   if (!anomalies.SerializeToString(anomalies_proto_string)) {
     return tensorflow::errors::Internal(
@@ -246,7 +247,8 @@ Status FeatureStatisticsValidator::ValidateFeatureStatistics(
     metadata::v0::Anomalies* result) const {
   return ::tensorflow::data_validation::ValidateFeatureStatistics(
       feature_statistics, schema_proto, environment, prev_feature_statistics,
-      serving_feature_statistics, features_needed, validation_config, result);
+      serving_feature_statistics, features_needed, validation_config,
+      /*enable_diff_regions=*/true, result);
 }
 
 Status FeatureStatisticsValidator::UpdateSchema(
