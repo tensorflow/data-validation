@@ -70,7 +70,6 @@ TEST(SchemaTest, CreateFromSchemaProtoBroken) {
                                      })"));
 }
 
-
 // Test that initializing from a schema proto, then exporting a schema proto,
 // does not change the schema proto. See
 // CreateFromProtoWithEmbeddedStringDomain for when this doesn't work.
