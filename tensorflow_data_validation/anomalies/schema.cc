@@ -719,7 +719,7 @@ std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
              "distribution constraints not supported for struct domains."});
       }
       break;
-    case tensorflow::metadata::v0::Domain::DOMAIN_INFO_NOT_SET:
+    case Feature::DOMAIN_INFO_NOT_SET:
       if (feature->has_distribution_constraints()) {
         feature->clear_distribution_constraints();
         descriptions.push_back(
@@ -869,8 +869,7 @@ std::vector<Description> Schema::UpdateFeatureInternal(
   }
 
   if (view.type() == FeatureNameStatistics::BYTES &&
-      feature->domain_info_case() !=
-          tensorflow::metadata::v0::Feature::DOMAIN_INFO_NOT_SET) {
+      feature->domain_info_case() != Feature::DOMAIN_INFO_NOT_SET) {
     // Note that this clears the oneof field domain_info.
     ::tensorflow::data_validation::ClearDomain(feature);
     descriptions.push_back({tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
@@ -920,7 +919,7 @@ std::vector<Description> Schema::UpdateFeatureInternal(
     case Feature::kStructDomain:
       // struct_domain is handled recursively.
       break;
-    case tensorflow::metadata::v0::Feature::DOMAIN_INFO_NOT_SET:
+    case Feature::DOMAIN_INFO_NOT_SET:
       // Nothing to check here.
       break;
     default:
