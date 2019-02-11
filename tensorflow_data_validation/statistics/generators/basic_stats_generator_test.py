@@ -34,9 +34,8 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
   def test_basic_stats_generator_single_feature(self):
     # input with two batches: first batch has two examples and second batch
     # has a single example.
-    batches = [{'a': np.array([np.array([1.0, 2.0]),
-                               np.array([3.0, 4.0, 5.0])])},
-               {'a': np.array([np.array([1.0])])}]
+    batches = [{'a': [np.array([1.0, 2.0]), np.array([3.0, 4.0, 5.0])]},
+               {'a': [np.array([1.0])]}]
     expected_result = {
         'a': text_format.Parse(
             """
@@ -131,14 +130,12 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
   def test_basic_stats_generator_with_weight_feature(self):
     # input with two batches: first batch has two examples and second batch
     # has a single example.
-    batches = [{'a': np.array([np.array([1.0, 2.0]),
-                               np.array([3.0, 4.0, 5.0])]),
-                'b': np.array([np.array([1, 2]),
-                               np.array([3, 4, 5])]),
-                'w': np.array([np.array([1.0]), np.array([2.0])])},
-               {'a': np.array([np.array([1.0,]), None]),
-                'b': np.array([np.array([1]), None]),
-                'w': np.array([np.array([3.0]), np.array([2.0])])}]
+    batches = [{'a': [np.array([1.0, 2.0]), np.array([3.0, 4.0, 5.0])],
+                'b': [np.array([1, 2]), np.array([3, 4, 5])],
+                'w': [np.array([1.0]), np.array([2.0])]},
+               {'a': [np.array([1.0,]), None],
+                'b': [np.array([1]), None],
+                'w': [np.array([3.0]), np.array([2.0])]}]
     expected_result = {
         'a': text_format.Parse(
             """
@@ -421,12 +418,11 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
   def test_basic_stats_generator_with_entire_feature_value_list_missing(self):
     # input with two batches: first batch has three examples and second batch
     # has two examples.
-    batches = [{'a': np.array([np.array([1.0, 2.0]), None,
-                               np.array([3.0, 4.0, 5.0])], dtype=np.object),
-                'b': np.array([np.array(['x', 'y', 'z', 'w']), None,
-                               np.array(['qwe', 'abc'])], dtype=np.object)},
-               {'a': np.array([np.array([1.0]), None], dtype=np.object),
-                'b': np.array([None, np.array(['qwe'])], dtype=np.object)}]
+    batches = [{'a': [np.array([1.0, 2.0]), None, np.array([3.0, 4.0, 5.0])],
+                'b': [np.array(['x', 'y', 'z', 'w']), None,
+                      np.array(['qwe', 'abc'])]},
+               {'a': [np.array([1.0]), None],
+                'b': [None, np.array(['qwe'])]}]
     expected_result = {
         'a': text_format.Parse(
             """
@@ -550,9 +546,8 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
   def test_basic_stats_generator_with_individual_feature_value_missing(self):
     # input with two batches: first batch has two examples and second batch
     # has a single example.
-    batches = [{'a': np.array([np.array([1.0, 2.0]),
-                               np.array([3.0, 4.0, np.NaN, 5.0])])},
-               {'a': np.array([np.array([np.NaN, 1.0])])}]
+    batches = [{'a': [np.array([1.0, 2.0]), np.array([3.0, 4.0, np.NaN, 5.0])]},
+               {'a': [np.array([np.NaN, 1.0])]}]
 
     expected_result = {
         'a': text_format.Parse(
@@ -645,15 +640,13 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
   def test_basic_stats_generator_with_multiple_features(self):
     # input with two batches: first batch has two examples and second batch
     # has a single example.
-    batches = [{'a': np.array([np.array([1.0, 2.0]),
-                               np.array([3.0, 4.0, 5.0])]),
-                'b': np.array([np.array(['x', 'y', 'z', 'w']),
-                               np.array(['qwe', 'abc'])]),
-                'c': np.array([np.linspace(1, 1000, 1000, dtype=np.int32),
-                               np.linspace(1001, 2000, 1000, dtype=np.int32)])},
-               {'a': np.array([np.array([1.0])]),
-                'b': np.array([np.array(['ab'])]),
-                'c': np.array([np.linspace(2001, 3000, 1000, dtype=np.int32)])}]
+    batches = [{'a': [np.array([1.0, 2.0]), np.array([3.0, 4.0, 5.0])],
+                'b': [np.array(['x', 'y', 'z', 'w']), np.array(['qwe', 'abc'])],
+                'c': [np.linspace(1, 1000, 1000, dtype=np.int32),
+                      np.linspace(1001, 2000, 1000, dtype=np.int32)]},
+               {'a': [np.array([1.0])],
+                'b': [np.array(['ab'])],
+                'c': [np.linspace(2001, 3000, 1000, dtype=np.int32)]}]
     expected_result = {
         'a': text_format.Parse(
             """
@@ -854,8 +847,8 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
   def test_basic_stats_generator_categorical_feature(self):
-    batches = [{'c': np.array([np.array([1, 5, 10]), np.array([0])])},
-               {'c': np.array([np.array([1, 1, 1, 5, 15])])}]
+    batches = [{'c': [np.array([1, 5, 10]), np.array([0])]},
+               {'c': [np.array([1, 1, 1, 5, 15])]}]
     expected_result = {
         'c': text_format.Parse(
             """
@@ -908,7 +901,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
   def test_basic_stats_generator_empty_batch(self):
-    batches = [{'a': np.array([])}]
+    batches = [{'a': []}]
     expected_result = {
         'a': text_format.Parse(
             """
@@ -938,13 +931,13 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
   def test_basic_stats_generator_invalid_value_type(self):
-    batches = [{'a': np.array([{}])}]
+    batches = [{'a': [{}]}]
     generator = basic_stats_generator.BasicStatsGenerator()
     with self.assertRaises(TypeError):
       self.assertCombinerOutputEqual(batches, generator, None)
 
   def test_basic_stats_generator_invalid_value_numpy_dtype(self):
-    batches = [{'a': np.array([np.array([1+2j])])}]
+    batches = [{'a': [np.array([1+2j])]}]
     generator = basic_stats_generator.BasicStatsGenerator()
     with self.assertRaises(TypeError):
       self.assertCombinerOutputEqual(batches, generator, None)

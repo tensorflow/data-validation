@@ -53,19 +53,15 @@ class FlattenExamplesTest(absltest.TestCase):
     # and second batch has a single example with two features.
 
     batches = [{
-        'a': np.array([np.array([1.5]), np.array([1.5])]),
-        'b': np.array([np.array([2.0]), np.array([3.0])])
+        'a': [np.array([1.5]), np.array([1.5])],
+        'b': [np.array([2.0]), np.array([3.0])]
     }, {
-        'a': np.array([np.array([3.0])]),
-        'b': np.array([np.array([4.0])])
+        'a': [np.array([3.0])],
+        'b': [np.array([4.0])]
     }]
     expected_result = {
-        'a': np.array([np.array([1.5]),
-                       np.array([1.5]),
-                       np.array([3.0])]),
-        'b': np.array([np.array([2.0]),
-                       np.array([3.0]),
-                       np.array([4.0])])
+        'a': [np.array([1.5]), np.array([1.5]), np.array([3.0])],
+        'b': [np.array([2.0]), np.array([3.0]), np.array([4.0])]
     }
     self._assert_output_equal(batches, expected_result)
 
@@ -74,39 +70,34 @@ class FlattenExamplesTest(absltest.TestCase):
     # with one feature and second batch has two examples (one missing) with
     # one feature.
     batches = [{
-        'a': np.array(
-            [np.array([1.0]), None, np.array([3.0])], dtype=np.object)
+        'a': [np.array([1.0]), None, np.array([3.0])]
     }, {
-        'a': np.array([np.array([2.0]), None], dtype=np.object)
+        'a': [np.array([2.0]), None]
     }]
     expected_result = {
-        'a':
-            np.array(
-                [np.array([1.0]), None,
-                 np.array([3]),
-                 np.array([2]), None])
+        'a': [np.array([1.0]), None, np.array([3]), np.array([2]), None]
     }
     self._assert_output_equal(batches, expected_result)
 
   def test_custom_stats_combiner_with_empty_batch(self):
     # Input with two batches: first batch has one example with one feature and
     # second batch has no examples.
-    batches = [{'a': np.array([np.array([1.0])])}, {}]
-    expected_result = {'a': np.array([np.array([1.0])])}
+    batches = [{'a': [np.array([1.0])]}, {}]
+    expected_result = {'a': [np.array([1.0])]}
     self._assert_output_equal(batches, expected_result)
 
   def test_custom_stats_combiner_with_missing_feature_name(self):
     # Input with two batches: first batch has one example with two features and
     # second batch has one example with one feature.
     batches = [{
-        'a': np.array([np.array([1.5])]),
-        'b': np.array([np.array([3.0])])
+        'a': [np.array([1.5])],
+        'b': [np.array([3.0])]
     }, {
-        'a': np.array([np.array([3.0])])
+        'a': [np.array([3.0])]
     }]
     expected_result = {
-        'a': np.array([np.array([1.5]), np.array([3.0])]),
-        'b': np.array([np.array([3.0]), None])
+        'a': [np.array([1.5]), np.array([3.0])],
+        'b': [np.array([3.0]), None]
     }
     self._assert_output_equal(batches, expected_result)
 

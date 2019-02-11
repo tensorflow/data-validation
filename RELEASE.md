@@ -25,6 +25,7 @@
   values that are present in a minimum number of examples.
 
 ## Breaking changes
+* Represent batch as a list of ndarrays instead of ndarrays of ndarrays.
 
 ## Deprecations
 

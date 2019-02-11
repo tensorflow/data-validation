@@ -40,7 +40,7 @@ class SkLearnMutualInformationTest(absltest.TestCase):
 
   def test_mi_regression_with_float_label_and_numeric_features(self):
     batch = {}
-    batch["label_key"] = np.array([
+    batch["label_key"] = [
         np.array([0.1]),
         np.array([0.2]),
         np.array([0.8]),
@@ -55,11 +55,11 @@ class SkLearnMutualInformationTest(absltest.TestCase):
         np.array([0.6]),
         np.array([0.4]),
         np.array([0.8])
-    ])
+    ]
     # Maps directly onto the label key
     batch["perfect_feature"] = batch["label_key"]
     # Random floats that do not map onto the label
-    batch["terrible_feature"] = np.array([
+    batch["terrible_feature"] = [
         np.array([0.4]),
         np.array([0.1]),
         np.array([0.4]),
@@ -74,7 +74,7 @@ class SkLearnMutualInformationTest(absltest.TestCase):
         np.array([0.2]),
         np.array([0.5]),
         np.array([0.1])
-    ])
+    ]
 
     schema = text_format.Parse(
         """
@@ -135,7 +135,7 @@ class SkLearnMutualInformationTest(absltest.TestCase):
 
   def test_mi_regression_with_int_label_and_categorical_feature(self):
     batch = {}
-    batch["label_key"] = np.array([
+    batch["label_key"] = [
         np.array([0]),
         np.array([2]),
         np.array([0]),
@@ -147,9 +147,9 @@ class SkLearnMutualInformationTest(absltest.TestCase):
         np.array([2]),
         np.array([1]),
         np.array([0])
-    ])
+    ]
     # A categorical feature that maps directly on to the label.
-    batch["perfect_feature"] = np.array([
+    batch["perfect_feature"] = [
         np.array(["Red"]),
         np.array(["Blue"]),
         np.array(["Red"]),
@@ -161,7 +161,7 @@ class SkLearnMutualInformationTest(absltest.TestCase):
         np.array(["Blue"]),
         np.array(["Green"]),
         np.array(["Red"])
-    ])
+    ]
 
     schema = text_format.Parse(
         """
@@ -202,7 +202,7 @@ class SkLearnMutualInformationTest(absltest.TestCase):
 
   def test_mi_classif_with_int_label_and_categorical_feature(self):
     batch = {}
-    batch["label_key"] = np.array([
+    batch["label_key"] = [
         np.array([0]),
         np.array([2]),
         np.array([0]),
@@ -214,9 +214,9 @@ class SkLearnMutualInformationTest(absltest.TestCase):
         np.array([2]),
         np.array([1]),
         np.array([0])
-    ])
+    ]
     # A categorical feature that maps directly on to the label.
-    batch["perfect_feature"] = np.array([
+    batch["perfect_feature"] = [
         np.array(["Red"]),
         np.array(["Blue"]),
         np.array(["Red"]),
@@ -228,7 +228,7 @@ class SkLearnMutualInformationTest(absltest.TestCase):
         np.array(["Blue"]),
         np.array(["Green"]),
         np.array(["Red"])
-    ])
+    ]
 
     schema = text_format.Parse(
         """
@@ -272,7 +272,7 @@ class SkLearnMutualInformationTest(absltest.TestCase):
 
   def test_mi_with_imputed_categorical_feature(self):
     batch = {}
-    batch["label_key"] = np.array([
+    batch["label_key"] = [
         np.array([0]),
         np.array([2]),
         np.array([0]),
@@ -280,15 +280,15 @@ class SkLearnMutualInformationTest(absltest.TestCase):
         np.array([2]),
         np.array([1]),
         np.array([1])
-    ])
+    ]
     # A categorical feature with missing values.
-    batch["fa"] = np.array([
+    batch["fa"] = [
         np.array(["Red"]),
         np.array(["Blue"]), None, None,
         np.array(["Blue"]),
         np.array(["Green"]),
         np.array(["Green"])
-    ])
+    ]
 
     schema = text_format.Parse(
         """
@@ -329,7 +329,7 @@ class SkLearnMutualInformationTest(absltest.TestCase):
 
   def test_mi_with_imputed_numerical_feature(self):
     batch = {}
-    batch["label_key"] = np.array([
+    batch["label_key"] = [
         np.array([0.1]),
         np.array([0.2]),
         np.array([0.8]),
@@ -344,8 +344,8 @@ class SkLearnMutualInformationTest(absltest.TestCase):
         np.array([0.2]),
         np.array([0.2]),
         np.array([0.3])
-    ])
-    batch["fa"] = np.array([
+    ]
+    batch["fa"] = [
         np.array([0.1]),
         np.array([0.2]),
         np.array([0.8]),
@@ -359,7 +359,7 @@ class SkLearnMutualInformationTest(absltest.TestCase):
         np.array([0.2]),
         np.array([0.2]),
         np.array([0.3])
-    ])
+    ]
 
     schema = text_format.Parse(
         """
@@ -400,8 +400,8 @@ class SkLearnMutualInformationTest(absltest.TestCase):
 
   def test_mi_with_invalid_features(self):
     batch = {
-        "label_key": np.array([np.array([1])]),
-        "multivalent_feature": np.array([np.array([1, 2])])
+        "label_key": [np.array([1])],
+        "multivalent_feature": [np.array([1, 2])]
     }
 
     schema = text_format.Parse(
@@ -430,8 +430,8 @@ class SkLearnMutualInformationTest(absltest.TestCase):
 
   def test_mi_with_missing_label_key(self):
     batch = {
-        "fa": np.array([np.array([1.0]), np.array([2.0])]),
-        "label": np.array([np.array([1.0]), np.array([2.0])])
+        "fa": [np.array([1.0]), np.array([2.0])],
+        "label": [np.array([1.0]), np.array([2.0])]
     }
 
     schema = text_format.Parse(
@@ -463,9 +463,8 @@ class SkLearnMutualInformationTest(absltest.TestCase):
 
   def test_mi_with_multivalent_label(self):
     batch = {
-        "fa": np.array([np.array([1.0]), np.array([2.0])]),
-        "label_key": np.array([np.array([1.0, 2.0]),
-                               np.array([2.0])])
+        "fa": [np.array([1.0]), np.array([2.0])],
+        "label_key": [np.array([1.0, 2.0]), np.array([2.0])]
     }
 
     schema = text_format.Parse(

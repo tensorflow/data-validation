@@ -632,9 +632,8 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
   def create_accumulator(self):
     return {}
 
-  # Incorporates the input (a Python dict whose keys are
-  # feature names and values are numpy arrays representing a
-  # batch of examples) into the accumulator.
+  # Incorporates the input (a Python dict whose keys are feature names and
+  # values are lists representing a batch of examples) into the accumulator.
   def add_input(self, accumulator,
                 input_batch
                ):

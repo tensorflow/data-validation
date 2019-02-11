@@ -68,7 +68,7 @@ def _flatten_examples(batches):
         feature_values.extend(batch[feature_name])
       else:
         feature_values.extend([None] * num_examples_per_batch[i])
-    result[feature_name] = np.array(feature_values)
+    result[feature_name] = feature_values
   return result
 
 

@@ -543,8 +543,8 @@ class CombinerFeatureStatsWrapperGenerator(
     Args:
       wrapper_accumulator: The current wrapper accumulator.
       input_batch: A Python dict whose keys are strings denoting feature names
-        and values are numpy arrays representing a batch of examples, which
-        should be added to the accumulator.
+        and values are lists representing a batch of examples, which should be
+        added to the accumulator.
 
     Returns:
       The wrapper_accumulator after updating the statistics for the batch of

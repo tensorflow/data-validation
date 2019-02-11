@@ -53,7 +53,6 @@ from __future__ import division
 from __future__ import print_function
 
 import apache_beam as beam
-import numpy as np
 from tensorflow_data_validation import types
 from tensorflow_data_validation.types_compat import Iterable, Optional, Text, TypeVar
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -108,8 +107,8 @@ class CombinerStatsGenerator(StatsGenerator):
     Args:
       accumulator: The current accumulator.
       input_batch: A Python dict whose keys are strings denoting feature names
-        and values are numpy arrays representing a batch of examples, which
-        should be added to the accumulator.
+        and values are lists representing a batch of examples, which should be
+        added to the accumulator.
 
     Returns:
       The accumulator after updating the statistics for the batch of inputs.
@@ -157,12 +156,13 @@ class CombinerFeatureStatsGenerator(StatsGenerator):
     """
     raise NotImplementedError
 
-  def add_input(self, accumulator, input_batch):
+  def add_input(self, accumulator, input_batch
+               ):
     """Returns result of folding a batch of inputs into accumulator.
 
     Args:
       accumulator: The current accumulator.
-      input_batch: A numpy array representing a batch of feature values (one per
+      input_batch: A list representing a batch of feature values (one per
         example) which should be added to the accumulator.
 
     Returns:

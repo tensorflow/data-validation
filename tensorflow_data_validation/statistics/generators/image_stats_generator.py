@@ -176,8 +176,7 @@ class ImageStatsGenerator(stats_generator.CombinerStatsGenerator):
     return {}
 
   # Incorporates the input (a Python dict whose keys are feature names and
-  # values are numpy arrays representing a batch of examples) into the
-  # accumulator.
+  # values are lists representing a batch of examples) into the accumulator.
   def add_input(self, accumulator,
                 input_batch
                ):

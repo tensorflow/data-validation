@@ -32,8 +32,11 @@ FeatureNameStatisticsType = int
 # Type of the input example.
 Example = Dict[FeatureName, Optional[np.ndarray]]
 
+# Type of batched values.
+ValueBatch = List[Optional[np.ndarray]]
+
 # Type of the input batch.
-ExampleBatch = Dict[FeatureName, np.ndarray]
+ExampleBatch = Dict[FeatureName, ValueBatch]
 
 # Type of slice keys.
 SliceKey = Optional[Union[bytes, Text]]

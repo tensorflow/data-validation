@@ -20,7 +20,7 @@ from __future__ import print_function
 
 import numpy as np
 from tensorflow_data_validation import types
-from tensorflow_data_validation.types_compat import Dict, Optional
+from tensorflow_data_validation.types_compat import Dict, List, Optional
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
@@ -121,7 +121,7 @@ def get_weight_feature(input_batch,
     weight_feature: Name of the weight feature.
 
   Returns:
-    A numpy array containing the weights of the examples in the input batch.
+    A list containing the weights of the examples in the input batch.
 
   Raises:
     ValueError: If the weight feature is not present in the input batch or is
@@ -146,4 +146,4 @@ def get_weight_feature(input_batch,
     elif w.size != 1:
       raise ValueError('Weight feature "{}" must have a single value. '
                        'Found {}.'.format(weight_feature, w))
-  return weights
+  return weights  # pytype: disable=bad-return-type

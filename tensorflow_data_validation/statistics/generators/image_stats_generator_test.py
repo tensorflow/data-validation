@@ -58,7 +58,7 @@ class ImageStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     batches = [
         {
             'a':
-                np.array([
+                [
                     np.array([
                         FakeImageDecoder.encode_image_metadata('PNG', 2, 4),
                         FakeImageDecoder.encode_image_metadata('JPEG', 4, 2)
@@ -68,15 +68,15 @@ class ImageStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                         FakeImageDecoder.encode_image_metadata('JPEG', 1, 1),
                         FakeImageDecoder.encode_image_metadata('TIFF', 3, 7)
                     ])
-                ])
+                ]
         },
         {
             'a':
-                np.array([
+                [
                     np.array([
                         FakeImageDecoder.encode_image_metadata('GIF', 2, 1)
                     ])
-                ])
+                ]
         }]
     expected_result = {
         'a':
@@ -132,7 +132,7 @@ class ImageStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     batches = [
         {
             'a':
-                np.array([
+                [
                     np.array([
                         FakeImageDecoder.encode_image_metadata('PNG', 2, 4),
                         FakeImageDecoder.encode_image_metadata('JPEG', 4, 2)
@@ -142,15 +142,15 @@ class ImageStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                         FakeImageDecoder.encode_image_metadata('', -1, -1),
                         FakeImageDecoder.encode_image_metadata('TIFF', 3, 7)
                     ])
-                ])
+                ]
         },
         {
             'a':
-                np.array([
+                [
                     np.array([
                         FakeImageDecoder.encode_image_metadata('GIF', 2, 1)
                     ])
-                ])
+                ]
         }]
     expected_result = {
         'a':
@@ -210,7 +210,7 @@ class ImageStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     batches = [
         {
             'a':
-                np.array([
+                [
                     np.array([
                         FakeImageDecoder.encode_image_metadata('PNG', 2, 4),
                         FakeImageDecoder.encode_image_metadata('', -1, -1)
@@ -220,15 +220,15 @@ class ImageStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                         FakeImageDecoder.encode_image_metadata('', -1, -1),
                         FakeImageDecoder.encode_image_metadata('', -1, -1)
                     ])
-                ])
+                ]
         },
         {
             'a':
-                np.array([
+                [
                     np.array([
                         FakeImageDecoder.encode_image_metadata('GIF', 2, 1)
                     ])
-                ])
+                ]
         }]
     expected_result = {}
     image_decoder = FakeImageDecoder()
@@ -242,7 +242,7 @@ class ImageStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     batches = [
         {
             'a':
-                np.array([
+                [
                     np.array([
                         FakeImageDecoder.encode_image_metadata('PNG', 2, 4),
                         FakeImageDecoder.encode_image_metadata('JPEG', 4, 2)
@@ -252,30 +252,30 @@ class ImageStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                         FakeImageDecoder.encode_image_metadata('JPEG', 1, 1),
                         FakeImageDecoder.encode_image_metadata('TIFF', 3, 7)
                     ])
-                ]),
+                ],
             'b':
-                np.array([
+                [
                     np.array([
                         FakeImageDecoder.encode_image_metadata('HEIF', 2, 4)
                     ]),
                     np.array([
                         FakeImageDecoder.encode_image_metadata('TIFF', 5, 1)
                     ])
-                ])
+                ]
         },
         {
             'a':
-                np.array([
+                [
                     np.array([
                         FakeImageDecoder.encode_image_metadata('GIF', 2, 1)
                     ])
-                ]),
+                ],
             'b':
-                np.array([
+                [
                     np.array([
                         FakeImageDecoder.encode_image_metadata('JPEG', 10, 1)
                     ])
-                ])
+                ]
         }]
     expected_result = {
         'a':
@@ -362,7 +362,7 @@ class ImageStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     batches = [
         {
             'a':
-                np.array([
+                [
                     np.array([
                         FakeImageDecoder.encode_image_metadata('PNG', 2, 4),
                         FakeImageDecoder.encode_image_metadata('JPEG', 4, 2)
@@ -372,19 +372,19 @@ class ImageStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                         FakeImageDecoder.encode_image_metadata('JPEG', 1, 1),
                         FakeImageDecoder.encode_image_metadata('TIFF', 3, 7)
                     ])
-                ])
+                ]
         },
         {
             'a':
-                np.array([
+                [
                     np.array(
                         [FakeImageDecoder.encode_image_metadata('GIF', 2, 1)])
-                ]),
+                ],
             'b':
-                np.array([
+                [
                     np.array(
                         [FakeImageDecoder.encode_image_metadata('JPEG', 10, 1)])
-                ])
+                ]
         }
     ]
     expected_result = {
@@ -462,9 +462,9 @@ class ImageStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     # input with two batches: first batch has two examples and second batch
     # has a single example.
     batches = [{
-        'a': np.array([np.array([1, 0]), np.array([0, 1, 0])])
+        'a': [np.array([1, 0]), np.array([0, 1, 0])]
     }, {
-        'a': np.array([np.array([1])])
+        'a': [np.array([1])]
     }]
     expected_result = {}
     image_decoder = FakeImageDecoder()
@@ -473,7 +473,7 @@ class ImageStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
   def test_image_stats_generator_empty_batch(self):
-    batches = [{'a': np.array([])}]
+    batches = [{'a': []}]
     expected_result = {}
     image_decoder = FakeImageDecoder()
     generator = image_stats_generator.ImageStatsGenerator(
