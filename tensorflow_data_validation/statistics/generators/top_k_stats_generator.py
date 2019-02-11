@@ -26,6 +26,7 @@ from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils.stats_util import get_feature_type
+from tensorflow_data_validation.utils.stats_util import is_valid_utf8
 from tensorflow_data_validation.types_compat import Iterator, List, Optional, Set, Text, Tuple, Union
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -38,14 +39,6 @@ _SlicedFeatureNameAndValueListWithWeight = collections.namedtuple(
     ['slice_key', 'feature_name', 'value_list', 'weight'])
 
 _INVALID_STRING = '__BYTES_VALUE__'
-
-
-def _is_valid_utf8(value):
-  try:
-    value.decode('utf-8')
-  except UnicodeError:
-    return False
-  return True
 
 
 def make_feature_stats_proto_with_topk_stats(
@@ -96,7 +89,7 @@ def make_feature_stats_proto_with_topk_stats(
       break
     # Check if we have a valid utf-8 string. If not, assign a default invalid
     # string value.
-    if isinstance(value, bytes) and not _is_valid_utf8(value):
+    if isinstance(value, bytes) and not is_valid_utf8(value):
       logging.warning('Feature "%s" has bytes value "%s" which cannot be '
                       'decoded as a UTF-8 string.', feature_name, value)
       value = _INVALID_STRING

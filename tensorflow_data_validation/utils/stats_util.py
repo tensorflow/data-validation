@@ -34,6 +34,15 @@ _NP_DTYPE_KIND_TO_FEATURE_TYPE = {
 }
 
 
+def is_valid_utf8(value):
+  """Returns True iff the value is valid utf8."""
+  try:
+    value.decode('utf-8')
+  except UnicodeError:
+    return False
+  return True
+
+
 def get_feature_type(
     dtype):
   """Get feature type from numpy dtype.

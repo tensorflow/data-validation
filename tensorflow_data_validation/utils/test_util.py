@@ -262,3 +262,44 @@ class TransformStatsGeneratorTest(absltest.TestCase):
       result = p | beam.Create(examples) | generator.ptransform
       util.assert_that(result, _make_result_matcher(self, expected_results))
 
+
+class CombinerFeatureStatsGeneratorTest(absltest.TestCase):
+  """Test class for combiner feature stats generator related functionality."""
+
+  # Runs the provided combiner feature statistics generator and tests if the
+  # output matches the expected result.
+  def assertCombinerOutputEqual(
+      self, input_batches,
+      generator,
+      expected_result):
+    """Tests a feature combiner statistics generator.
+
+    This runs the generator twice to cover different behavior. There must be at
+    least two input batches in order to test the generator's merging behavior.
+
+    Args:
+      input_batches: A list of batches of test data.
+      generator: The CombinerFeatureStatsGenerator to test.
+      expected_result: The FeatureNameStatistics proto that it is expected the
+        generator will return.
+    """
+    # Run generator to check that merge_accumulators() works correctly.
+    accumulators = [
+        generator.add_input(generator.create_accumulator(), input_batch)
+        for input_batch in input_batches
+    ]
+    result = generator.extract_output(
+        generator.merge_accumulators(accumulators))
+    compare.assertProtoEqual(
+        self, result, expected_result, normalize_numbers=True)
+
+    # Run generator to check that add_input() works correctly when adding
+    # inputs to a non-empty accumulator.
+    accumulator = generator.create_accumulator()
+
+    for input_batch in input_batches:
+      accumulator = generator.add_input(accumulator, input_batch)
+
+    result = generator.extract_output(accumulator)
+    compare.assertProtoEqual(
+        self, result, expected_result, normalize_numbers=True)
