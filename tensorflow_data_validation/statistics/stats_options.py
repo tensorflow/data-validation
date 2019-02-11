@@ -19,7 +19,6 @@ from __future__ import division
 
 from __future__ import print_function
 
-import logging
 import types as python_types
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
@@ -176,7 +175,6 @@ class StatsOptions(object):
   def slice_functions(
       self, slice_functions):
     if slice_functions is not None:
-      logging.warning('Slicing is currently not supported.')
       if not isinstance(slice_functions, list):
         raise TypeError('slice_functions is of type %s, should be a list.' %
                         type(slice_functions).__name__)
