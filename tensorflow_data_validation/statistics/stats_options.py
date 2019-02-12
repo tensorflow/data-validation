@@ -53,7 +53,8 @@ class StatsOptions(object):
       num_histogram_buckets = 10,
       num_quantiles_histogram_buckets = 10,
       epsilon = 0.01,
-      infer_type_from_schema = False
+      infer_type_from_schema = False,
+      desired_batch_size = None
       ):
     """Initializes statistics options.
 
@@ -101,6 +102,8 @@ class StatsOptions(object):
           should be inferred from the schema. If set to True, an input schema
           must be provided. This flag is used only when generating statistics
           on CSV data.
+      desired_batch_size: An optional number of examples to include in each
+        batch that is passed to the statistics generators.
     """
     self.generators = generators
     self.feature_whitelist = feature_whitelist
@@ -118,6 +121,7 @@ class StatsOptions(object):
     self.num_quantiles_histogram_buckets = num_quantiles_histogram_buckets
     self.epsilon = epsilon
     self.infer_type_from_schema = infer_type_from_schema
+    self.desired_batch_size = desired_batch_size
 
   @property
   def generators(self):
@@ -248,3 +252,14 @@ class StatsOptions(object):
       raise ValueError('Invalid num_quantiles_histogram_buckets %d' %
                        num_quantiles_histogram_buckets)
     self._num_quantiles_histogram_buckets = num_quantiles_histogram_buckets
+
+  @property
+  def desired_batch_size(self):
+    return self._desired_batch_size
+
+  @desired_batch_size.setter
+  def desired_batch_size(self, desired_batch_size):
+    if desired_batch_size is not None and desired_batch_size < 1:
+      raise ValueError('Invalid desired_batch_size %d' %
+                       desired_batch_size)
+    self._desired_batch_size = desired_batch_size

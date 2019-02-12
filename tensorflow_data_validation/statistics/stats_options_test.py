@@ -163,6 +163,22 @@ INVALID_STATS_OPTIONS = [
         'exception_type': ValueError,
         'error_message': 'Invalid num_quantiles_histogram_buckets -1'
     },
+    {
+        'testcase_name': 'desired_batch_size_zero',
+        'stats_options_kwargs': {
+            'desired_batch_size': 0
+        },
+        'exception_type': ValueError,
+        'error_message': 'Invalid desired_batch_size 0'
+    },
+    {
+        'testcase_name': 'desired_batch_size_negative',
+        'stats_options_kwargs': {
+            'desired_batch_size': -1
+        },
+        'exception_type': ValueError,
+        'error_message': 'Invalid desired_batch_size -1'
+    },
 ]
 
 

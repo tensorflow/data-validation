@@ -102,12 +102,11 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
         # TODO(b/120863006): Consider removing fanout once BEAM-4030 is
         # resolved, and all the Beam OSS Runners support CombineFn.compact
         fanout = 8  if _is_combinefn_compact_supported() else 16
-
-        result_protos.append(
-            dataset
-            | generator.name >> beam.CombinePerKey(
-                _BatchedCombineFnWrapper(
-                    generator)).with_hot_key_fanout(fanout))
+        result_protos.append(dataset
+                             | generator.name >> beam.CombinePerKey(
+                                 _BatchedCombineFnWrapper(
+                                     generator, self._options.desired_batch_size
+                                 )).with_hot_key_fanout(fanout))
       elif isinstance(generator, stats_generator.TransformStatsGenerator):
         result_protos.append(
             dataset

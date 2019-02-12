@@ -23,6 +23,8 @@
 * Expand unit test coverage.
 * Add optional frequency threshold that allows keeping only the most frequent
   values that are present in a minimum number of examples.
+* Add optional desired batch size that allows specification of the number of
+  examples to include in each batch.
 
 ## Breaking changes
 * Represent batch as a list of ndarrays instead of ndarrays of ndarrays.
