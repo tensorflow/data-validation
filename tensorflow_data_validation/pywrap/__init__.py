@@ -1,5 +1,4 @@
-#!/bin/bash
-# Copyright 2018 Google LLC
+# Copyright 2019 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,21 +12,3 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Convenience binary to build TFDV from source.
-
-# Put wrapped c++ files in place
-
-set -u -x
-
-cp -f tensorflow_data_validation/pywrap/pywrap_tensorflow_data_validation.py \
-  ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/pywrap
-cp -f tensorflow_data_validation/pywrap/_pywrap_tensorflow_data_validation.so \
-  ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/pywrap
-
-# Create the wheel
-cd ${BUILD_WORKSPACE_DIRECTORY}
-
-python setup.py bdist_wheel
-
-# Cleanup
-cd -
