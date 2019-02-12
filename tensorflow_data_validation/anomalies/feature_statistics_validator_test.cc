@@ -39,10 +39,10 @@ void TestSchemaUpdate(const ValidationConfig& config,
                       const DatasetFeatureStatistics& statistics,
                       const Schema& old_schema, const Schema& expected) {
   Schema result;
-  TF_ASSERT_OK(UpdateSchema(
-      GetDefaultFeatureStatisticsToProtoConfig(), old_schema, statistics,
-      /*paths_to_consider=*/ tensorflow::gtl::nullopt,
-      /*environment=*/ tensorflow::gtl::nullopt, &result));
+  TF_ASSERT_OK(UpdateSchema(GetDefaultFeatureStatisticsToProtoConfig(),
+                            old_schema, statistics,
+                            /*paths_to_consider=*/tensorflow::gtl::nullopt,
+                            /*environment=*/tensorflow::gtl::nullopt, &result));
   EXPECT_THAT(result, EqualsProto(expected));
 }
 
@@ -79,10 +79,7 @@ TEST(FeatureStatisticsValidatorTest, EndToEnd) {
       type: BYTES
       domain: "MyAloneEnum"
     }
-    feature {
-      name: "missing_column"
-      type: BYTES
-    }
+    feature { name: "missing_column" type: BYTES }
     feature {
       name: "ignore_this"
       lifecycle_stage: DEPRECATED
@@ -111,11 +108,7 @@ TEST(FeatureStatisticsValidatorTest, EndToEnd) {
         features: {
           name: 'missing_column'
           type: STRING
-          string_stats: {
-            common_stats: {
-              num_missing: 1000
-            }
-          }
+          string_stats: { common_stats: { num_missing: 1000 } }
         })");
 
   std::map<string, testing::ExpectedAnomalyInfo> anomalies;
@@ -128,10 +121,7 @@ TEST(FeatureStatisticsValidatorTest, EndToEnd) {
       domain: "MyAloneEnum"
       presence { min_count: 1 }
     }
-    feature {
-      name: "missing_column"
-      type: BYTES
-    }
+    feature { name: "missing_column" type: BYTES }
     feature {
       name: "ignore_this"
       lifecycle_stage: DEPRECATED
@@ -244,9 +234,9 @@ TEST(FeatureStatisticsValidatorTest, MissingFeatureAndEnvironments) {
   // Running for environment "SERVING" should not generate anomalies.
   TestFeatureStatisticsValidator(
       schema, ValidationConfig(), statistics,
-      /*prev_feature_statistics=*/ tensorflow::gtl::nullopt, "SERVING",
+      /*prev_feature_statistics=*/tensorflow::gtl::nullopt, "SERVING",
       /*features_needed=*/gtl::nullopt,
-      /*expected_anomalies=*/ {});
+      /*expected_anomalies=*/{});
 }
 
 TEST(FeatureStatisticsValidatorTest, FeaturesNeeded) {
@@ -330,22 +320,18 @@ TEST(FeatureStatisticsValidatorTest, MissingExamples) {
 }
 
 TEST(FeatureStatisticsValidatorTest, UpdateEmptySchema) {
-  const DatasetFeatureStatistics statistics =
-      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
-        num_examples: 1000
-        features: {
-          name: 'annotated_enum'
-          type: STRING
-          string_stats: {
-            common_stats: {
-              num_missing: 3
-              num_non_missing: 997
-              max_num_values: 1
-            }
-            unique: 3
-            rank_histogram: { buckets: { label: "D" } }
-          }
-        })");
+  const DatasetFeatureStatistics statistics = ParseTextProtoOrDie<
+      DatasetFeatureStatistics>(R"(
+    num_examples: 1000
+    features: {
+      name: 'annotated_enum'
+      type: STRING
+      string_stats: {
+        common_stats: { num_missing: 3 num_non_missing: 997 max_num_values: 1 }
+        unique: 3
+        rank_histogram: { buckets: { label: "D" } }
+      }
+    })");
 
   const Schema want = ParseTextProtoOrDie<Schema>(R"(
     feature {
@@ -366,11 +352,7 @@ TEST(FeatureStatisticsValidatorTest, UpdateEmptySchemaWithMissingColumn) {
         features: {
           name: 'bar'
           type: STRING
-          string_stats: {
-            common_stats: {
-              num_missing: 1000
-            }
-          }
+          string_stats: { common_stats: { num_missing: 1000 } }
         })");
 
   const Schema want = ParseTextProtoOrDie<Schema>(R"(
@@ -579,6 +561,50 @@ TEST(FeatureStatisticsValidatorTest, UpdateDriftComparatorInSchema) {
                                  prev_statistics,
                                  /*environment=*/gtl::nullopt,
                                  /*features_needed=*/gtl::nullopt, anomalies);
+}
+
+TEST(FeatureStatisticsValidatorUpdateSchema, TestLargeStringDomain) {
+  DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        num_examples: 1001
+        features: {
+          name: 'annotated_enum'
+          type: STRING
+          string_stats: {
+            common_stats: {
+              num_missing: 1
+              max_num_values: 1
+              num_non_missing: 1000
+              avg_num_values: 1
+            }
+            unique: 1000
+            rank_histogram {}
+          }
+        })");
+
+  metadata::v0::RankHistogram* histogram = statistics.mutable_features(0)
+                                               ->mutable_string_stats()
+                                               ->mutable_rank_histogram();
+  for (int i = 0; i < 1000; ++i) {
+    metadata::v0::RankHistogram::Bucket* bucket = histogram->add_buckets();
+    bucket->set_label(absl::StrCat("token_", i));
+    bucket->set_sample_count(1.0);
+  }
+  const Schema want = ParseTextProtoOrDie<Schema>(R"(
+    feature {
+      name: "annotated_enum"
+      value_count { min: 1 max: 1 }
+      type: BYTES
+      presence { min_count: 1 }
+    })");
+  Schema got;
+
+  TF_EXPECT_OK(FeatureStatisticsValidator().UpdateSchema(
+      FeatureStatisticsToProtoConfig(), Schema(), statistics, gtl::nullopt,
+      gtl::nullopt, &got));
+  EXPECT_THAT(got, EqualsProto(want));
+
+  TestSchemaUpdate(ValidationConfig(), statistics, Schema(), want);
 }
 
 }  // namespace
