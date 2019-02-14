@@ -18,8 +18,12 @@ from __future__ import division
 from __future__ import print_function
 
 import json
+import os
+import pickle
 from absl.testing import absltest
+from absl.testing import parameterized
 import numpy as np
+import tensorflow as tf
 from tensorflow_data_validation.statistics.generators import image_stats_generator
 from tensorflow_data_validation.utils import test_util
 
@@ -39,61 +43,110 @@ class FakeImageDecoder(image_stats_generator.ImageDecoderInterface):
     }
     return json.dumps(image_metadata)
 
-  def get_format(self, content):
-    image_metadata = json.loads(content)
-    return image_metadata['format']
+  def get_formats(self, value_list):
+    return [json.loads(value)['format'] for value in value_list]
 
-  def get_size(self, content):
-    image_metadata = json.loads(content)
-    return (image_metadata['height'], image_metadata['width'])
+  def get_sizes(self, value_list):
+    loaded_metadata = [json.loads(value) for value in value_list]
+    return [(meta['height'], meta['width']) for meta in loaded_metadata]
 
 
-# TODO(b/119735769): use parameterized test case here.
-class ImageStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
+class ImageStatsGeneratorTest(test_util.CombinerFeatureStatsGeneratorTest,
+                              parameterized.TestCase):
 
-  # Input batch only having one feature, and all feature values are images.
-  def test_image_stats_generator_single_feature_all_images(self):
-    # input with two batches: first batch has two examples and second batch
-    # has a single example.
-    batches = [
-        {
-            'a':
-                [
-                    np.array([
-                        FakeImageDecoder.encode_image_metadata('PNG', 2, 4),
-                        FakeImageDecoder.encode_image_metadata('JPEG', 4, 2)
-                    ]),
-                    np.array([
-                        FakeImageDecoder.encode_image_metadata('TIFF', 5, 1),
-                        FakeImageDecoder.encode_image_metadata('JPEG', 1, 1),
-                        FakeImageDecoder.encode_image_metadata('TIFF', 3, 7)
-                    ])
-                ]
-        },
-        {
-            'a':
-                [
-                    np.array([
-                        FakeImageDecoder.encode_image_metadata('GIF', 2, 1)
-                    ])
-                ]
-        }]
-    expected_result = {
-        'a':
-            text_format.Parse(
-                """
-            name: 'a'
+  @parameterized.named_parameters(
+      ('EmptyList', []),  # Line-break comment for readability.
+      ('EmptyBatch', [[]]),
+      ('NumericalShouldInvalidateImageStats', [
+          [
+              np.array([
+                  FakeImageDecoder.encode_image_metadata('TIFF', 5, 1),
+                  FakeImageDecoder.encode_image_metadata('JPEG', 1, 1),
+                  FakeImageDecoder.encode_image_metadata('TIFF', 3, 7)
+              ]),
+          ],
+          [
+              np.array([1]),
+          ],
+      ]))
+  def test_cases_with_no_image_stats(self, batches):
+    """Test cases that should not generate image statistics."""
+    image_decoder = FakeImageDecoder()
+    generator = image_stats_generator.ImageStatsGenerator(
+        image_decoder=image_decoder,
+        examples_threshold=1,
+        enable_size_stats=True)
+    self.assertCombinerOutputEqual(batches, generator,
+                                   statistics_pb2.FeatureNameStatistics())
+
+  def test_image_stats_generator_with_missing_feature(self):
+    """Test with missing values for a batch."""
+    batches = [[],
+               [
+                   np.array(
+                       [FakeImageDecoder.encode_image_metadata('JPEG', 10, 1)]),
+               ]]
+    expected_result = text_format.Parse(
+        """
             custom_stats {
-              name: 'is_image'
+              name: 'domain_info'
+              str: 'image_domain {}'
+            }
+            custom_stats {
+              name: 'image_format_histogram'
+              rank_histogram {
+                buckets {
+                  label: 'JPEG'
+                  sample_count: 1
+                }
+              }
+            }
+            custom_stats {
+              name: 'image_max_width'
               num: 1.0
             }
             custom_stats {
-              name: 'max_image_width'
-              num: 7.0
-            }
+              name: 'image_max_height'
+              num: 10.0
+            }""", statistics_pb2.FeatureNameStatistics())
+    image_decoder = FakeImageDecoder()
+    generator = image_stats_generator.ImageStatsGenerator(
+        image_decoder=image_decoder,
+        examples_threshold=1,
+        enable_size_stats=True)
+    self.assertCombinerOutputEqual(batches, generator, expected_result)
+
+  def test_image_stats_generator_examples_threshold_check(self):
+    """Check examples_threshold with a feature that is all images."""
+    batches = [[
+        np.array([
+            FakeImageDecoder.encode_image_metadata('PNG', 2, 4),
+            FakeImageDecoder.encode_image_metadata('JPEG', 4, 2)
+        ]),
+        np.array([
+            FakeImageDecoder.encode_image_metadata('TIFF', 5, 1),
+            FakeImageDecoder.encode_image_metadata('JPEG', 1, 1),
+            FakeImageDecoder.encode_image_metadata('TIFF', 3, 7)
+        ]),
+    ], [
+        np.array([FakeImageDecoder.encode_image_metadata('GIF', 2, 1)]),
+    ]]
+
+    # With examples_threshold = 7 statistics should not be generated.
+    image_decoder = FakeImageDecoder()
+    expected_result = statistics_pb2.FeatureNameStatistics()
+    generator = image_stats_generator.ImageStatsGenerator(
+        image_decoder=image_decoder,
+        examples_threshold=7,
+        enable_size_stats=True)
+    self.assertCombinerOutputEqual(batches, generator, expected_result)
+
+    # With examples_threshold = 6 statistics should be generated.
+    expected_result = text_format.Parse(
+        """
             custom_stats {
-              name: 'max_image_height'
-              num: 5.0
+              name: 'domain_info'
+              str: 'image_domain {}'
             }
             custom_stats {
               name: 'image_format_histogram'
@@ -116,58 +169,123 @@ class ImageStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 }
               }
             }
-            """, statistics_pb2.FeatureNameStatistics())
-    }
-    image_decoder = FakeImageDecoder()
-    generator = image_stats_generator.ImageStatsGenerator(
-        image_decoder=image_decoder)
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
-
-  # Input batch only having one feature, and one of the value is not an image
-  # type (image_type being an empty string). The ratio of image value is
-  # above 0.8, thus the feature is still an image feature.
-  def test_image_stats_generator_single_feature_one_non_image(self):
-    # input with two batches: first batch has two examples and second batch
-    # has a single example.
-    batches = [
-        {
-            'a':
-                [
-                    np.array([
-                        FakeImageDecoder.encode_image_metadata('PNG', 2, 4),
-                        FakeImageDecoder.encode_image_metadata('JPEG', 4, 2)
-                    ]),
-                    np.array([
-                        FakeImageDecoder.encode_image_metadata('TIFF', 5, 1),
-                        FakeImageDecoder.encode_image_metadata('', -1, -1),
-                        FakeImageDecoder.encode_image_metadata('TIFF', 3, 7)
-                    ])
-                ]
-        },
-        {
-            'a':
-                [
-                    np.array([
-                        FakeImageDecoder.encode_image_metadata('GIF', 2, 1)
-                    ])
-                ]
-        }]
-    expected_result = {
-        'a':
-            text_format.Parse(
-                """
-            name: 'a'
             custom_stats {
-              name: 'is_image'
-              num: 1.0
-            }
-            custom_stats {
-              name: 'max_image_width'
+              name: 'image_max_width'
               num: 7.0
             }
             custom_stats {
-              name: 'max_image_height'
+              name: 'image_max_height'
               num: 5.0
+            }
+            """, statistics_pb2.FeatureNameStatistics())
+    generator = image_stats_generator.ImageStatsGenerator(
+        image_decoder=image_decoder,
+        examples_threshold=6,
+        enable_size_stats=True)
+    self.assertCombinerOutputEqual(batches, generator, expected_result)
+
+  def test_image_stats_generator_check_is_image_ratio(self):
+    """Check is_image_ratio with a feature that has partiallly images."""
+    # The image ratio is: 0.83
+    batches = [
+        [
+            np.array([
+                FakeImageDecoder.encode_image_metadata('PNG', 2, 4),
+                FakeImageDecoder.encode_image_metadata('JPEG', 4, 2)
+            ]),
+            np.array([
+                FakeImageDecoder.encode_image_metadata('TIFF', 5, 1),
+                FakeImageDecoder.encode_image_metadata('', -1, -1),
+                FakeImageDecoder.encode_image_metadata('TIFF', 3, 7)
+            ]),
+        ],
+        [
+            np.array([FakeImageDecoder.encode_image_metadata('GIF', 2, 1)]),
+        ],
+    ]
+    # For image_ratio_threshold=0.85 we for not expect stats.
+    expected_result = statistics_pb2.FeatureNameStatistics()
+    image_decoder = FakeImageDecoder()
+    generator = image_stats_generator.ImageStatsGenerator(
+        image_decoder=image_decoder,
+        is_image_ratio_threshold=0.85,
+        examples_threshold=1,
+        enable_size_stats=True)
+    self.assertCombinerOutputEqual(batches, generator, expected_result)
+
+    # For image_ratio_threshold=0.8 we expect stats.
+    expected_result = text_format.Parse(
+        """
+            custom_stats {
+              name: 'domain_info'
+              str: 'image_domain {}'
+            }
+            custom_stats {
+              name: 'image_format_histogram'
+              rank_histogram {
+                buckets {
+                  label: 'UNKNOWN'
+                  sample_count: 1
+                }
+                buckets {
+                  label: 'GIF'
+                  sample_count: 1
+                }
+                buckets {
+                  label: 'JPEG'
+                  sample_count: 1
+                }
+                buckets {
+                  label: 'PNG'
+                  sample_count: 1
+                }
+                buckets {
+                  label: 'TIFF'
+                  sample_count: 2
+                }
+              }
+            }
+            custom_stats {
+              name: 'image_max_width'
+              num: 7.0
+            }
+            custom_stats {
+              name: 'image_max_height'
+              num: 5.0
+            }
+            """, statistics_pb2.FeatureNameStatistics())
+    generator = image_stats_generator.ImageStatsGenerator(
+        image_decoder=image_decoder,
+        is_image_ratio_threshold=0.8,
+        examples_threshold=1,
+        enable_size_stats=True)
+    self.assertCombinerOutputEqual(batches, generator, expected_result)
+
+  def test_image_stats_generator_disable_size_stats(self):
+    """Test the enable_size_stats_option."""
+    # Identical input to test_image_stats_generator_check_is_image_ratio
+    batches = [
+        [
+            np.array([
+                FakeImageDecoder.encode_image_metadata('PNG', 2, 4),
+                FakeImageDecoder.encode_image_metadata('JPEG', 4, 2)
+            ]),
+            np.array([
+                FakeImageDecoder.encode_image_metadata('TIFF', 5, 1),
+                FakeImageDecoder.encode_image_metadata('', -1, -1),
+                FakeImageDecoder.encode_image_metadata('TIFF', 3, 7)
+            ])
+        ],
+        [
+            np.array([FakeImageDecoder.encode_image_metadata('GIF', 2, 1)]),
+        ],
+    ]
+    # Stats should be identical but without stats for image size.
+    expected_result = text_format.Parse(
+        """
+            custom_stats {
+              name: 'domain_info'
+              str: 'image_domain {}'
             }
             custom_stats {
               name: 'image_format_histogram'
@@ -195,306 +313,93 @@ class ImageStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               }
             }
             """, statistics_pb2.FeatureNameStatistics())
-    }
     image_decoder = FakeImageDecoder()
     generator = image_stats_generator.ImageStatsGenerator(
-        image_decoder=image_decoder, is_image_ratio_threshold=0.8)
+        image_decoder=image_decoder,
+        is_image_ratio_threshold=0.8,
+        examples_threshold=1,
+        enable_size_stats=False)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  # Input batch only having one feature, and many of the values are not an image
-  # type (image_type being an empty string). The ratio of image value is
-  # below 0.8, thus the feature is still an image feature.
-  def test_image_stats_generator_single_feature_many_non_images(self):
-    # input with two batches: first batch has two examples and second batch
-    # has a single example.
-    batches = [
-        {
-            'a':
-                [
-                    np.array([
-                        FakeImageDecoder.encode_image_metadata('PNG', 2, 4),
-                        FakeImageDecoder.encode_image_metadata('', -1, -1)
-                    ]),
-                    np.array([
-                        FakeImageDecoder.encode_image_metadata('TIFF', 5, 1),
-                        FakeImageDecoder.encode_image_metadata('', -1, -1),
-                        FakeImageDecoder.encode_image_metadata('', -1, -1)
-                    ])
-                ]
-        },
-        {
-            'a':
-                [
-                    np.array([
-                        FakeImageDecoder.encode_image_metadata('GIF', 2, 1)
-                    ])
-                ]
-        }]
-    expected_result = {}
-    image_decoder = FakeImageDecoder()
-    generator = image_stats_generator.ImageStatsGenerator(
-        image_decoder=image_decoder, is_image_ratio_threshold=0.8)
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_image_stats_generator_multiple_features(self):
-    # input with two batches: first batch has two examples and second batch
-    # has a single example.
-    batches = [
-        {
-            'a':
-                [
-                    np.array([
-                        FakeImageDecoder.encode_image_metadata('PNG', 2, 4),
-                        FakeImageDecoder.encode_image_metadata('JPEG', 4, 2)
-                    ]),
-                    np.array([
-                        FakeImageDecoder.encode_image_metadata('TIFF', 5, 1),
-                        FakeImageDecoder.encode_image_metadata('JPEG', 1, 1),
-                        FakeImageDecoder.encode_image_metadata('TIFF', 3, 7)
-                    ])
-                ],
-            'b':
-                [
-                    np.array([
-                        FakeImageDecoder.encode_image_metadata('HEIF', 2, 4)
-                    ]),
-                    np.array([
-                        FakeImageDecoder.encode_image_metadata('TIFF', 5, 1)
-                    ])
-                ]
-        },
-        {
-            'a':
-                [
-                    np.array([
-                        FakeImageDecoder.encode_image_metadata('GIF', 2, 1)
-                    ])
-                ],
-            'b':
-                [
-                    np.array([
-                        FakeImageDecoder.encode_image_metadata('JPEG', 10, 1)
-                    ])
-                ]
-        }]
-    expected_result = {
-        'a':
-            text_format.Parse(
-                """
-            name: 'a'
-            custom_stats {
-              name: 'is_image'
-              num: 1.0
-            }
-            custom_stats {
-              name: 'max_image_width'
-              num: 7.0
-            }
-            custom_stats {
-              name: 'max_image_height'
-              num: 5.0
-            }
-            custom_stats {
-              name: 'image_format_histogram'
-              rank_histogram {
-                buckets {
-                  label: 'GIF'
-                  sample_count: 1
-                }
-                buckets {
-                  label: 'JPEG'
-                  sample_count: 2
-                }
-                buckets {
-                  label: 'PNG'
-                  sample_count: 1
-                }
-                buckets {
-                  label: 'TIFF'
-                  sample_count: 2
-                }
-              }
-            }
-            """, statistics_pb2.FeatureNameStatistics()),
-        'b':
-            text_format.Parse(
-                """
-            name: 'b'
-            custom_stats {
-              name: 'is_image'
-              num: 1.0
-            }
-            custom_stats {
-              name: 'max_image_width'
-              num: 4.0
-            }
-            custom_stats {
-              name: 'max_image_height'
-              num: 10.0
-            }
-            custom_stats {
-              name: 'image_format_histogram'
-              rank_histogram {
-                buckets {
-                  label: 'HEIF'
-                  sample_count: 1
-                }
-                buckets {
-                  label: 'JPEG'
-                  sample_count: 1
-                }
-                buckets {
-                  label: 'TIFF'
-                  sample_count: 1
-                }
-              }
-            }
-            """, statistics_pb2.FeatureNameStatistics())
-    }
-    image_decoder = FakeImageDecoder()
-    generator = image_stats_generator.ImageStatsGenerator(
-        image_decoder=image_decoder)
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
+def _read_file(filepath):
+  """Helper method for reading a file in binary mode."""
+  f = tf.gfile.Open(filepath, mode='rb')
+  return f.read()
 
-  def test_image_stats_generator_with_missing_feature(self):
-    # input with two batches: first batch has two examples and second batch
-    # has a single example. The first batch is missing feature 'b'
+
+class ImageStatsGeneratorRealImageTest(
+    test_util.CombinerFeatureStatsGeneratorTest):
+
+  def test_image_stats_generator_real_image(self):
+    test_data_dir = os.path.join(os.path.dirname(__file__), 'testdata')
     batches = [
-        {
-            'a':
-                [
-                    np.array([
-                        FakeImageDecoder.encode_image_metadata('PNG', 2, 4),
-                        FakeImageDecoder.encode_image_metadata('JPEG', 4, 2)
-                    ]),
-                    np.array([
-                        FakeImageDecoder.encode_image_metadata('TIFF', 5, 1),
-                        FakeImageDecoder.encode_image_metadata('JPEG', 1, 1),
-                        FakeImageDecoder.encode_image_metadata('TIFF', 3, 7)
-                    ])
-                ]
-        },
-        {
-            'a':
-                [
-                    np.array(
-                        [FakeImageDecoder.encode_image_metadata('GIF', 2, 1)])
-                ],
-            'b':
-                [
-                    np.array(
-                        [FakeImageDecoder.encode_image_metadata('JPEG', 10, 1)])
-                ]
-        }
+        [
+            np.array([
+                _read_file(os.path.join(test_data_dir, 'image1.gif')),
+                _read_file(os.path.join(test_data_dir, 'image2.png')),
+                _read_file(os.path.join(test_data_dir, 'not_a_image.abc')),
+            ]),
+            np.array([
+                _read_file(os.path.join(test_data_dir, 'image3.bmp')),
+                b'not_a_image'
+            ])
+        ],
+        [
+            np.array([_read_file(os.path.join(test_data_dir, 'image4.png'))]),
+        ],
     ]
-    expected_result = {
-        'a':
-            text_format.Parse(
-                """
-            name: 'a'
+    expected_result = text_format.Parse(
+        """
             custom_stats {
-              name: 'is_image'
-              num: 1.0
-            }
-            custom_stats {
-              name: 'max_image_width'
-              num: 7.0
-            }
-            custom_stats {
-              name: 'max_image_height'
-              num: 5.0
+              name: 'domain_info'
+              str: 'image_domain {}'
             }
             custom_stats {
               name: 'image_format_histogram'
               rank_histogram {
                 buckets {
-                  label: 'GIF'
-                  sample_count: 1
-                }
-                buckets {
-                  label: 'JPEG'
+                  label: 'UNKNOWN'
                   sample_count: 2
                 }
                 buckets {
-                  label: 'PNG'
+                  label: 'bmp'
                   sample_count: 1
                 }
                 buckets {
-                  label: 'TIFF'
+                  label: 'gif'
+                  sample_count: 1
+                }
+                buckets {
+                  label: 'png'
                   sample_count: 2
                 }
               }
             }
-            """, statistics_pb2.FeatureNameStatistics()),
-        'b':
-            text_format.Parse(
-                """
-            name: 'b'
             custom_stats {
-              name: 'is_image'
-              num: 1.0
+              name: 'image_max_width'
+              num: 51.0
             }
             custom_stats {
-              name: 'max_image_width'
-              num: 1.0
-            }
-            custom_stats {
-              name: 'max_image_height'
-              num: 10.0
-            }
-            custom_stats {
-              name: 'image_format_histogram'
-              rank_histogram {
-                buckets {
-                  label: 'JPEG'
-                  sample_count: 1
-                }
-              }
+              name: 'image_max_height'
+              num: 26.0
             }
             """, statistics_pb2.FeatureNameStatistics())
-    }
-    image_decoder = FakeImageDecoder()
     generator = image_stats_generator.ImageStatsGenerator(
-        image_decoder=image_decoder)
+        is_image_ratio_threshold=0.6,
+        examples_threshold=1,
+        enable_size_stats=True)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_image_stats_generator_numerical_feature(self):
-    # input with two batches: first batch has two examples and second batch
-    # has a single example.
-    batches = [{
-        'a': [np.array([1, 0]), np.array([0, 1, 0])]
-    }, {
-        'a': [np.array([1])]
-    }]
-    expected_result = {}
-    image_decoder = FakeImageDecoder()
+  def test_image_stats_generator_pickle_success(self):
+    """Ensure that decoder and generator implementations are pickle-able."""
+    image_decoder = image_stats_generator.TfImageDecoder()
+    pickle.dumps(image_decoder)
     generator = image_stats_generator.ImageStatsGenerator(
-        image_decoder=image_decoder)
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
-
-  def test_image_stats_generator_empty_batch(self):
-    batches = [{'a': []}]
-    expected_result = {}
-    image_decoder = FakeImageDecoder()
-    generator = image_stats_generator.ImageStatsGenerator(
-        image_decoder=image_decoder)
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
-
-  def test_image_stats_generator_empty_dict(self):
-    batches = [{}]
-    expected_result = {}
-    image_decoder = FakeImageDecoder()
-    generator = image_stats_generator.ImageStatsGenerator(
-        image_decoder=image_decoder)
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
-
-  def test_image_stats_generator_empty_list(self):
-    batches = []
-    expected_result = {}
-    image_decoder = FakeImageDecoder()
-    generator = image_stats_generator.ImageStatsGenerator(
-        image_decoder=image_decoder)
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
+        image_decoder=image_decoder,
+        is_image_ratio_threshold=0.6,
+        examples_threshold=1)
+    pickle.dumps(generator)
 
 
 if __name__ == '__main__':
