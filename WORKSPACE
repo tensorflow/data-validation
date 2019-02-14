@@ -9,11 +9,11 @@ workspace(name = "tensorflow_data_validation")
 #    reliable downloads.
 load("//tensorflow_data_validation:repo.bzl", "tensorflow_http_archive")
 
-# v1.13.0-rc0
+# v1.12.0
 tensorflow_http_archive(
     name = "org_tensorflow",
-    sha256 = "1677e8e5bf9d5a9041aa5fc12ea6ff82eecc8603f6fd1292f0759b90e7096c21",
-    git_commit = "a8e5c41c5bbe684a88b9285e07bd9838c089e83b",
+    sha256 = "5aae44f967556dc524e6b184643bbd33a2d78184bc654b72c09f041f266b89a2",
+    git_commit = "a6d8ffae097d0132989ae4688d224121ec6d8f35",
 )
 
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
