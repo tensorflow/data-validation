@@ -5,9 +5,11 @@
 * Add support for computing statistics over slices of data.
 * Performance improvement due to optimizing inner loops.
 * Add support for generating statistics from a pandas dataframe.
-* Performance improvement due to pre-allocating tf.Example in TFExampleDecoder.
+* Performance improvement due to pre-allocating tf.Example in
+  TFExampleDecoder.
 * Performance improvement due to merging common stats generator, numeric stats
   generator and string stats generator as a single basic stats generator.
+* Performance improvement due to merging top-k and uniques generators.
 * Add a `validate_instance` function, which checks a single example for
   anomalies.
 * Add a utility method `get_statistics_html`, which returns HTML that can be

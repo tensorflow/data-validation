@@ -23,7 +23,7 @@ import numpy as np
 import six
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
-from tensorflow_data_validation.statistics.generators import top_k_stats_generator
+from tensorflow_data_validation.statistics.generators import top_k_uniques_stats_generator
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
 from tensorflow_data_validation.utils.stats_util import get_feature_type
@@ -41,23 +41,24 @@ _ValueCounts = collections.namedtuple('_ValueCounts',
 def _make_feature_stats_proto(
     feature_name,
     value_count_list,
-    weighted_value_count_list,
-    is_categorical, num_top_values, frequency_threshold,
+    weighted_value_count_list, is_categorical,
+    num_top_values, frequency_threshold,
     weighted_frequency_threshold,
     num_rank_histogram_buckets):
   """Makes a FeatureNameStatistics proto containing top-k and uniques stats."""
   # Create a FeatureNameStatistics proto that includes the unweighted top-k
   # stats.
-  result = top_k_stats_generator.make_feature_stats_proto_with_topk_stats(
-      feature_name, value_count_list, is_categorical, False, num_top_values,
-      frequency_threshold, num_rank_histogram_buckets)
+  result = (
+      top_k_uniques_stats_generator.make_feature_stats_proto_with_topk_stats(
+          feature_name, value_count_list, is_categorical, False, num_top_values,
+          frequency_threshold, num_rank_histogram_buckets))
 
   # If weights were provided, create another FeatureNameStatistics proto that
   # includes the weighted top-k stats, and then copy those weighted top-k stats
   # into the result proto.
   if weighted_value_count_list:
     weighted_result = (
-        top_k_stats_generator.make_feature_stats_proto_with_topk_stats(
+        top_k_uniques_stats_generator.make_feature_stats_proto_with_topk_stats(
             feature_name, weighted_value_count_list, is_categorical, True,
             num_top_values, weighted_frequency_threshold,
             num_rank_histogram_buckets))
@@ -213,13 +214,13 @@ class TopKUniquesCombinerStatsGenerator(stats_generator.CombinerStatsGenerator):
     for feature_name, value_counts in accumulator.items():
       if value_counts.unweighted_counts:
         feature_value_counts = [
-            top_k_stats_generator.FeatureValueCount(key, value)
+            top_k_uniques_stats_generator.FeatureValueCount(key, value)
             for key, value in value_counts.unweighted_counts.items()
         ]
         feature_names_to_value_counts[feature_name] = feature_value_counts
       if value_counts.weighted_counts:
         weighted_feature_value_counts = [
-            top_k_stats_generator.FeatureValueCount(key, value)
+            top_k_uniques_stats_generator.FeatureValueCount(key, value)
             for key, value in value_counts.weighted_counts.items()
         ]
         feature_names_to_weighted_value_counts[

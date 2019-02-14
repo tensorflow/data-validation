@@ -1,4 +1,4 @@
-# Copyright 2018 Google LLC
+# Copyright 2019 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Module computing top-k most frequent values for string features."""
+"""Computes top-k most frequent values and number of unique values.
+
+This generator computes these values for string and categorical features.
+"""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -41,11 +44,39 @@ _SlicedFeatureNameAndValueListWithWeight = collections.namedtuple(
 _INVALID_STRING = '__BYTES_VALUE__'
 
 
+def _make_feature_stats_proto_with_uniques_stats(
+    feature_name, count,
+    is_categorical):
+  """Makes a FeatureNameStatistics proto containing the uniques stats."""
+  result = statistics_pb2.FeatureNameStatistics()
+  result.name = feature_name
+  # If we have a categorical feature, we preserve the type to be the original
+  # INT type.
+  result.type = (
+      statistics_pb2.FeatureNameStatistics.INT
+      if is_categorical else statistics_pb2.FeatureNameStatistics.STRING)
+  result.string_stats.unique = count
+  return result
+
+
+def _make_dataset_feature_stats_proto_with_uniques_for_single_feature(
+    feature_name_to_value_count,
+    categorical_features
+):
+  """Makes a DatasetFeatureStatistics proto with uniques stats for a feature."""
+  (slice_key, feature_name), count = feature_name_to_value_count
+  result = statistics_pb2.DatasetFeatureStatistics()
+  result.features.add().CopyFrom(
+      _make_feature_stats_proto_with_uniques_stats(
+          feature_name, count, feature_name in categorical_features))
+  return slice_key, result.SerializeToString()
+
+
 def make_feature_stats_proto_with_topk_stats(
     feature_name,
     top_k_value_count_list, is_categorical,
-    is_weighted_stats,
-    num_top_values, frequency_threshold,
+    is_weighted_stats, num_top_values,
+    frequency_threshold,
     num_rank_histogram_buckets):
   """Makes a FeatureNameStatistics proto containing the top-k stats.
 
@@ -107,13 +138,12 @@ def make_feature_stats_proto_with_topk_stats(
   return result
 
 
-def _make_dataset_feature_stats_proto_with_single_feature(
+def _make_dataset_feature_stats_proto_with_topk_for_single_feature(
     feature_name_to_value_count_list,
     categorical_features, is_weighted_stats,
     num_top_values, frequency_threshold,
-    num_rank_histogram_buckets
-):
-  """Makes a DatasetFeatureStatistics containing one single feature."""
+    num_rank_histogram_buckets):
+  """Makes a DatasetFeatureStatistics proto with top-k stats for a feature."""
   (slice_key, feature_name), value_count_list = feature_name_to_value_count_list
   result = statistics_pb2.DatasetFeatureStatistics()
   result.features.add().CopyFrom(
@@ -225,17 +255,14 @@ def _feature_value_count_comparator(a,
 # @beam.typehints.with_input_types(types.SlicedExample)
 @beam.typehints.with_output_types(
     Tuple[types.SliceKey, statistics_pb2.DatasetFeatureStatistics])
-class _ComputeTopKStats(beam.PTransform):
-  """A ptransform that computes the top-k most frequent feature values for
-  string features.
-  """
+class _ComputeTopKUniquesStats(beam.PTransform):
+  """A ptransform that computes top-k and uniques for string features."""
 
   def __init__(self, schema,
-               weight_feature,
-               num_top_values, frequency_threshold,
-               weighted_frequency_threshold,
+               weight_feature, num_top_values,
+               frequency_threshold, weighted_frequency_threshold,
                num_rank_histogram_buckets):
-    """Initializes _ComputeTopKStats.
+    """Initializes _ComputeTopKUniquesStats.
 
     Args:
       schema: An schema for the dataset. None if no schema is available.
@@ -259,17 +286,23 @@ class _ComputeTopKStats(beam.PTransform):
     self._num_rank_histogram_buckets = num_rank_histogram_buckets
 
   def expand(self, pcoll):
-    """Computes top-k most frequent values for string features."""
+    """Computes top-k most frequent values and number of uniques."""
     # Convert input example to tuples of form
     # (slice_key, feature_name, feature_value_list, optional weight)
     # corresponding to each example.
     feature_values_with_weights = (
         pcoll
-        | 'TopK_ConvertInputToFeatureValuesWithWeights' >>
-        beam.FlatMap(
+        | 'TopKUniques_ConvertInputToFeatureValuesWithWeights' >> beam.FlatMap(
             _convert_input_to_feature_values_with_weights,
             categorical_features=self._categorical_features,
             weight_feature=self._weight_feature))
+
+    # Flatten (slice_key, feature_name, feature_value_list, optional weight)
+    # to (slice_key, feature_name, feature_value)
+    sliced_feature_name_value_tuple = (
+        feature_values_with_weights
+        | 'TopKUniques_FlattenToSlicedFeatureNameValueTuples' >>
+        beam.FlatMap(_flatten_value_list))
 
     # Lambda to convert from ((slice_key, feature_name, feature_value), count)
     # to ((slice_key, feature_name), (feature_value, count))
@@ -279,26 +312,21 @@ class _ComputeTopKStats(beam.PTransform):
     result_protos = []
     # Find topk values for each feature.
     topk = (
-        feature_values_with_weights
-        # Flatten (slice_key, feature_name, feature_value_list, optional weight)
-        # to (slice_key, feature_name, feature_value)
-        | 'TopK_FlattenToSlicedFeatureNameValueTuples' >>
-        beam.FlatMap(_flatten_value_list)
+        sliced_feature_name_value_tuple
         # Compute the frequency of each feature_value per slice. Output is a
         # PCollection of ((slice_key, feature_name, feature_value), count)
         | 'TopK_CountSlicedFeatureNameValueTuple' >>
         beam.combiners.Count().PerElement()
         # Convert from ((slice_key, feature_name, feature_value), count) to
         # ((slice_key, feature_name), (feature_value, count))
-        | 'TopK_ModifyKeyToSlicedFeatureName' >>
-        beam.Map(modify_key)
+        | 'TopK_ModifyKeyToSlicedFeatureName' >> beam.Map(modify_key)
         # Obtain the top-k most frequent feature value for each feature in a
         # slice.
         | 'TopK_GetTopK' >> beam.combiners.Top().PerKey(
             max(self._num_top_values, self._num_rank_histogram_buckets),
             _feature_value_count_comparator)
         | 'TopK_ConvertToSingleFeatureStats' >> beam.Map(
-            _make_dataset_feature_stats_proto_with_single_feature,
+            _make_dataset_feature_stats_proto_with_topk_for_single_feature,
             categorical_features=self._categorical_features,
             is_weighted_stats=False,
             num_top_values=self._num_top_values,
@@ -311,9 +339,9 @@ class _ComputeTopKStats(beam.PTransform):
     # feature.
     if self._weight_feature is not None:
       weighted_topk = (
-          feature_values_with_weights
           # Flatten (slice_key, feature_name, feature_value_list, weight) to
           # ((slice_key, feature_name, feature_value), weight)
+          feature_values_with_weights
           | 'TopKWeighted_FlattenToSlicedFeatureNameValueTuples' >>
           beam.FlatMap(_flatten_weighted_value_list)
           # Sum the weights of each feature_value per slice. Output is a
@@ -324,15 +352,14 @@ class _ComputeTopKStats(beam.PTransform):
           # Convert from
           # ((slice_key, feature_name, feature_value), weighted_count) to
           # ((slice_key, feature_name), (feature_value, weighted_count))
-          | 'TopKWeighted_ModifyKeyToSlicedFeatureName' >>
-          beam.Map(modify_key)
+          | 'TopKWeighted_ModifyKeyToSlicedFeatureName' >> beam.Map(modify_key)
           # Obtain the top-k most frequent feature value for each feature in a
           # slice.
           | 'TopKWeighted_GetTopK' >> beam.combiners.Top().PerKey(
               max(self._num_top_values, self._num_rank_histogram_buckets),
               _feature_value_count_comparator)
           | 'TopKWeighted_ConvertToSingleFeatureStats' >> beam.Map(
-              _make_dataset_feature_stats_proto_with_single_feature,
+              _make_dataset_feature_stats_proto_with_topk_for_single_feature,
               categorical_features=self._categorical_features,
               is_weighted_stats=True,
               num_top_values=self._num_top_values,
@@ -340,32 +367,45 @@ class _ComputeTopKStats(beam.PTransform):
               num_rank_histogram_buckets=self._num_rank_histogram_buckets))
       result_protos.append(weighted_topk)
 
+    uniques = (
+        sliced_feature_name_value_tuple
+        | 'Uniques_RemoveDuplicateFeatureNameValueTuples' >>
+        beam.RemoveDuplicates()
+        # Drop the values to only have the slice_key and feature_name with
+        # each repeated the number of unique values times.
+        | 'Uniques_DropValues' >> beam.Map(lambda entry: (entry[0], entry[1]))
+        | 'Uniques_CountPerFeatureName' >> beam.combiners.Count().PerElement()
+        | 'Uniques_ConvertToSingleFeatureStats' >> beam.Map(
+            _make_dataset_feature_stats_proto_with_uniques_for_single_feature,
+            categorical_features=self._categorical_features))
+    result_protos.append(uniques)
+
     def _deserialize_sliced_feature_stats_proto(entry):
       feature_stats_proto = statistics_pb2.DatasetFeatureStatistics()
       feature_stats_proto.ParseFromString(entry[1])
       return entry[0], feature_stats_proto
 
-    return (result_protos
-            | 'FlattenTopKResults' >> beam.Flatten()
-            # TODO(b/121152126): This deserialization stage is a workaround.
-            # Remove this once it is no longer needed.
-            | 'DeserializeTopKFeatureStatsProto' >> beam.Map(
-                _deserialize_sliced_feature_stats_proto))
+    return (
+        result_protos
+        | 'FlattenTopKUniquesResults' >> beam.Flatten()
+        # TODO(b/121152126): This deserialization stage is a workaround.
+        # Remove this once it is no longer needed.
+        | 'DeserializeTopKUniquesFeatureStatsProto' >>
+        beam.Map(_deserialize_sliced_feature_stats_proto))
 
 
-class TopKStatsGenerator(stats_generator.TransformStatsGenerator):
-  """A transform statistics generator that computes the top-k most frequent
-  feature values for string features."""
+class TopKUniquesStatsGenerator(stats_generator.TransformStatsGenerator):
+  """A transform statistics generator that computes top-k and uniques."""
 
   def __init__(self,
-               name = 'TopKStatsGenerator',
+               name = 'TopKUniquesStatsGenerator',
                schema = None,
                weight_feature = None,
                num_top_values = 2,
                frequency_threshold = 1,
                weighted_frequency_threshold = 1.0,
                num_rank_histogram_buckets = 1000):
-    """Initializes top-k stats generator.
+    """Initializes top-k and uniques stats generator.
 
     Args:
       name: An optional unique name associated with the statistics generator.
@@ -382,14 +422,13 @@ class TopKStatsGenerator(stats_generator.TransformStatsGenerator):
       num_rank_histogram_buckets: An optional number of buckets in the rank
           histogram for string features (defaults to 1000).
     """
-    super(TopKStatsGenerator, self).__init__(
+    super(TopKUniquesStatsGenerator, self).__init__(
         name,
         schema=schema,
-        ptransform=_ComputeTopKStats(
+        ptransform=_ComputeTopKUniquesStats(
             schema=schema,
             weight_feature=weight_feature,
             num_top_values=num_top_values,
             frequency_threshold=frequency_threshold,
             weighted_frequency_threshold=weighted_frequency_threshold,
-            num_rank_histogram_buckets=num_rank_histogram_buckets)
-    )
+            num_rank_histogram_buckets=num_rank_histogram_buckets))

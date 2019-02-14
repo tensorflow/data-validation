@@ -26,9 +26,8 @@ from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.statistics.generators import basic_stats_generator
 from tensorflow_data_validation.statistics.generators import stats_generator
-from tensorflow_data_validation.statistics.generators import top_k_stats_generator
 from tensorflow_data_validation.statistics.generators import top_k_uniques_combiner_stats_generator
-from tensorflow_data_validation.statistics.generators import uniques_stats_generator
+from tensorflow_data_validation.statistics.generators import top_k_uniques_stats_generator
 
 from tensorflow_data_validation.utils import batch_util
 from tensorflow_data_validation.utils import slicing_util
@@ -201,20 +200,23 @@ def _get_default_generators(
   ]
   if in_memory:
     stats_generators.append(
-        top_k_uniques_combiner_stats_generator.
-        TopKUniquesCombinerStatsGenerator(
+        top_k_uniques_combiner_stats_generator
+        .TopKUniquesCombinerStatsGenerator(
             schema=options.schema,
             weight_feature=options.weight_feature,
             num_top_values=options.num_top_values,
+            frequency_threshold=options.frequency_threshold,
+            weighted_frequency_threshold=options.weighted_frequency_threshold,
             num_rank_histogram_buckets=options.num_rank_histogram_buckets))
   else:
     stats_generators.extend([
-        top_k_stats_generator.TopKStatsGenerator(
+        top_k_uniques_stats_generator.TopKUniquesStatsGenerator(
             schema=options.schema,
             weight_feature=options.weight_feature,
             num_top_values=options.num_top_values,
+            frequency_threshold=options.frequency_threshold,
+            weighted_frequency_threshold=options.weighted_frequency_threshold,
             num_rank_histogram_buckets=options.num_rank_histogram_buckets),
-        uniques_stats_generator.UniquesStatsGenerator(schema=options.schema)
     ])
   return stats_generators
 

@@ -1,4 +1,4 @@
-# Copyright 2018 Google LLC
+# Copyright 2019 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests for TopK statistics generator."""
+"""Tests for TopKUniques statistics generator."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -20,7 +20,7 @@ from __future__ import print_function
 
 from absl.testing import absltest
 import numpy as np
-from tensorflow_data_validation.statistics.generators import top_k_stats_generator
+from tensorflow_data_validation.statistics.generators import top_k_uniques_stats_generator
 from tensorflow_data_validation.utils import test_util
 
 from google.protobuf import text_format
@@ -29,7 +29,7 @@ from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
-class MakeFeatureStatsProtoTest(absltest.TestCase):
+class MakeFeatureStatsProtoWithTopKStatsTest(absltest.TestCase):
   """Tests for the make_feature_stats_proto_with_topk_stats function."""
 
   def test_make_feature_stats_proto_with_topk_stats(self):
@@ -67,11 +67,13 @@ class MakeFeatureStatsProtoTest(absltest.TestCase):
     }""", statistics_pb2.FeatureNameStatistics())
     value_counts = [('a', 4), ('c', 3), ('d', 2), ('b', 2)]
     top_k_value_count_list = [
-        top_k_stats_generator.FeatureValueCount(value_count[0], value_count[1])
+        top_k_uniques_stats_generator.FeatureValueCount(value_count[0],
+                                                        value_count[1])
         for value_count in value_counts
     ]
-    result = top_k_stats_generator.make_feature_stats_proto_with_topk_stats(
-        'fa', top_k_value_count_list, False, False, 3, 1, 2)
+    result = (
+        top_k_uniques_stats_generator.make_feature_stats_proto_with_topk_stats(
+            'fa', top_k_value_count_list, False, False, 3, 1, 2))
     compare.assertProtoEqual(self, result, expected_result)
 
   def test_make_feature_stats_proto_with_topk_stats_unsorted_value_counts(self):
@@ -110,11 +112,13 @@ class MakeFeatureStatsProtoTest(absltest.TestCase):
     # 'b' has a lower count than 'c'.
     value_counts = [('a', 4), ('b', 2), ('c', 3), ('d', 2)]
     top_k_value_count_list = [
-        top_k_stats_generator.FeatureValueCount(value_count[0], value_count[1])
+        top_k_uniques_stats_generator.FeatureValueCount(value_count[0],
+                                                        value_count[1])
         for value_count in value_counts
     ]
-    result = top_k_stats_generator.make_feature_stats_proto_with_topk_stats(
-        'fa', top_k_value_count_list, False, False, 3, 1, 2)
+    result = (
+        top_k_uniques_stats_generator.make_feature_stats_proto_with_topk_stats(
+            'fa', top_k_value_count_list, False, False, 3, 1, 2))
     compare.assertProtoEqual(self, result, expected_result)
 
   def test_make_feature_stats_proto_with_topk_stats_categorical_feature(self):
@@ -152,11 +156,13 @@ class MakeFeatureStatsProtoTest(absltest.TestCase):
     }""", statistics_pb2.FeatureNameStatistics())
     value_counts = [('a', 4), ('c', 3), ('d', 2), ('b', 2)]
     top_k_value_count_list = [
-        top_k_stats_generator.FeatureValueCount(value_count[0], value_count[1])
+        top_k_uniques_stats_generator.FeatureValueCount(value_count[0],
+                                                        value_count[1])
         for value_count in value_counts
     ]
-    result = top_k_stats_generator.make_feature_stats_proto_with_topk_stats(
-        'fa', top_k_value_count_list, True, False, 3, 1, 2)
+    result = (
+        top_k_uniques_stats_generator.make_feature_stats_proto_with_topk_stats(
+            'fa', top_k_value_count_list, True, False, 3, 1, 2))
     compare.assertProtoEqual(self, result, expected_result)
 
   def test_make_feature_stats_proto_with_topk_stats_weighted(self):
@@ -196,18 +202,20 @@ class MakeFeatureStatsProtoTest(absltest.TestCase):
     }""", statistics_pb2.FeatureNameStatistics())
     value_counts = [('a', 4), ('c', 3), ('d', 2), ('b', 2)]
     top_k_value_count_list = [
-        top_k_stats_generator.FeatureValueCount(value_count[0], value_count[1])
+        top_k_uniques_stats_generator.FeatureValueCount(value_count[0],
+                                                        value_count[1])
         for value_count in value_counts
     ]
-    result = top_k_stats_generator.make_feature_stats_proto_with_topk_stats(
-        'fa', top_k_value_count_list, False, True, 3, 1, 2)
+    result = (
+        top_k_uniques_stats_generator.make_feature_stats_proto_with_topk_stats(
+            'fa', top_k_value_count_list, False, True, 3, 1, 2))
     compare.assertProtoEqual(self, result, expected_result)
 
 
-class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
-  """Tests for TopkStatsGenerator."""
+class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
+  """Tests for TopkUniquesStatsGenerator."""
 
-  def test_topk_with_single_string_feature(self):
+  def test_topk_uniques_with_single_string_feature(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
     examples = [{'fa': np.array(['a', 'b', 'c', 'e'])},
                 {'fa': np.array(['a', 'c', 'd', 'a'])},
@@ -259,10 +267,19 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
             }
           }
         }
-    }""", statistics_pb2.DatasetFeatureStatistics())
+    }""", statistics_pb2.DatasetFeatureStatistics()),
+        text_format.Parse(
+            """
+      features {
+        name: 'fa'
+        type: STRING
+        string_stats {
+          unique: 5
+        }
+      }""", statistics_pb2.DatasetFeatureStatistics()),
     ]
 
-    generator = top_k_stats_generator.TopKStatsGenerator(
+    generator = top_k_uniques_stats_generator.TopKUniquesStatsGenerator(
         num_top_values=4, num_rank_histogram_buckets=3)
     self.assertSlicingAwareTransformOutputEqual(
         examples,
@@ -271,7 +288,7 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         add_default_slice_key_to_input=True,
         add_default_slice_key_to_output=True)
 
-  def test_topk_with_weights(self):
+  def test_topk_uniques_with_weights(self):
     # non-weighted ordering
     # 3 'a', 2 'e', 2 'd', 2 'c', 1 'b'
     # weighted ordering
@@ -377,11 +394,20 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
                   }
                 }
               }
-        }""", statistics_pb2.DatasetFeatureStatistics())]
+        }""", statistics_pb2.DatasetFeatureStatistics()),
+        text_format.Parse(
+            """
+      features {
+        name: 'fa'
+        type: STRING
+        string_stats {
+          unique: 5
+        }
+      }""", statistics_pb2.DatasetFeatureStatistics()),
+    ]
 
-    generator = top_k_stats_generator.TopKStatsGenerator(
-        weight_feature='w',
-        num_top_values=4, num_rank_histogram_buckets=3)
+    generator = top_k_uniques_stats_generator.TopKUniquesStatsGenerator(
+        weight_feature='w', num_top_values=4, num_rank_histogram_buckets=3)
     self.assertSlicingAwareTransformOutputEqual(
         examples,
         generator,
@@ -389,7 +415,7 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         add_default_slice_key_to_input=True,
         add_default_slice_key_to_output=True)
 
-  def test_topk_with_single_unicode_feature(self):
+  def test_topk_uniques_with_single_unicode_feature(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
     examples = [{'fa': np.array(['a', 'b', 'c', 'e'], dtype=np.unicode_)},
                 {'fa': np.array(['a', 'c', 'd', 'a'], dtype=np.unicode_)},
@@ -439,10 +465,19 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
             }
           }
         }
-    }""", statistics_pb2.DatasetFeatureStatistics())
+    }""", statistics_pb2.DatasetFeatureStatistics()),
+        text_format.Parse(
+            """
+    features {
+        name: 'fa'
+        type: STRING
+        string_stats {
+          unique: 5
+        }
+      }""", statistics_pb2.DatasetFeatureStatistics()),
     ]
 
-    generator = top_k_stats_generator.TopKStatsGenerator(
+    generator = top_k_uniques_stats_generator.TopKUniquesStatsGenerator(
         num_top_values=4, num_rank_histogram_buckets=3)
     self.assertSlicingAwareTransformOutputEqual(
         examples,
@@ -451,7 +486,7 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         add_default_slice_key_to_input=True,
         add_default_slice_key_to_output=True)
 
-  def test_topk_with_multiple_features(self):
+  def test_topk_uniques_with_multiple_features(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
     # fb: 1 'a', 2 'b', 3 'c'
     examples = [{'fa': np.array(['a', 'b', 'c', 'e']),
@@ -549,10 +584,28 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
             }
           }
         }
-    }""", statistics_pb2.DatasetFeatureStatistics())
+    }""", statistics_pb2.DatasetFeatureStatistics()),
+        text_format.Parse(
+            """
+    features {
+        name: 'fa'
+        type: STRING
+        string_stats {
+          unique: 5
+        }
+      }""", statistics_pb2.DatasetFeatureStatistics()),
+        text_format.Parse(
+            """
+    features {
+        name: 'fb'
+        type: STRING
+        string_stats {
+          unique: 3
+        }
+      }""", statistics_pb2.DatasetFeatureStatistics()),
     ]
 
-    generator = top_k_stats_generator.TopKStatsGenerator(
+    generator = top_k_uniques_stats_generator.TopKUniquesStatsGenerator(
         num_top_values=4, num_rank_histogram_buckets=3)
     self.assertSlicingAwareTransformOutputEqual(
         examples,
@@ -561,18 +614,18 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         add_default_slice_key_to_input=True,
         add_default_slice_key_to_output=True)
 
-  def test_topk_empty(self):
+  def test_topk_uniques_with_empty_list(self):
     examples = []
     expected_result = []
-    generator = top_k_stats_generator.TopKStatsGenerator(
+    generator = top_k_uniques_stats_generator.TopKUniquesStatsGenerator(
         num_top_values=4, num_rank_histogram_buckets=3)
     self.assertSlicingAwareTransformOutputEqual(examples, generator,
                                                 expected_result)
 
-  def test_topk_with_empty_dict(self):
+  def test_topk_uniques_with_empty_dict(self):
     examples = [{}]
     expected_result = []
-    generator = top_k_stats_generator.TopKStatsGenerator(
+    generator = top_k_uniques_stats_generator.TopKUniquesStatsGenerator(
         num_top_values=4, num_rank_histogram_buckets=3)
     self.assertSlicingAwareTransformOutputEqual(
         examples,
@@ -581,7 +634,7 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         add_default_slice_key_to_input=True,
         add_default_slice_key_to_output=True)
 
-  def test_topk_with_missing_feature(self):
+  def test_topk_uniques_with_missing_feature(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
     # fb: 1 'a', 1 'b', 2 'c'
     examples = [{'fa': np.array(['a', 'b', 'c', 'e']),
@@ -676,10 +729,28 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
             }
           }
         }
-    }""", statistics_pb2.DatasetFeatureStatistics())
+    }""", statistics_pb2.DatasetFeatureStatistics()),
+        text_format.Parse(
+            """
+    features {
+        name: 'fa'
+        type: STRING
+        string_stats {
+          unique: 5
+        }
+      }""", statistics_pb2.DatasetFeatureStatistics()),
+        text_format.Parse(
+            """
+    features {
+        name: 'fb'
+        type: STRING
+        string_stats {
+          unique: 3
+        }
+      }""", statistics_pb2.DatasetFeatureStatistics()),
     ]
 
-    generator = top_k_stats_generator.TopKStatsGenerator(
+    generator = top_k_uniques_stats_generator.TopKUniquesStatsGenerator(
         num_top_values=4, num_rank_histogram_buckets=3)
     self.assertSlicingAwareTransformOutputEqual(
         examples,
@@ -688,7 +759,7 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         add_default_slice_key_to_input=True,
         add_default_slice_key_to_output=True)
 
-  def test_topk_with_numeric_feature(self):
+  def test_topk_uniques_with_numeric_feature(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
     examples = [{'fa': np.array(['a', 'b', 'c', 'e']),
                  'fb': np.array([1.0, 2.0, 3.0])},
@@ -735,10 +806,19 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
             }
           }
         }
-    }""", statistics_pb2.DatasetFeatureStatistics())
+    }""", statistics_pb2.DatasetFeatureStatistics()),
+        text_format.Parse(
+            """
+    features {
+        name: 'fa'
+        type: STRING
+        string_stats {
+          unique: 5
+        }
+      }""", statistics_pb2.DatasetFeatureStatistics()),
     ]
 
-    generator = top_k_stats_generator.TopKStatsGenerator(
+    generator = top_k_uniques_stats_generator.TopKUniquesStatsGenerator(
         num_top_values=2, num_rank_histogram_buckets=3)
     self.assertSlicingAwareTransformOutputEqual(
         examples,
@@ -747,7 +827,7 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         add_default_slice_key_to_input=True,
         add_default_slice_key_to_output=True)
 
-  def test_topk_with_categorical_feature(self):
+  def test_topk_uniques_with_categorical_feature(self):
     examples = [{'fa': np.array([12, 23, 34, 12])},
                 {'fa': np.array([45, 23])},
                 {'fa': np.array([12, 12, 34, 45])}]
@@ -788,7 +868,16 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
             }
           }
         }
-    }""", statistics_pb2.DatasetFeatureStatistics())
+    }""", statistics_pb2.DatasetFeatureStatistics()),
+        text_format.Parse(
+            """
+    features {
+        name: 'fa'
+        type: INT
+        string_stats {
+          unique: 4
+        }
+      }""", statistics_pb2.DatasetFeatureStatistics()),
     ]
 
     schema = text_format.Parse(
@@ -801,9 +890,8 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
           }
         }
         """, schema_pb2.Schema())
-    generator = top_k_stats_generator.TopKStatsGenerator(
-        schema=schema,
-        num_top_values=2, num_rank_histogram_buckets=3)
+    generator = top_k_uniques_stats_generator.TopKUniquesStatsGenerator(
+        schema=schema, num_top_values=2, num_rank_histogram_buckets=3)
     self.assertSlicingAwareTransformOutputEqual(
         examples,
         generator,
@@ -811,7 +899,7 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         add_default_slice_key_to_input=True,
         add_default_slice_key_to_output=True)
 
-  def test_topk_with_frequency_threshold(self):
+  def test_topk_uniques_with_frequency_threshold(self):
     examples = [{'fa': np.array(['a', 'b', 'y', 'b']),
                  'w': np.array([5.0])},
                 {'fa': np.array(['a', 'x', 'a', 'z']),
@@ -889,12 +977,22 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
             }
           }
         }
-    }""", statistics_pb2.DatasetFeatureStatistics())
+    }""", statistics_pb2.DatasetFeatureStatistics()),
+        text_format.Parse(
+            """
+      features {
+        name: 'fa'
+        type: STRING
+        string_stats {
+          unique: 5
+        }
+      }""", statistics_pb2.DatasetFeatureStatistics()),
     ]
 
-    generator = top_k_stats_generator.TopKStatsGenerator(
+    generator = top_k_uniques_stats_generator.TopKUniquesStatsGenerator(
         weight_feature='w',
-        num_top_values=5, frequency_threshold=2,
+        num_top_values=5,
+        frequency_threshold=2,
         weighted_frequency_threshold=15,
         num_rank_histogram_buckets=3)
     self.assertSlicingAwareTransformOutputEqual(
@@ -904,8 +1002,7 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         add_default_slice_key_to_input=True,
         add_default_slice_key_to_output=True)
 
-  def test_topk_with_invalid_utf8_value(self):
-    # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
+  def test_topk_uniques_with_invalid_utf8_value(self):
     examples = [{'fa': np.array(['a', b'\x80abc', 'a', b'\x80abc', 'a'],
                                 dtype=np.object)}]
     expected_result = [
@@ -938,10 +1035,19 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
             }
           }
         }
-    }""", statistics_pb2.DatasetFeatureStatistics())
+    }""", statistics_pb2.DatasetFeatureStatistics()),
+        text_format.Parse(
+            """
+    features {
+        name: 'fa'
+        type: STRING
+        string_stats {
+          unique: 2
+        }
+      }""", statistics_pb2.DatasetFeatureStatistics()),
     ]
 
-    generator = top_k_stats_generator.TopKStatsGenerator(
+    generator = top_k_uniques_stats_generator.TopKUniquesStatsGenerator(
         num_top_values=4, num_rank_histogram_buckets=3)
     self.assertSlicingAwareTransformOutputEqual(
         examples,
@@ -950,29 +1056,32 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         add_default_slice_key_to_input=True,
         add_default_slice_key_to_output=True)
 
-  def test_topk_with_slicing(self):
-    examples = [('slice1', {
-        'fa': np.array(['a', 'b', 'c', 'e']),
-        'fb': np.array(['1', '1', '0'])
-    }),
-                ('slice2', {
-                    'fa': np.array(['b', 'a', 'e', 'c']),
-                    'fb': np.array(['0', '0', '1'])
-                }),
-                ('slice1', {
-                    'fa': np.array(['a', 'c', 'd', 'a']),
-                    'fb': None
-                }),
-                ('slice2', {
-                    'fa': np.array(['b', 'e', 'd', 'b']),
-                    'fb': None
-                })]
+  def test_topk_uniques_with_slicing(self):
+    examples = [
+        ('slice1', {
+            'fa': np.array(['a', 'b', 'c', 'e']),
+            'fb': np.array(['1', '1', '0'])
+        }),
+        ('slice2', {
+            'fa': np.array(['b', 'a', 'e', 'c']),
+            'fb': np.array(['0', '0', '1'])
+        }),
+        ('slice1', {
+            'fa': np.array(['a', 'c', 'd', 'a']),
+            'fb': None
+        }),
+        ('slice2', {
+            'fa': np.array(['b', 'e', 'd', 'b']),
+            'fb': None
+        }),
+    ]
 
     # Note that if two feature values have the same frequency, the one with the
     # lexicographically larger feature value will be higher in the order.
-    expected_result = [('slice1',
-                        text_format.Parse(
-                            """
+    expected_result = [
+        ('slice1',
+         text_format.Parse(
+             """
       features {
         name: 'fa'
         type: STRING
@@ -1002,9 +1111,9 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         }
       }
     """, statistics_pb2.DatasetFeatureStatistics())),
-                       ('slice1',
-                        text_format.Parse(
-                            """
+        ('slice1',
+         text_format.Parse(
+             """
       features {
         name: 'fb'
         type: STRING
@@ -1034,9 +1143,29 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         }
       }
     """, statistics_pb2.DatasetFeatureStatistics())),
-                       ('slice2',
-                        text_format.Parse(
-                            """
+        ('slice1',
+         text_format.Parse(
+             """
+      features {
+        name: 'fa'
+        type: STRING
+        string_stats {
+          unique: 5
+        }
+    }""", statistics_pb2.DatasetFeatureStatistics())),
+        ('slice1',
+         text_format.Parse(
+             """
+      features {
+        name: 'fb'
+        type: STRING
+        string_stats {
+          unique: 2
+        }
+    }""", statistics_pb2.DatasetFeatureStatistics())),
+        ('slice2',
+         text_format.Parse(
+             """
       features {
         name: 'fa'
         type: STRING
@@ -1066,9 +1195,9 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         }
       }
     """, statistics_pb2.DatasetFeatureStatistics())),
-                       ('slice2',
-                        text_format.Parse(
-                            """
+        ('slice2',
+         text_format.Parse(
+             """
       features {
         name: 'fb'
         type: STRING
@@ -1097,13 +1226,33 @@ class TopKStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
           }
         }
       }
-    """, statistics_pb2.DatasetFeatureStatistics()))]
+    """, statistics_pb2.DatasetFeatureStatistics())),
+        ('slice2',
+         text_format.Parse(
+             """
+      features {
+        name: 'fa'
+        type: STRING
+        string_stats {
+          unique: 5
+        }
+    }""", statistics_pb2.DatasetFeatureStatistics())),
+        ('slice2',
+         text_format.Parse(
+             """
+      features {
+        name: 'fb'
+        type: STRING
+        string_stats {
+          unique: 2
+        }
+    }""", statistics_pb2.DatasetFeatureStatistics())),
+    ]
 
-    generator = top_k_stats_generator.TopKStatsGenerator(
+    generator = top_k_uniques_stats_generator.TopKUniquesStatsGenerator(
         num_top_values=2, num_rank_histogram_buckets=2)
     self.assertSlicingAwareTransformOutputEqual(examples, generator,
                                                 expected_result)
-
 
 if __name__ == '__main__':
   absltest.main()

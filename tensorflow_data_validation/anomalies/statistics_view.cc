@@ -363,7 +363,8 @@ std::vector<string> FeatureStatsView::GetStringValues() const {
 bool FeatureStatsView::HasInvalidUTF8Strings() const {
   // Instead of writing non-UTF8 strings to the statistics summary, the
   // generator writes __BYTES_VALUE__. See
-  // tensorflow_data_validation/statistics/generators/top_k_stats_generator.py
+  // tensorflow_data_validation/statistics/generators/top_k_uniques_stats_generator.py
+  // // NOLINT
   const string kInvalidString = "__BYTES_VALUE__";
   return ContainsKey(GetStringValuesWithCounts(), kInvalidString);
 }
