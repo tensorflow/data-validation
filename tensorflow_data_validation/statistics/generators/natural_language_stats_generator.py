@@ -231,6 +231,6 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
       match_ratio = float(accumulator.matched) / accumulator.considered
       if match_ratio > self._match_ratio:
         result.custom_stats.add(
-            name=_DOMAIN_INFO, str='natural_language_domain {}')
+            name=stats_util.DOMAIN_INFO, str='natural_language_domain {}')
         result.custom_stats.add(name=_NL_MATCH_RATIO, num=match_ratio)
     return result

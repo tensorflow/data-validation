@@ -462,6 +462,165 @@ TEST(SchemaTest, UpdateSomeColumns) {
                           )"));
 }
 
+
+TEST(SchemaTest, CreateFeatureWithSemanticType) {
+  // For new features:
+  // - If custom domain_info is valid, add it to the schema.
+  // - If custom domain_info is not-valid ignore it.
+  const tensorflow::metadata::v0::Schema initial =
+      tensorflow::metadata::v0::Schema();
+
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(initial));
+  DatasetFeatureStatistics dataset_statistics = ParseTextProtoOrDie<
+      DatasetFeatureStatistics>(R"(
+    features {
+      name: "nl_feature"
+      type: STRING
+      custom_stats: { name: "domain_info" str: "natural_language_domain {}" }
+      bytes_stats: {
+        common_stats: { min_num_values: 1 max_num_values: 1 num_non_missing: 1 }
+      }
+    }
+    features {
+      name: "another_feature"
+      type: STRING
+      custom_stats: { name: "domain_info" str: "This is invalid!" }
+      bytes_stats: {
+        common_stats: { min_num_values: 1 max_num_values: 1 num_non_missing: 1 }
+      }
+    })");
+  DatasetStatsView stats(dataset_statistics, false);
+  TF_ASSERT_OK(schema.Update(
+      stats, FeatureStatisticsToProtoConfig()));
+  const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
+
+  EXPECT_THAT(actual, EqualsProto(
+                          R"(
+                            feature {
+                              name: "nl_feature"
+                              presence: { min_count: 1 min_fraction: 1}
+                              value_count: { min: 1 max: 1 }
+                              type: BYTES
+                              natural_language_domain: {}
+                            }
+                            feature {
+                              name: "another_feature"
+                              presence: { min_count: 1 min_fraction: 1}
+                              value_count: { min: 1 max: 1 }
+                              type: BYTES
+                            })"));
+}
+
+TEST(SchemaTest, UpdateFeatureWithSemanticType) {
+  // Updated features with valid custom domain_info should only get semantic
+  // type if they did not have an existing domain.
+  const tensorflow::metadata::v0::Schema initial =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
+        feature {
+          name: "nl_feature"
+          presence: { min_count: 1 }
+          value_count: { min: 1 }
+          type: BYTES
+          natural_language_domain: {}
+        }
+        feature {
+          name: "image_feature"
+          presence: { min_count: 1 }
+          value_count: { min: 1 }
+          type: BYTES
+          image_domain: {}
+        }
+        feature {
+          name: "string_feature"
+          presence: { min_count: 1 }
+          value_count: { min: 1 }
+          type: BYTES
+          string_domain: {}
+        }
+        feature {
+          name: "nodomain_feature"
+          presence: { min_count: 1 }
+          value_count: { min: 1 }
+          type: BYTES
+        }
+      )");
+
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(initial));
+  // Try to set url_domain to all features above.
+  DatasetFeatureStatistics dataset_statistics = ParseTextProtoOrDie<
+      DatasetFeatureStatistics>(R"(
+    features {
+      name: "nl_feature"
+      type: STRING
+      custom_stats: { name: "domain_info" str: "url_domain {}" }
+      bytes_stats: {
+        common_stats: { min_num_values: 1 max_num_values: 1 num_non_missing: 1 }
+      }
+    }
+    features {
+      name: "image_feature"
+      type: STRING
+      custom_stats: { name: "domain_info" str: "url_domain {}" }
+      bytes_stats: {
+        common_stats: { min_num_values: 1 max_num_values: 1 num_non_missing: 1 }
+      }
+    }
+    features {
+      name: "string_feature"
+      type: STRING
+      custom_stats: { name: "domain_info" str: "url_domain {}" }
+      bytes_stats: {
+        common_stats: { min_num_values: 1 max_num_values: 1 num_non_missing: 1 }
+      }
+    }
+    features {
+      name: "nodomain_feature"
+      type: STRING
+      custom_stats: { name: "domain_info" str: "url_domain {}" }
+      bytes_stats: {
+        common_stats: { min_num_values: 1 max_num_values: 1 num_non_missing: 1 }
+      }
+    })");
+  DatasetStatsView stats(dataset_statistics, false);
+  TF_ASSERT_OK(schema.Update(
+      stats, FeatureStatisticsToProtoConfig()));
+  const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
+
+  EXPECT_THAT(actual, EqualsProto(
+                          R"(
+                            feature {
+                              name: "nl_feature"
+                              presence: { min_count: 1 }
+                              value_count: { min: 1 }
+                              type: BYTES
+                              natural_language_domain: {}
+                            }
+                            feature {
+                              name: "image_feature"
+                              presence: { min_count: 1 }
+                              value_count: { min: 1 }
+                              type: BYTES
+                              image_domain: {}
+                            }
+                            feature {
+                              name: "string_feature"
+                              presence: { min_count: 1 }
+                              value_count: { min: 1 }
+                              type: BYTES
+                              string_domain: {}
+                            }
+                            feature {
+                              name: "nodomain_feature"
+                              presence: { min_count: 1 }
+                              value_count: { min: 1 }
+                              type: BYTES
+                              url_domain: {}
+                            }
+                            )"));
+}
+
 TEST(SchemaTest, UpdateColumnsWithEnvironments) {
   // Define all schema protos for the test cases.
   const auto schema_feature =

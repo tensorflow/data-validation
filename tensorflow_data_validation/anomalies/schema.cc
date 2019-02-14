@@ -25,6 +25,7 @@ limitations under the License.
 #include "absl/strings/str_cat.h"
 #include "absl/types/optional.h"
 #include "tensorflow_data_validation/anomalies/bool_domain_util.h"
+#include "tensorflow_data_validation/anomalies/custom_domain_util.h"
 #include "tensorflow_data_validation/anomalies/feature_util.h"
 #include "tensorflow_data_validation/anomalies/float_domain_util.h"
 #include "tensorflow_data_validation/anomalies/int_domain_util.h"
@@ -84,6 +85,17 @@ std::set<tensorflow::metadata::v0::FeatureType> AllowedFeatureTypes(
       return {tensorflow::metadata::v0::BYTES};
     case Feature::kStructDomain:
       return {tensorflow::metadata::v0::STRUCT};
+    case Feature::kNaturalLanguageDomain:
+      return {tensorflow::metadata::v0::BYTES};
+    case Feature::kImageDomain:
+      return {tensorflow::metadata::v0::BYTES};
+    case Feature::kMidDomain:
+      return {tensorflow::metadata::v0::BYTES};
+    case Feature::kUrlDomain:
+      return {tensorflow::metadata::v0::BYTES};
+    case Feature::kTimeDomain:
+      // Consider also supporting time as bytes and / or floats.
+      return {tensorflow::metadata::v0::INT};
     case Feature::DOMAIN_INFO_NOT_SET:
       ABSL_FALLTHROUGH_INTENDED;
     default:
@@ -324,7 +336,11 @@ Status Schema::Updater::CreateColumn(
     ::tensorflow::data_validation::DeprecateFeature(feature);
     return Status::OK();
   }
-  if (ContainsKey(grouped_enums_, feature_stats_view.name())) {
+
+  if (BestEffortUpdateCustomDomain(feature_stats_view.custom_stats(),
+                                   feature)) {
+    return Status::OK();
+  } else if (ContainsKey(grouped_enums_, feature_stats_view.name())) {
     const string& enum_name = grouped_enums_.at(feature_stats_view.name());
     StringDomain* result = schema->GetExistingStringDomain(enum_name);
     if (result == nullptr) {
@@ -719,6 +735,18 @@ std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
              "distribution constraints not supported for struct domains."});
       }
       break;
+    case Feature::kNaturalLanguageDomain:
+    case Feature::kImageDomain:
+    case Feature::kMidDomain:
+    case Feature::kUrlDomain:
+    case Feature::kTimeDomain:
+      if (feature->has_distribution_constraints()) {
+        feature->clear_distribution_constraints();
+        descriptions.push_back(
+            {tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
+             "distribution constraints not supported for semantic domains."});
+      }
+      break;
     case Feature::DOMAIN_INFO_NOT_SET:
       if (feature->has_distribution_constraints()) {
         feature->clear_distribution_constraints();
@@ -869,13 +897,18 @@ std::vector<Description> Schema::UpdateFeatureInternal(
   }
 
   if (view.type() == FeatureNameStatistics::BYTES &&
-      feature->domain_info_case() != Feature::DOMAIN_INFO_NOT_SET) {
+      !ContainsKey(
+          std::set<Feature::DomainInfoCase>(
+              {Feature::DOMAIN_INFO_NOT_SET, Feature::kNaturalLanguageDomain,
+               Feature::kImageDomain, Feature::kUrlDomain}),
+          feature->domain_info_case())) {
     // Note that this clears the oneof field domain_info.
     ::tensorflow::data_validation::ClearDomain(feature);
-    descriptions.push_back({tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
-                            "Data is marked as BYTES that indicates the data "
-                            " should not be analyzed: this is incompatible "
-                            "with domain info."});
+    descriptions.push_back(
+        {tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
+         absl::StrCat("Data is marked as BYTES with incompatible "
+                      "domain_info: ",
+                      feature->DebugString())});
   }
   switch (feature->domain_info_case()) {
     case Feature::kDomain: {
@@ -916,11 +949,26 @@ std::vector<Description> Schema::UpdateFeatureInternal(
               feature->distribution_constraints()),
           feature->mutable_string_domain()));
       break;
+    case Feature::kNaturalLanguageDomain:
+    case Feature::kImageDomain:
+    case Feature::kMidDomain:
+    case Feature::kUrlDomain:
+    case Feature::kTimeDomain:
+      // Updating existing semantic domains is not supported currently.
+      break;
     case Feature::kStructDomain:
       // struct_domain is handled recursively.
       break;
     case Feature::DOMAIN_INFO_NOT_SET:
-      // Nothing to check here.
+      // If the domain_info is not set, it is safe to try best-effort
+      // semantic type update.
+      if (BestEffortUpdateCustomDomain(view.custom_stats(), feature)) {
+        descriptions.push_back(
+            {tensorflow::metadata::v0::AnomalyInfo::SEMANTIC_DOMAIN_UPDATE,
+             "Updated semantic domain",
+             absl::StrCat("Updated semantic domain for feature: ",
+                          feature->name())});
+      }
       break;
     default:
       // In theory, default should have already been handled inside

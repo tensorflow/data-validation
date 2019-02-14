@@ -138,6 +138,79 @@ TEST(SchemaAnomalies, FindChangesCategoricalIntFeature) {
   }
 }
 
+TEST(SchemaAnomalies, SemanticTypeUpdates) {
+  const Schema initial = ParseTextProtoOrDie<Schema>(R"pb(
+    feature {
+      name: "old_nl_feature"
+      value_count: { min: 1 max: 1 }
+      type: BYTES
+    })pb");
+
+  const DatasetFeatureStatistics statistics = ParseTextProtoOrDie<
+      DatasetFeatureStatistics>(R"pb(
+    features: {
+      name: 'old_nl_feature'
+      type: BYTES
+      num_stats: {
+        common_stats: { min_num_values: 1 max_num_values: 1 num_non_missing: 1 }
+      }
+      custom_stats: { name: "domain_info" str: "natural_language_domain {}" }
+    }
+    features: {
+      name: 'new_nl_feature'
+      type: BYTES
+      num_stats: {
+        common_stats: { min_num_values: 1 max_num_values: 1 num_non_missing: 1 }
+      }
+      custom_stats: { name: "domain_info" str: "natural_language_domain {}" }
+    })pb");
+
+  std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
+  // Anomaly for updating an existing feature with semantic type.
+  expected_anomalies["old_nl_feature"].new_schema =
+      ParseTextProtoOrDie<Schema>(R"pb(
+        feature {
+          name: "old_nl_feature"
+          value_count: { min: 1 max: 1 }
+          type: BYTES
+          natural_language_domain {}
+        })pb");
+  expected_anomalies["old_nl_feature"]
+      .expected_info_without_diff = ParseTextProtoOrDie<
+      tensorflow::metadata::v0::AnomalyInfo>(R"pb(
+    path { step: "old_nl_feature" }
+    description: "Updated semantic domain for feature: old_nl_feature"
+    severity: ERROR
+    short_description: "Updated semantic domain"
+    reason {
+      type: SEMANTIC_DOMAIN_UPDATE
+      short_description: "Updated semantic domain"
+      description: "Updated semantic domain for feature: old_nl_feature"
+    })pb");
+  // Anomaly for creating a new feature with semantic type.
+  expected_anomalies["new_nl_feature"].new_schema =
+      ParseTextProtoOrDie<Schema>(R"pb(
+        feature {
+          name: "new_nl_feature"
+          value_count: { min: 1 max: 1 }
+          type: BYTES
+          natural_language_domain {}
+        })pb");
+  expected_anomalies["new_nl_feature"].expected_info_without_diff =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"pb(
+        path { step: "new_nl_feature" }
+        description: "New column (column in data but not in schema)"
+        severity: ERROR
+        short_description: "New column"
+        reason {
+          type: SCHEMA_NEW_COLUMN
+          short_description: "New column"
+          description: "New column (column in data but not in schema)"
+        })pb");
+  TestFindChanges(initial, DatasetStatsView(statistics, false),
+                  FeatureStatisticsToProtoConfig(), expected_anomalies);
+}
+
 TEST(SchemaAnomalies, FindChanges) {
   const Schema initial = ParseTextProtoOrDie<Schema>(R"(
     string_domain { name: "MyAloneEnum" value: "A" value: "B" value: "C" }

@@ -146,6 +146,7 @@ cc_library(
     name = "schema",
     srcs = [
         "bool_domain_util.cc",
+        "custom_domain_util.cc",
         "feature_util.cc",
         "float_domain_util.cc",
         "int_domain_util.cc",
@@ -156,6 +157,7 @@ cc_library(
     ],
     hdrs = [
         "bool_domain_util.h",
+        "custom_domain_util.h",
         "feature_util.h",
         "float_domain_util.h",
         "int_domain_util.h",
@@ -361,5 +363,15 @@ cc_test(
         ":map_util",
         "@com_google_googletest//:gtest_main",
         "@org_tensorflow//tensorflow/core:lib",
+    ],
+)
+
+cc_test(
+    name = "custom_domain_util_test",
+    srcs = ["custom_domain_util_test.cc"],
+    deps = [
+        ":schema",
+        ":test_util",
+        "@com_google_googletest//:gtest_main",
     ],
 )

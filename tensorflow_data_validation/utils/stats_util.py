@@ -34,6 +34,13 @@ _NP_DTYPE_KIND_TO_FEATURE_TYPE = {
 }
 
 
+# LINT.IfChange
+# Semantic domain information can be passed to schema inference using a
+# CustomStatistic with name=DOMAIN_INFO.
+DOMAIN_INFO = 'domain_info'
+# LINT.ThenChange(../anomalies/custom_domain_util.cc)
+
+
 def is_valid_utf8(value):
   """Returns True iff the value is valid utf8."""
   try:
