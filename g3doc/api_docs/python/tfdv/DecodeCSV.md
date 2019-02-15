@@ -31,15 +31,15 @@ Initializes the CSV decoder.
 
 #### Args:
 
-* <b>`column_names`</b>: List of feature names. Order must match the order in the
-      CSV file.
+* <b>`column_names`</b>: List of feature names. Order must match the order in the CSV
+    file.
 * <b>`delimiter`</b>: A one-character string used to separate fields.
 * <b>`skip_blank_lines`</b>: A boolean to indicate whether to skip over blank lines
-      rather than interpreting them as missing values.
+    rather than interpreting them as missing values.
 * <b>`schema`</b>: An optional schema of the input data.
 * <b>`infer_type_from_schema`</b>: A boolean to indicate whether the feature types
-      should be inferred from the schema. If set to True, an input schema
-      must be provided.
+    should be inferred from the schema. If set to True, an input schema must
+    be provided.
 
 
 

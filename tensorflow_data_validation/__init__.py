@@ -24,6 +24,7 @@ from tensorflow_data_validation.api.validation_api import validate_statistics
 
 # Import coders.
 from tensorflow_data_validation.coders.csv_decoder import DecodeCSV
+from tensorflow_data_validation.coders.tf_example_decoder import DecodeTFExample
 from tensorflow_data_validation.coders.tf_example_decoder import TFExampleDecoder
 
 # Import stats generators.

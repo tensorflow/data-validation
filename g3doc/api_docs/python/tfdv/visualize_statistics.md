@@ -19,8 +19,8 @@ Visualize the input statistics using Facets.
 #### Args:
 
 * <b>`lhs_statistics`</b>: A DatasetFeatureStatisticsList protocol buffer.
-* <b>`rhs_statistics`</b>: An optional DatasetFeatureStatisticsList protocol buffer
-      to compare with lhs_statistics.
+* <b>`rhs_statistics`</b>: An optional DatasetFeatureStatisticsList protocol buffer to
+    compare with lhs_statistics.
 * <b>`lhs_name`</b>: Name of the lhs_statistics dataset.
 * <b>`rhs_name`</b>: Name of the rhs_statistics dataset.
 

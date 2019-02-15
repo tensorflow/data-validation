@@ -15,6 +15,11 @@
 
 Generate statistics using a Beam PTransform.
 
+Note that the input PTransform must take a PCollection of sliced
+examples (tuple of (slice_key, example)) as input and output a
+PCollection of sliced protos
+(tuple of (slice_key, DatasetFeatureStatistics proto)).
+
 <h2 id="__init__"><code>__init__</code></h2>
 
 ``` python

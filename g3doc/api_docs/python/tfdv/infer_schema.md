@@ -13,7 +13,7 @@ tfdv.infer_schema(
 )
 ```
 
-Infer schema from the input statistics.
+Infers schema from the input statistics.
 
 #### Args:
 

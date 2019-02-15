@@ -23,11 +23,15 @@ Init module for TensorFlow Data Validation.
 
 ## Functions
 
+[`DecodeTFExample(...)`](./tfdv/DecodeTFExample.md)
+
 [`display_anomalies(...)`](./tfdv/display_anomalies.md): Displays the input anomalies.
 
 [`display_schema(...)`](./tfdv/display_schema.md): Displays the input schema.
 
 [`generate_statistics_from_csv(...)`](./tfdv/generate_statistics_from_csv.md): Compute data statistics from CSV files.
+
+[`generate_statistics_from_dataframe(...)`](./tfdv/generate_statistics_from_dataframe.md): Compute data statistics for the input pandas DataFrame.
 
 [`generate_statistics_from_tfrecord(...)`](./tfdv/generate_statistics_from_tfrecord.md): Compute data statistics from TFRecord files containing TFExamples.
 
@@ -35,7 +39,7 @@ Init module for TensorFlow Data Validation.
 
 [`get_feature(...)`](./tfdv/get_feature.md): Get a feature from the schema.
 
-[`infer_schema(...)`](./tfdv/infer_schema.md): Infer schema from the input statistics.
+[`infer_schema(...)`](./tfdv/infer_schema.md): Infers schema from the input statistics.
 
 [`load_schema_text(...)`](./tfdv/load_schema_text.md): Loads the schema stored in text format in the input path.
 
@@ -43,7 +47,9 @@ Init module for TensorFlow Data Validation.
 
 [`set_domain(...)`](./tfdv/set_domain.md): Sets the domain for the input feature in the schema.
 
-[`validate_statistics(...)`](./tfdv/validate_statistics.md): Validate the input statistics against the provided input schema.
+[`validate_instance(...)`](./tfdv/validate_instance.md): Validates a single example against the schema provided in `options`.
+
+[`validate_statistics(...)`](./tfdv/validate_statistics.md): Validates the input statistics against the provided input schema.
 
 [`visualize_statistics(...)`](./tfdv/visualize_statistics.md): Visualize the input statistics using Facets.
 

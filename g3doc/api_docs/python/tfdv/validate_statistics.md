@@ -15,7 +15,7 @@ tfdv.validate_statistics(
 )
 ```
 
-Validate the input statistics against the provided input schema.
+Validates the input statistics against the provided input schema.
 
 This method validates the `statistics` against the `schema`. If an optional
 `environment` is specified, the `schema` is filtered using the

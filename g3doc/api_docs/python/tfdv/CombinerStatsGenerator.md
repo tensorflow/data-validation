@@ -61,14 +61,14 @@ add_input(
 )
 ```
 
-Return result of folding a batch of inputs into accumulator.
+Returns result of folding a batch of inputs into accumulator.
 
 #### Args:
 
 * <b>`accumulator`</b>: The current accumulator.
-* <b>`input_batch`</b>: A Python dict whose keys are strings denoting feature
-      names and values are numpy arrays representing a batch of examples,
-      which should be added to the accumulator.
+* <b>`input_batch`</b>: A Python dict whose keys are strings denoting feature names
+    and values are lists representing a batch of examples, which should be
+    added to the accumulator.
 
 
 #### Returns:
@@ -81,7 +81,7 @@ The accumulator after updating the statistics for the batch of inputs.
 create_accumulator()
 ```
 
-Return a fresh, empty accumulator.
+Returns a fresh, empty accumulator.
 
 #### Returns:
 
@@ -93,7 +93,7 @@ An empty accumulator.
 extract_output(accumulator)
 ```
 
-Return result of converting accumulator into the output value.
+Returns result of converting accumulator into the output value.
 
 #### Args:
 

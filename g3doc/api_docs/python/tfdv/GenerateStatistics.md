@@ -42,8 +42,7 @@ Initializes the transform.
 
 #### Raises:
 
-* <b>`TypeError`</b>: If any of the input options is not of the expected type.
-* <b>`ValueError`</b>: If any of the input options is invalid.
+* <b>`TypeError`</b>: If options is not of the expected type.
 
 
 
