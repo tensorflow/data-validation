@@ -20,7 +20,6 @@
 
 * Use constant '__BYTES_VALUE__' in the statistics proto to represent a bytes
   value which cannot be decoded as a utf-8 string.
-* Depends on `numpy>=1.14.5,<2`.
 * Introduced CombinerFeatureStatsGenerator, a specialized interface for
   combiners that do not require cross-feature computations.
 * Expand unit test coverage.
@@ -28,6 +27,12 @@
   values that are present in a minimum number of examples.
 * Add optional desired batch size that allows specification of the number of
   examples to include in each batch.
+* Depends on `numpy>=1.14.5,<2`.
+* Depends on `protobuf>=3.6.1,<4`.
+* Depends on `apache-beam[gcp]>=2.10,<3`.
+* Depends on `scikit-learn>=0.18,<1`.
+* Depends on `IPython>=5.0`.
+* Requires pre-installed `tensorflow>=1.12,<2`.
 
 ## Breaking changes
 * Represent batch as a list of ndarrays instead of ndarrays of ndarrays.

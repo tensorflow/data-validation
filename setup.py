@@ -69,10 +69,10 @@ setup(
     # six, and protobuf) with TF.
     install_requires=[
         'absl-py>=0.1.6',
-        'apache-beam[gcp]>=2.8,<3',
+        'apache-beam[gcp]>=2.10,<3',
         'numpy>=1.14.5,<2',
 
-        'protobuf>=3.6.0,<4',
+        'protobuf>=3.6.1,<4',
 
         'six>=1.10,<2',
 
@@ -80,13 +80,13 @@ setup(
         # compatible TF version. If not, fail with a clear error.
         # TODO(pachristopher): Uncomment this once TF can automatically
         # select between CPU and GPU installation.
-        # 'tensorflow>=1.11,<2',
+        # 'tensorflow>=1.12,<2',
 
         'tensorflow-metadata>=0.9,<0.10',
         'tensorflow-transform>=0.11,<0.12',
 
         # Dependencies needed for visualization.
-        'IPython>=5.0,<6',
+        'IPython>=5.0',
         'pandas>=0.18,<1',
 
         # Dependency for mutual information computation.
