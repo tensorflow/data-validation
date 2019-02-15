@@ -297,29 +297,30 @@ class _ComputeTopKUniquesStats(beam.PTransform):
             categorical_features=self._categorical_features,
             weight_feature=self._weight_feature))
 
-    # Flatten (slice_key, feature_name, feature_value_list, optional weight)
-    # to (slice_key, feature_name, feature_value)
-    sliced_feature_name_value_tuple = (
-        feature_values_with_weights
-        | 'TopKUniques_FlattenToSlicedFeatureNameValueTuples' >>
-        beam.FlatMap(_flatten_value_list))
-
     # Lambda to convert from ((slice_key, feature_name, feature_value), count)
     # to ((slice_key, feature_name), (feature_value, count))
     modify_key = (
         lambda x: ((x[0][0], x[0][1]), FeatureValueCount(x[0][2], x[1])))
 
-    result_protos = []
-    # Find topk values for each feature.
-    topk = (
-        sliced_feature_name_value_tuple
+    sliced_feature_name_value_count = (
+        feature_values_with_weights
+        # Flatten (slice_key, feature_name, feature_value_list, optional weight)
+        # to (slice_key, feature_name, feature_value)
+        | 'TopKUniques_FlattenToSlicedFeatureNameValueTuples' >>
+        beam.FlatMap(_flatten_value_list)
         # Compute the frequency of each feature_value per slice. Output is a
         # PCollection of ((slice_key, feature_name, feature_value), count)
-        | 'TopK_CountSlicedFeatureNameValueTuple' >>
+        | 'TopKUniques_CountSlicedFeatureNameValueTuple' >>
         beam.combiners.Count().PerElement()
         # Convert from ((slice_key, feature_name, feature_value), count) to
         # ((slice_key, feature_name), (feature_value, count))
-        | 'TopK_ModifyKeyToSlicedFeatureName' >> beam.Map(modify_key)
+        | 'TopKUniques_ModifyKeyToSlicedFeatureName' >> beam.Map(modify_key)
+    )
+
+    result_protos = []
+    # Find topk values for each feature.
+    topk = (
+        sliced_feature_name_value_count
         # Obtain the top-k most frequent feature value for each feature in a
         # slice.
         | 'TopK_GetTopK' >> beam.combiners.Top().PerKey(
@@ -368,12 +369,10 @@ class _ComputeTopKUniquesStats(beam.PTransform):
       result_protos.append(weighted_topk)
 
     uniques = (
-        sliced_feature_name_value_tuple
-        | 'Uniques_RemoveDuplicateFeatureNameValueTuples' >>
-        beam.RemoveDuplicates()
+        sliced_feature_name_value_count
         # Drop the values to only have the slice_key and feature_name with
         # each repeated the number of unique values times.
-        | 'Uniques_DropValues' >> beam.Map(lambda entry: (entry[0], entry[1]))
+        | 'Uniques_DropValues' >> beam.Keys()
         | 'Uniques_CountPerFeatureName' >> beam.combiners.Count().PerElement()
         | 'Uniques_ConvertToSingleFeatureStats' >> beam.Map(
             _make_dataset_feature_stats_proto_with_uniques_for_single_feature,
