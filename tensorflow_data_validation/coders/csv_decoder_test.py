@@ -42,10 +42,10 @@ class CSVDecoderTest(absltest.TestCase):
     column_names = ['int_feature', 'float_feature', 'str_feature']
     expected_result = [
         {'int_feature': np.array([1], dtype=np.integer),
-         'float_feature': np.array([2.0], dtype=np.floating),
+         'float_feature': np.array([2.0], dtype=np.float32),
          'str_feature': np.array([b'hello'], dtype=np.object)},
         {'int_feature': np.array([5], dtype=np.integer),
-         'float_feature': np.array([12.34], dtype=np.floating),
+         'float_feature': np.array([12.34], dtype=np.float32),
          'str_feature': np.array([b'world'], dtype=np.object)}]
 
     with beam.Pipeline() as p:
@@ -68,13 +68,13 @@ class CSVDecoderTest(absltest.TestCase):
         feature { name: "str_feature" type: BYTES }
         """, schema_pb2.Schema())
     expected_result = [
-        {'int_feature_parsed_as_float': np.array([1], dtype=np.floating),
+        {'int_feature_parsed_as_float': np.array([1], dtype=np.float32),
          'int_feature': np.array([1], dtype=np.integer),
-         'float_feature': np.array([2.0], dtype=np.floating),
+         'float_feature': np.array([2.0], dtype=np.float32),
          'str_feature': np.array([b'hello'], dtype=np.object)},
-        {'int_feature_parsed_as_float': np.array([5], dtype=np.floating),
+        {'int_feature_parsed_as_float': np.array([5], dtype=np.float32),
          'int_feature': np.array([5], dtype=np.integer),
-         'float_feature': np.array([12.34], dtype=np.floating),
+         'float_feature': np.array([12.34], dtype=np.float32),
          'str_feature': np.array([b'world'], dtype=np.object)}]
 
     with beam.Pipeline() as p:
@@ -90,11 +90,11 @@ class CSVDecoderTest(absltest.TestCase):
                    ',12.34,']
     column_names = ['int_feature', 'float_feature', 'str_feature']
     expected_result = [
-        {'int_feature': np.array([1.0], dtype=np.floating),
+        {'int_feature': np.array([1.0], dtype=np.float32),
          'float_feature': None,
          'str_feature': np.array([b'hello'], dtype=np.object)},
         {'int_feature': None,
-         'float_feature': np.array([12.34], dtype=np.floating),
+         'float_feature': np.array([12.34], dtype=np.float32),
          'str_feature': None}]
 
     with beam.Pipeline() as p:
@@ -109,10 +109,10 @@ class CSVDecoderTest(absltest.TestCase):
                    '1.5,2']
     column_names = ['float_feature1', 'float_feature2']
     expected_result = [
-        {'float_feature1': np.array([2.0], dtype=np.floating),
-         'float_feature2': np.array([1.5], dtype=np.floating)},
-        {'float_feature1': np.array([1.5], dtype=np.floating),
-         'float_feature2': np.array([2.0], dtype=np.floating)}]
+        {'float_feature1': np.array([2.0], dtype=np.float32),
+         'float_feature2': np.array([1.5], dtype=np.float32)},
+        {'float_feature1': np.array([1.5], dtype=np.float32),
+         'float_feature2': np.array([2.0], dtype=np.float32)}]
 
     with beam.Pipeline() as p:
       result = (p | beam.Create(input_lines) |
@@ -163,7 +163,7 @@ class CSVDecoderTest(absltest.TestCase):
         {'int_feature': np.array([1], dtype=np.integer),
          'unicode_feature': np.array([u'שקרכלשהו'.encode('utf-8')],
                                      dtype=np.object),
-         'float_feature': np.array([22.34], dtype=np.floating),
+         'float_feature': np.array([22.34], dtype=np.float32),
          'str_feature': np.array([b'text field'], dtype=np.object)}]
 
     with beam.Pipeline() as p:
@@ -322,8 +322,8 @@ class CSVDecoderTest(absltest.TestCase):
         {'int_feature': None,
          'float_feature': None,
          'str_feature': None},
-        {'int_feature': np.array([1.0], dtype=np.floating),
-         'float_feature': np.array([2.0], dtype=np.floating),
+        {'int_feature': np.array([1.0], dtype=np.float32),
+         'float_feature': np.array([2.0], dtype=np.float32),
          'str_feature': np.array([b'hello'], dtype=np.object)}]
 
     with beam.Pipeline() as p:
@@ -355,8 +355,8 @@ class CSVDecoderTest(absltest.TestCase):
     expected_result = [
         {'float_feature1': None,
          'float_feature2': None},
-        {'float_feature1': np.array([1.0], dtype=np.floating),
-         'float_feature2': np.array([2.0], dtype=np.floating)}]
+        {'float_feature1': np.array([1.0], dtype=np.float32),
+         'float_feature2': np.array([2.0], dtype=np.float32)}]
 
     with beam.Pipeline() as p:
       result = (p | beam.Create(input_lines) |
@@ -386,7 +386,7 @@ class CSVDecoderTest(absltest.TestCase):
     column_names = ['float_feature']
     expected_result = [
         {'float_feature': None},
-        {'float_feature': np.array([1.0], dtype=np.floating)}]
+        {'float_feature': np.array([1.0], dtype=np.float32)}]
 
     with beam.Pipeline() as p:
       result = (p | beam.Create(input_lines) |

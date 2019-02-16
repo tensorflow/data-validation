@@ -232,7 +232,7 @@ def _make_example_dict(row, skip_blank_lines,
     elif feature_type == statistics_pb2.FeatureNameStatistics.INT:
       result[feature_name] = np.asarray([int(field)], dtype=np.integer)
     elif feature_type == statistics_pb2.FeatureNameStatistics.FLOAT:
-      result[feature_name] = np.asarray([float(field)], dtype=np.floating)
+      result[feature_name] = np.asarray([float(field)], dtype=np.float32)
     elif feature_type == statistics_pb2.FeatureNameStatistics.STRING:
       result[feature_name] = np.asarray([field], dtype=np.object)
     else:

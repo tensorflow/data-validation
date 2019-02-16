@@ -32,7 +32,7 @@ def _make_example_dict_value(feature):
   if kind == 'int64_list':
     return np.asarray(feature.int64_list.value, dtype=np.integer)
   elif kind == 'float_list':
-    return np.asarray(feature.float_list.value, dtype=np.floating)
+    return np.asarray(feature.float_list.value, dtype=np.float32)
   elif kind == 'bytes_list':
     return np.asarray(feature.bytes_list.value, dtype=np.object)
   elif kind is None:

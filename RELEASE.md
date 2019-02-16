@@ -36,6 +36,7 @@
 
 ## Breaking changes
 * Represent batch as a list of ndarrays instead of ndarrays of ndarrays.
+* Modify decoders to return ndarrays of type numpy.float32 for FLOAT features.
 
 ## Deprecations
 
