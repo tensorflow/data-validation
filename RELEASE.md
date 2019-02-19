@@ -33,6 +33,7 @@
 * Depends on `scikit-learn>=0.18,<1`.
 * Depends on `IPython>=5.0`.
 * Requires pre-installed `tensorflow>=1.12,<2`.
+* Revise example notebook and update it to be able to run in Colab and Jupyter.
 
 ## Breaking changes
 * Represent batch as a list of ndarrays instead of ndarrays of ndarrays.
@@ -54,7 +55,6 @@
 * Add option to compute statistics over a sample.
 * Optimize performance of statistics computation (~2x improvement on benchmark
   datasets).
-* Added Getting Started Example Colab and removed previous Jupyter notebook
 
 ## Bug Fixes and Other Changes
 
