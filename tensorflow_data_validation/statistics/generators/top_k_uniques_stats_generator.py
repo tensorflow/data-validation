@@ -240,16 +240,6 @@ def _flatten_weighted_value_list(
     yield (slice_key, feature_name, value), weight
 
 
-def _feature_value_count_comparator(a,
-                                    b):
-  """Compares two FeatureValueCount tuples."""
-  # To keep the result deterministic, if two feature values have the same
-  # number of appearances, the one with the 'larger' feature value will be
-  # larger.
-  return (a.count < b.count or
-          (a.count == b.count and a.feature_value < b.feature_value))
-
-
 # Input type check is commented out, as beam python will fail the type check
 # when input is an empty dict.
 # @beam.typehints.with_input_types(types.SlicedExample)
@@ -302,6 +292,9 @@ class _ComputeTopKUniquesStats(beam.PTransform):
     modify_key = (
         lambda x: ((x[0][0], x[0][1]), FeatureValueCount(x[0][2], x[1])))
 
+    # Key to order values.
+    key_fn = lambda x: (x.count, x.feature_value)
+
     sliced_feature_name_value_count = (
         feature_values_with_weights
         # Flatten (slice_key, feature_name, feature_value_list, optional weight)
@@ -323,9 +316,9 @@ class _ComputeTopKUniquesStats(beam.PTransform):
         sliced_feature_name_value_count
         # Obtain the top-k most frequent feature value for each feature in a
         # slice.
-        | 'TopK_GetTopK' >> beam.combiners.Top().PerKey(
+        | 'TopK_GetTopK' >> beam.combiners.Top.PerKey(
             max(self._num_top_values, self._num_rank_histogram_buckets),
-            _feature_value_count_comparator)
+            key=key_fn)
         | 'TopK_ConvertToSingleFeatureStats' >> beam.Map(
             _make_dataset_feature_stats_proto_with_topk_for_single_feature,
             categorical_features=self._categorical_features,
@@ -358,7 +351,7 @@ class _ComputeTopKUniquesStats(beam.PTransform):
           # slice.
           | 'TopKWeighted_GetTopK' >> beam.combiners.Top().PerKey(
               max(self._num_top_values, self._num_rank_histogram_buckets),
-              _feature_value_count_comparator)
+              key=key_fn)
           | 'TopKWeighted_ConvertToSingleFeatureStats' >> beam.Map(
               _make_dataset_feature_stats_proto_with_topk_for_single_feature,
               categorical_features=self._categorical_features,
