@@ -62,6 +62,10 @@ def remove_anomaly_types(
         if reason.type not in types_to_remove
     ]
 
+    # Clear the diff regions entirely since we do not have a way of readily
+    # separating the comparisons that are attributable to the retained reasons
+    # from those that are attributable to the removed reasons.
+    anomaly_info.ClearField('diff_regions')
     anomaly_info.ClearField('reason')
     if retained_reasons:
       # If there are anomaly reasons that are retained, update the anomaly info

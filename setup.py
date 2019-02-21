@@ -82,7 +82,7 @@ setup(
         # select between CPU and GPU installation.
         # 'tensorflow>=1.12,<2',
 
-        'tensorflow-metadata>=0.9,<0.10',
+        'tensorflow-metadata>=0.12.1,<0.13',
         'tensorflow-transform>=0.11,<0.12',
 
         # Dependencies needed for visualization.

@@ -31,6 +31,7 @@
 * Depends on `numpy>=1.14.5,<2`.
 * Depends on `protobuf>=3.6.1,<4`.
 * Depends on `apache-beam[gcp]>=2.10,<3`.
+* Depends on `tensorflow-metadata>=0.12.1,<0.13`.
 * Depends on `scikit-learn>=0.18,<1`.
 * Depends on `IPython>=5.0`.
 * Requires pre-installed `tensorflow>=1.12,<2`.

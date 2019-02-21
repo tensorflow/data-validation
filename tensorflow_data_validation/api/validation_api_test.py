@@ -432,11 +432,7 @@ class ValidationApiTest(absltest.TestCase):
     for feature_name in expected_anomalies:
       self.assertIn(feature_name, actual_anomalies.anomaly_info)
       # Doesn't compare the diff_regions and path fields.
-      # TODO(pachristopher): Remove this check once next version of tf.metadata
-      # is released.
-      if (getattr(actual_anomalies.anomaly_info[feature_name],
-                  'diff_regions', None) is not None):
-        actual_anomalies.anomaly_info[feature_name].ClearField('diff_regions')
+      actual_anomalies.anomaly_info[feature_name].ClearField('diff_regions')
       actual_anomalies.anomaly_info[feature_name].ClearField('path')
 
       self.assertEqual(actual_anomalies.anomaly_info[feature_name],

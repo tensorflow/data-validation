@@ -432,6 +432,61 @@ class AnomaliesUtilTest(parameterized.TestCase):
     compare.assertProtoEqual(self, input_anomalies_proto,
                              expected_anomalies_proto)
 
+  def test_remove_anomaly_types_removes_diff_regions(self):
+    anomaly_types_to_remove = set([
+        anomalies_pb2.AnomalyInfo.ENUM_TYPE_BYTES_NOT_STRING,
+    ])
+    # The anomaly_info has multiple diff regions.
+    anomalies = text_format.Parse(
+        """
+       anomaly_info {
+         key: "feature_1"
+         value {
+              description: "Expected bytes but got string. Examples contain "
+                "values missing from the schema."
+              severity: ERROR
+              short_description: "Multiple errors"
+              diff_regions {
+                removed {
+                  start: 1
+                  contents: "Test contents"
+                }
+              }
+              diff_regions {
+                added {
+                  start: 1
+                  contents: "Test contents"
+                }
+              }
+              reason {
+                type: ENUM_TYPE_BYTES_NOT_STRING
+                short_description: "Bytes not string"
+                description: "Expected bytes but got string."
+              }
+              reason {
+                type: ENUM_TYPE_UNEXPECTED_STRING_VALUES
+                short_description: "Unexpected string values"
+                description: "Examples contain values missing from the schema."
+              }
+          }
+        }""", anomalies_pb2.Anomalies())
+    expected_result = text_format.Parse(
+        """
+       anomaly_info {
+         key: "feature_1"
+         value {
+              description: "Examples contain values missing from the schema."
+              severity: ERROR
+              short_description: "Unexpected string values"
+              reason {
+                type: ENUM_TYPE_UNEXPECTED_STRING_VALUES
+                short_description: "Unexpected string values"
+                description: "Examples contain values missing from the schema."
+              }
+          }
+        }""", anomalies_pb2.Anomalies())
+    anomalies_util.remove_anomaly_types(anomalies, anomaly_types_to_remove)
+    compare.assertProtoEqual(self, anomalies, expected_result)
 
   @parameterized.named_parameters(*ANOMALIES_SLICER_TESTS)
   def test_anomalies_slicer(self, input_anomalies_proto_text,
