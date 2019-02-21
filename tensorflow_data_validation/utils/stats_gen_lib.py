@@ -19,6 +19,7 @@ from __future__ import division
 from __future__ import print_function
 
 import csv
+import logging
 import os
 import tempfile
 
@@ -35,6 +36,7 @@ from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options as options
 from tensorflow_data_validation.types_compat import List, Optional
 
+from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
@@ -184,22 +186,47 @@ def generate_statistics_from_dataframe(
     raise TypeError('dataframe argument is of type {}. Must be a '
                     'pandas DataFrame.'.format(type(dataframe).__name__))
 
-  column_names = list(dataframe.columns)
-  column_types = list(dataframe.dtypes)
-  num_columns = len(column_names)
+  inmemory_dicts = [{} for _ in range(len(dataframe))]
+  isnull = pd.isnull
+  # Initialize decoding fn based on column type.
+  int_fn = lambda x: np.array([x], dtype=np.integer)
+  float_fn = lambda x: None if isnull(x) else np.array([x], dtype=np.floating)
+  str_fn = lambda x: None if isnull(x) else np.array([x], dtype=np.object)
+  decode_fn = {
+      # int type.
+      'i': int_fn,
+      'u': int_fn,
+      # float type.
+      'f': float_fn,
+      # bool type.
+      'b': int_fn,
+      # string type.
+      'S': str_fn,
+      'O': str_fn,
+      'U': str_fn,
+  }
 
-  inmemory_dicts = []
-  for row in dataframe.itertuples(index=False):
-    row_dict = {}
-    for i in range(num_columns):
-      if pd.isnull(row[i]):
-        row_dict[column_names[i]] = None
-      elif column_types[i] == np.object:
-        row_dict[column_names[i]] = np.array([str(row[i])], dtype=np.object)
-      else:
-        row_dict[column_names[i]] = np.array([row[i]], dtype=column_types[i])
-    inmemory_dicts.append(row_dict)
+  schema = schema_pb2.Schema()
+  for col_name, col_type in zip(dataframe.columns, dataframe.dtypes):
+    kind = col_type.kind
+    if kind not in decode_fn:
+      logging.warning('Ignoring feature %s of type %s', col_name, col_type)
+      continue
+    if kind == 'b':
+      # Track bool type feature as categorical.
+      schema.feature.add(
+          name=col_name, type=schema_pb2.INT,
+          bool_domain=schema_pb2.BoolDomain())
 
+    # Get decoding fn based on column type.
+    fn = decode_fn[kind]
+    # Iterate over the column and apply the decoding fn.
+    j = 0
+    for val in dataframe[col_name]:
+      inmemory_dicts[j][col_name] = fn(val)
+      j += 1
+  if schema.feature:
+    stats_options.schema = schema
   return stats_impl.generate_statistics_in_memory(inmemory_dicts, stats_options)
 
 

@@ -15,6 +15,7 @@
 * Add a utility method `get_statistics_html`, which returns HTML that can be
   used for Facets visualization outside of a notebook.
 * Add support for schema inference of semantic domains.
+* Performance improvement on statistics computation over a pandas dataframe.
 
 ## Bug Fixes and Other Changes
 
