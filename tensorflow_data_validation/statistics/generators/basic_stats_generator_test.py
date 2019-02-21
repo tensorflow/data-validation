@@ -133,7 +133,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     batches = [{'a': [np.array([1.0, 2.0]), np.array([3.0, 4.0, 5.0])],
                 'b': [np.array([1, 2]), np.array([3, 4, 5])],
                 'w': [np.array([1.0]), np.array([2.0])]},
-               {'a': [np.array([1.0,]), None],
+               {'a': [np.array([1.0, np.NaN, np.NaN, np.NaN]), None],
                 'b': [np.array([1]), None],
                 'w': [np.array([3.0]), np.array([2.0])]}]
     expected_result = {
@@ -145,18 +145,13 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               common_stats {
                 num_non_missing: 3
                 num_missing: 1
-                min_num_values: 1
-                max_num_values: 3
-                avg_num_values: 2.0
-                tot_num_values: 6
+                min_num_values: 2
+                max_num_values: 4
+                avg_num_values: 3.0
+                tot_num_values: 9
                 num_values_histogram {
                   buckets {
-                    low_value: 1.0
-                    high_value: 1.0
-                    sample_count: 0.75
-                  }
-                  buckets {
-                    low_value: 1.0
+                    low_value: 2.0
                     high_value: 2.0
                     sample_count: 0.75
                   }
@@ -167,7 +162,12 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   }
                   buckets {
                     low_value: 3.0
-                    high_value: 3.0
+                    high_value: 4.0
+                    sample_count: 0.75
+                  }
+                  buckets {
+                    low_value: 4.0
+                    high_value: 4.0
                     sample_count: 0.75
                   }
                   type: QUANTILES
@@ -175,8 +175,8 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 weighted_common_stats {
                   num_non_missing: 6.0
                   num_missing: 2.0
-                  avg_num_values: 1.83333333
-                  tot_num_values: 11.0
+                  avg_num_values: 3.33333333
+                  tot_num_values: 20.0
                 }
               }
               mean: 2.66666666
@@ -186,6 +186,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               max: 5.0
               median: 3.0
               histograms {
+                num_nan: 3
                 buckets {
                   low_value: 1.0
                   high_value: 2.3333333
@@ -204,6 +205,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 type: STANDARD
               }
               histograms {
+                num_nan: 3
                 buckets {
                   low_value: 1.0
                   high_value: 1.0
@@ -231,6 +233,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 std_dev: 1.5427784
                 median: 3.0
                 histograms {
+                  num_nan: 3
                   buckets {
                     low_value: 1.0
                     high_value: 2.3333333
@@ -248,6 +251,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   }
                 }
                 histograms {
+                  num_nan: 3
                   buckets {
                     low_value: 1.0
                     high_value: 1.0
