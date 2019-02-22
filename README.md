@@ -111,7 +111,8 @@ other *untested* combinations may also work.
 
 |tensorflow-data-validation |tensorflow    |apache-beam[gcp]|
 |---------------------------|--------------|----------------|
-|GitHub master              |nightly (1.x) |2.8.0           |
+|GitHub master              |nightly (1.x) |2.10.0          |
+|0.12.0                     |1.12          |2.10.0          |
 |0.11.0                     |1.11          |2.8.0           |
 |0.9.0                      |1.9           |2.6.0           |
 

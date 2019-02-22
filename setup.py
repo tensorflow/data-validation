@@ -83,7 +83,7 @@ setup(
         # 'tensorflow>=1.12,<2',
 
         'tensorflow-metadata>=0.12.1,<0.13',
-        'tensorflow-transform>=0.11,<0.12',
+        'tensorflow-transform>=0.12,<0.13',
 
         # Dependencies needed for visualization.
         'IPython>=5.0',
@@ -104,5 +104,5 @@ setup(
     long_description_content_type='text/markdown',
     keywords='tensorflow data validation tfx',
     url='https://www.tensorflow.org/tfx/data_validation',
-    download_url='https://pypi.org/project/tensorflow-data-validation',
+    download_url='https://github.com/tensorflow/data-validation/tags',
     requires=[])
