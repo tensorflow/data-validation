@@ -88,7 +88,7 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
 
   def expand(self, dataset):
     # Initialize a list of stats generators to run.
-    stats_generators = _get_generators(self._options)
+    stats_generators = get_generators(self._options)
 
     result_protos = []
     # Iterate over the stats generators. For each generator,
@@ -137,9 +137,9 @@ def _is_combinefn_compact_supported():
   return getattr(beam.CombineFn, 'compact', None) is not None
 
 
-def _get_generators(options,
-                    in_memory = False
-                   ):
+def get_generators(options,
+                   in_memory = False
+                  ):
   """Initializes the list of stats generators, including custom generators.
 
   Args:
@@ -449,6 +449,34 @@ class _BatchedCombineFnWrapper(beam.CombineFn):
     return self._generator.extract_output(accumulator.partial_accumulator)
 
 
+def generate_partial_statistics_in_memory(
+    examples,
+    options,
+    stats_generators
+):
+  """Generates statistics for an in-memory list of examples.
+
+  Args:
+    examples: A list of input examples.
+    options: Options for generating data statistics.
+    stats_generators: A list of statistics generators.
+
+  Returns:
+    A list of accumulators containing partial statistics.
+  """
+  batch = batch_util.merge_single_batch(examples)
+  # If whitelist features are provided, keep only those features.
+  if options.feature_whitelist:
+    batch = {
+        feature_name: batch[feature_name]
+        for feature_name in options.feature_whitelist
+    }
+  return [
+      generator.add_input(generator.create_accumulator(), batch)
+      for generator in stats_generators  # pytype: disable=attribute-error
+  ]
+
+
 def generate_statistics_in_memory(
     examples,
     options = stats_options.StatsOptions()
@@ -462,27 +490,21 @@ def generate_statistics_in_memory(
   Returns:
     A DatasetFeatureStatisticsList proto.
   """
-  stats_generators = _get_generators(options, in_memory=True)
+  stats_generators = get_generators(options, in_memory=True)
+  partial_stats = generate_partial_statistics_in_memory(
+      examples, options, stats_generators)
+  return extract_statistics_output(partial_stats, stats_generators)
 
-  batch = batch_util.merge_single_batch(examples)
 
-  # If whitelist features are provided, keep only those features.
-  if options.feature_whitelist:
-    batch = {
-        feature_name: batch[feature_name]
-        for feature_name in options.feature_whitelist
-    }
-
+def extract_statistics_output(
+    partial_stats,
+    stats_generators
+):
+  """Extracts final stats output from the accumulators holding partial stats."""
   outputs = [
-      generator.extract_output(
-          generator.add_input(generator.create_accumulator(), batch))
-      # The type checker raises a false positive here because the type hint for
-      # the return value of _get_generators (which created the list of
-      # stats_generators) is StatsGenerator, but add_input, create_accumulator,
-      # and extract_output can be called only on CombinerStatsGenerators.
-      for generator in stats_generators  # pytype: disable=attribute-error
+      gen.extract_output(stats)
+      for (gen, stats) in zip(stats_generators, partial_stats)  # pytype: disable=attribute-error
   ]
-
   return _make_dataset_feature_statistics_list_proto(
       [_merge_dataset_feature_stats_protos(outputs)])
 

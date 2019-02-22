@@ -560,7 +560,7 @@ class StatsGenTest(absltest.TestCase):
     dataframe = pd.read_csv(input_data_path)
     result = stats_gen_lib.generate_statistics_from_dataframe(
         dataframe=dataframe,
-        stats_options=self._default_stats_options)
+        stats_options=self._default_stats_options, n_jobs=1)
     self.assertLen(result.datasets, 1)
     test_util.assert_dataset_feature_stats_proto_equal(
         self, result.datasets[0], expected_result.datasets[0])

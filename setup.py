@@ -88,6 +88,9 @@ setup(
 
         # Dependency for mutual information computation.
         'scikit-learn>=0.18,<1',
+
+        # Dependency for multi-processing.
+        'joblib>=0.12,<1',
     ],
     # TODO(b/72693020): Remove < 3 after Apache Beam 2.11 is released.
     python_requires='>=2.7,<3',

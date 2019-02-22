@@ -20,11 +20,14 @@ from __future__ import print_function
 
 import csv
 import logging
+import multiprocessing
 import os
 import tempfile
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
+from joblib import delayed
+from joblib import Parallel
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -34,7 +37,8 @@ from tensorflow_data_validation.coders import csv_decoder
 from tensorflow_data_validation.coders import tf_example_decoder
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options as options
-from tensorflow_data_validation.types_compat import List, Optional, Text
+from tensorflow_data_validation.statistics.generators import stats_generator
+from tensorflow_data_validation.types_compat import Any, List, Optional, Text
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -169,6 +173,7 @@ def generate_statistics_from_csv(
 def generate_statistics_from_dataframe(
     dataframe,
     stats_options = options.StatsOptions(),
+    n_jobs = multiprocessing.cpu_count()
 ):
   """Compute data statistics for the input pandas DataFrame.
 
@@ -178,6 +183,7 @@ def generate_statistics_from_dataframe(
   Args:
     dataframe: Input pandas DataFrame.
     stats_options: Options for generating data statistics.
+    n_jobs: Number of processes to run.
 
   Returns:
     A DatasetFeatureStatisticsList proto.
@@ -186,6 +192,32 @@ def generate_statistics_from_dataframe(
     raise TypeError('dataframe argument is of type {}. Must be a '
                     'pandas DataFrame.'.format(type(dataframe).__name__))
 
+  stats_generators = stats_impl.get_generators(stats_options, in_memory=True)
+  n_jobs = max(min(n_jobs, multiprocessing.cpu_count()), 1)
+  if n_jobs == 1:
+    merged_partial_stats = _generate_partial_statistics_from_df(
+        dataframe, stats_options, stats_generators)
+  else:
+    # TODO(pachristopher): Investigate why we don't observe linear speedup after
+    # a certain number of processes.
+    splits = np.array_split(dataframe, n_jobs)
+    partial_stats = Parallel(n_jobs=n_jobs)(
+        delayed(_generate_partial_statistics_from_df)(
+            splits[i], stats_options, stats_generators) for i in range(n_jobs))
+    merged_partial_stats = [
+        gen.merge_accumulators(stats)
+        for gen, stats in zip(stats_generators, zip(*partial_stats))
+    ]
+  return stats_impl.extract_statistics_output(
+      merged_partial_stats, stats_generators)
+
+
+def _generate_partial_statistics_from_df(
+    dataframe,
+    stats_options,
+    stats_generators
+):
+  """Generate accumulators containing partial stats."""
   inmemory_dicts = [{} for _ in range(len(dataframe))]
   isnull = pd.isnull
   # Initialize decoding fn based on column type.
@@ -227,7 +259,8 @@ def generate_statistics_from_dataframe(
       j += 1
   if schema.feature:
     stats_options.schema = schema
-  return stats_impl.generate_statistics_in_memory(inmemory_dicts, stats_options)
+  return stats_impl.generate_partial_statistics_in_memory(
+      inmemory_dicts, stats_options, stats_generators)
 
 
 def _get_csv_header(data_location,
