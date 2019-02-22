@@ -18,6 +18,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import os
+from absl import flags
 from absl.testing import absltest
 import numpy as np
 from tensorflow_data_validation.utils import stats_util
@@ -25,6 +27,8 @@ from tensorflow_data_validation.utils import stats_util
 from google.protobuf import text_format
 from tensorflow.python.util.protobuf import compare
 from tensorflow_metadata.proto.v0 import statistics_pb2
+
+FLAGS = flags.FLAGS
 
 
 class StatsUtilTest(absltest.TestCase):
@@ -143,6 +147,20 @@ class StatsUtilTest(absltest.TestCase):
   def test_is_valid_utf8(self):
     self.assertTrue(stats_util.is_valid_utf8(b'This is valid'))
     self.assertFalse(stats_util.is_valid_utf8(b'\xF0'))
+
+  def test_write_load_stats_text(self):
+    stats = text_format.Parse("""
+      datasets {}
+    """, statistics_pb2.DatasetFeatureStatisticsList())
+    stats_path = os.path.join(FLAGS.test_tmpdir, 'stats.pbtxt')
+    stats_util.write_stats_text(stats=stats, output_path=stats_path)
+    loaded_stats = stats_util.load_stats_text(input_path=stats_path)
+    self.assertEqual(stats, loaded_stats)
+
+  def test_write_stats_text_invalid_stats_input(self):
+    with self.assertRaisesRegexp(
+        TypeError, '.*should be a DatasetFeatureStatisticsList proto.'):
+      _ = stats_util.write_stats_text({}, 'stats.pbtxt')
 
 
 if __name__ == '__main__':

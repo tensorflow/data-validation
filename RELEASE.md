@@ -7,6 +7,8 @@
 
 ## Bug Fixes and Other Changes
 
+* Add utility functions `write_stats_text` and `load_stats_text` to write and
+  load DatasetFeatureStatisticsList protos.
 * Depends on `joblib>=0.12,<1`.
 
 ## Breaking Changes

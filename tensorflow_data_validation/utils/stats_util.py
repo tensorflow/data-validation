@@ -21,6 +21,9 @@ from __future__ import print_function
 import numpy as np
 from tensorflow_data_validation import types
 from tensorflow_data_validation.types_compat import Dict, List, Optional
+from google.protobuf import text_format
+# TODO(b/125849585): Update to import from TF directly.
+from tensorflow.python.lib.io import file_io  # pylint: disable=g-direct-tensorflow-import
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
@@ -163,3 +166,40 @@ def get_weight_feature(input_batch,
       raise ValueError('Weight feature "{}" must have a single value. '
                        'Found {}.'.format(weight_feature, w))
   return weights  # pytype: disable=bad-return-type
+
+
+def write_stats_text(stats,
+                     output_path):
+  """Writes a DatasetFeatureStatisticsList proto to a file in text format.
+
+  Args:
+    stats: A DatasetFeatureStatisticsList proto.
+    output_path: File path to write the DatasetFeatureStatisticsList proto.
+
+  Raises:
+    TypeError: If the input proto is not of the expected type.
+  """
+  if not isinstance(stats, statistics_pb2.DatasetFeatureStatisticsList):
+    raise TypeError(
+        'stats is of type %s, should be a '
+        'DatasetFeatureStatisticsList proto.' % type(stats).__name__)
+
+  stats_proto_text = text_format.MessageToString(stats)
+  file_io.write_string_to_file(output_path, stats_proto_text)
+
+
+def load_stats_text(
+    input_path):
+  """Loads the specified DatasetFeatureStatisticsList proto stored in text format.
+
+  Args:
+    input_path: File path from which to load the DatasetFeatureStatisticsList
+      proto.
+
+  Returns:
+    A DatasetFeatureStatisticsList proto.
+  """
+  stats_proto = statistics_pb2.DatasetFeatureStatisticsList()
+  stats_text = file_io.read_file_to_string(input_path)
+  text_format.Parse(stats_text, stats_proto)
+  return stats_proto
