@@ -71,9 +71,7 @@ setup(
         'absl-py>=0.1.6',
         'apache-beam[gcp]>=2.10,<3',
         'numpy>=1.14.5,<2',
-
         'protobuf>=3.6.1,<4',
-
         'six>=1.10,<2',
 
         # TODO(pachristopher): Add a method to check if we are using a
@@ -81,7 +79,6 @@ setup(
         # TODO(pachristopher): Uncomment this once TF can automatically
         # select between CPU and GPU installation.
         # 'tensorflow>=1.12,<2',
-
         'tensorflow-metadata>=0.12.1,<0.13',
         'tensorflow-transform>=0.12,<0.13',
 
@@ -92,7 +89,7 @@ setup(
         # Dependency for mutual information computation.
         'scikit-learn>=0.18,<1',
     ],
-    # TODO(b/110842625): Once we support Python 3, remove the <3 requirement.
+    # TODO(b/72693020): Remove < 3 after Apache Beam 2.11 is released.
     python_requires='>=2.7,<3',
     packages=find_packages(),
     include_package_data=True,

@@ -12,20 +12,23 @@
 
 ## Major Features and Improvements
 
-* Add support for computing statistics over slices of data.
-* Performance improvement due to optimizing inner loops.
-* Add support for generating statistics from a pandas dataframe.
-* Performance improvement due to pre-allocating tf.Example in
-  TFExampleDecoder.
-* Performance improvement due to merging common stats generator, numeric stats
-  generator and string stats generator as a single basic stats generator.
-* Performance improvement due to merging top-k and uniques generators.
-* Add a `validate_instance` function, which checks a single example for
-  anomalies.
-* Add a utility method `get_statistics_html`, which returns HTML that can be
-  used for Facets visualization outside of a notebook.
-* Add support for schema inference of semantic domains.
-* Performance improvement on statistics computation over a pandas dataframe.
+*   Python 3.5 readiness complete (all tests pass). Full Python 3.5
+    compatibility is expected to be available with the next version of Data
+    Validation (after Apache Beam 2.11 is released).
+*   Add support for computing statistics over slices of data.
+*   Performance improvement due to optimizing inner loops.
+*   Add support for generating statistics from a pandas dataframe.
+*   Performance improvement due to pre-allocating tf.Example in
+    TFExampleDecoder.
+*   Performance improvement due to merging common stats generator, numeric stats
+    generator and string stats generator as a single basic stats generator.
+*   Performance improvement due to merging top-k and uniques generators.
+*   Add a `validate_instance` function, which checks a single example for
+    anomalies.
+*   Add a utility method `get_statistics_html`, which returns HTML that can be
+    used for Facets visualization outside of a notebook.
+*   Add support for schema inference of semantic domains.
+*   Performance improvement on statistics computation over a pandas dataframe.
 
 ## Bug Fixes and Other Changes
 
