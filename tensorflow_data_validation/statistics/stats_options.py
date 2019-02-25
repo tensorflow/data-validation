@@ -54,8 +54,8 @@ class StatsOptions(object):
       num_quantiles_histogram_buckets = 10,
       epsilon = 0.01,
       infer_type_from_schema = False,
-      desired_batch_size = None
-      ):
+      desired_batch_size = None,
+      enable_semantic_domain_stats = False):
     """Initializes statistics options.
 
     Args:
@@ -104,6 +104,8 @@ class StatsOptions(object):
           on CSV data.
       desired_batch_size: An optional number of examples to include in each
         batch that is passed to the statistics generators.
+      enable_semantic_domain_stats: If True statistics for semantic domains are
+        generated (e.g: image, text domains).
     """
     self.generators = generators
     self.feature_whitelist = feature_whitelist
@@ -122,6 +124,7 @@ class StatsOptions(object):
     self.epsilon = epsilon
     self.infer_type_from_schema = infer_type_from_schema
     self.desired_batch_size = desired_batch_size
+    self.enable_semantic_domain_stats = enable_semantic_domain_stats
 
   @property
   def generators(self):

@@ -143,7 +143,15 @@ class TfImageDecoder(ImageDecoderInterface):
       value is not an image) in the same order as the input value list.
     """
     # Extract all formats.
-    formats = [imghdr.what(None, v) for v in value_list]
+    formats = [
+        # Ensure input is bytes, in py3 imghdr.what requires bytes input.
+        # TODO(b/126249134): If TFDV provided a guarantee that image features
+        # are never represented as py3 strings, strings should be skipped
+        # instead of manually casting to bytes here.
+        imghdr.what(None,
+                    v.encode('utf-8') if isinstance(v, six.text_type) else v)
+        for v in value_list
+    ]
 
     # Replace non supported formats by ''.
     # Note: Using str(f) to help pytype infer types.

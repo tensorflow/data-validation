@@ -104,7 +104,10 @@ GENERATE_STATS_TESTS = [
                 num_rank_histogram_buckets=3,
                 num_values_histogram_buckets=3,
                 num_histogram_buckets=3,
-                num_quantiles_histogram_buckets=4),
+                num_quantiles_histogram_buckets=4,
+                # Semantic domain stats are enabled by default for testing
+                # to ensure they do not introduce regressions.
+                enable_semantic_domain_stats=True),
         'expected_result_proto_text':
             """
                     datasets {
@@ -185,7 +188,8 @@ GENERATE_STATS_TESTS = [
             stats_options.StatsOptions(
                 num_top_values=2,
                 num_rank_histogram_buckets=3,
-                num_values_histogram_buckets=3),
+                num_values_histogram_buckets=3,
+                enable_semantic_domain_stats=True),
         'expected_result_proto_text':
             """
               datasets {
@@ -286,7 +290,8 @@ GENERATE_STATS_TESTS = [
                 num_rank_histogram_buckets=2,
                 num_values_histogram_buckets=2,
                 num_histogram_buckets=2,
-                num_quantiles_histogram_buckets=2),
+                num_quantiles_histogram_buckets=2,
+                enable_semantic_domain_stats=True),
         'expected_result_proto_text':
             """
             datasets {
@@ -478,7 +483,8 @@ GENERATE_STATS_TESTS = [
                 generators=[_ValueCounter(), _ExampleCounter()],
                 num_top_values=4,
                 num_rank_histogram_buckets=3,
-                num_values_histogram_buckets=3),
+                num_values_histogram_buckets=3,
+                enable_semantic_domain_stats=True),
         'expected_result_proto_text':
             """
             datasets {
@@ -619,6 +625,304 @@ GENERATE_STATS_TESTS = [
               }
             }""",
     },
+    {
+        'testcase_name':
+            'semantic_domains_enabled',
+        # Generate 100 examples to pass threshold for semantic domains:
+        # - Replicate an example passing checks 90 times
+        # - Replicate an example not passing checks 10 times
+        'examples': [
+            {
+                'text_feature': np.array(['This should be natural text']),
+                # The png magic header, this should be considered an "image".
+                'image_feature': np.array([b'\211PNG\r\n\032\n'])
+            },
+        ] * 90 + [
+            {
+                'text_feature': np.array(['Thisshouldnotbenaturaltext']),
+                # The png magic header, this should be considered an "image".
+                'image_feature': np.array([b'Thisisnotanimage'])
+            },
+        ] * 10,
+        'options':
+            stats_options.StatsOptions(
+                num_top_values=4,
+                num_rank_histogram_buckets=3,
+                num_values_histogram_buckets=3,
+                enable_semantic_domain_stats=True),
+        'expected_result_proto_text':
+            """
+            datasets {
+              num_examples: 100
+              features {
+                name: "text_feature"
+                type: STRING
+                string_stats {
+                  common_stats {
+                    num_non_missing: 100
+                    min_num_values: 1
+                    max_num_values: 1
+                    avg_num_values: 1.0
+                    num_values_histogram {
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 33.3333333333
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 33.3333333333
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 33.3333333333
+                      }
+                      type: QUANTILES
+                    }
+                    tot_num_values: 100
+                  }
+                  unique: 2
+                  top_values {
+                    value: "This should be natural text"
+                    frequency: 90.0
+                  }
+                  top_values {
+                    value: "Thisshouldnotbenaturaltext"
+                    frequency: 10.0
+                  }
+                  avg_length: 26.8999996185
+                  rank_histogram {
+                    buckets {
+                      label: "This should be natural text"
+                      sample_count: 90.0
+                    }
+                    buckets {
+                      low_rank: 1
+                      high_rank: 1
+                      label: "Thisshouldnotbenaturaltext"
+                      sample_count: 10.0
+                    }
+                  }
+                }
+                custom_stats {
+                  name: "domain_info"
+                  str: "natural_language_domain {}"
+                }
+                custom_stats {
+                  name: "natural_language_match_rate"
+                  num: 0.9
+                }
+              }
+              features {
+                name: "image_feature"
+                type: STRING
+                string_stats {
+                  common_stats {
+                    num_non_missing: 100
+                    min_num_values: 1
+                    max_num_values: 1
+                    avg_num_values: 1.0
+                    num_values_histogram {
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 33.3333333333
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 33.3333333333
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 33.3333333333
+                      }
+                      type: QUANTILES
+                    }
+                    tot_num_values: 100
+                  }
+                  unique: 2
+                  top_values {
+                    value: "__BYTES_VALUE__"
+                    frequency: 90.0
+                  }
+                  top_values {
+                    value: "Thisisnotanimage"
+                    frequency: 10.0
+                  }
+                  avg_length: 8.80000019073
+                  rank_histogram {
+                    buckets {
+                      label: "__BYTES_VALUE__"
+                      sample_count: 90.0
+                    }
+                    buckets {
+                      low_rank: 1
+                      high_rank: 1
+                      label: "Thisisnotanimage"
+                      sample_count: 10.0
+                    }
+                  }
+                }
+                custom_stats {
+                  name: "domain_info"
+                  str: "image_domain {}"
+                }
+                custom_stats {
+                  name: "image_format_histogram"
+                  rank_histogram {
+                    buckets {
+                      label: "UNKNOWN"
+                      sample_count: 10.0
+                    }
+                    buckets {
+                      label: "png"
+                      sample_count: 90.0
+                    }
+                  }
+                }
+              }
+            }""",
+    },
+    # Identical test with semantic_domains_enabled but with
+    # options.enable_semantic_domain_stats=False
+    {
+        'testcase_name':
+            'semantic_domains_disabled',
+        'examples': [
+            {
+                'text_feature': np.array(['This should be natural text']),
+                # The png magic header, this should be considered an "image".
+                'image_feature': np.array([b'\211PNG\r\n\032\n'])
+            },
+        ] * 90 + [
+            {
+                'text_feature': np.array(['Thisshouldnotbenaturaltext']),
+                # The png magic header, this should be considered an "image".
+                'image_feature': np.array([b'Thisisnotanimage'])
+            },
+        ] * 10,
+        'options':
+            stats_options.StatsOptions(
+                num_top_values=4,
+                num_rank_histogram_buckets=3,
+                num_values_histogram_buckets=3,
+                enable_semantic_domain_stats=False),
+        'expected_result_proto_text':
+            """
+            datasets {
+              num_examples: 100
+              features {
+                name: "text_feature"
+                type: STRING
+                string_stats {
+                  common_stats {
+                    num_non_missing: 100
+                    min_num_values: 1
+                    max_num_values: 1
+                    avg_num_values: 1.0
+                    num_values_histogram {
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 33.3333333333
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 33.3333333333
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 33.3333333333
+                      }
+                      type: QUANTILES
+                    }
+                    tot_num_values: 100
+                  }
+                  unique: 2
+                  top_values {
+                    value: "This should be natural text"
+                    frequency: 90.0
+                  }
+                  top_values {
+                    value: "Thisshouldnotbenaturaltext"
+                    frequency: 10.0
+                  }
+                  avg_length: 26.8999996185
+                  rank_histogram {
+                    buckets {
+                      label: "This should be natural text"
+                      sample_count: 90.0
+                    }
+                    buckets {
+                      low_rank: 1
+                      high_rank: 1
+                      label: "Thisshouldnotbenaturaltext"
+                      sample_count: 10.0
+                    }
+                  }
+                }
+              }
+              features {
+                name: "image_feature"
+                type: STRING
+                string_stats {
+                  common_stats {
+                    num_non_missing: 100
+                    min_num_values: 1
+                    max_num_values: 1
+                    avg_num_values: 1.0
+                    num_values_histogram {
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 33.3333333333
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 33.3333333333
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 33.3333333333
+                      }
+                      type: QUANTILES
+                    }
+                    tot_num_values: 100
+                  }
+                  unique: 2
+                  top_values {
+                    value: "__BYTES_VALUE__"
+                    frequency: 90.0
+                  }
+                  top_values {
+                    value: "Thisisnotanimage"
+                    frequency: 10.0
+                  }
+                  avg_length: 8.80000019073
+                  rank_histogram {
+                    buckets {
+                      label: "__BYTES_VALUE__"
+                      sample_count: 90.0
+                    }
+                    buckets {
+                      low_rank: 1
+                      high_rank: 1
+                      label: "Thisisnotanimage"
+                      sample_count: 10.0
+                    }
+                  }
+                }
+              }
+            }""",
+    },
 ]
 
 
@@ -652,7 +956,8 @@ SLICING_TESTS = [
                 num_rank_histogram_buckets=2,
                 num_values_histogram_buckets=2,
                 num_histogram_buckets=2,
-                num_quantiles_histogram_buckets=2),
+                num_quantiles_histogram_buckets=2,
+                enable_semantic_domain_stats=True),
         'expected_result_proto_text':
             """
             datasets {
@@ -1286,7 +1591,9 @@ class StatsImplTest(parameterized.TestCase):
         ptransform=CustomPTransform())
     with beam.Pipeline() as p:
       options = stats_options.StatsOptions(
-          generators=[transform_stats_gen], num_values_histogram_buckets=2)
+          generators=[transform_stats_gen],
+          num_values_histogram_buckets=2,
+          enable_semantic_domain_stats=True)
       result = (p | beam.Create(examples) |
                 stats_impl.GenerateStatisticsImpl(options))
       util.assert_that(
@@ -1408,7 +1715,8 @@ class StatsImplTest(parameterized.TestCase):
         generators=[CustomCombinerStatsGenerator('CustomStatsGenerator')],
         num_top_values=4,
         num_rank_histogram_buckets=3,
-        num_values_histogram_buckets=3)
+        num_values_histogram_buckets=3,
+        enable_semantic_domain_stats=True)
     result = stats_impl.generate_statistics_in_memory(
         examples, options)
     compare.assertProtoEqual(
@@ -1426,7 +1734,8 @@ class StatsImplTest(parameterized.TestCase):
     examples = [{'a': np.array([1.0])}]
     custom_generator = stats_generator.TransformStatsGenerator(
         name='CustomStatsGenerator', ptransform=CustomPTransform())
-    options = stats_options.StatsOptions(generators=[custom_generator])
+    options = stats_options.StatsOptions(
+        generators=[custom_generator], enable_semantic_domain_stats=True)
     with self.assertRaisesRegexp(
         TypeError, 'Statistics generator.* found object of type '
         'TransformStatsGenerator.'):

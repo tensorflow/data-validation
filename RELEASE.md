@@ -4,6 +4,8 @@
 
 * Use joblib to exploit multiprocessing when computing statistics over a pandas
   dataframe.
+* Add support for semantic domain related statistics (natural language, image),
+  enabled by StatsOptions.enable_semantic_domain_stats.
 
 ## Bug Fixes and Other Changes
 

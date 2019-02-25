@@ -25,6 +25,8 @@ from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.statistics.generators import basic_stats_generator
+from tensorflow_data_validation.statistics.generators import image_stats_generator
+from tensorflow_data_validation.statistics.generators import natural_language_stats_generator
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.statistics.generators import top_k_uniques_combiner_stats_generator
 from tensorflow_data_validation.statistics.generators import top_k_uniques_stats_generator
@@ -154,6 +156,11 @@ def get_generators(options,
   if options.generators is not None:
     # Add custom stats generators.
     generators.extend(options.generators)
+  if options.enable_semantic_domain_stats:
+    generators += [
+        image_stats_generator.ImageStatsGenerator(),
+        natural_language_stats_generator.NLStatsGenerator(),
+    ]
   # Replace all CombinerFeatureStatsGenerator with a single
   # CombinerFeatureStatsWrapperGenerator.
   feature_generators = [
@@ -164,7 +171,10 @@ def get_generators(options,
     generators = [
         x for x in generators
         if not isinstance(x, stats_generator.CombinerFeatureStatsGenerator)
-    ] + [CombinerFeatureStatsWrapperGenerator(feature_generators)]
+    ] + [
+        CombinerFeatureStatsWrapperGenerator(
+            feature_generators, weight_feature=options.weight_feature)
+    ]
   if in_memory:
     for generator in generators:
       if not isinstance(generator, stats_generator.CombinerStatsGenerator):
@@ -528,16 +538,21 @@ class CombinerFeatureStatsWrapperGenerator(
   def __init__(self,
                feature_stats_generators,
                name = 'CombinerFeatureStatsWrapperGenerator',
-               schema = None):
+               schema = None,
+               weight_feature = None):
     """Initializes a CombinerFeatureStatsWrapperGenerator.
 
     Args:
       feature_stats_generators: A list of CombinerFeatureStatsGenerator.
       name: An optional unique name associated with the statistics generator.
       schema: An optional schema for the dataset.
+      weight_feature: An optional feature name whose numeric value represents
+        the weight of an example. Currently the weight feature is ignored by
+        feature level stats generators.
     """
     super(CombinerFeatureStatsWrapperGenerator, self).__init__(name, schema)
     self._feature_stats_generators = feature_stats_generators
+    self._weight_feature = weight_feature
 
   def _perhaps_initialize_for_feature_name(
       self, wrapper_accumulator,
@@ -574,6 +589,8 @@ class CombinerFeatureStatsWrapperGenerator(
       inputs.
     """
     for feature_name, values in six.iteritems(input_batch):
+      if feature_name == self._weight_feature:
+        continue
       self._perhaps_initialize_for_feature_name(wrapper_accumulator,
                                                 feature_name)
       for index, generator in enumerate(self._feature_stats_generators):
