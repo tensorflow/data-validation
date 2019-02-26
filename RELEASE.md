@@ -12,6 +12,7 @@
 * Add utility functions `write_stats_text` and `load_stats_text` to write and
   load DatasetFeatureStatisticsList protos.
 * Depends on `joblib>=0.12,<1`.
+* Requires pre-installed `tensorflow>=1.13,<2`.
 
 ## Breaking Changes
 

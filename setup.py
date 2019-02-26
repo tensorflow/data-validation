@@ -78,7 +78,7 @@ setup(
         # compatible TF version. If not, fail with a clear error.
         # TODO(pachristopher): Uncomment this once TF can automatically
         # select between CPU and GPU installation.
-        # 'tensorflow>=1.12,<2',
+        # 'tensorflow>=1.13,<2',
         'tensorflow-metadata>=0.12.1,<0.13',
         'tensorflow-transform>=0.12,<0.13',
 
