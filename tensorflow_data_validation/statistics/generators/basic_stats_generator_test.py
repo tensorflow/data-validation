@@ -937,13 +937,23 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
   def test_basic_stats_generator_invalid_value_type(self):
     batches = [{'a': [{}]}]
     generator = basic_stats_generator.BasicStatsGenerator()
-    with self.assertRaises(TypeError):
+    with self.assertRaisesRegexp(
+        TypeError,
+        'Feature a has value.*, should be numpy.ndarray or None'):
       self.assertCombinerOutputEqual(batches, generator, None)
 
   def test_basic_stats_generator_invalid_value_numpy_dtype(self):
     batches = [{'a': [np.array([1+2j])]}]
     generator = basic_stats_generator.BasicStatsGenerator()
-    with self.assertRaises(TypeError):
+    with self.assertRaisesRegexp(
+        TypeError, 'Feature a has value.*, should be int, float or str types.'):
+      self.assertCombinerOutputEqual(batches, generator, None)
+
+  def test_basic_stats_generator_feature_with_different_types(self):
+    batches = [{'a': [np.array([1.0, 2.0]), np.array([3.0, 4.0, 5.0])]},
+               {'a': [np.array([1])]}]
+    generator = basic_stats_generator.BasicStatsGenerator()
+    with self.assertRaisesRegexp(TypeError, 'Cannot determine the type'):
       self.assertCombinerOutputEqual(batches, generator, None)
 
 

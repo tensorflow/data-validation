@@ -8,6 +8,7 @@
   enabled by `StatsOptions.enable_semantic_domain_stats`.
 
 ## Bug Fixes and Other Changes
+* Expand unit test coverage.
 
 * Modify validation logic to raise `SCHEMA_MISSING_COLUMN` anomaly when
   observing a feature with no stats.
