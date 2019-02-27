@@ -35,6 +35,15 @@ const bool IsStrictPrefix(const string& a, const string& b) {
   return a.length() < b.length() && b.substr(0, a.length()) == a;
 }
 
+// Returns true if the feature has empty stats.
+const bool HasEmptyStats(const FeatureNameStatistics& feature) {
+  if (feature.stats_case() == FeatureNameStatistics::STATS_NOT_SET &&
+      feature.custom_stats_size() == 0) {
+    return true;
+  }
+  return false;
+}
+
 }  // namespace
 
 // Context of a feature.
@@ -71,6 +80,13 @@ class DatasetStatsViewImpl {
     std::map<string, int> location;
 
     for (int i = 0; i < data_.features_size(); ++i) {
+      // TODO(b/124192588): This is a short term fix to ignore features with
+      // empty stats. Remove this once we have added a unknown_stats message
+      // in the stats proto which would keep track of common_stats for
+      // completely missing features.
+      if (HasEmptyStats(data_.features(i))) {
+        continue;
+      }
       location[data_.features(i).name()] = i;
       context_.push_back(FeatureContext());
     }
@@ -208,6 +224,13 @@ DatasetStatsView::DatasetStatsView(
 std::vector<FeatureStatsView> DatasetStatsView::features() const {
   std::vector<FeatureStatsView> result;
   for (int i = 0; i < impl_->data().features_size(); ++i) {
+    // TODO(b/124192588): This is a short term fix to ignore features with
+    // empty stats. Remove this once we have added a unknown_stats message
+    // in the stats proto which would keep track of common_stats for
+    // completely missing features.
+    if (HasEmptyStats(impl_->data().features(i))) {
+      continue;
+    }
     result.push_back(FeatureStatsView(i, *this));
   }
   return result;

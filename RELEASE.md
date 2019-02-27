@@ -5,10 +5,12 @@
 * Use joblib to exploit multiprocessing when computing statistics over a pandas
   dataframe.
 * Add support for semantic domain related statistics (natural language, image),
-  enabled by StatsOptions.enable_semantic_domain_stats.
+  enabled by `StatsOptions.enable_semantic_domain_stats`.
 
 ## Bug Fixes and Other Changes
 
+* Modify validation logic to raise `SCHEMA_MISSING_COLUMN` anomaly when
+  observing a feature with no stats.
 * Add utility functions `write_stats_text` and `load_stats_text` to write and
   load DatasetFeatureStatisticsList protos.
 * Depends on `joblib>=0.12,<1`.

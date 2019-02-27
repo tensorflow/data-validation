@@ -1429,20 +1429,20 @@ TEST(SchemaTest, GetMissingPathsAllPresent) {
   const tensorflow::metadata::v0::DatasetFeatureStatistics stats =
       ParseTextProtoOrDie<tensorflow::metadata::v0::DatasetFeatureStatistics>(
           R"pb(
-            features { name: "empty_domain" type: BYTES }
-            features { name: "struct" type: STRUCT }
-            features { name: "struct.foo" }
-            features { name: "struct.bar.baz" }
-            features { name: "##SEQUENCE##" type: STRUCT }
-            features { name: "##SEQUENCE##.foo" }
-            features: { name: "##SEQUENCE##.bar" }
-            features: { name: "##SEQUENCE##.baz.bar" }
-            features: { name: "(ext.field)" type: STRUCT }
-            features: { name: "(ext.field).foo" }
-            features: { name: "(ext.field).bar" }
-            features: { name: "(ext.field).deep_sparse" }
-            features: { name: "shallow_sparse" }
-            features { name: "foo.bar" })pb");
+            features { name: "empty_domain" type: BYTES string_stats { } }
+            features { name: "struct" type: STRUCT struct_stats { } }
+            features { name: "struct.foo" struct_stats { } }
+            features { name: "struct.bar.baz" struct_stats { } }
+            features { name: "##SEQUENCE##" type: STRUCT struct_stats { } }
+            features { name: "##SEQUENCE##.foo" struct_stats { } }
+            features: { name: "##SEQUENCE##.bar" struct_stats { } }
+            features: { name: "##SEQUENCE##.baz.bar" struct_stats { } }
+            features: { name: "(ext.field)" type: STRUCT struct_stats { } }
+            features: { name: "(ext.field).foo" struct_stats { } }
+            features: { name: "(ext.field).bar" struct_stats { } }
+            features: { name: "(ext.field).deep_sparse" struct_stats { } }
+            features: { name: "shallow_sparse" struct_stats { } }
+            features { name: "foo.bar" struct_stats { } })pb");
 
   DatasetStatsView view(stats);
   EXPECT_EQ(schema.GetMissingPaths(view).size(), 0);

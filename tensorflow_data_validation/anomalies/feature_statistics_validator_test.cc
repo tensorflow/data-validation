@@ -156,6 +156,48 @@ TEST(FeatureStatisticsValidatorTest, EndToEnd) {
       /*features_needed=*/gtl::nullopt, anomalies);
 }
 
+TEST(FeatureStatisticsValidatorTest, MissingColumn) {
+  const Schema schema = ParseTextProtoOrDie<Schema>(R"(
+    feature {
+      name: "feature"
+      value_count: { min: 1 max: 1 }
+      presence: { min_count: 1 }
+      type: BYTES
+    })");
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        num_examples: 1000
+        features: {
+          name: 'feature'
+        })");
+
+  std::map<string, testing::ExpectedAnomalyInfo> anomalies;
+  anomalies["feature"].new_schema = ParseTextProtoOrDie<Schema>(R"(
+    feature {
+      name: "feature"
+      lifecycle_stage: DEPRECATED
+      value_count: { min: 1 max: 1 }
+      presence: { min_count: 1 }
+      type: BYTES
+    }
+  )");
+  anomalies["feature"].expected_info_without_diff =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
+        description: "Column is completely missing"
+        severity: ERROR
+        short_description: "Column dropped"
+        reason {
+          type: SCHEMA_MISSING_COLUMN
+          short_description: "Column dropped"
+          description: "Column is completely missing"
+        }
+        path { step: "feature" })");
+  TestFeatureStatisticsValidator(schema, ValidationConfig(), statistics,
+                                 tensorflow::gtl::nullopt,
+                                 /*environment=*/gtl::nullopt,
+                                 /*features_needed=*/gtl::nullopt, anomalies);
+}
+
 TEST(FeatureStatisticsValidatorTest, MissingFeatureAndEnvironments) {
   const Schema schema = ParseTextProtoOrDie<Schema>(R"(
     default_environment: "TRAINING"
