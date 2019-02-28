@@ -9,11 +9,12 @@
 
 ## Bug Fixes and Other Changes
 * Expand unit test coverage.
-
 * Modify validation logic to raise `SCHEMA_MISSING_COLUMN` anomaly when
   observing a feature with no stats.
 * Add utility functions `write_stats_text` and `load_stats_text` to write and
   load DatasetFeatureStatisticsList protos.
+* Avoid using multiprocessing by default when generating statistics over a
+  dataframe.
 * Depends on `joblib>=0.12,<1`.
 * Requires pre-installed `tensorflow>=1.13,<2`.
 

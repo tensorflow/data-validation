@@ -173,7 +173,7 @@ def generate_statistics_from_csv(
 def generate_statistics_from_dataframe(
     dataframe,
     stats_options = options.StatsOptions(),
-    n_jobs = multiprocessing.cpu_count()
+    n_jobs = 1
 ):
   """Compute data statistics for the input pandas DataFrame.
 
@@ -183,7 +183,8 @@ def generate_statistics_from_dataframe(
   Args:
     dataframe: Input pandas DataFrame.
     stats_options: Options for generating data statistics.
-    n_jobs: Number of processes to run.
+    n_jobs: Number of processes to run (defaults to 1). If -1 is provided,
+      uses the same number of processes as the number of CPU cores.
 
   Returns:
     A DatasetFeatureStatisticsList proto.
@@ -193,7 +194,14 @@ def generate_statistics_from_dataframe(
                     'pandas DataFrame.'.format(type(dataframe).__name__))
 
   stats_generators = stats_impl.get_generators(stats_options, in_memory=True)
+  if n_jobs < -1 or n_jobs == 0:
+    raise ValueError('Invalid n_jobs parameter {}. Should be either '
+                     ' -1 or >= 1.'.format(n_jobs))
+
+  if n_jobs == -1:
+    n_jobs = multiprocessing.cpu_count()
   n_jobs = max(min(n_jobs, multiprocessing.cpu_count()), 1)
+
   if n_jobs == 1:
     merged_partial_stats = _generate_partial_statistics_from_df(
         dataframe, stats_options, stats_generators)

@@ -565,6 +565,28 @@ class StatsGenTest(absltest.TestCase):
     test_util.assert_dataset_feature_stats_proto_equal(
         self, result.datasets[0], expected_result.datasets[0])
 
+  def test_stats_gen_with_dataframe_invalid_njobs_zero(self):
+    records, _, _ = self._get_csv_test(delimiter=',', with_header=True)
+    input_data_path = self._write_records_to_csv(records, self._get_temp_dir(),
+                                                 'input_data.csv')
+    dataframe = pd.read_csv(input_data_path)
+    with self.assertRaisesRegexp(
+        ValueError, 'Invalid n_jobs parameter.*'):
+      _ = stats_gen_lib.generate_statistics_from_dataframe(
+          dataframe=dataframe,
+          stats_options=self._default_stats_options, n_jobs=0)
+
+  def test_stats_gen_with_dataframe_invalid_njobs_negative(self):
+    records, _, _ = self._get_csv_test(delimiter=',', with_header=True)
+    input_data_path = self._write_records_to_csv(records, self._get_temp_dir(),
+                                                 'input_data.csv')
+    dataframe = pd.read_csv(input_data_path)
+    with self.assertRaisesRegexp(
+        ValueError, 'Invalid n_jobs parameter.*'):
+      _ = stats_gen_lib.generate_statistics_from_dataframe(
+          dataframe=dataframe,
+          stats_options=self._default_stats_options, n_jobs=-2)
+
 
 if __name__ == '__main__':
   absltest.main()
