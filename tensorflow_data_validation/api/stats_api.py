@@ -83,7 +83,7 @@ class GenerateStatistics(beam.PTransform):
     """Initializes the transform.
 
     Args:
-      options: Options for generating data statistics.
+      options: `tfdv.StatsOptions` for generating data statistics.
 
     Raises:
       TypeError: If options is not of the expected type.

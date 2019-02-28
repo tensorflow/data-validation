@@ -65,7 +65,7 @@ def generate_statistics_from_tfrecord(
     output_path: The file path to output data statistics result to. If None, we
       use a temporary directory. It will be a TFRecord file containing a single
       data statistics proto, and can be read with the 'load_statistics' API.
-    stats_options: Options for generating data statistics.
+    stats_options: `tfdv.StatsOptions` for generating data statistics.
     pipeline_options: Optional beam pipeline options. This allows users to
       specify various beam pipeline execution parameters like pipeline runner
       (DirectRunner or DataflowRunner), cloud dataflow service project id, etc.
@@ -128,7 +128,7 @@ def generate_statistics_from_csv(
     output_path: The file path to output data statistics result to. If None, we
       use a temporary directory. It will be a TFRecord file containing a single
       data statistics proto, and can be read with the 'load_statistics' API.
-    stats_options: Options for generating data statistics.
+    stats_options: `tfdv.StatsOptions` for generating data statistics.
     pipeline_options: Optional beam pipeline options. This allows users to
       specify various beam pipeline execution parameters like pipeline runner
       (DirectRunner or DataflowRunner), cloud dataflow service project id, etc.
@@ -182,7 +182,7 @@ def generate_statistics_from_dataframe(
 
   Args:
     dataframe: Input pandas DataFrame.
-    stats_options: Options for generating data statistics.
+    stats_options: `tfdv.StatsOptions` for generating data statistics.
     n_jobs: Number of processes to run (defaults to 1). If -1 is provided,
       uses the same number of processes as the number of CPU cores.
 

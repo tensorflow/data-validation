@@ -37,7 +37,7 @@ Initializes the transform.
 
 #### Args:
 
-* <b>`options`</b>: Options for generating data statistics.
+* <b>`options`</b>: <a href="../tfdv/StatsOptions.md"><code>tfdv.StatsOptions</code></a> for generating data statistics.
 
 
 #### Raises:

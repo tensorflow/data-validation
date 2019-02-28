@@ -276,8 +276,8 @@ def validate_instance(
   Args:
     instance: A single example in the form of a dict mapping a feature name to a
       numpy array.
-    options: Options for generating data statistics. This must contain a
-      schema.
+    options: `tfdv.StatsOptions` for generating data statistics. This must
+      contain a schema.
     environment: An optional string denoting the validation environment. Must be
       one of the default environments specified in the schema. In some cases
       introducing slight schema variations is necessary, for instance features

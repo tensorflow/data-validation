@@ -30,7 +30,7 @@ PTransform API directly instead.
 * <b>`output_path`</b>: The file path to output data statistics result to. If None, we
     use a temporary directory. It will be a TFRecord file containing a single
     data statistics proto, and can be read with the 'load_statistics' API.
-* <b>`stats_options`</b>: Options for generating data statistics.
+* <b>`stats_options`</b>: <a href="../tfdv/StatsOptions.md"><code>tfdv.StatsOptions</code></a> for generating data statistics.
 * <b>`pipeline_options`</b>: Optional beam pipeline options. This allows users to
     specify various beam pipeline execution parameters like pipeline runner
     (DirectRunner or DataflowRunner), cloud dataflow service project id, etc.

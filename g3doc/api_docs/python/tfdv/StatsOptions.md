@@ -42,7 +42,8 @@ __init__(
     num_quantiles_histogram_buckets=10,
     epsilon=0.01,
     infer_type_from_schema=False,
-    desired_batch_size=None
+    desired_batch_size=None,
+    enable_semantic_domain_stats=False
 )
 ```
 
@@ -95,6 +96,8 @@ Initializes statistics options.
       on CSV data.
 * <b>`desired_batch_size`</b>: An optional number of examples to include in each
     batch that is passed to the statistics generators.
+* <b>`enable_semantic_domain_stats`</b>: If True statistics for semantic domains are
+    generated (e.g: image, text domains).
 
 
 

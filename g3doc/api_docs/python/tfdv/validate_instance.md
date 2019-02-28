@@ -22,8 +22,8 @@ If an optional `environment` is specified, the schema is filtered using the
 
 * <b>`instance`</b>: A single example in the form of a dict mapping a feature name to a
     numpy array.
-* <b>`options`</b>: Options for generating data statistics. This must contain a
-    schema.
+* <b>`options`</b>: <a href="../tfdv/StatsOptions.md"><code>tfdv.StatsOptions</code></a> for generating data statistics. This must
+    contain a schema.
 * <b>`environment`</b>: An optional string denoting the validation environment. Must be
     one of the default environments specified in the schema. In some cases
     introducing slight schema variations is necessary, for instance features
