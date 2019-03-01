@@ -68,8 +68,8 @@ setup(
     # Make sure to sync the versions of common dependencies (absl-py, numpy,
     # six, and protobuf) with TF.
     install_requires=[
-        'absl-py>=0.1.6',
-        'apache-beam[gcp]>=2.10,<3',
+        'absl-py>=0.1.6,<2',
+        'apache-beam[gcp]>=2.11,<3',
         'numpy>=1.14.5,<2',
         'protobuf>=3.6.1,<4',
         'six>=1.10,<2',

@@ -17,6 +17,8 @@
   dataframe.
 * Depends on `joblib>=0.12,<1`.
 * Requires pre-installed `tensorflow>=1.13,<2`.
+* Depends on `apache-beam[gcp]>=2.11,<3`.
+* Depends on `absl>=0.1.6,<2`.
 
 ## Breaking Changes
 
