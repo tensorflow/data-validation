@@ -25,7 +25,7 @@ TF Data Validation includes:
      learn more in order to correct them.
 
 For instructions on using TFDV, see the [get started guide](https://github.com/tensorflow/data-validation/blob/master/g3doc/get_started.md)
-and try out the [example notebook](https://colab.research.google.com/github/tensorflow/data-validation/blob/master/examples/chicago_taxi/chicago_taxi_tfdv.ipynb).
+and try out the [example notebook](https://colab.research.google.com/github/tensorflow/tfx/blob/master/docs/tutorials/data_validation/chicago_taxi.ipynb).
 
 Caution: TFDV may be backwards incompatible before version 1.0.
 

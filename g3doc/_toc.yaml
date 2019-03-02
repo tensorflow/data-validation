@@ -4,7 +4,7 @@ toc:
 
 - heading: Examples
 - title: Get started example
-  path: https://github.com/tensorflow/data-validation/blob/master/examples/chicago_taxi/chicago_taxi_tfdv.ipynb
+  path: https://github.com/tensorflow/tfx/blob/master/docs/tutorials/data_validation/chicago_taxi.ipynb
   status: external
 - title: End-to-end example (Chicago Taxi)
   path: https://github.com/tensorflow/model-analysis/tree/master/examples/chicago_taxi

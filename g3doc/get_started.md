@@ -33,7 +33,7 @@ illustrates the computation of statistics using TFDV:
 
 The returned value is a
 [DatasetFeatureStatisticsList](https://github.com/tensorflow/metadata/tree/master/tensorflow_metadata/proto/v0/statistics.proto)
-protocol buffer. The [example notebook](https://nbviewer.jupyter.org/github/tensorflow/data-validation/blob/master/examples/chicago_taxi/chicago_taxi_tfdv.ipynb) contains a visualization of the statistics using
+protocol buffer. The [example notebook](https://nbviewer.jupyter.org/github/tensorflow/tfx/blob/master/docs/tutorials/data_validation/chicago_taxi.ipynb) contains a visualization of the statistics using
 [Facets Overview](https://pair-code.github.io/facets/):
 
 ```python
@@ -175,7 +175,7 @@ To mark that the feature should be populated in at least 50% of the examples:
     tfdv.get_feature(schema, 'payment_type').presence.min_fraction = 0.5
 ```
 
-The [example notebook](https://nbviewer.jupyter.org/github/tensorflow/data-validation/blob/master/examples/chicago_taxi/chicago_taxi_tfdv.ipynb)
+The [example notebook](https://nbviewer.jupyter.org/github/tensorflow/tfx/blob/master/docs/tutorials/data_validation/chicago_taxi.ipynb)
 contains a simple visualization of the
 schema as a table, listing each feature and its main characteristics as encoded
 in the schema.
@@ -223,7 +223,7 @@ fixed before using it for training.
 
 The various anomaly types that can be detected by this module are listed [here](https://github.com/tensorflow/metadata/tree/master/tensorflow_metadata/proto/v0/anomalies.proto).
 
-The [example notebook](https://nbviewer.jupyter.org/github/tensorflow/data-validation/blob/master/examples/chicago_taxi/chicago_taxi_tfdv.ipynb)
+The [example notebook](https://nbviewer.jupyter.org/github/tensorflow/tfx/blob/master/docs/tutorials/data_validation/chicago_taxi.ipynb)
 contains a simple visualization of the anomalies as
 a table, listing the features where errors are detected and a short description
 of each error.
@@ -309,7 +309,7 @@ If the anomaly truly indicates a skew between training and serving data, then
 further investigation is necessary as this could have a direct impact on model
 performance.
 
-The [example notebook](https://nbviewer.jupyter.org/github/tensorflow/data-validation/blob/master/examples/chicago_taxi/chicago_taxi_tfdv.ipynb)
+The [example notebook](https://nbviewer.jupyter.org/github/tensorflow/tfx/blob/master/docs/tutorials/data_validation/chicago_taxi.ipynb)
 contains a simple visualization of the skew anomalies as
 a table, listing the features where skews are detected and a short description
 of each skew.
