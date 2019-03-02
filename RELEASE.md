@@ -1,3 +1,13 @@
+# Current version (not yet released; still in development)
+
+## Major Features and Improvements
+
+## Bug Fixes and Other Changes
+
+## Breaking Changes
+
+## Deprecations
+
 # Release 0.13.0
 
 ## Major Features and Improvements
@@ -22,7 +32,7 @@
 * Depends on `tensorflow-metadata>=0.12.1,<0.14`.
 * Requires pre-installed `tensorflow>=1.13.1,<2`.
 * Depends on `apache-beam[gcp]>=2.11,<3`.
-* Depends on `absl>=0.1.6,<2`.
+* Depends on `absl>=0.1.6,<1`.
 
 ## Breaking Changes
 
