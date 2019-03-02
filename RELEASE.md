@@ -1,4 +1,4 @@
-# Current version (not yet released; still in development)
+# Release 0.13.0
 
 ## Major Features and Improvements
 
@@ -6,8 +6,10 @@
   dataframe.
 * Add support for semantic domain related statistics (natural language, image),
   enabled by `StatsOptions.enable_semantic_domain_stats`.
+* Python 3.5 is supported.
 
 ## Bug Fixes and Other Changes
+
 * Expand unit test coverage.
 * Modify validation logic to raise `SCHEMA_MISSING_COLUMN` anomaly when
   observing a feature with no stats.
@@ -16,7 +18,9 @@
 * Avoid using multiprocessing by default when generating statistics over a
   dataframe.
 * Depends on `joblib>=0.12,<1`.
-* Requires pre-installed `tensorflow>=1.13,<2`.
+* Depends on `tensorflow-transform>=0.13,<0.14`.
+* Depends on `tensorflow-metadata>=0.12.1,<0.14`.
+* Requires pre-installed `tensorflow>=1.13.1,<2`.
 * Depends on `apache-beam[gcp]>=2.11,<3`.
 * Depends on `absl>=0.1.6,<2`.
 

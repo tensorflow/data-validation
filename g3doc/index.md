@@ -81,9 +81,6 @@ pip install dist/*.whl
 
 ## Supported platforms
 
-Note: TFDV currently requires Python 2.7. Support for Python 3 is coming
-very soon (tracked [here](https://github.com/tensorflow/data-validation/issues/10)).
-
 TFDV is built and tested on the following 64-bit operating systems:
 
   * macOS 10.12.6 (Sierra) or later.
@@ -107,12 +104,13 @@ The following table shows the  package versions that are
 compatible with each other. This is determined by our testing framework, but
 other *untested* combinations may also work.
 
-|tensorflow-data-validation |tensorflow    |apache-beam[gcp]|
-|---------------------------|--------------|----------------|
-|GitHub master              |nightly (1.x) |2.10.0          |
-|0.12.0                     |1.12          |2.10.0          |
-|0.11.0                     |1.11          |2.8.0           |
-|0.9.0                      |1.9           |2.6.0           |
+|tensorflow-data-validation                                                            |tensorflow    |apache-beam[gcp]|
+|--------------------------------------------------------------------------------------|--------------|----------------|
+|[GitHub master](https://github.com/tensorflow/data-validation/blob/master/RELEASE.md) |nightly (1.x) |2.11.0          |
+|[0.13.0](https://github.com/tensorflow/data-validation/blob/v0.13.0/RELEASE.md)       |1.13          |2.11.0          |
+|[0.12.0](https://github.com/tensorflow/data-validation/blob/v0.12.0/RELEASE.md)       |1.12          |2.10.0          |
+|[0.11.0](https://github.com/tensorflow/data-validation/blob/v0.11.0/RELEASE.md)       |1.11          |2.8.0           |
+|[0.9.0](https://github.com/tensorflow/data-validation/blob/v0.9.0/RELEASE.md)         |1.9           |2.6.0           |
 
 ## Questions
 
