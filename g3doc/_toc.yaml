@@ -1,11 +1,5 @@
 toc:
-- title: Get Started
+- title: "Install"
+  path: /tfx/data_validation/install
+- title: "Get started"
   path: /tfx/data_validation/get_started
-
-- heading: Examples
-- title: Get started example
-  path: https://github.com/tensorflow/tfx/blob/master/docs/tutorials/data_validation/chicago_taxi.ipynb
-  status: external
-- title: End-to-end example (Chicago Taxi)
-  path: https://github.com/tensorflow/model-analysis/tree/master/examples/chicago_taxi
-  status: external
