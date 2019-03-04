@@ -1908,11 +1908,8 @@ class StatsImplTest(parameterized.TestCase):
         'string_feature_values_min_count': 3,
         'string_feature_values_max_count': 4,
         'string_feature_values_mean_count': 3,
+        'num_compacts_BasicStatsGenerator': 1,  # TODO(b/125474748): Remove.
     }
-    # Remove special handling of compact once BEAM-4030 is resolved, and
-    # all the Beam OSS Runners support CombineFn.compact
-    if stats_impl._is_combinefn_compact_supported():
-      expected_result['num_compacts_BasicStatsGenerator'] = 1
 
     # Check number of counters.
     actual_metrics = result_metrics.query(
