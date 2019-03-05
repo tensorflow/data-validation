@@ -353,6 +353,32 @@ TEST(DatasetStatsView, GetRootFeatures) {
   EXPECT_EQ(roots[0].name(), "foo");
 }
 
+
+TEST(DatasetStatsView, GetRootFeaturesWithSkip) {
+  const DatasetFeatureStatistics input =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        features: {
+          name: 'bar'
+        }
+        features: {
+          name: 'foo'
+          type: STRUCT
+          struct_stats: {
+            common_stats: {
+              num_missing: 0
+              num_non_missing: 6
+              min_num_values: 1
+              max_num_values: 1
+            }
+          }
+        })");
+  DatasetStatsView stats(input);
+  std::vector<FeatureStatsView> roots = stats.GetRootFeatures();
+  ASSERT_EQ(roots.size(), 1);
+  EXPECT_EQ(roots[0].name(), "foo");
+  EXPECT_TRUE(roots[0].GetChildren().empty());
+}
+
 TEST(FeatureStatsView, GetNumExamplesWeighted) {
   const FeatureNameStatistics input =
       ParseTextProtoOrDie<FeatureNameStatistics>(R"(

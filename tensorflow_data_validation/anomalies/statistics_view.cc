@@ -88,7 +88,7 @@ class DatasetStatsViewImpl {
         continue;
       }
       location[data_.features(i).name()] = i;
-      context_.push_back(FeatureContext());
+      context_[i] = FeatureContext();
     }
 
     // After we construct the map, we iterate over the names of features
@@ -115,14 +115,14 @@ class DatasetStatsViewImpl {
         int parent_index = current_ancestors.back();
         const string& parent_name = data_.features(parent_index).name();
         const string& name = data_.features(index).name();
-        context_[index].parent_index = parent_index;
-        context_[index].path = context_[parent_index].path.GetChild(
+        context_.at(index).parent_index = parent_index;
+        context_.at(index).path = context_.at(parent_index).path.GetChild(
             name.substr(parent_name.size() + 1));
-        context_[parent_index].child_indices.push_back(index);
+        context_.at(parent_index).child_indices.push_back(index);
       } else {
-        context_[index].path = Path({data_.features(index).name()});
+        context_.at(index).path = Path({data_.features(index).name()});
       }
-      path_location_[context_[index].path] = index;
+      path_location_[context_.at(index).path] = index;
       if (data_.features(index).type() ==
           tensorflow::metadata::v0::FeatureNameStatistics::STRUCT) {
         current_ancestors.push_back(index);
@@ -149,12 +149,13 @@ class DatasetStatsViewImpl {
   }
 
   const Path& GetPath(const FeatureStatsView& view) const {
-    return context_[view.index_].path;
+    return context_.at(view.index_).path;
   }
 
   absl::optional<FeatureStatsView> GetParent(
       const FeatureStatsView& view) const {
-    absl::optional<int> opt_parent_index = context_[view.index_].parent_index;
+    absl::optional<int> opt_parent_index
+        = context_.at(view.index_).parent_index;
     if (opt_parent_index) {
       return FeatureStatsView(*opt_parent_index, view.parent_view_);
     } else {
@@ -165,7 +166,7 @@ class DatasetStatsViewImpl {
   std::vector<FeatureStatsView> GetChildren(
       const FeatureStatsView& view) const {
     std::vector<FeatureStatsView> result;
-    for (int i : context_[view.index_].child_indices) {
+    for (int i : context_.at(view.index_).child_indices) {
       result.emplace_back(i, view.parent_view_);
     }
     return result;
@@ -173,6 +174,7 @@ class DatasetStatsViewImpl {
 
  private:
   friend DatasetStatsView;
+
   // Underlying data.
   const DatasetFeatureStatistics data_;
 
@@ -194,7 +196,7 @@ class DatasetStatsViewImpl {
 
   // Context of each feature: parents and children.
   // parallel to features() array in data.
-  std::vector<FeatureContext> context_;
+  std::map<int, FeatureContext> context_;
 
   // Map from path to the index of the FeatureStatistics containing the
   // statistics for that path.

@@ -4,6 +4,9 @@
 
 ## Bug Fixes and Other Changes
 
+* Modify validation logic to raise `SCHEMA_MISSING_COLUMN` anomaly when
+  observing a feature with no stats (was still broken, now fixed).
+
 ## Breaking Changes
 
 ## Deprecations
