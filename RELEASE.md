@@ -4,6 +4,8 @@
 
 ## Bug Fixes and Other Changes
 
+* Expand unit test coverage.
+
 ## Breaking Changes
 
 ## Deprecations

@@ -31,7 +31,6 @@ from google.protobuf import text_format
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
-# TODO(pachristopher): Add test for empty input case.
 class StatsAPITest(absltest.TestCase):
 
   def test_stats_pipeline(self):
@@ -350,6 +349,121 @@ class StatsAPITest(absltest.TestCase):
       }
     }
     """, statistics_pb2.DatasetFeatureStatisticsList())
+
+  def test_stats_pipeline_with_examples_with_no_values(self):
+    examples = [{'a': np.array([], dtype=np.floating),
+                 'b': np.array([], dtype=np.object),
+                 'c': np.array([], dtype=np.int32),
+                 'w': np.array([2])},
+                {'a': np.array([], dtype=np.floating),
+                 'b': np.array([], dtype=np.object),
+                 'c': np.array([], dtype=np.int32),
+                 'w': np.array([2])},
+                {'a': np.array([], dtype=np.floating),
+                 'b': np.array([], dtype=np.object),
+                 'c': np.array([], dtype=np.int32),
+                 'w': np.array([2])}]
+    expected_result = text_format.Parse(
+        """
+      datasets{
+        num_examples: 3
+        features {
+          name: 'a'
+          type: FLOAT
+          num_stats {
+            common_stats {
+              num_non_missing: 3
+              num_values_histogram {
+                buckets {
+                  sample_count: 1.5
+                }
+                buckets {
+                  sample_count: 1.5
+                }
+                type: QUANTILES
+              }
+              weighted_common_stats {
+                num_non_missing: 6
+              }
+            }
+          }
+        }
+        features {
+          name: 'b'
+          type: STRING
+          string_stats {
+            common_stats {
+              num_non_missing: 3
+              num_values_histogram {
+                buckets {
+                  sample_count: 1.5
+                }
+                buckets {
+                  sample_count: 1.5
+                }
+                type: QUANTILES
+              }
+              weighted_common_stats {
+                num_non_missing: 6
+              }
+            }
+          }
+        }
+        features {
+          name: 'c'
+          type: INT
+          num_stats {
+            common_stats {
+              num_non_missing: 3
+              num_values_histogram {
+                buckets {
+                  sample_count: 1.5
+                }
+                buckets {
+                  sample_count: 1.5
+                }
+                type: QUANTILES
+              }
+              weighted_common_stats {
+                num_non_missing: 6
+              }
+            }
+          }
+        }
+      }
+    """, statistics_pb2.DatasetFeatureStatisticsList())
+    with beam.Pipeline() as p:
+      options = stats_options.StatsOptions(
+          weight_feature='w',
+          num_top_values=1,
+          num_rank_histogram_buckets=1,
+          num_values_histogram_buckets=2,
+          num_histogram_buckets=1,
+          num_quantiles_histogram_buckets=1,
+          epsilon=0.001)
+      result = (
+          p | beam.Create(examples) | stats_api.GenerateStatistics(options))
+      util.assert_that(
+          result,
+          test_util.make_dataset_feature_stats_list_proto_equal_fn(
+              self, expected_result))
+
+  def test_stats_pipeline_with_zero_examples(self):
+    expected_result = statistics_pb2.DatasetFeatureStatisticsList()
+    with beam.Pipeline() as p:
+      options = stats_options.StatsOptions(
+          num_top_values=1,
+          num_rank_histogram_buckets=1,
+          num_values_histogram_buckets=2,
+          num_histogram_buckets=1,
+          num_quantiles_histogram_buckets=1,
+          epsilon=0.001)
+      result = (
+          p | beam.Create([]) | stats_api.GenerateStatistics(options))
+      util.assert_that(
+          result,
+          test_util.make_dataset_feature_stats_list_proto_equal_fn(
+              self, expected_result))
 
   def test_stats_pipeline_with_sample_count(self):
     # input with three examples.
