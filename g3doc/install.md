@@ -107,6 +107,7 @@ other *untested* combinations may also work.
 |tensorflow-data-validation                                                            |tensorflow    |apache-beam[gcp]|
 |--------------------------------------------------------------------------------------|--------------|----------------|
 |[GitHub master](https://github.com/tensorflow/data-validation/blob/master/RELEASE.md) |nightly (1.x) |2.11.0          |
+|[0.13.1](https://github.com/tensorflow/data-validation/blob/v0.13.1/RELEASE.md)       |1.13          |2.11.0          |
 |[0.13.0](https://github.com/tensorflow/data-validation/blob/v0.13.0/RELEASE.md)       |1.13          |2.11.0          |
 |[0.12.0](https://github.com/tensorflow/data-validation/blob/v0.12.0/RELEASE.md)       |1.12          |2.10.0          |
 |[0.11.0](https://github.com/tensorflow/data-validation/blob/v0.11.0/RELEASE.md)       |1.11          |2.8.0           |
