@@ -327,7 +327,7 @@ class ImageStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     """
     result = statistics_pb2.FeatureNameStatistics()
     # Only generate an image statistics proto if the ratio of image feature
-    # values is above a threshold.
+    # values is at or above a threshold.
     if (accumulator.invalidate or
         accumulator.total_num_values < self._examples_threshold or
         (1 - (float(accumulator.counter_by_format['']) /

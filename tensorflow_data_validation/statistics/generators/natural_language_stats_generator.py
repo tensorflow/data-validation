@@ -137,12 +137,13 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     Args:
       classifier: A NLClassifier that classifies values as NL.
       match_ratio: In order for a feature to be marked as NL the classifier
-        match ratio should exceed this ratio. The ratio should be in [0, 1].
+        match ratio should meet or exceed this ratio. The ratio should be in
+        [0, 1].
       examples_threshold: In order for a feature to be marked as NL at least
         this many examples should be considered.
 
     Raises:
-      ValueError: If examples_threshold < 0 or match_ratio not in [0, 1].
+      ValueError: If examples_threshold <= 0 or match_ratio not in [0, 1].
     """
     super(NLStatsGenerator, self).__init__(type(self).__name__)
     if classifier is None:
@@ -229,7 +230,7 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     if (not accumulator.invalidate and
         accumulator.considered >= self._examples_threshold):
       match_ratio = float(accumulator.matched) / accumulator.considered
-      if match_ratio > self._match_ratio:
+      if match_ratio >= self._match_ratio:
         result.custom_stats.add(
             name=stats_util.DOMAIN_INFO, str='natural_language_domain {}')
         result.custom_stats.add(name=_NL_MATCH_RATIO, num=match_ratio)
