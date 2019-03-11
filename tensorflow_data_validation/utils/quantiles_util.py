@@ -24,7 +24,7 @@ import collections
 
 import numpy as np
 from tensorflow_transform import analyzers
-from tensorflow_data_validation.types_compat import List, Union
+from tensorflow_data_validation.types_compat import List, Optional, Union
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
@@ -50,14 +50,14 @@ class QuantilesCombiner(object):
     return QuantilesCombiner, (self._num_quantiles, self._epsilon,
                                self._has_weights)
 
-  def create_accumulator(self):
+  def create_accumulator(self):  # pylint: disable=g-ambiguous-str-annotation
     return self._quantiles_spec.create_accumulator()
 
   def add_input(self, summary,
                 input_batch):
     return self._quantiles_spec.add_input(summary, input_batch)
 
-  def merge_accumulators(self, summaries):
+  def merge_accumulators(self, summaries):  # pylint: disable=g-ambiguous-str-annotation
     return self._quantiles_spec.merge_accumulators(summaries)
 
   def extract_output(self, summary):
