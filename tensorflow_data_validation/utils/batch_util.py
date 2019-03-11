@@ -28,8 +28,8 @@ def merge_single_batch(batch):
   batch_size = len(batch)
   result = {}
   for idx, example in enumerate(batch):
-    for feature in example.keys():
-      if feature not in result.keys():
+    for feature in example:
+      if feature not in result:
         # New feature. Initialize the list with None.
         result[feature] = [None] * batch_size
       result[feature][idx] = example[feature]

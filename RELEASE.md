@@ -2,11 +2,13 @@
 
 ## Major Features and Improvements
 
+* Performance improvement due to optimizing inner loops.
+
 ## Bug Fixes and Other Changes
 
 * Expand unit test coverage.
 * Update natural language stats generator to generate stats if actual ratio
-  equals match_ratio.
+  equals `match_ratio`.
 
 ## Breaking Changes
 
