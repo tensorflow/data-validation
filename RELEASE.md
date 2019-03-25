@@ -3,6 +3,7 @@
 ## Major Features and Improvements
 
 * Performance improvement due to optimizing inner loops.
+* Add support for time semantic domain related statistics.
 
 ## Bug Fixes and Other Changes
 
