@@ -15,8 +15,8 @@
 
 Specifically, the following statistics are computed:
 - Maximum image heigh and width
-- Histogram of example count by image format
-- If the rate of recognized formats is high enough and enough examples
+- Histogram of value count by image format
+- If the rate of recognized formats is high enough and enough values
   have been considered, features get marked with domain_info: image_domain
   used for schema inference.
 
@@ -52,7 +52,7 @@ _IMAGE_FORMAT_HISTOGRAM = 'image_format_histogram'
 
 # ImageStatsGenerator default initialization values.
 _IS_IMAGE_RATIO = 0.8
-_EXAMPLES_THRESHOLD = 100
+_VALUES_THRESHOLD = 100
 
 
 class ImageDecoderInterface(six.with_metaclass(abc.ABCMeta)):
@@ -216,7 +216,7 @@ class ImageStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
                image_decoder = None,
                name = 'ImageStatsGenerator',
                is_image_ratio_threshold = _IS_IMAGE_RATIO,
-               examples_threshold = _EXAMPLES_THRESHOLD,
+               values_threshold = _VALUES_THRESHOLD,
                enable_size_stats = False):
     """Initializes an image statistics generator.
 
@@ -226,7 +226,7 @@ class ImageStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
       is_image_ratio_threshold: In order for a feature to be considered "image"
         type and respective stats to be generated, at least this ratio of values
         should be supported images.
-      examples_threshold: In order for a feature to be considered "image" type
+      values_threshold: In order for a feature to be considered "image" type
         and respective stats to be generated, at least so many values should be
         considered.
       enable_size_stats: If True statistics about image sizes are generated.
@@ -238,7 +238,7 @@ class ImageStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
       image_decoder = TfImageDecoder()
     self._image_decoder = image_decoder
     self._is_image_ratio_threshold = is_image_ratio_threshold
-    self._examples_threshold = examples_threshold
+    self._values_threshold = values_threshold
     self._enable_size_stats = enable_size_stats
 
   def create_accumulator(self):
@@ -329,7 +329,7 @@ class ImageStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     # Only generate an image statistics proto if the ratio of image feature
     # values is at or above a threshold.
     if (accumulator.invalidate or
-        accumulator.total_num_values < self._examples_threshold or
+        accumulator.total_num_values < self._values_threshold or
         (1 - (float(accumulator.counter_by_format['']) /
               accumulator.total_num_values)) < self._is_image_ratio_threshold):
       return result

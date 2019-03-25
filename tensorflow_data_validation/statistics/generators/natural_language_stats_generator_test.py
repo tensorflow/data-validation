@@ -75,8 +75,8 @@ class NaturalLanguageStatsGeneratorTest(
   def test_nl_generator_bad_initialization(self):
     """Tests bad initialization values."""
     with self.assertRaisesRegexp(
-        ValueError, 'NLStatsGenerator expects examples_threshold > 0.'):
-      nlsg.NLStatsGenerator(examples_threshold=0)
+        ValueError, 'NLStatsGenerator expects values_threshold > 0.'):
+      nlsg.NLStatsGenerator(values_threshold=0)
     with self.assertRaisesRegexp(
         ValueError, r'NLStatsGenerator expects a match_ratio in \[0, 1\].'):
       nlsg.NLStatsGenerator(match_ratio=1.1)
@@ -87,8 +87,8 @@ class NaturalLanguageStatsGeneratorTest(
     self.assertCombinerOutputEqual([], generator,
                                    statistics_pb2.FeatureNameStatistics())
 
-  def test_nl_generator_example_threshold_check(self):
-    """Tests generator example threshold with fake heuristic."""
+  def test_nl_generator_values_threshold_check(self):
+    """Tests generator values threshold with fake heuristic."""
     # Expected to give 6 matches.
     input_batches = [
         [
@@ -104,13 +104,13 @@ class NaturalLanguageStatsGeneratorTest(
             np.array([None] * 10),
         ],
     ]
-    # Try generators with examples_threshold=7 (should not create stats) and
+    # Try generators with values_threshold=7 (should not create stats) and
     # 6 (should create stats)
-    generator = nlsg.NLStatsGenerator(_FakeHeuristic(), examples_threshold=7)
+    generator = nlsg.NLStatsGenerator(_FakeHeuristic(), values_threshold=7)
     self.assertCombinerOutputEqual(input_batches, generator,
                                    statistics_pb2.FeatureNameStatistics())
 
-    generator = nlsg.NLStatsGenerator(_FakeHeuristic(), examples_threshold=6)
+    generator = nlsg.NLStatsGenerator(_FakeHeuristic(), values_threshold=6)
     self.assertCombinerOutputEqual(
         input_batches, generator,
         statistics_pb2.FeatureNameStatistics(custom_stats=[
@@ -136,14 +136,14 @@ class NaturalLanguageStatsGeneratorTest(
             np.array([b'\xF0']),
         ],
     ]
-    # Try generators with examples_threshold=1 which should have generated
+    # Try generators with values_threshold=1 which should have generated
     # stats without the non utf-8 value.
-    generator = nlsg.NLStatsGenerator(_FakeHeuristic(), examples_threshold=1)
+    generator = nlsg.NLStatsGenerator(_FakeHeuristic(), values_threshold=1)
     self.assertCombinerOutputEqual(input_batches, generator,
                                    statistics_pb2.FeatureNameStatistics())
 
   def test_nl_generator_invalidation_check(self):
-    """Tests generator example threshold with fake heuristic."""
+    """Tests generator invalidation with fake heuristic."""
     # Expected to give 6 matches.
     input_batches = [
         [
@@ -160,7 +160,7 @@ class NaturalLanguageStatsGeneratorTest(
     ]
     # No domain_info is generated as the incorrect type of 42 value invalidated
     # the stats.
-    generator = nlsg.NLStatsGenerator(_FakeHeuristic(), examples_threshold=1)
+    generator = nlsg.NLStatsGenerator(_FakeHeuristic(), values_threshold=1)
     self.assertCombinerOutputEqual(input_batches, generator,
                                    statistics_pb2.FeatureNameStatistics())
 
@@ -178,16 +178,16 @@ class NaturalLanguageStatsGeneratorTest(
             np.array(['12345', 'No']),
         ],
     ]
-    # Set examples_threshold=5 so it always passes.
+    # Set values_threshold=5 so it always passes.
     # Try generators with match_ratio 0.71 (should not create stats) and
     # 0.69 (should create stats)
     generator = nlsg.NLStatsGenerator(
-        _FakeHeuristic(), match_ratio=0.71, examples_threshold=5)
+        _FakeHeuristic(), match_ratio=0.71, values_threshold=5)
     self.assertCombinerOutputEqual(input_batches, generator,
                                    statistics_pb2.FeatureNameStatistics())
 
     generator = nlsg.NLStatsGenerator(
-        _FakeHeuristic(), match_ratio=0.69, examples_threshold=5)
+        _FakeHeuristic(), match_ratio=0.69, values_threshold=5)
     self.assertCombinerOutputEqual(
         input_batches, generator,
         statistics_pb2.FeatureNameStatistics(custom_stats=[
@@ -199,7 +199,7 @@ class NaturalLanguageStatsGeneratorTest(
 
   def test_nl_generator_avg_word_heuristic_match(self):
     """Tests generator with avg word length heuristic."""
-    generator = nlsg.NLStatsGenerator(examples_threshold=2)
+    generator = nlsg.NLStatsGenerator(values_threshold=2)
     input_batches = [
         [
             np.array(
@@ -225,7 +225,7 @@ class NaturalLanguageStatsGeneratorTest(
 
   def test_nl_generator_avg_word_heuristic_non_match(self):
     """Tests generator with avg word length heuristic."""
-    generator = nlsg.NLStatsGenerator(examples_threshold=2)
+    generator = nlsg.NLStatsGenerator(values_threshold=2)
     input_batches = [
         [
             np.array(['abc' * 10, 'xxxxxxxxx']),

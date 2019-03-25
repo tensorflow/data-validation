@@ -74,7 +74,7 @@ class ImageStatsGeneratorTest(test_util.CombinerFeatureStatsGeneratorTest,
     image_decoder = FakeImageDecoder()
     generator = image_stats_generator.ImageStatsGenerator(
         image_decoder=image_decoder,
-        examples_threshold=1,
+        values_threshold=1,
         enable_size_stats=True)
     self.assertCombinerOutputEqual(batches, generator,
                                    statistics_pb2.FeatureNameStatistics())
@@ -112,12 +112,12 @@ class ImageStatsGeneratorTest(test_util.CombinerFeatureStatsGeneratorTest,
     image_decoder = FakeImageDecoder()
     generator = image_stats_generator.ImageStatsGenerator(
         image_decoder=image_decoder,
-        examples_threshold=1,
+        values_threshold=1,
         enable_size_stats=True)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_image_stats_generator_examples_threshold_check(self):
-    """Check examples_threshold with a feature that is all images."""
+  def test_image_stats_generator_values_threshold_check(self):
+    """Check values_threshold with a feature that is all images."""
     batches = [[
         np.array([
             FakeImageDecoder.encode_image_metadata('PNG', 2, 4),
@@ -132,16 +132,16 @@ class ImageStatsGeneratorTest(test_util.CombinerFeatureStatsGeneratorTest,
         np.array([FakeImageDecoder.encode_image_metadata('GIF', 2, 1)]),
     ]]
 
-    # With examples_threshold = 7 statistics should not be generated.
+    # With values_threshold = 7 statistics should not be generated.
     image_decoder = FakeImageDecoder()
     expected_result = statistics_pb2.FeatureNameStatistics()
     generator = image_stats_generator.ImageStatsGenerator(
         image_decoder=image_decoder,
-        examples_threshold=7,
+        values_threshold=7,
         enable_size_stats=True)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-    # With examples_threshold = 6 statistics should be generated.
+    # With values_threshold = 6 statistics should be generated.
     expected_result = text_format.Parse(
         """
             custom_stats {
@@ -180,12 +180,12 @@ class ImageStatsGeneratorTest(test_util.CombinerFeatureStatsGeneratorTest,
             """, statistics_pb2.FeatureNameStatistics())
     generator = image_stats_generator.ImageStatsGenerator(
         image_decoder=image_decoder,
-        examples_threshold=6,
+        values_threshold=6,
         enable_size_stats=True)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
   def test_image_stats_generator_check_is_image_ratio(self):
-    """Check is_image_ratio with a feature that has partiallly images."""
+    """Check is_image_ratio with a feature that has partially images."""
     # The image ratio is: 0.83
     batches = [
         [
@@ -209,7 +209,7 @@ class ImageStatsGeneratorTest(test_util.CombinerFeatureStatsGeneratorTest,
     generator = image_stats_generator.ImageStatsGenerator(
         image_decoder=image_decoder,
         is_image_ratio_threshold=0.85,
-        examples_threshold=1,
+        values_threshold=1,
         enable_size_stats=True)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
@@ -257,7 +257,7 @@ class ImageStatsGeneratorTest(test_util.CombinerFeatureStatsGeneratorTest,
     generator = image_stats_generator.ImageStatsGenerator(
         image_decoder=image_decoder,
         is_image_ratio_threshold=0.8,
-        examples_threshold=1,
+        values_threshold=1,
         enable_size_stats=True)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
@@ -317,7 +317,7 @@ class ImageStatsGeneratorTest(test_util.CombinerFeatureStatsGeneratorTest,
     generator = image_stats_generator.ImageStatsGenerator(
         image_decoder=image_decoder,
         is_image_ratio_threshold=0.8,
-        examples_threshold=1,
+        values_threshold=1,
         enable_size_stats=False)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
@@ -387,7 +387,7 @@ class ImageStatsGeneratorRealImageTest(
             """, statistics_pb2.FeatureNameStatistics())
     generator = image_stats_generator.ImageStatsGenerator(
         is_image_ratio_threshold=0.6,
-        examples_threshold=1,
+        values_threshold=1,
         enable_size_stats=True)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
@@ -398,7 +398,7 @@ class ImageStatsGeneratorRealImageTest(
     generator = image_stats_generator.ImageStatsGenerator(
         image_decoder=image_decoder,
         is_image_ratio_threshold=0.6,
-        examples_threshold=1)
+        values_threshold=1)
     pickle.dumps(generator)
 
 

@@ -13,6 +13,9 @@
 
 ## Breaking Changes
 
+* Change `examples_threshold` to `values_threshold` and update documentation to
+  clarify that counts are of values in semantic domain stats generators.
+
 ## Deprecations
 
 # Release 0.13.1

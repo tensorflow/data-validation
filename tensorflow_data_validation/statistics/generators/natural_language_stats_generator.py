@@ -14,7 +14,7 @@
 """Module that computes statistics for features of natural language type.
 
 The module uses a pluggable nl-classifier. If the match rate is high enough
-and enough examples have been considered then the feature is marked as natural
+and enough values have been considered then the feature is marked as natural
 language by generating the appropriate domain_info as a custom_statistic and
 the observed match ratio.
 
@@ -45,7 +45,7 @@ _CROP_AT_LENGTH = 100
 
 # NLStatsGenerator default initialization values.
 _MATCH_RATIO = 0.8
-_EXAMPLES_THRESHOLD = 100
+_VALUES_THRESHOLD = 100
 
 # Custom statistics exported by this generator.
 _DOMAIN_INFO = 'domain_info'
@@ -57,9 +57,9 @@ class _PartialNLStats(object):
 
   def __init__(self, matched = 0, considered = 0,
                invalidate=False):
-    # The total number of examples matching natural language heuristic.
+    # The total number of values matching natural language heuristic.
     self.matched = matched
-    # The total number of examples considered for classification.
+    # The total number of values considered for classification.
     self.considered = considered
     # True only if this feature should never be considered, e.g: some
     # value_lists have inconsistent types.
@@ -124,14 +124,14 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
 
   A combiner that uses a pluggable NL classifier to generate natural language
   stats for input examples. After the statistics are combined it classifies
-  as NL iff both the stats represent enough examples (self._examples_threshold)
+  as NL iff both the stats represent enough values (self._values_threshold)
   and the match ratio is high enough (self._match_ratio).
   """
 
   def __init__(self,
                classifier = None,
                match_ratio = _MATCH_RATIO,
-               examples_threshold = _EXAMPLES_THRESHOLD):
+               values_threshold = _VALUES_THRESHOLD):
     """Initializes a NLStatsGenerator.
 
     Args:
@@ -139,21 +139,21 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
       match_ratio: In order for a feature to be marked as NL the classifier
         match ratio should meet or exceed this ratio. The ratio should be in
         [0, 1].
-      examples_threshold: In order for a feature to be marked as NL at least
-        this many examples should be considered.
+      values_threshold: In order for a feature to be marked as NL at least
+        this many values should be considered.
 
     Raises:
-      ValueError: If examples_threshold <= 0 or match_ratio not in [0, 1].
+      ValueError: If values_threshold <= 0 or match_ratio not in [0, 1].
     """
     super(NLStatsGenerator, self).__init__(type(self).__name__)
     if classifier is None:
       classifier = AverageWordHeuristicNLClassifier()
-    if examples_threshold <= 0:
-      raise ValueError('NLStatsGenerator expects examples_threshold > 0.')
+    if values_threshold <= 0:
+      raise ValueError('NLStatsGenerator expects values_threshold > 0.')
     if not 0.0 <= match_ratio <= 1.0:
       raise ValueError('NLStatsGenerator expects a match_ratio in [0, 1].')
     self._classifier = classifier
-    self._examples_threshold = examples_threshold
+    self._values_threshold = values_threshold
     self._match_ratio = match_ratio
 
   def create_accumulator(self):
@@ -228,7 +228,7 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     """
     result = statistics_pb2.FeatureNameStatistics()
     if (not accumulator.invalidate and
-        accumulator.considered >= self._examples_threshold):
+        accumulator.considered >= self._values_threshold):
       match_ratio = float(accumulator.matched) / accumulator.considered
       if match_ratio >= self._match_ratio:
         result.custom_stats.add(
