@@ -15,6 +15,8 @@
 
 * Change `examples_threshold` to `values_threshold` and update documentation to
   clarify that counts are of values in semantic domain stats generators.
+* Refactor IdentifyAnomalousExamples to remove sampling and output
+  (anomaly reason, example) tuples.
 
 ## Deprecations
 

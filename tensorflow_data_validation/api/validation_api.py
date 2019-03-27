@@ -333,30 +333,25 @@ class _GenerateAnomalyReasonSliceKeys(beam.DoFn):
 
 @beam.typehints.with_input_types(types.BeamExample)
 @beam.typehints.with_output_types(
-    beam.typehints.KV[types.BeamSliceKey, beam.typehints
-                      .Iterable[types.BeamExample]])
+    beam.typehints.Tuple[types.BeamSliceKey, types.BeamExample])
 class IdentifyAnomalousExamples(beam.PTransform):
   """API for identifying anomalous examples.
 
   Validates each input example against the schema provided in `options` and
-  outputs a sample of the anomalous examples found per anomaly reason.
+  outputs (anomaly reason, anomalous example) tuples.
   """
 
   def __init__(
       self,
-      options,
-      max_examples_per_anomaly = 10):
+      options):
     """Initializes pipeline that identifies anomalous examples.
 
     Args:
       options: Options for generating data statistics. This must contain a
         schema.
-      max_examples_per_anomaly: The maximum number of anomalous examples to
-        output per anomaly reason.
     """
 
     self.options = options
-    self.max_examples_per_anomaly = max_examples_per_anomaly
 
   @property
   def options(self):
@@ -370,28 +365,10 @@ class IdentifyAnomalousExamples(beam.PTransform):
       raise ValueError('options must include a schema.')
     self._options = options
 
-  @property
-  def max_examples_per_anomaly(self):
-    return self._max_examples_per_anomaly
-
-  @max_examples_per_anomaly.setter
-  def max_examples_per_anomaly(self, max_examples_per_anomaly):
-    if not isinstance(max_examples_per_anomaly, int):
-      raise TypeError('max_examples_per_anomaly must be an integer.')
-    if max_examples_per_anomaly < 1:
-      raise ValueError(
-          'Invalid max_examples_per_anomaly %d.' % max_examples_per_anomaly)
-    self._max_examples_per_anomaly = max_examples_per_anomaly
-
   def expand(self, dataset):
-    dataset = (
+    return (
         dataset
         | 'DetectAnomaliesInExamples' >> beam.Map(
             _detect_anomalies_in_example, options=self.options)
         | 'GenerateAnomalyReasonKeys' >> beam.ParDo(
             _GenerateAnomalyReasonSliceKeys()))
-    # TODO(b/118835367): Add option to generate summary statistics for anomalous
-    # examples on a per-anomaly-reason basis.
-    return (
-        dataset | 'SampleExamplesPerAnomalyReason' >>
-        beam.combiners.Sample.FixedSizePerKey(self.max_examples_per_anomaly))

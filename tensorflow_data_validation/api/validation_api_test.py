@@ -118,11 +118,11 @@ IDENTIFY_ANOMALOUS_EXAMPLES_VALID_INPUTS = [
               }
               """,
         'expected_result':
-            [('annotated_enum_ENUM_TYPE_UNEXPECTED_STRING_VALUES', [{
+            [('annotated_enum_ENUM_TYPE_UNEXPECTED_STRING_VALUES', {
                 'annotated_enum': np.array(['D'])
-            }, {
+            }), ('annotated_enum_ENUM_TYPE_UNEXPECTED_STRING_VALUES', {
                 'annotated_enum': np.array(['D'])
-            }])]
+            })]
     },
     {
         'testcase_name':
@@ -167,11 +167,11 @@ IDENTIFY_ANOMALOUS_EXAMPLES_VALID_INPUTS = [
               }
               """,
         'expected_result':
-            [('annotated_enum_ENUM_TYPE_UNEXPECTED_STRING_VALUES', [{
+            [('annotated_enum_ENUM_TYPE_UNEXPECTED_STRING_VALUES', {
                 'annotated_enum': np.array(['D'])
-            }]), ('feature_not_in_schema_SCHEMA_NEW_COLUMN', [{
+            }), ('feature_not_in_schema_SCHEMA_NEW_COLUMN', {
                 'feature_not_in_schema': np.array([1])
-            }])]
+            })]
     }
 ]
 
@@ -1176,63 +1176,6 @@ class IdentifyAnomalousExamplesTest(parameterized.TestCase):
           | validation_api.IdentifyAnomalousExamples(options))
       util.assert_that(result, util.equal_to(expected_result))
 
-  def test_identify_anomalous_examples_with_max_examples_per_anomaly(self):
-    examples = [
-        {'annotated_enum': np.array(['D'])},
-        {'annotated_enum': np.array(['D'])},
-        {'annotated_enum': np.array(['C'])},
-        {'feature_not_in_schema': np.array([1])},
-        {'feature_not_in_schema': np.array([1])}
-    ]
-    schema = text_format.Parse(
-        """
-        string_domain {
-          name: "MyAloneEnum"
-          value: "A"
-          value: "B"
-          value: "C"
-        }
-        feature {
-          name: "annotated_enum"
-          value_count {
-            min:1
-            max:1
-          }
-          presence {
-            min_count: 0
-          }
-          type: BYTES
-          domain: "MyAloneEnum"
-        }
-        feature {
-          name: "ignore_this"
-          lifecycle_stage: DEPRECATED
-          value_count {
-            min:1
-          }
-          presence {
-            min_count: 1
-          }
-          type: BYTES
-        }
-        """, schema_pb2.Schema())
-    options = stats_options.StatsOptions(schema=schema)
-    max_examples_per_anomaly = 1
-    expected_result = [
-        ('annotated_enum_ENUM_TYPE_UNEXPECTED_STRING_VALUES',
-         [{'annotated_enum': np.array(['D'])}]
-        ),
-        ('feature_not_in_schema_SCHEMA_NEW_COLUMN',
-         [{'feature_not_in_schema': np.array([1])}]
-        )
-    ]
-    with beam.Pipeline() as p:
-      result = (
-          p | beam.Create(examples)
-          | validation_api.IdentifyAnomalousExamples(options,
-                                                     max_examples_per_anomaly))
-      util.assert_that(result, util.equal_to(expected_result))
-
   def test_identify_anomalous_examples_options_of_wrong_type(self):
     examples = [{'annotated_enum': np.array(['D'])}]
     options = 1
@@ -1251,32 +1194,6 @@ class IdentifyAnomalousExamplesTest(parameterized.TestCase):
         _ = (
             p | beam.Create(examples)
             | validation_api.IdentifyAnomalousExamples(options))
-
-  def test_identify_anomalous_examples_invalid_max_examples_type(
-      self):
-    examples = [{'annotated_enum': np.array(['D'])}]
-    options = stats_options.StatsOptions(schema=schema_pb2.Schema())
-    max_examples_per_anomaly = 1.5
-    with self.assertRaisesRegexp(
-        TypeError, 'max_examples_per_anomaly must be an integer.'):
-      with beam.Pipeline() as p:
-        _ = (
-            p | beam.Create(examples)
-            | validation_api.IdentifyAnomalousExamples(
-                options, max_examples_per_anomaly))
-
-  def test_identify_anomalous_examples_invalid_max_examples_value(
-      self):
-    examples = [{'annotated_enum': np.array(['D'])}]
-    options = stats_options.StatsOptions(schema=schema_pb2.Schema())
-    max_examples_per_anomaly = -1
-    with self.assertRaisesRegexp(ValueError, 'Invalid max_examples_per_anomaly '
-                                 '-1.'):
-      with beam.Pipeline() as p:
-        _ = (
-            p | beam.Create(examples)
-            | validation_api.IdentifyAnomalousExamples(
-                options, max_examples_per_anomaly))
 
 
 if __name__ == '__main__':
