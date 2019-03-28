@@ -70,8 +70,12 @@ pass `-b <branchname>` to the `git clone` command.
 TFDV uses Bazel to build the pip package from source:
 
 ```shell
-bazel run -c opt tensorflow_data_validation:build_pip_package
+bazel run -c opt --cxxopt=-D_GLIBCXX_USE_CXX11_ABI=0 tensorflow_data_validation:build_pip_package
 ```
+
+Note that we are assuming here that dependent packages (e.g. pyarrow) are built
+with a GCC older than 5.1 and use the flag `D_GLIBCXX_USE_CXX11_ABI=0` to be
+[compatible with the old std::string ABI](https://gcc.gnu.org/onlinedocs/libstdc++/manual/using_dual_abi.html).
 
 You can find the generated `.whl` file in the `dist` subdirectory.
 

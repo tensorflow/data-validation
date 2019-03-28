@@ -39,6 +39,13 @@ git_repository(
     remote = "https://github.com/google/protobuf.git",
 )
 
+# Required by arrow.
+git_repository(
+    name = "com_github_nelhage_rules_boost",
+    commit = "6d6fd834281cb8f8e758dd9ad76df86304bf1869",
+    remote = "https://github.com/nelhage/rules_boost",
+)
+
 # Please add all new TensorFlow Data Validation dependencies in workspace.bzl.
 load("//tensorflow_data_validation:workspace.bzl", "tf_data_validation_workspace")
 
