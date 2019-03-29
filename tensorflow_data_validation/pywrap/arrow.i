@@ -13,5 +13,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-%include "tensorflow_data_validation/pywrap/validation_api.i"
-%include "tensorflow_data_validation/pywrap/arrow.i"
+%{
+#include "tensorflow_data_validation/arrow/cc/arrow_util.h"
+%}
+
+// Wrap all the functions declared there.
+%include "tensorflow_data_validation/arrow/cc/arrow_util.h"

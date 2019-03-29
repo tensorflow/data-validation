@@ -58,6 +58,7 @@ cc_library(
         "@boost//:filesystem",
         # These libs are defined by TensorFlow.
         "@double_conversion//:double-conversion",
+        "@local_config_python//:numpy_headers",
         "@local_config_python//:python_headers",
     ],
 )
