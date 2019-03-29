@@ -371,7 +371,14 @@ class _BatchedCombineFnWrapper(beam.CombineFn):
   # This needs to be large enough to allow for efficient TF invocations during
   # batch flushing, but shouldn't be too large as it also acts as cap on the
   # maximum memory usage of the computation.
-  _DEFAULT_DESIRED_BATCH_SIZE = 1000
+  # TODO(b/73789023): Ideally we should automatically infer the batch size.
+  _DEFAULT_DESIRED_ADD_INPUT_BATCH_SIZE = 1000
+
+  # This needs to be large enough to allow for efficient merging of
+  # accumulators in the individual stats generators, but shouldn't be too large
+  # as it also acts as cap on the maximum memory usage of the computation.
+  # TODO(b/73789023): Ideally we should automatically infer the batch size.
+  _DEFAULT_DESIRED_MERGE_ACCUMULATOR_BATCH_SIZE = 100
 
   def __init__(
       self,
@@ -385,12 +392,16 @@ class _BatchedCombineFnWrapper(beam.CombineFn):
     if desired_batch_size and desired_batch_size > 0:
       self._desired_batch_size = desired_batch_size
     else:
-      self._desired_batch_size = self._DEFAULT_DESIRED_BATCH_SIZE
+      self._desired_batch_size = self._DEFAULT_DESIRED_ADD_INPUT_BATCH_SIZE
 
     # Metrics
-    self._combine_batch_size = beam.metrics.Metrics.distribution(
+    self._combine_add_input_batch_size = beam.metrics.Metrics.distribution(
         constants.METRICS_NAMESPACE,
-        'combine_batch_size_' + self._generator.name)
+        'combine_add_input_batch_size_' + self._generator.name)
+    self._combine_merge_accumulator_batch_size =\
+        beam.metrics.Metrics.distribution(
+            constants.METRICS_NAMESPACE,
+            'combine_merge_accumulator_batch_size_' + self._generator.name)
     self._num_compacts = beam.metrics.Metrics.counter(
         constants.METRICS_NAMESPACE, 'num_compacts_' + self._generator.name)
 
@@ -412,7 +423,7 @@ class _BatchedCombineFnWrapper(beam.CombineFn):
     """
     batch_size = len(accumulator.input_examples)
     if (force and batch_size > 0) or batch_size >= self._desired_batch_size:
-      self._combine_batch_size.update(batch_size)
+      self._combine_add_input_batch_size.update(batch_size)
       accumulator.partial_accumulator = self._generator.add_input(
           accumulator.partial_accumulator,
           batch_util.merge_single_batch(accumulator.input_examples))
@@ -424,14 +435,33 @@ class _BatchedCombineFnWrapper(beam.CombineFn):
     self._maybe_do_batch(accumulator)
     return accumulator
 
+  def _maybe_merge_and_flush_accumulators(self, partial_accumulators,
+                                          result,
+                                          force = False):
+    """Maybe merges and flushes the accumulators."""
+    batch_size = len(partial_accumulators)
+    if ((force and batch_size > 0) or
+        batch_size >= self._DEFAULT_DESIRED_MERGE_ACCUMULATOR_BATCH_SIZE):
+      self._combine_merge_accumulator_batch_size.update(batch_size)
+      partial_accumulators.append(result.partial_accumulator)
+      result.partial_accumulator = self._generator.merge_accumulators(
+          partial_accumulators)
+      del partial_accumulators[:]
+
   def merge_accumulators(self, accumulators
                         ):
     result = self.create_accumulator()
+    accumulator_buffer = []
     for acc in accumulators:
-      result.partial_accumulator = self._generator.merge_accumulators(
-          [result.partial_accumulator, acc.partial_accumulator])
+      # Flush any input examples.
       result.input_examples.extend(acc.input_examples)
       self._maybe_do_batch(result)
+      accumulator_buffer.append(acc.partial_accumulator)
+      self._maybe_merge_and_flush_accumulators(accumulator_buffer, result)
+
+    self._maybe_merge_and_flush_accumulators(accumulator_buffer, result,
+                                             force=True)
+    self._maybe_do_batch(result, force=True)
     return result
 
   # TODO(pachristopher): Consider adding CombinerStatsGenerator.compact method.

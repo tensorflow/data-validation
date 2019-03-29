@@ -4,6 +4,7 @@
 
 * Performance improvement due to optimizing inner loops.
 * Add support for time semantic domain related statistics.
+* Performance improvement due to batching accumulators before merging.
 
 ## Bug Fixes and Other Changes
 
