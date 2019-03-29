@@ -72,6 +72,7 @@ setup(
         'apache-beam[gcp]>=2.11,<3',
         'numpy>=1.14.5,<2',
         'protobuf>=3.7,<4',
+        'pyarrow>=0.11.0',
         'six>=1.10,<2',
 
         # TODO(pachristopher): Add a method to check if we are using a
