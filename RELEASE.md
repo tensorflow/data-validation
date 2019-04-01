@@ -11,7 +11,7 @@
 * Expand unit test coverage.
 * Update natural language stats generator to generate stats if actual ratio
   equals `match_ratio`.
-* Depends on `pyarrow>=0.11.0`.
+* Depends on `pyarrow>=0.11.1,<0.12.0`.
 
 ## Breaking Changes
 
