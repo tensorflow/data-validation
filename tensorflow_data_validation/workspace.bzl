@@ -22,9 +22,10 @@ def tf_data_validation_workspace():
     boost_deps()
 
     # Fetch arrow from GitHub.
+    ARROW_COMMIT = "b65beb625fb14a6b627be667a32c136a79cb5c6f"  # v0.11.1
     new_git_repository(
         name = "arrow",
         build_file = "//third_party:arrow.BUILD",
-        commit = "b65beb625fb14a6b627be667a32c136a79cb5c6f",  # v0.11.1
+        commit = ARROW_COMMIT,
         remote = "https://github.com/apache/arrow.git",
     )
