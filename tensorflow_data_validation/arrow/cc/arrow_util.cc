@@ -16,8 +16,9 @@
 
 #include <memory>
 
-#include "absl/strings/str_cat.h"
 #include "arrow/python/pyarrow.h"
+#include "absl/strings/str_cat.h"
+#include "tensorflow_data_validation/arrow/cc/macros.h"
 
 namespace {
 using ::arrow::Status;
@@ -104,15 +105,6 @@ void ImportPyArrow() {
 }
 
 }  // namespace
-
-#define RAISE_IF_NOT_OK(s)                                       \
-  do {                                                           \
-    ::arrow::Status s_ = (s);                                    \
-    if (!s_.ok()) {                                              \
-      PyErr_SetString(PyExc_RuntimeError, s_.message().c_str()); \
-      return nullptr;                                            \
-    }                                                            \
-  } while (0);
 
 PyObject* TFDV_Arrow_FlattenListArray(PyObject* py_list_array) {
   ImportPyArrow();

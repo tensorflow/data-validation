@@ -23,6 +23,7 @@ tf_py_wrap_cc(
     deps = [
         "//tensorflow_data_validation/anomalies:feature_statistics_validator",
         "//tensorflow_data_validation/arrow/cc:arrow_util",
+        "//tensorflow_data_validation/arrow/cc:decoded_examples_to_arrow",
         "@local_config_python//:python_headers",
         "@org_tensorflow//tensorflow/core:lib",
     ],

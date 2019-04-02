@@ -15,7 +15,9 @@ limitations under the License.
 
 %{
 #include "tensorflow_data_validation/arrow/cc/arrow_util.h"
+#include "tensorflow_data_validation/arrow/cc/decoded_examples_to_arrow.h"
 %}
 
 // Wrap all the functions declared there.
 %include "tensorflow_data_validation/arrow/cc/arrow_util.h"
+%include "tensorflow_data_validation/arrow/cc/decoded_examples_to_arrow.h"
