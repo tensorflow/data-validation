@@ -127,6 +127,20 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         num_quantiles_histogram_buckets=4)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
+  def test_basic_stats_generator_no_runtime_warnings_close_to_max_int(self):
+    # input has batches with values that are slightly smaller than the maximum
+    # integer value.
+    less_than_max_int_value = np.iinfo(np.int64).max - 1
+    batches = [{'a': np.array([np.array([less_than_max_int_value])])},
+               {'a': np.array([np.array([less_than_max_int_value])])}]
+    generator = basic_stats_generator.BasicStatsGenerator()
+    with np.testing.assert_no_warnings():
+      accumulators = [
+          generator.add_input(generator.create_accumulator(), batch)
+          for batch in batches
+      ]
+      generator.merge_accumulators(accumulators)
+
   def test_basic_stats_generator_with_weight_feature(self):
     # input with two batches: first batch has two examples and second batch
     # has a single example.

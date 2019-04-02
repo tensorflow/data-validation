@@ -13,6 +13,7 @@
   equals `match_ratio`.
 * Use `__slots__` in accumulators.
 * Depends on `pyarrow>=0.11.1,<0.12.0`.
+* Fix overflow warning when generating numeric stats for large integers.
 
 ## Breaking Changes
 

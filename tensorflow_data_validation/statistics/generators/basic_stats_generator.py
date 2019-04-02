@@ -721,6 +721,9 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
           # Update the partial string stats.
           accumulator[feature_name].string_stats.update(value)
         else:
+          # Cast to float to avoid possible numpy overflow warnings in updating
+          # numeric_stats.
+          value = value.astype(np.float)
           # Update the partial numeric stats and append values
           # to the current batch of values and weights.
           accumulator[feature_name].numeric_stats.update(
