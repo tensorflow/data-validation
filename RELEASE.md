@@ -11,6 +11,7 @@
 * Expand unit test coverage.
 * Update natural language stats generator to generate stats if actual ratio
   equals `match_ratio`.
+* Use `__slots__` in accumulators.
 * Depends on `pyarrow>=0.11.1,<0.12.0`.
 
 ## Breaking Changes

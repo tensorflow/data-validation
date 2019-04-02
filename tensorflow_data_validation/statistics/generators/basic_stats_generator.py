@@ -65,6 +65,11 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 class _PartialCommonStats(object):
   """Holds partial common statistics for a single feature."""
 
+  __slots__ = ['num_non_missing', 'num_missing', 'min_num_values',
+               'max_num_values', 'total_num_values', 'type',
+               'num_values_summary', 'has_weights', 'weighted_num_non_missing',
+               'weighted_num_missing', 'weighted_total_num_values']
+
   def __init__(self, has_weights):
     # The number of examples with at least one value for this feature.
     self.num_non_missing = 0
@@ -155,6 +160,11 @@ class _PartialCommonStats(object):
 class _PartialNumericStats(object):
   """Holds partial numeric statistics for a single feature."""
 
+  __slots__ = ['sum', 'sum_of_squares', 'num_zeros', 'num_nan', 'min', 'max',
+               'quantiles_summary', 'has_weights', 'weighted_sum',
+               'weighted_sum_of_squares', 'weighted_total_num_values',
+               'weighted_quantiles_summary']
+
   def __init__(self, has_weights):
     # Explicitly make the sum and the sum of squares to be float in order to
     # avoid numpy overflow warnings.
@@ -237,6 +247,8 @@ class _PartialNumericStats(object):
 class _PartialStringStats(object):
   """Holds partial string statistics for a single feature."""
 
+  __slots__ = ['total_bytes_length']
+
   def __init__(self):
     # The total length of all the values for this feature.
     self.total_bytes_length = 0
@@ -255,6 +267,8 @@ class _PartialStringStats(object):
 
 class _PartialBasicStats(object):
   """Holds partial statistics for a single feature."""
+
+  __slots__ = ['common_stats', 'numeric_stats', 'string_stats']
 
   def __init__(self, has_weights):
     self.common_stats = _PartialCommonStats(has_weights=has_weights)
