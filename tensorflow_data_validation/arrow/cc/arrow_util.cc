@@ -109,27 +109,28 @@ void ImportPyArrow() {
 PyObject* TFDV_Arrow_FlattenListArray(PyObject* py_list_array) {
   ImportPyArrow();
   std::shared_ptr<arrow::Array> unwrapped;
-  RAISE_IF_NOT_OK(arrow::py::unwrap_array(py_list_array, &unwrapped));
+  TFDV_RAISE_IF_NOT_OK(arrow::py::unwrap_array(py_list_array, &unwrapped));
   std::shared_ptr<arrow::Array> flattened;
-  RAISE_IF_NOT_OK(FlattenListArray(*unwrapped, &flattened));
+  TFDV_RAISE_IF_NOT_OK(FlattenListArray(*unwrapped, &flattened));
   return arrow::py::wrap_array(flattened);
 }
 
 PyObject* TFDV_Arrow_ListLengthsFromListArray(PyObject* py_list_array) {
   ImportPyArrow();
   std::shared_ptr<arrow::Array> unwrapped;
-  RAISE_IF_NOT_OK(arrow::py::unwrap_array(py_list_array, &unwrapped));
+  TFDV_RAISE_IF_NOT_OK(arrow::py::unwrap_array(py_list_array, &unwrapped));
   std::shared_ptr<arrow::Array> list_lengths_array;
-  RAISE_IF_NOT_OK(ListLengthsFromListArray(*unwrapped, &list_lengths_array));
+  TFDV_RAISE_IF_NOT_OK(
+      ListLengthsFromListArray(*unwrapped, &list_lengths_array));
   return arrow::py::wrap_array(list_lengths_array);
 }
 
 PyObject* TFDV_Arrow_GetFlattenedArrayParentIndices(PyObject* py_list_array) {
   ImportPyArrow();
   std::shared_ptr<arrow::Array> unwrapped;
-  RAISE_IF_NOT_OK(arrow::py::unwrap_array(py_list_array, &unwrapped));
+  TFDV_RAISE_IF_NOT_OK(arrow::py::unwrap_array(py_list_array, &unwrapped));
   std::shared_ptr<arrow::Array> parent_indices_array;
-  RAISE_IF_NOT_OK(
+  TFDV_RAISE_IF_NOT_OK(
       GetFlattenedArrayParentIndices(*unwrapped, &parent_indices_array));
   return arrow::py::wrap_array(parent_indices_array);
 }
@@ -137,11 +138,9 @@ PyObject* TFDV_Arrow_GetFlattenedArrayParentIndices(PyObject* py_list_array) {
 PyObject* TFDV_Arrow_GetArrayNullBitmapAsByteArray(PyObject* array) {
   ImportPyArrow();
   std::shared_ptr<arrow::Array> unwrapped;
-  RAISE_IF_NOT_OK(arrow::py::unwrap_array(array, &unwrapped));
+  TFDV_RAISE_IF_NOT_OK(arrow::py::unwrap_array(array, &unwrapped));
   std::shared_ptr<arrow::Array> null_bitmap_byte_array;
-  RAISE_IF_NOT_OK(
+  TFDV_RAISE_IF_NOT_OK(
       GetArrayNullBitmapAsByteArray(*unwrapped, &null_bitmap_byte_array));
   return arrow::py::wrap_array(null_bitmap_byte_array);
 }
-
-#undef RAISE_IF_NOT_OK

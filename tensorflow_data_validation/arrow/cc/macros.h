@@ -17,7 +17,7 @@
 
 // Raises a python exception if `s` (a statement that evaluates to an
 // arrow::Status) is not OK.
-#define RAISE_IF_NOT_OK(s)                                       \
+#define TFDV_RAISE_IF_NOT_OK(s)                                  \
   do {                                                           \
     ::arrow::Status s_ = (s);                                    \
     if (!s_.ok()) {                                              \

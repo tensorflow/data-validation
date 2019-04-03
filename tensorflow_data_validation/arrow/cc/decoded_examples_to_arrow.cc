@@ -49,6 +49,8 @@ Status AppendNulls(const int64_t num_nulls, ListBuilder* list_builder) {
   return Status::OK();
 }
 
+// Makes a string_view out of a Python bytes object. Note that the Python object
+// still owns the underlying memory.
 Status PyBytesToStringView(PyObject* py_bytes, absl::string_view* sv) {
   if (!PyBytes_Check(py_bytes)) {
     return Status::Invalid("Expected bytes.");
@@ -82,6 +84,8 @@ Status FeatureNameToString(PyObject* feature_name, std::string* result) {
   return Status::Invalid("Feature names must be either bytes or unicode.");
 }
 
+// Casts `py_obj` to PyArrayObject* if it's a numpy array. Otherwise returns
+// an error.
 Status GetNumPyArray(PyObject* py_obj, PyArrayObject** py_array_obj) {
   if (!PyArray_Check(py_obj)) {
     return Status::Invalid("Expected a numpy ndarray.");
@@ -90,6 +94,9 @@ Status GetNumPyArray(PyObject* py_obj, PyArrayObject** py_array_obj) {
   return Status::OK();
 }
 
+// Makes an Arrow ListArray builder based on the type of `np_array`.
+// Returns an error if `np_array` is of unsupported type. Currently only
+// np.int64, np.float32 and np.object (for strings) are supported.
 Status MakeListBuilderFromFeature(
     PyArrayObject* np_array, std::unique_ptr<ListBuilder>* builder) {
   int np_type = PyArray_TYPE(np_array);
@@ -163,10 +170,23 @@ Status AppendNpArrayToBuilder(PyArrayObject* np_array, ListBuilder* builder) {
   return Status::OK();
 }
 
+// Helper class to convert decoded examples to an Arrow Table.
+// One converter should be created for each Table to be created. Do not re-use.
 class DecodedExamplesToTableConverter {
  public:
   DecodedExamplesToTableConverter() = default;
   ~DecodedExamplesToTableConverter() = default;
+
+  // Disallow copy and move.
+  DecodedExamplesToTableConverter(
+      const DecodedExamplesToTableConverter&) = delete;
+  DecodedExamplesToTableConverter& operator=(
+      const DecodedExamplesToTableConverter&) = delete;
+
+  // Adds a decoded example (a Dict[str, Union[None, ndarray]]), i.e. one "row",
+  // to the Table.
+  // Returns an error if `decoded_example` is invalid. If an error is returned,
+  // this class is in undefined state and no further calls to it should be made.
   Status AddDecodedExample(PyObject* decoded_example) {
     if (!PyDict_Check(decoded_example)) {
       return Status::Invalid("Expected a dict.");
@@ -202,6 +222,7 @@ class DecodedExamplesToTableConverter {
     return Status::OK();
   }
 
+  // This should be called after all AddDecodedExample() calls are made.
   Status BuildTable(std::shared_ptr<Table>* table) {
     ArrayVector arrays;
     std::vector<std::shared_ptr<Field>> fields;
@@ -229,6 +250,8 @@ class DecodedExamplesToTableConverter {
   }
 
  private:
+  // Adds `value`, a feature, i.e. a "cell", to the Table. Returns an error if
+  // `value` is not a valid feature.
   Status AddFeature(const std::string& feature_name, PyObject* value,
                     std::vector<bool>* feature_seen) {
     auto iter = feature_name_to_index_.find(feature_name);
@@ -304,6 +327,7 @@ PyObject* TFDV_Arrow_DecodedExamplesToTable(
     return nullptr;
   }
   std::shared_ptr<Table> table;
-  RAISE_IF_NOT_OK(DecodedExamplesToTable(list_of_decoded_examples, &table));
+  TFDV_RAISE_IF_NOT_OK(
+      DecodedExamplesToTable(list_of_decoded_examples, &table));
   return arrow::py::wrap_table(table);
 }
