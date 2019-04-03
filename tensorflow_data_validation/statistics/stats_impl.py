@@ -84,9 +84,21 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
 
   def __init__(
       self,
-      options = stats_options.StatsOptions()
+      options = stats_options.StatsOptions(),
+      is_slicing_enabled = False,
       ):
+    """Initializes GenerateSlicedStatisticsImpl.
+
+    Args:
+      options: `tfdv.StatsOptions` for generating data statistics.
+      is_slicing_enabled: Whether to include slice keys in the resulting proto,
+        even if slice functions are not provided in `options`. If slice
+        functions are provided in `options`, slice keys are included regardless
+        of this value.
+    """
     self._options = options
+    self._is_slicing_enabled = (
+        is_slicing_enabled or self._options.slice_functions is not None)
 
   def expand(self, dataset):
     # Initialize a list of stats generators to run.
@@ -126,7 +138,7 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
             beam.CombinePerKey(_merge_dataset_feature_stats_protos)
             | 'AddSliceKeyToStatsProto' >> beam.Map(
                 _add_slice_key,
-                is_slicing_enabled=self._options.slice_functions is not None)
+                self._is_slicing_enabled)
             | 'ToList' >> beam.combiners.ToList()
             | 'MakeDatasetFeatureStatisticsListProto' >>
             beam.Map(_make_dataset_feature_statistics_list_proto))

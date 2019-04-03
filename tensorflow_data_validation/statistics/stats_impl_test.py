@@ -1482,6 +1482,91 @@ class StatsImplTest(parameterized.TestCase):
           test_util.make_dataset_feature_stats_list_proto_equal_fn(
               self, expected_result))
 
+  def test_generate_sliced_statistics_impl_without_slice_fns(self):
+    examples = [
+        ('test_slice', {
+            'b': np.array([]),
+        }),
+        ('test_slice', {
+            'b': np.array([]),
+        }),
+    ]
+    # No slice functions are specified in options.
+    options = stats_options.StatsOptions(
+        num_top_values=2,
+        num_rank_histogram_buckets=2,
+        num_values_histogram_buckets=2)
+    expected_result_without_slice_key = text_format.Parse(
+        """
+        datasets {
+          num_examples: 2
+          features {
+            name: "b"
+            type: FLOAT
+            num_stats {
+              common_stats {
+                num_non_missing: 2
+                num_values_histogram {
+                  buckets {
+                    sample_count: 1.0
+                  }
+                  buckets {
+                    sample_count: 1.0
+                  }
+                  type: QUANTILES
+                }
+              }
+            }
+          }
+        }""", statistics_pb2.DatasetFeatureStatisticsList())
+    expected_result_with_slice_key = text_format.Parse(
+        """
+        datasets {
+          name: "test_slice"
+          num_examples: 2
+          features {
+            name: "b"
+            type: FLOAT
+            num_stats {
+              common_stats {
+                num_non_missing: 2
+                num_values_histogram {
+                  buckets {
+                    sample_count: 1.0
+                  }
+                  buckets {
+                    sample_count: 1.0
+                  }
+                  type: QUANTILES
+                }
+              }
+            }
+          }
+        }""", statistics_pb2.DatasetFeatureStatisticsList())
+    with beam.Pipeline() as p:
+      result = (
+          p | beam.Create(examples)
+          | stats_impl.GenerateSlicedStatisticsImpl(options=options))
+      # GenerateSlicedStatisticsImpl() does not add slice keys to the result
+      # because is_slicing_enabled is not set to True (and no slice functions
+      # are provided via the stats options).
+      util.assert_that(
+          result,
+          test_util.make_dataset_feature_stats_list_proto_equal_fn(
+              self, expected_result_without_slice_key))
+
+    with beam.Pipeline() as p:
+      result = (
+          p | beam.Create(examples)
+          | stats_impl.GenerateSlicedStatisticsImpl(
+              options=options, is_slicing_enabled=True))
+      # GenerateSlicedStatisticsImpl() adds slice keys to the result because
+      # is_slicing_enabled is set to True.
+      util.assert_that(
+          result,
+          test_util.make_dataset_feature_stats_list_proto_equal_fn(
+              self, expected_result_with_slice_key))
+
   @parameterized.named_parameters(*GENERATE_STATS_TESTS)
   def test_generate_statistics_in_memory(
       self, examples, options, expected_result_proto_text, schema=None):
