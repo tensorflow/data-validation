@@ -22,5 +22,4 @@ from tensorflow_data_validation.pywrap import pywrap_tensorflow_data_validation 
 
 # The following are function aliases thus valid function names.
 # pylint: disable=invalid-name
-# TODO(zhuo): This routine is performance critical. Consider adding a benchmark.
 DecodedExamplesToTable = pywrap.TFDV_Arrow_DecodedExamplesToTable
