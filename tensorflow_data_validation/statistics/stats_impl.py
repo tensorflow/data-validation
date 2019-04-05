@@ -28,6 +28,7 @@ from tensorflow_data_validation.statistics.generators import basic_stats_generat
 from tensorflow_data_validation.statistics.generators import image_stats_generator
 from tensorflow_data_validation.statistics.generators import natural_language_stats_generator
 from tensorflow_data_validation.statistics.generators import stats_generator
+from tensorflow_data_validation.statistics.generators import time_stats_generator
 from tensorflow_data_validation.statistics.generators import top_k_uniques_combiner_stats_generator
 from tensorflow_data_validation.statistics.generators import top_k_uniques_stats_generator
 
@@ -165,6 +166,7 @@ def get_generators(options,
     generators += [
         image_stats_generator.ImageStatsGenerator(),
         natural_language_stats_generator.NLStatsGenerator(),
+        time_stats_generator.TimeStatsGenerator(),
     ]
   # Replace all CombinerFeatureStatsGenerator with a single
   # CombinerFeatureStatsWrapperGenerator.

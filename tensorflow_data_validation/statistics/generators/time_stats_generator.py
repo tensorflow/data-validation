@@ -193,9 +193,14 @@ class _PartialTimeStats(object):
     for value in value_list:
       if not value:
         continue
-      if isinstance(value, bytes) and not stats_util.is_valid_utf8(value):
-        self.invalidated = True
-        return
+      if isinstance(value, bytes):
+        # TODO(b/130046287): Avoid doing the decoding twice. Modify the
+        # utility method to return the decoded value instead.
+        if not stats_util.is_valid_utf8(value):
+          self.invalidated = True
+          return
+        else:
+          value = value.decode('utf-8')
       self.considered += 1
       for strptime_format, time_regex in _TIME_RE_LIST:
         if time_regex.match(value):
