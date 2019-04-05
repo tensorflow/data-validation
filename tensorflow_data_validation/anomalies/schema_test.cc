@@ -357,14 +357,14 @@ TEST(SchemaTest, UpdateSomeColumns) {
         feature {
           name: "untouched_update"
           presence: { min_count: 1 }
-          value_count: { min: 1 }
+          value_count: { min: 1 max: 1 }
           type: INT
           int_domain { min: 65 }
         }
         feature {
           name: "missing_feature"
           presence: { min_count: 1 }
-          value_count: { min: 1 }
+          value_count: { min: 1 max: 1 }
           type: INT
           int_domain { min: 65 }
         }
@@ -372,7 +372,7 @@ TEST(SchemaTest, UpdateSomeColumns) {
           name: "missing_feature_deprecated"
           lifecycle_stage: DEPRECATED
           presence: { min_count: 1 }
-          value_count: { min: 1 }
+          value_count: { min: 1 max: 1 }
           type: INT
           int_domain { min: 65 }
         }
@@ -396,13 +396,24 @@ TEST(SchemaTest, UpdateSomeColumns) {
       name: 'new_column'
       type: INT
       num_stats: {
-        common_stats: { num_missing: 3 num_non_missing: 1 max_num_values: 2 }
+        common_stats: {
+          num_missing: 3
+          num_non_missing: 1
+          min_num_values: 2
+          max_num_values: 2
+        }
       }
     }
     features {
       name: 'untouched_update'
       type: INT
-      num_stats: { common_stats: { num_missing: 3 max_num_values: 2 } }
+      num_stats: {
+        common_stats: {
+          num_missing: 3
+          min_num_values: 1
+          max_num_values: 1
+        }
+      }
     })");
   DatasetStatsView stats(dataset_statistics, false);
   TF_ASSERT_OK(schema.Update(
@@ -418,29 +429,29 @@ TEST(SchemaTest, UpdateSomeColumns) {
                               name: "standard_update"
                               lifecycle_stage: DEPRECATED
                               presence: { min_count: 1 }
+                              value_count: { min: 1 }
                               type: INT
-                              value_count { min: 1 }
                               int_domain { min: 65 }
                             }
                             feature {
                               name: "standard_update_2"
                               lifecycle_stage: DEPRECATED
                               presence: { min_count: 1 }
+                              value_count: { min: 1 }
                               type: INT
-                              value_count { min: 1 }
                               int_domain { min: 65 }
                             }
                             feature {
                               name: "untouched_update"
                               presence: { min_count: 1 }
-                              value_count: { min: 1 }
+                              value_count: { min: 1 max: 1 }
                               type: INT
                               int_domain { min: 65 }
                             }
                             feature {
                               name: "missing_feature"
                               lifecycle_stage: DEPRECATED
-                              value_count: { min: 1 }
+                              value_count: { min: 1 max: 1 }
                               type: INT
                               int_domain { min: 65 }
                               presence: { min_count: 1 }
@@ -448,14 +459,14 @@ TEST(SchemaTest, UpdateSomeColumns) {
                             feature {
                               name: "missing_feature_deprecated"
                               lifecycle_stage: DEPRECATED
-                              value_count: { min: 1 }
+                              value_count: { min: 1 max: 1 }
                               type: INT
                               int_domain { min: 65 }
                               presence: { min_count: 1 }
                             }
                             feature {
                               name: "new_column"
-                              value_count { min: 1 }
+                              value_count { min: 2 max: 2 }
                               type: INT
                               presence { min_count: 1 }
                             }
@@ -1070,6 +1081,7 @@ TEST(SchemaTest, CreateColumnsDeepAll) {
                 common_stats {
                   num_missing: 3
                   num_non_missing: 7
+                  min_num_values: 2
                   max_num_values: 2
                 }
               }
@@ -1081,6 +1093,7 @@ TEST(SchemaTest, CreateColumnsDeepAll) {
                 common_stats: {
                   num_missing: 3
                   num_non_missing: 4
+                  min_num_values: 2
                   max_num_values: 2
                 }
               }
@@ -1092,6 +1105,7 @@ TEST(SchemaTest, CreateColumnsDeepAll) {
                 common_stats: {
                   num_missing: 3
                   num_non_missing: 4
+                  min_num_values: 2
                   max_num_values: 2
                 }
               }
@@ -1102,19 +1116,19 @@ TEST(SchemaTest, CreateColumnsDeepAll) {
   EXPECT_THAT(schema.GetSchema(), EqualsProto(R"(
                 feature {
                   name: "struct"
-                  value_count { min: 1 }
+                  value_count { min: 2 max: 2 }
                   type: STRUCT
                   presence { min_count: 1 }
                   struct_domain {
                     feature {
                       name: "bar.baz"
-                      value_count { min: 1 }
+                      value_count { min: 2 max: 2 }
                       type: INT
                       presence { min_count: 1 }
                     }
                     feature {
                       name: "foo"
-                      value_count { min: 1 }
+                      value_count { min: 2 max: 2 }
                       type: INT
                       presence { min_count: 1 }
                     }
@@ -1144,6 +1158,7 @@ TEST(SchemaTest, CreateColumnsDeep) {
                 common_stats {
                   num_missing: 3
                   num_non_missing: 7
+                  min_num_values: 2
                   max_num_values: 2
                 }
               }
@@ -1155,6 +1170,7 @@ TEST(SchemaTest, CreateColumnsDeep) {
                 common_stats: {
                   num_missing: 3
                   num_non_missing: 4
+                  min_num_values: 2
                   max_num_values: 2
                 }
               }
@@ -1166,6 +1182,7 @@ TEST(SchemaTest, CreateColumnsDeep) {
                 common_stats: {
                   num_missing: 3
                   num_non_missing: 4
+                  min_num_values: 2
                   max_num_values: 2
                 }
               }
@@ -1180,13 +1197,13 @@ TEST(SchemaTest, CreateColumnsDeep) {
                   struct_domain {
                     feature {
                       name: "bar.baz"
-                      value_count { min: 1 }
+                      value_count { min: 2 max: 2 }
                       type: INT
                       presence { min_count: 1 }
                     }
                     feature {
                       name: "foo"
-                      value_count { min: 1 }
+                      value_count { min: 2 max: 2 }
                       type: INT
                       presence { min_count: 1 }
                     }
@@ -1472,7 +1489,8 @@ TEST(SchemaTest, CreateDeepFieldUpdateRecursivelyStructFoo) {
                 common_stats: {
                   num_missing: 3
                   num_non_missing: 7
-                  max_num_values: 2
+                  min_num_values: 1
+                  max_num_values: 1
                 }
               }
 
@@ -1484,6 +1502,7 @@ TEST(SchemaTest, CreateDeepFieldUpdateRecursivelyStructFoo) {
                 common_stats: {
                   num_missing: 3
                   num_non_missing: 4
+                  min_num_values: 2
                   max_num_values: 2
                 }
               }
@@ -1507,7 +1526,7 @@ TEST(SchemaTest, CreateDeepFieldUpdateRecursivelyStructFoo) {
                                           feature: { name: "bar" }
                                           feature {
                                             name: "foo"
-                                            value_count { min: 1 }
+                                            value_count { min: 2 max: 2 }
                                             type: INT
                                             presence { min_count: 1 }
                                           }
@@ -1522,7 +1541,7 @@ TEST(SchemaTest, CreateDeepFieldUpdateRecursivelyStruct) {
         feature {
           name: "struct"
           presence: { min_count: 1 }
-          value_count { max: 1 }
+          value_count { min: 1 max: 1 }
           type: STRUCT
           struct_domain { feature: { name: "bar" } }
         })");
@@ -1539,6 +1558,7 @@ TEST(SchemaTest, CreateDeepFieldUpdateRecursivelyStruct) {
                 common_stats: {
                   num_missing: 3
                   num_non_missing: 7
+                  min_num_values: 1
                   max_num_values: 1
                 }
               }
@@ -1551,6 +1571,7 @@ TEST(SchemaTest, CreateDeepFieldUpdateRecursivelyStruct) {
                 common_stats: {
                   num_missing: 3
                   num_non_missing: 4
+                  min_num_values: 2
                   max_num_values: 2
                 }
               }
@@ -1567,14 +1588,14 @@ TEST(SchemaTest, CreateDeepFieldUpdateRecursivelyStruct) {
   EXPECT_THAT(schema.GetSchema(),
               EqualsProto(R"(feature {
                                         name: "struct"
-                                        value_count { max: 1 }
+                                        value_count { min: 1 max: 1 }
                                         type: STRUCT
                                         presence { min_count: 1 }
                                         struct_domain {
                                           feature: { name: "bar" }
                                           feature {
                                             name: "foo"
-                                            value_count { min: 1 }
+                                            value_count { min: 2 max: 2 }
                                             type: INT
                                             presence { min_count: 1 }
                                           }
@@ -1639,7 +1660,7 @@ TEST(SchemaTest, CreateDeepFieldWithUpdate) {
         feature {
           name: "struct"
           presence: { min_count: 1 }
-          value_count { max: 1 }
+          value_count { min: 2 max: 2 }
           type: STRUCT
           struct_domain { feature: { name: "bar" } }
         })");
@@ -1657,6 +1678,7 @@ TEST(SchemaTest, CreateDeepFieldWithUpdate) {
                 common_stats: {
                   num_missing: 3
                   num_non_missing: 7
+                  min_num_values: 2
                   max_num_values: 2
                 }
               }
@@ -1668,6 +1690,7 @@ TEST(SchemaTest, CreateDeepFieldWithUpdate) {
                 common_stats: {
                   num_missing: 3
                   num_non_missing: 4
+                  min_num_values: 2
                   max_num_values: 2
                 }
               }
@@ -1679,14 +1702,14 @@ TEST(SchemaTest, CreateDeepFieldWithUpdate) {
   EXPECT_THAT(schema.GetSchema(), EqualsProto(R"(
                 feature {
                   name: "struct"
-                  value_count { max: 2 }
+                  value_count { min: 2 max: 2 }
                   type: STRUCT
                   presence { min_count: 1 }
                   struct_domain {
                     feature { name: "bar" }
                     feature {
                       name: "foo"
-                      value_count { min: 1 }
+                      value_count { min: 2 max: 2 }
                       type: INT
                       presence { min_count: 1 }
                     }
@@ -1775,6 +1798,7 @@ TEST(SchemaTest, GetSchemaWithDash) {
                common_stats: {
                  num_missing: 3
                  num_non_missing: 3
+                 min_num_values: 2
                  max_num_values: 2
                }
                unique: 3
@@ -1795,7 +1819,7 @@ TEST(SchemaTest, GetSchemaWithDash) {
                 feature {
                   name: "name-with-dash"
                   presence: { min_count: 1 }
-                  value_count { min: 1 }
+                  value_count { min: 2 max: 2 }
                   type: BYTES
                 })"));
 }
@@ -1834,6 +1858,7 @@ TEST(FeatureTypeTest, ConstructFromSchemaStatistics) {
                 common_stats: {
                   num_missing: 3
                   num_non_missing: 3
+                  min_num_values: 2
                   max_num_values: 2
                 }
                 unique: 3
@@ -1845,7 +1870,7 @@ TEST(FeatureTypeTest, ConstructFromSchemaStatistics) {
               })"),
        ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
          feature {
-           value_count { min: 1 }
+           value_count { min: 2  max: 2 }
            presence { min_count: 1 }
            name: "bar1"
            type: BYTES
@@ -1865,7 +1890,6 @@ TEST(FeatureTypeTest, ConstructFromSchemaStatistics) {
        ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(
            R"(feature {
                 name: "bar2"
-                value_count { min: 1 max: 1 }
                 presence: { min_count: 1 }
                 type: BYTES
               })")},
@@ -1877,7 +1901,6 @@ TEST(FeatureTypeTest, ConstructFromSchemaStatistics) {
          })"), ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
          feature {
            name: "bar3"
-           value_count: { min: 1 }
            presence: { min_count: 1 }
            type: INT
          })")},

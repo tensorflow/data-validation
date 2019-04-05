@@ -375,8 +375,21 @@ class ValidationApiTest(absltest.TestCase):
               common_stats: {
                 num_missing: 0
                 num_non_missing: 7
-                min_num_values: 3
-                max_num_values: 3
+                min_num_values: 5
+                max_num_values: 5
+              }
+              unique: 5
+            }
+          }
+          features: {
+            name: 'feature3'
+            type: STRING
+            string_stats: {
+              common_stats: {
+                num_missing: 2
+                num_non_missing: 5
+                min_num_values: 1
+                max_num_values: 1
               }
               unique: 5
             }
@@ -397,9 +410,17 @@ class ValidationApiTest(absltest.TestCase):
         }
         feature {
           name: "feature2"
-          value_count: { min: 1 }
+          shape { dim { size: 5 } }
           presence: {
             min_fraction: 1.0
+            min_count: 1
+          }
+          type: BYTES
+        }
+        feature {
+          name: "feature3"
+          value_count: { min: 1 max: 1}
+          presence: {
             min_count: 1
           }
           type: BYTES

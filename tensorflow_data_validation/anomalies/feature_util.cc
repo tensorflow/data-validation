@@ -245,30 +245,23 @@ void InitValueCountAndPresence(const FeatureStatsView& feature_stats_view,
   if (num_present == 0.0) {
     return;
   }
-
-  if (feature_stats_view.max_num_values() > 1) {
-    if (feature_stats_view.GetNumMissing() == 0.0 &&
-        feature_stats_view.min_num_values() > 0) {
-      // Apply REPEATED REQUIRED.
-      feature->mutable_presence()->set_min_fraction(1.0);
-      feature->mutable_value_count()->set_min(1);
+  if (feature_stats_view.GetNumMissing() == 0.0) {
+    // Required feature.
+    feature->mutable_presence()->set_min_fraction(1.0);
+  }
+  if (feature_stats_view.min_num_values() > 0) {
+    if (feature_stats_view.min_num_values() ==
+        feature_stats_view.max_num_values()) {
+      // Set min and max value count in the schema if they are same. This would
+      // allow required features with same valency to be parsed as dense tensors
+      // in TFT.
+      feature->mutable_value_count()->set_min(
+          feature_stats_view.min_num_values());
+      feature->mutable_value_count()->set_max(
+          feature_stats_view.min_num_values());
     } else {
-      // REPEATED
       feature->mutable_value_count()->set_min(1);
     }
-  } else if (feature_stats_view.GetNumMissing() == 0.0 &&
-             feature_stats_view.min_num_values() > 0) {
-    // REQUIRED
-    feature->mutable_presence()->set_min_fraction(1.0);
-    feature->mutable_value_count()->set_min(1);
-    feature->mutable_value_count()->set_max(1);
-  } else {
-    // OPTIONAL
-    // TODO(martinz): notice that min_cardinality_ is set even if
-    // min_num_values() == 0. This is to agree with the current implementation,
-    // but probably should be changed.
-    feature->mutable_value_count()->set_min(1);
-    feature->mutable_value_count()->set_max(1);
   }
 }
 

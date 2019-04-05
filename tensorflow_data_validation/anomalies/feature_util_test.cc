@@ -144,6 +144,7 @@ struct FeatureNameStatisticsConstructorTest {
 // Also, break apart a separate test for other util constructors.
 TEST(FeatureTypeTest, ConstructFromFeatureNameStatistics) {
   const std::vector<FeatureNameStatisticsConstructorTest> tests = {
+      // Different min and max value counts with min above 0.
       {ParseTextProtoOrDie<FeatureNameStatistics>(R"(
            name: 'bar1'
            type: STRING
@@ -151,7 +152,8 @@ TEST(FeatureTypeTest, ConstructFromFeatureNameStatistics) {
              common_stats: {
                num_missing: 3
               num_non_missing: 10
-               max_num_values: 2
+              min_num_values: 1
+              max_num_values: 5
              }
              unique: 3
              rank_histogram: {
@@ -171,6 +173,33 @@ TEST(FeatureTypeTest, ConstructFromFeatureNameStatistics) {
              min_count: 1
            }
            )")},
+      // Different min and max value counts with min of 0.
+      {ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+           name: 'bar1'
+           type: STRING
+           string_stats: {
+             common_stats: {
+               num_missing: 3
+              num_non_missing: 10
+              min_num_values: 0
+              max_num_values: 5
+             }
+             unique: 3
+             rank_histogram: {
+               buckets: {
+                 label: "foo"
+               }
+               buckets: {
+                 label: "bar"
+               }
+               buckets: {
+                 label: "baz"}}})"),
+       ParseTextProtoOrDie<Feature>(R"(
+           presence {
+             min_count: 1
+           }
+           )")},
+      // Optional feature with same value count of 1.
       {ParseTextProtoOrDie<FeatureNameStatistics>(R"(
           name: 'bar2'
           type: STRING
@@ -178,6 +207,7 @@ TEST(FeatureTypeTest, ConstructFromFeatureNameStatistics) {
             common_stats: {
               num_missing: 3
               num_non_missing: 10
+              min_num_values: 1
               max_num_values: 1
             }
             unique: 3
@@ -199,6 +229,7 @@ TEST(FeatureTypeTest, ConstructFromFeatureNameStatistics) {
              min_count: 1
            }
            )")},
+      // Optional feature with same value count above 1.
       {ParseTextProtoOrDie<FeatureNameStatistics>(R"(
           name: 'bar3'
           type: INT
@@ -206,15 +237,18 @@ TEST(FeatureTypeTest, ConstructFromFeatureNameStatistics) {
             common_stats: {
               num_missing: 3
               num_non_missing: 1
-              max_num_values: 2}})"),
+              max_num_values: 5
+              min_num_values: 5}})"),
        ParseTextProtoOrDie<Feature>(R"(
            value_count {
-             min: 1
+             min: 5
+             max: 5
            }
            presence {
              min_count: 1
            }
            )")},
+      // Required feature with same value count of 1.
       {ParseTextProtoOrDie<FeatureNameStatistics>(R"(
           num_stats: {
             common_stats: {
@@ -232,6 +266,7 @@ TEST(FeatureTypeTest, ConstructFromFeatureNameStatistics) {
              min_fraction: 1.0
            }
            )")},
+      // Required feature with same value count above 1.
       {ParseTextProtoOrDie<FeatureNameStatistics>(R"(
           name: 'bar4'
           type: FLOAT
@@ -239,6 +274,8 @@ TEST(FeatureTypeTest, ConstructFromFeatureNameStatistics) {
             common_stats: {
               num_missing: 0
               num_non_missing: 1
+              max_num_values: 5
+              min_num_values: 5
               weighted_common_stats: {
                 num_missing: 0
                 num_non_missing: 0.5
@@ -246,10 +283,13 @@ TEST(FeatureTypeTest, ConstructFromFeatureNameStatistics) {
             }})"),
        ParseTextProtoOrDie<Feature>(R"(
            value_count {
-             min: 1
-             max: 1
+             min: 5
+             max: 5
            }
-           presence { min_count: 1 }
+           presence {
+             min_count: 1
+             min_fraction: 1.0
+           }
        )")},
       {ParseTextProtoOrDie<FeatureNameStatistics>(R"(
           name: 'bar5'

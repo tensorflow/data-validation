@@ -109,10 +109,10 @@ def _may_be_set_legacy_flag(schema):
 def _infer_shape(schema):
   """Infers shapes of the features."""
   for feature in schema.feature:
-    # Currently we infer shape only for features with valency 1.
+    # Currently we infer shape only for required features.
     if (feature.presence.min_fraction == 1 and
-        feature.value_count.min == feature.value_count.max == 1):
-      feature.shape.dim.add().size = 1
+        feature.value_count.min == feature.value_count.max):
+      feature.shape.dim.add().size = feature.value_count.min
 
 
 def validate_statistics(

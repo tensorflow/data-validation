@@ -369,7 +369,11 @@ TEST(FeatureStatisticsValidatorTest, UpdateEmptySchema) {
       name: 'annotated_enum'
       type: STRING
       string_stats: {
-        common_stats: { num_missing: 3 num_non_missing: 997 max_num_values: 1 }
+        common_stats: {
+          num_missing: 3
+          num_non_missing: 997
+          min_num_values: 1
+          max_num_values: 1 }
         unique: 3
         rank_histogram: { buckets: { label: "D" } }
       }
@@ -508,8 +512,9 @@ TEST(FeatureStatisticsValidatorTest, UseWeightedStatistics) {
             common_stats: {
               num_missing: 3
               num_non_missing: 997
+              min_num_values: 1
               max_num_values: 1
-              weighted_common_stats: { num_missing: 0.0 num_non_missing: 997.0 }
+              weighted_common_stats: { num_missing: 3.0 num_non_missing: 997.0 }
             }
             unique: 3
             rank_histogram: { buckets: { label: "D" } }
@@ -615,6 +620,7 @@ TEST(FeatureStatisticsValidatorUpdateSchema, TestLargeStringDomain) {
           string_stats: {
             common_stats: {
               num_missing: 1
+              min_num_values: 1
               max_num_values: 1
               num_non_missing: 1000
               avg_num_values: 1

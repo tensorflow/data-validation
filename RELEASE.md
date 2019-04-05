@@ -12,8 +12,10 @@
 * Update natural language stats generator to generate stats if actual ratio
   equals `match_ratio`.
 * Use `__slots__` in accumulators.
-* Depends on `pyarrow>=0.11.1,<0.12.0`.
 * Fix overflow warning when generating numeric stats for large integers.
+* Set max value count in schema when the feature has same valency, thereby
+  inferring shape for multivalent required features.
+* Depends on `pyarrow>=0.11.1,<0.12.0`.
 
 ## Breaking Changes
 
