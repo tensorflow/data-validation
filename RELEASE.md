@@ -5,6 +5,9 @@
 * Performance improvement due to optimizing inner loops.
 * Add support for time semantic domain related statistics.
 * Performance improvement due to batching accumulators before merging.
+* Add utility method `validate_examples_in_tfrecord`, which identifies anomalous
+  examples in TFRecord files containing TFExamples and generates statistics for
+  those anomalous examples.
 
 ## Bug Fixes and Other Changes
 
