@@ -18,6 +18,7 @@
 * Fix overflow warning when generating numeric stats for large integers.
 * Set max value count in schema when the feature has same valency, thereby
   inferring shape for multivalent required features.
+* Fix divide by zero error in natural language stats generator.
 * Depends on `pyarrow>=0.11.1,<0.12.0`.
 
 ## Breaking Changes

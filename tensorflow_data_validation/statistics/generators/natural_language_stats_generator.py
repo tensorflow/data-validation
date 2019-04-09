@@ -105,9 +105,9 @@ class AverageWordHeuristicNLClassifier(NLClassifierInterface):
     self._crop_at_length = crop_at_length
 
   def classify(self, value):
-    if not value:
-      return False
     words = value[0:self._crop_at_length].split()
+    if not words:
+      return False
     # Expanded for loop efficiency.
     sum_word_length = 0
     for w in words:

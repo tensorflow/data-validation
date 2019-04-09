@@ -48,6 +48,9 @@ class NaturalLanguageStatsGeneratorTest(
   def test_average_word_heuristic_empty_input(self):
     self.assertFalse(nlsg.AverageWordHeuristicNLClassifier().classify(''))
 
+  def test_average_word_heuristic_input_with_only_spaces(self):
+    self.assertFalse(nlsg.AverageWordHeuristicNLClassifier().classify('  '))
+
   def test_average_word_heuristic_avg_word_length_check(self):
     text_avg_word_length_3_8 = 'Hello this is some text'
     self.assertFalse(
