@@ -23,7 +23,6 @@ from absl.testing import parameterized
 import apache_beam as beam
 from apache_beam.testing import util
 import numpy as np
-from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options
@@ -1978,6 +1977,7 @@ class StatsImplTest(parameterized.TestCase):
     runner.wait_until_finish()
     result_metrics = runner.metrics()
 
+    # TODO(b/125474748): Add all the counters.
     expected_result = {
         'num_instances': 4,
         'num_missing_feature_values': 3,
@@ -1993,14 +1993,7 @@ class StatsImplTest(parameterized.TestCase):
         'string_feature_values_min_count': 3,
         'string_feature_values_max_count': 4,
         'string_feature_values_mean_count': 3,
-        'num_compacts_BasicStatsGenerator': 1,  # TODO(b/125474748): Remove.
     }
-
-    # Check number of counters.
-    actual_metrics = result_metrics.query(
-        beam.metrics.metric.MetricsFilter().with_namespace(
-            constants.METRICS_NAMESPACE))['counters']
-    self.assertLen(actual_metrics, len(expected_result))
 
     # Check each counter.
     for counter_name in expected_result:
