@@ -43,7 +43,7 @@ def _make_updated_descriptions(
 
 
 def remove_anomaly_types(
-    anomaly_proto,
+    anomalies,
     types_to_remove):
   """Removes the specified types of anomaly reasons from an Anomalies proto.
 
@@ -51,12 +51,12 @@ def remove_anomaly_types(
   will be removed from the Anomalies proto.
 
   Args:
-    anomaly_proto: The Anomalies proto from which to remove anomaly reasons of
+    anomalies: The Anomalies proto from which to remove anomaly reasons of
       the specified types.
     types_to_remove: A set of the types of reasons to remove.
   """
   features_to_remove = []
-  for feature_name, anomaly_info in anomaly_proto.anomaly_info.items():
+  for feature_name, anomaly_info in anomalies.anomaly_info.items():
     retained_reasons = [
         reason for reason in anomaly_info.reason
         if reason.type not in types_to_remove
@@ -84,26 +84,26 @@ def remove_anomaly_types(
       features_to_remove.append(feature_name)
 
   for feature_name in features_to_remove:
-    del anomaly_proto.anomaly_info[feature_name]
+    del anomalies.anomaly_info[feature_name]
 
 
 def anomalies_slicer(
     unused_example,
-    anomaly_proto):
+    anomalies):
   """Returns slice keys for an example based on the given Anomalies proto.
 
   This slicer will generate a slice key for each anomaly reason in the proto.
 
   Args:
     unused_example: The example for which to generate slice keys.
-    anomaly_proto: An Anomalies proto from which to generate the list of slice
+    anomalies: An Anomalies proto from which to generate the list of slice
       keys.
 
   Returns:
     A list of slice keys.
   """
   slice_keys = []
-  for feature_name, anomaly_info in anomaly_proto.anomaly_info.items():
+  for feature_name, anomaly_info in anomalies.anomaly_info.items():
     for anomaly_reason in anomaly_info.reason:
       slice_keys.append(
           feature_name + '_' +

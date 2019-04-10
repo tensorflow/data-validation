@@ -27,6 +27,8 @@
   clarify that counts are of values in semantic domain stats generators.
 * Refactor IdentifyAnomalousExamples to remove sampling and output
   (anomaly reason, example) tuples.
+* Rename `anomaly_proto` parameter in anomalies utilities to `anomalies` to
+  make it more consistent with proto and schema utilities.
 
 ## Deprecations
 

@@ -327,7 +327,7 @@ class _GenerateAnomalyReasonSliceKeys(beam.DoFn):
     example, anomalies_proto = element
     for slice_key_and_example in slicing_util.generate_slices(
         example, [anomalies_util.anomalies_slicer],
-        anomaly_proto=anomalies_proto):
+        anomalies=anomalies_proto):
       yield slice_key_and_example
 
 
