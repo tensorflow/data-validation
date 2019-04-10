@@ -20,6 +20,9 @@ from __future__ import print_function
 
 from tensorflow_data_validation import types
 from tensorflow_data_validation.types_compat import List, Set, Text, Tuple
+from google.protobuf import text_format
+# TODO(b/125849585): Update to import from TF directly.
+from tensorflow.python.lib.io import file_io  # pylint: disable=g-direct-tensorflow-import
 from tensorflow_metadata.proto.v0 import anomalies_pb2
 
 # LINT.IfChange
@@ -109,3 +112,38 @@ def anomalies_slicer(
           feature_name + '_' +
           anomalies_pb2.AnomalyInfo.Type.Name(anomaly_reason.type))
   return slice_keys
+
+
+def write_anomalies_text(anomalies,
+                         output_path):
+  """Writes the Anomalies proto to a file in text format.
+
+  Args:
+    anomalies: An Anomalies protocol buffer.
+    output_path: File path to which to write the Anomalies proto.
+
+  Raises:
+    TypeError: If the input Anomalies proto is not of the expected type.
+  """
+  if not isinstance(anomalies, anomalies_pb2.Anomalies):
+    raise TypeError(
+        'anomalies is of type %s; should be an Anomalies proto.' %
+        type(anomalies).__name__)
+
+  anomalies_text = text_format.MessageToString(anomalies)
+  file_io.write_string_to_file(output_path, anomalies_text)
+
+
+def load_anomalies_text(input_path):
+  """Loads the Anomalies proto stored in text format in the input path.
+
+  Args:
+    input_path: File path from which to load the Anomalies proto.
+
+  Returns:
+    An Anomalies protocol buffer.
+  """
+  anomalies = anomalies_pb2.Anomalies()
+  anomalies_text = file_io.read_file_to_string(input_path)
+  text_format.Parse(anomalies_text, anomalies)
+  return anomalies

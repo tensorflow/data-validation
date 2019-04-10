@@ -17,6 +17,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import os
+from absl import flags
 from absl.testing import absltest
 from absl.testing import parameterized
 from tensorflow_data_validation.utils import anomalies_util
@@ -24,6 +26,9 @@ from tensorflow_data_validation.utils import anomalies_util
 from google.protobuf import text_format
 from tensorflow.python.util.protobuf import compare
 from tensorflow_metadata.proto.v0 import anomalies_pb2
+
+FLAGS = flags.FLAGS
+
 
 SET_REMOVE_ANOMALY_TYPES_CHANGES_PROTO_TESTS = [
     {
@@ -496,6 +501,35 @@ class AnomaliesUtilTest(parameterized.TestCase):
                                   anomalies_pb2.Anomalies())
     slice_keys = anomalies_util.anomalies_slicer(example, anomalies)
     self.assertCountEqual(slice_keys, expected_slice_keys)
+
+  def test_write_load_anomalies_text(self):
+    anomalies = text_format.Parse(
+        """
+             anomaly_info {
+               key: "feature_1"
+               value {
+                  description: "Examples contain values missing from the "
+                    "schema."
+                  severity: ERROR
+                  short_description: "Unexpected string values"
+                  reason {
+                    type: ENUM_TYPE_UNEXPECTED_STRING_VALUES
+                    short_description: "Unexpected string values"
+                    description: "Examples contain values missing from the "
+                      "schema."
+                  }
+                }
+              }""", anomalies_pb2.Anomalies())
+    anomalies_path = os.path.join(FLAGS.test_tmpdir, 'anomalies.pbtxt')
+    anomalies_util.write_anomalies_text(
+        anomalies=anomalies, output_path=anomalies_path)
+    loaded_anomalies = anomalies_util.load_anomalies_text(
+        input_path=anomalies_path)
+    self.assertEqual(anomalies, loaded_anomalies)
+
+  def test_write_anomalies_text_invalid_anomalies_input(self):
+    with self.assertRaisesRegexp(TypeError, 'should be an Anomalies proto'):
+      anomalies_util.write_anomalies_text({}, 'anomalies.pbtxt')
 
 
 if __name__ == '__main__':

@@ -19,6 +19,7 @@
 * Set max value count in schema when the feature has same valency, thereby
   inferring shape for multivalent required features.
 * Fix divide by zero error in natural language stats generator.
+* Add `load_anomalies_text` and `write_anomalies_text` utility functions.
 * Depends on `pyarrow>=0.11.1,<0.12.0`.
 
 ## Breaking Changes
