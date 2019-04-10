@@ -1970,8 +1970,8 @@ class StatsImplTest(parameterized.TestCase):
     _ = (p
          | 'CreateBatches' >> beam.Create(examples)
          | 'BasicStatsCombiner' >> beam.CombineGlobally(
-             stats_impl._BatchedCombineFnWrapper(
-                 basic_stats_generator.BasicStatsGenerator())))
+             stats_impl._CombinerStatsGeneratorsCombineFn(
+                 [basic_stats_generator.BasicStatsGenerator()])))
 
     runner = p.run()
     runner.wait_until_finish()

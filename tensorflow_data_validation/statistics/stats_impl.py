@@ -19,8 +19,11 @@ from __future__ import division
 
 from __future__ import print_function
 
+import itertools
+
 import apache_beam as beam
 import six
+from six.moves import zip
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics import stats_options
@@ -34,7 +37,7 @@ from tensorflow_data_validation.statistics.generators import top_k_uniques_stats
 
 from tensorflow_data_validation.utils import batch_util
 from tensorflow_data_validation.utils import slicing_util
-from tensorflow_data_validation.types_compat import Any, Dict, Iterable, List, Optional, Text, Tuple, TypeVar
+from tensorflow_data_validation.types_compat import Any, Callable, Dict, Iterable, List, Optional, Text, Tuple
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -102,23 +105,15 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
         is_slicing_enabled or self._options.slice_functions is not None)
 
   def expand(self, dataset):
-    # Initialize a list of stats generators to run.
-    stats_generators = get_generators(self._options)
-
+    # Handles generators by their type:
+    #   - CombinerStatsGenerators will be wrapped in a single CombinePerKey by
+    #     _CombinerStatsGeneratorsCombineFn.
+    #   - TransformStatsGenerator will be invoked separately with `dataset`.
+    combiner_stats_generators = []
     result_protos = []
-    # Iterate over the stats generators. For each generator,
-    #   a) if it is a CombinerStatsGenerator, wrap it as a beam.CombineFn
-    #      and run it.
-    #   b) if it is a TransformStatsGenerator, wrap it as a beam.PTransform
-    #      and run it.
-    for generator in stats_generators:
+    for generator in get_generators(self._options):
       if isinstance(generator, stats_generator.CombinerStatsGenerator):
-        # TODO(b/115685296): Obviate the need for the fanout=8 workaround.
-        result_protos.append(dataset
-                             | generator.name >> beam.CombinePerKey(
-                                 _BatchedCombineFnWrapper(
-                                     generator, self._options.desired_batch_size
-                                 )).with_hot_key_fanout(fanout=8))
+        combiner_stats_generators.append(generator)
       elif isinstance(generator, stats_generator.TransformStatsGenerator):
         result_protos.append(
             dataset
@@ -128,11 +123,21 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
                         'CombinerStatsGenerator or TransformStatsGenerator, '
                         'found object of type %s' %
                         generator.__class__.__name__)
+    if combiner_stats_generators:
+      # TODO(b/115685296): Obviate the need for the fanout=8 workaround.
+      result_protos.append(dataset
+                           | 'RunCombinerStatsGenerators'
+                           >> beam.CombinePerKey(
+                               _CombinerStatsGeneratorsCombineFn(
+                                   combiner_stats_generators,
+                                   self._options.desired_batch_size
+                                   )).with_hot_key_fanout(fanout=8))
 
-    # Each stats generator will output a PCollection of DatasetFeatureStatistics
-    # protos. We now flatten the list of PCollections into a single PCollection,
-    # then merge the DatasetFeatureStatistics protos in the PCollection into a
-    # single DatasetFeatureStatisticsList proto.
+    # result_protos is a list of PCollections of (slice key,
+    # DatasetFeatureStatistics proto) pairs. We now flatten the list into a
+    # single PCollection, combine the DatasetFeatureStatistics protos by key,
+    # and then merge the DatasetFeatureStatistics protos in the PCollection into
+    # a single DatasetFeatureStatisticsList proto.
     return (result_protos
             | 'FlattenFeatureStatistics' >> beam.Flatten()
             | 'MergeDatasetFeatureStatisticsProtos' >>
@@ -341,35 +346,33 @@ def _make_dataset_feature_statistics_list_proto(
   return result
 
 
-# Have a type variable to represent the type of the accumulator
-# in a combiner stats generator.
-ACCTYPE = TypeVar('ACCTYPE')
+class _CombinerStatsGeneratorsCombineFnAcc(object):
+  """accumulator for _CombinerStatsGeneratorsCombineFn."""
 
+  __slots__ = ['partial_accumulators', 'input_examples']
 
-class _BatchedCombineFnAcc(object):
-  """Batched combiner wrapper accumulator."""
-
-  def __init__(self, partial_accumulator):  # pytype: disable=invalid-annotation
-    # Partial accumulator state of the underlying CombinerStatsGenerator.
-    self.partial_accumulator = partial_accumulator
+  def __init__(self, partial_accumulators):
+    # Partial accumulator states of the underlying CombinerStatsGenerators.
+    self.partial_accumulators = partial_accumulators
     # Input examples to be processed.
     self.input_examples = []
 
 
 @beam.typehints.with_input_types(types.Example)
 @beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatistics)
-class _BatchedCombineFnWrapper(beam.CombineFn):
-  """A beam.CombineFn wrapping CombinerStatsGenerator with batching.
+class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
+  """A beam.CombineFn wrapping a list of CombinerStatsGenerators with batching.
 
   This wrapper does two things:
-    1. Wraps a combiner stats generator as a beam.CombineFn
+    1. Wraps a list of combiner stats generators. Its accumulator is a list
+       of accumulators for each wrapped stats generators.
     2. Batches input examples before passing it to the underlying
-       stats generator.
+       stats generators.
 
   We do this by accumulating examples in the combiner state until we
   accumulate a large enough batch, at which point we send them through the
-  add_input step of the underlying combiner stats generator. When merging,
-  we merge the accumulators of the stats generator and accumulate
+  add_input step of each of the underlying combiner stats generators. When
+  merging, we merge the accumulators of the stats generators and accumulate
   examples accordingly. We finally process any remaining examples
   before producing the final output value.
 
@@ -396,9 +399,9 @@ class _BatchedCombineFnWrapper(beam.CombineFn):
 
   def __init__(
       self,
-      generator,
+      generators,
       desired_batch_size = None):
-    self._generator = generator
+    self._generators = generators
 
     # We really want the batch size to be adaptive like it is in
     # beam.BatchElements(), but there isn't an easy way to make it so.
@@ -410,21 +413,42 @@ class _BatchedCombineFnWrapper(beam.CombineFn):
 
     # Metrics
     self._combine_add_input_batch_size = beam.metrics.Metrics.distribution(
-        constants.METRICS_NAMESPACE,
-        'combine_add_input_batch_size_' + self._generator.name)
-    self._combine_merge_accumulator_batch_size =\
+        constants.METRICS_NAMESPACE, 'combine_add_input_batch_size')
+    self._combine_merge_accumulator_batch_size = (
         beam.metrics.Metrics.distribution(
             constants.METRICS_NAMESPACE,
-            'combine_merge_accumulator_batch_size_' + self._generator.name)
+            'combine_merge_accumulator_batch_size'))
+    self._combine_batch_size = beam.metrics.Metrics.distribution(
+        constants.METRICS_NAMESPACE, 'combine_batch_size')
     self._num_compacts = beam.metrics.Metrics.counter(
-        constants.METRICS_NAMESPACE, 'num_compacts_' + self._generator.name)
+        constants.METRICS_NAMESPACE, 'num_compacts')
+
+  def _for_each_generator(self,
+                          func,
+                          *args):
+    """Apply `func` for each wrapped generators.
+
+    Args:
+      func: a function that takes N + 1 arguments where N is the size of `args`.
+        the first argument is the stats generator.
+      *args: Iterables parallel to wrapped stats generators (i.e. the i-th item
+        corresponds to the self._generators[i]).
+    Returns:
+      A list whose i-th element is the result of
+      func(self._generators[i], args[0][i], args[1][i], ...).
+    """
+    return [func(gen, *args_for_func) for gen, args_for_func in zip(
+        self._generators, zip(*args))]
 
   def create_accumulator(self
                         ):  # pytype: disable=invalid-annotation
-    return _BatchedCombineFnAcc(self._generator.create_accumulator())
+    return _CombinerStatsGeneratorsCombineFnAcc(
+        [g.create_accumulator() for g in self._generators])
 
-  def _maybe_do_batch(self, accumulator,
-                      force = False):
+  def _maybe_do_batch(
+      self,
+      accumulator,
+      force = False):
     """Maybe updates accumulator in place.
 
     Checks if accumulator has enough examples for a batch, and if so, does the
@@ -438,48 +462,61 @@ class _BatchedCombineFnWrapper(beam.CombineFn):
     batch_size = len(accumulator.input_examples)
     if (force and batch_size > 0) or batch_size >= self._desired_batch_size:
       self._combine_add_input_batch_size.update(batch_size)
-      accumulator.partial_accumulator = self._generator.add_input(
-          accumulator.partial_accumulator,
-          batch_util.merge_single_batch(accumulator.input_examples))
-      del accumulator.input_examples[:]  # Clear processed examples.
+      merged_batch = batch_util.merge_single_batch(accumulator.input_examples)
 
-  def add_input(self, accumulator,
-                input_example):
+      accumulator.partial_accumulators = self._for_each_generator(
+          lambda gen, acc: gen.add_input(acc, merged_batch),
+          accumulator.partial_accumulators)
+      del accumulator.input_examples[:]
+
+  def add_input(
+      self, accumulator,
+      input_example
+      ):
     accumulator.input_examples.append(input_example)
     self._maybe_do_batch(accumulator)
     return accumulator
 
-  def _maybe_merge_and_flush_accumulators(self, partial_accumulators,
-                                          result,
-                                          force = False):
-    """Maybe merges and flushes the accumulators."""
-    batch_size = len(partial_accumulators)
-    if ((force and batch_size > 0) or
-        batch_size >= self._DEFAULT_DESIRED_MERGE_ACCUMULATOR_BATCH_SIZE):
-      self._combine_merge_accumulator_batch_size.update(batch_size)
-      partial_accumulators.append(result.partial_accumulator)
-      result.partial_accumulator = self._generator.merge_accumulators(
-          partial_accumulators)
-      del partial_accumulators[:]
-
-  def merge_accumulators(self, accumulators
-                        ):
+  def merge_accumulators(
+      self,
+      accumulators
+      ):
     result = self.create_accumulator()
-    accumulator_buffer = []
-    for acc in accumulators:
-      # Flush any input examples.
-      result.input_examples.extend(acc.input_examples)
-      self._maybe_do_batch(result)
-      accumulator_buffer.append(acc.partial_accumulator)
-      self._maybe_merge_and_flush_accumulators(accumulator_buffer, result)
+    # Make sure accumulators is an iterator (so it remembers its position).
+    accumulators = iter(accumulators)
+    while True:
+      # Repeatedly take the next N from `accumulators` (an iterator).
+      # If there are less than N remaining, all is taken.
+      batched_accumulators = list(itertools.islice(
+          accumulators, self._DEFAULT_DESIRED_MERGE_ACCUMULATOR_BATCH_SIZE))
+      if not batched_accumulators:
+        break
 
-    self._maybe_merge_and_flush_accumulators(accumulator_buffer, result,
-                                             force=True)
-    self._maybe_do_batch(result, force=True)
+      # Batch together remaining examples in each accumulator, and
+      # feed to each generator. Note that there might still be remaining
+      # examples after this, but a compact() might follow and flush the
+      # remaining examples, and extract_output() in the end will flush anyways.
+      batched_partial_accumulators = []
+      for acc in batched_accumulators:
+        result.input_examples.extend(acc.input_examples)
+        self._maybe_do_batch(result)
+        batched_partial_accumulators.append(acc.partial_accumulators)
+
+      batched_accumulators_by_generator = list(
+          zip(*batched_partial_accumulators))
+
+      result.partial_accumulators = self._for_each_generator(
+          lambda gen, b, m: gen.merge_accumulators(itertools.chain((b,), m)),
+          result.partial_accumulators,
+          batched_accumulators_by_generator)
+
     return result
 
   # TODO(pachristopher): Consider adding CombinerStatsGenerator.compact method.
-  def compact(self, accumulator):
+  def compact(
+      self,
+      accumulator
+      ):
     self._maybe_do_batch(accumulator, force=True)
     self._num_compacts.inc(1)
     return accumulator
@@ -490,7 +527,9 @@ class _BatchedCombineFnWrapper(beam.CombineFn):
   ):  # pytype: disable=invalid-annotation
     # Make sure we have processed all the examples.
     self._maybe_do_batch(accumulator, force=True)
-    return self._generator.extract_output(accumulator.partial_accumulator)
+    return _merge_dataset_feature_stats_protos(
+        self._for_each_generator(lambda gen, acc: gen.extract_output(acc),
+                                 accumulator.partial_accumulators))
 
 
 def generate_partial_statistics_in_memory(

@@ -27,7 +27,7 @@ from tensorflow_data_validation.statistics.generators import top_k_uniques_stats
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
 from tensorflow_data_validation.utils.stats_util import get_feature_type
-from tensorflow_data_validation.types_compat import Dict, List, Optional, Set, Text
+from tensorflow_data_validation.types_compat import Dict, Iterable, List, Optional, Set, Text
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 

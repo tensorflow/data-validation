@@ -118,6 +118,9 @@ class CombinerStatsGenerator(StatsGenerator):
   def merge_accumulators(self, accumulators):
     """Merges several accumulators to a single accumulator value.
 
+    Note: mutating any element in `accumulators` is not allowed and will result
+    in undefined behavior.
+
     Args:
       accumulators: The accumulators to merge.
 

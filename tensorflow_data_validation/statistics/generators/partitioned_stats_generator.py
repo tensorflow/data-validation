@@ -31,7 +31,7 @@ from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import batch_util
 from tensorflow_data_validation.utils import stats_util
-from tensorflow_data_validation.types_compat import Dict, List, Text, Tuple
+from tensorflow_data_validation.types_compat import Dict, Iterable, List, Text, Tuple
 
 from tensorflow_metadata.proto.v0 import statistics_pb2
 

@@ -56,7 +56,7 @@ from tensorflow_data_validation.utils import quantiles_util
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
 from tensorflow_data_validation.utils.stats_util import get_feature_type
-from tensorflow_data_validation.types_compat import Dict, List, Optional, Text, Union
+from tensorflow_data_validation.types_compat import Dict, Iterable, List, Optional, Text, Union
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -775,6 +775,12 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
         is_categorical = feature_name in self._categorical_features
         current_type = basic_stats.common_stats.type
         if feature_name not in result:
+          # TODO(b/129424660): this leads to mutation of accumulators and
+          # should be avoided.
+          # Beam only allows mutating the first accumulator in the sequence
+          # passed to a CombineFn's merge_accumulators. And because this class
+          # is not directly used as a CombineFn but wrapped, mutating *any*
+          # accumulator is not allowed.
           result[feature_name] = basic_stats
         else:
           # Check if the types from the two partial statistics are not
