@@ -151,7 +151,7 @@ def generate_statistics_from_csv(
     # to be the header.
     skip_header_lines = 1 if column_names is None else 0
     if column_names is None:
-      column_names = _get_csv_header(data_location, delimiter)
+      column_names = get_csv_header(data_location, delimiter)
     _ = (
         p
         | 'ReadData' >> beam.io.textio.ReadFromText(
@@ -271,23 +271,24 @@ def _generate_partial_statistics_from_df(
       inmemory_dicts, stats_options, stats_generators)
 
 
-def _get_csv_header(data_location,
-                    delimiter):
-  """Get the CSV header from the input files.
+def get_csv_header(data_location,
+                   delimiter):
+  """Gets the CSV header from the input files.
 
   This function assumes that the header is present as the first line in all
   the files in the input path.
 
   Args:
-    data_location: The location of the input data files.
+    data_location: Glob pattern(s) specifying the location of the input data
+      files.
     delimiter: A one-character string used to separate fields in a CSV file.
 
   Returns:
     The list of column names.
 
   Raises:
-    ValueError: If any of the input files is empty or the files have
-      different headers.
+    ValueError: If any of the input files is not found or empty, or if the files
+      have different headers.
   """
   matched_files = tf.gfile.Glob(data_location)
   if not matched_files:

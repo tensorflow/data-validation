@@ -587,6 +587,41 @@ class StatsGenTest(absltest.TestCase):
           dataframe=dataframe,
           stats_options=self._default_stats_options, n_jobs=-2)
 
+  def test_get_csv_header(self):
+    temp_directory = self._get_temp_dir()
+    delimiter = ','
+    records = ['feature1,feature2', '1.0,aa']
+    expected_header = ['feature1', 'feature2']
+    self._write_records_to_csv(records, temp_directory, 'input_data_1.csv')
+    self._write_records_to_csv(records, temp_directory, 'input_data_2.csv')
+    data_location = os.path.join(temp_directory, 'input_data_*.csv')
+    header = stats_gen_lib.get_csv_header(data_location, delimiter)
+    self.assertEqual(header, expected_header)
+
+  def test_get_csv_header_no_file(self):
+    data_location = ''
+    delimiter = ','
+    with self.assertRaisesRegexp(ValueError, 'No file found.*'):
+      _ = stats_gen_lib.get_csv_header(data_location, delimiter)
+
+  def test_get_csv_header_empty_file(self):
+    empty_file = os.path.join(self._get_temp_dir(), 'empty.csv')
+    open(empty_file, 'w+').close()
+    delimiter = ','
+    with self.assertRaisesRegexp(ValueError, 'Found empty file.*'):
+      _ = stats_gen_lib.get_csv_header(empty_file, delimiter)
+
+  def test_get_csv_header_different_headers(self):
+    temp_directory = self._get_temp_dir()
+    delimiter = ','
+    records_1 = ['feature1,feature2', '1.0,aa']
+    records_2 = ['feature1,feature2_different', '2.0,bb']
+    self._write_records_to_csv(records_1, temp_directory, 'input_data_1.csv')
+    self._write_records_to_csv(records_2, temp_directory, 'input_data_2.csv')
+    data_location = os.path.join(temp_directory, 'input_data_*.csv')
+    with self.assertRaisesRegexp(ValueError, 'Files have different headers.'):
+      _ = stats_gen_lib.get_csv_header(data_location, delimiter)
+
 
 if __name__ == '__main__':
   absltest.main()
