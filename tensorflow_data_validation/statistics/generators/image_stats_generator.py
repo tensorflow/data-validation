@@ -108,21 +108,22 @@ class TfImageDecoder(ImageDecoderInterface):
   def _initialize_lazy_get_sizes_callable(self):
     # Initialize the tensorflow graph for decoding images.
     graph = tf.Graph()
-    self._session = tf.Session(graph=graph)
+    self._session = tf.compat.v1.Session(graph=graph)
 
     def get_image_shape(value):
-      image_shape = tf.shape(tf.image.decode_image(value))
+      image_shape = tf.shape(input=tf.image.decode_image(value))
       # decode_image returns a 3-D array ([height, width, num_channels]) for
       # BMP/JPEG/PNG images, but 4-D array ([num_frames, height, width, 3])
       # for GIF images.
       return tf.cond(
-          tf.equal(tf.size(image_shape), 4),
-          lambda: image_shape[1:3],
-          lambda: image_shape[0:2],
+          pred=tf.equal(tf.size(input=image_shape), 4),
+          true_fn=lambda: image_shape[1:3],
+          false_fn=lambda: image_shape[0:2],
       )
 
     with self._session.graph.as_default(), self._session.as_default():
-      self._batch_image_input = tf.placeholder(dtype=tf.string, shape=[None])
+      self._batch_image_input = tf.compat.v1.placeholder(
+          dtype=tf.string, shape=[None])
       self._image_shapes = tf.map_fn(
           get_image_shape,
           elems=self._batch_image_input,
