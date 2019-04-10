@@ -86,10 +86,16 @@ class StatsGenerator(object):
 ACCTYPE = TypeVar('ACCTYPE')
 
 
-class CombinerStatsGenerator(StatsGenerator):
+# This base class is introduced to facilitate migrating TFDV internal data
+# structure to Arrow. After the migration CombinerStatsGeneratorBase and its
+# sub-class will be folded into one.
+# TODO(zhuo): Fold the hierarchy once all CombinerStatsGenerators are
+# ArrowCombinerStatsGenerators.
+class CombinerStatsGeneratorBase(StatsGenerator):
   """Generate statistics using combiner function.
 
-  This object mirrors a beam.CombineFn.
+  This object mirrors a beam.CombineFn except for the add_input interface, which
+  is expected to be defined by its sub-classes.
   """
 
   def create_accumulator(self):  # pytype: disable=invalid-annotation
@@ -97,21 +103,6 @@ class CombinerStatsGenerator(StatsGenerator):
 
     Returns:
       An empty accumulator.
-    """
-    raise NotImplementedError
-
-  def add_input(self, accumulator,
-                input_batch):
-    """Returns result of folding a batch of inputs into accumulator.
-
-    Args:
-      accumulator: The current accumulator.
-      input_batch: A Python dict whose keys are strings denoting feature names
-        and values are lists representing a batch of examples, which should be
-        added to the accumulator.
-
-    Returns:
-      The accumulator after updating the statistics for the batch of inputs.
     """
     raise NotImplementedError
 
@@ -139,6 +130,25 @@ class CombinerStatsGenerator(StatsGenerator):
 
     Returns:
       A proto representing the result of this stats generator.
+    """
+    raise NotImplementedError
+
+
+class CombinerStatsGenerator(CombinerStatsGeneratorBase):
+  """Full interface for stats generators that work like a combine function."""
+
+  def add_input(
+      self, accumulator, input_batch):
+    """Returns result of folding a batch of inputs into accumulator.
+
+    Args:
+      accumulator: The current accumulator.
+      input_batch: A Python dict whose keys are strings denoting feature names
+        and values are lists representing a batch of examples, which should be
+        added to the accumulator.
+
+    Returns:
+      The accumulator after updating the statistics for the batch of inputs.
     """
     raise NotImplementedError
 

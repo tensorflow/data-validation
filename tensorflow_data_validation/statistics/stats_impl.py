@@ -112,7 +112,7 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
     combiner_stats_generators = []
     result_protos = []
     for generator in get_generators(self._options):
-      if isinstance(generator, stats_generator.CombinerStatsGenerator):
+      if isinstance(generator, stats_generator.CombinerStatsGeneratorBase):
         combiner_stats_generators.append(generator)
       elif isinstance(generator, stats_generator.TransformStatsGenerator):
         result_protos.append(
@@ -189,11 +189,11 @@ def get_generators(options,
     ]
   if in_memory:
     for generator in generators:
-      if not isinstance(generator, stats_generator.CombinerStatsGenerator):
+      if not isinstance(generator, stats_generator.CombinerStatsGeneratorBase):
         raise TypeError('Statistics generator used in '
                         'generate_statistics_in_memory must '
-                        'extend CombinerStatsGenerator, found object of type '
-                        '%s.' % generator.__class__.__name__)
+                        'extend CombinerStatsGeneratorBase, found object of '
+                        'type %s.' % generator.__class__.__name__)
   return generators
 
 
@@ -402,6 +402,9 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
       generators,
       desired_batch_size = None):
     self._generators = generators
+    self._has_example_batch_combiner_generator = any(
+        [isinstance(gen, stats_generator.CombinerStatsGenerator)
+         for gen in self._generators])
 
     # We really want the batch size to be adaptive like it is in
     # beam.BatchElements(), but there isn't an easy way to make it so.
@@ -462,11 +465,19 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
     batch_size = len(accumulator.input_examples)
     if (force and batch_size > 0) or batch_size >= self._desired_batch_size:
       self._combine_add_input_batch_size.update(batch_size)
-      merged_batch = batch_util.merge_single_batch(accumulator.input_examples)
+      merged_batch = None
+      if self._has_example_batch_combiner_generator:
+        merged_batch = batch_util.merge_single_batch(accumulator.input_examples)
+
+      def _generator_add_input(gen, gen_accumulator):
+        if isinstance(gen, stats_generator.CombinerStatsGenerator):
+          return gen.add_input(gen_accumulator, merged_batch)
+        else:
+          raise TypeError('Only stats_generator.CombinerStatsGenerator is '
+                          'expected for now')
 
       accumulator.partial_accumulators = self._for_each_generator(
-          lambda gen, acc: gen.add_input(acc, merged_batch),
-          accumulator.partial_accumulators)
+          _generator_add_input, accumulator.partial_accumulators)
       del accumulator.input_examples[:]
 
   def add_input(
@@ -547,17 +558,23 @@ def generate_partial_statistics_in_memory(
   Returns:
     A list of accumulators containing partial statistics.
   """
-  batch = batch_util.merge_single_batch(examples)
-  # If whitelist features are provided, keep only those features.
-  if options.feature_whitelist:
-    batch = {
-        feature_name: batch[feature_name]
-        for feature_name in options.feature_whitelist
-    }
-  return [
-      generator.add_input(generator.create_accumulator(), batch)
-      for generator in stats_generators  # pytype: disable=attribute-error
-  ]
+  result = []
+  batch = None
+  for generator in stats_generators:
+    if isinstance(generator, stats_generator.CombinerStatsGenerator):
+      if batch is None:
+        batch = batch_util.merge_single_batch(examples)
+        # If whitelist features are provided, keep only those features.
+        if options.feature_whitelist:
+          batch = {
+              feature_name: batch[feature_name]
+              for feature_name in options.feature_whitelist
+          }
+      result.append(generator.add_input(generator.create_accumulator(), batch))
+    else:
+      raise TypeError('Only stats_generator.CombinerStatsGenerator is '
+                      'expected for now')
+  return result
 
 
 def generate_statistics_in_memory(
