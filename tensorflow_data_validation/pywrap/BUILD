@@ -20,6 +20,18 @@ tf_py_wrap_cc(
         "arrow.i",
         "validation_api.i",
     ],
+    # Since we are building a python extension, we tell the linker to only
+    # export the extension initialization functions. This is done through
+    # linker script on macos and linux (syntax differs). And on windows
+    # it's done in the source code (dllexport).
+    # If we don't do this, our .so might export Tensorflow symbols
+    # which might lead to ODR violation when Tensorflow is imported at
+    # the same time.
+    version_script = select({
+        "@org_tensorflow//tensorflow:macos": "exported_symbols",
+        "@org_tensorflow//tensorflow:windows": None,
+        "//conditions:default": "version_script.lds",
+    }),
     deps = [
         "//tensorflow_data_validation/anomalies:feature_statistics_validator",
         "//tensorflow_data_validation/arrow/cc:arrow_util",
