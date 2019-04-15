@@ -20,6 +20,7 @@
   inferring shape for multivalent required features.
 * Fix divide by zero error in natural language stats generator.
 * Add `load_anomalies_text` and `write_anomalies_text` utility functions.
+* Define ReasonFeatureNeeded proto.
 * Depends on `pyarrow>=0.11.1,<0.12.0`.
 
 ## Breaking Changes
@@ -30,18 +31,6 @@
   (anomaly reason, example) tuples.
 * Rename `anomaly_proto` parameter in anomalies utilities to `anomalies` to
   make it more consistent with proto and schema utilities.
-
-## Deprecations
-
-# Release 0.13.2
-
-## Major Features and Improvements
-
-## Bug Fixes and Other Changes
-
-*   Internal cleanup: Define ReasonFeatureNeeded proto.
-
-## Breaking Changes
 
 ## Deprecations
 
