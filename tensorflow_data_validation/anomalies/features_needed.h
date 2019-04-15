@@ -18,19 +18,10 @@ limitations under the License.
 
 #include "tensorflow_data_validation/anomalies/path.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
+#include "tensorflow_data_validation/anomalies/proto/validation_metadata.pb.h"
 
 namespace tensorflow {
 namespace data_validation {
-
-// TODO(martinz): consider making a protobuf.
-// TODO(martinz): consider adding an environment.
-// TODO(martinz): consider adding a LifecycleStage.
-struct ReasonFeatureNeeded {
-  // If there is an issue in creating the field, the comment should help
-  // explain why.
-  // Example: "This is needed for transform XYZ (see /A/B/C)"
-  string comment;
-};
 
 using FeaturesNeeded = std::map<Path, std::vector<ReasonFeatureNeeded>>;
 

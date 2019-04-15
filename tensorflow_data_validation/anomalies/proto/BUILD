@@ -17,3 +17,9 @@ tfdv_proto_library(
     srcs = ["validation_config.proto"],
     cc_api_version = 2,
 )
+
+tfdv_proto_library(
+    name = "validation_metadata_proto",
+    srcs = ["validation_metadata.proto"],
+    cc_api_version = 2,
+)

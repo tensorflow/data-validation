@@ -25,6 +25,7 @@ limitations under the License.
 #include "tensorflow/core/platform/types.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
+#include "tensorflow_data_validation/anomalies/proto/validation_metadata.pb.h"
 
 namespace tensorflow {
 namespace data_validation {
@@ -329,10 +330,13 @@ TEST(FeatureStatisticsValidatorTest, FeaturesNeeded) {
     }
     string_domain { name: "feature1" value: "D" }
   )");
+
+  ReasonFeatureNeeded reason;
+  reason.set_comment("needed");
   TestFeatureStatisticsValidator(
       empty_schema, ValidationConfig(), statistics, tensorflow::gtl::nullopt,
       /*environment=*/gtl::nullopt,
-      /*features_needed=*/FeaturesNeeded({{Path({"feature1"}), {{"needed"}}}}),
+      /*features_needed=*/FeaturesNeeded({{Path({"feature1"}), {reason}}}),
       anomalies);
 }
 

@@ -13,6 +13,7 @@ cc_library(
     hdrs = ["features_needed.h"],
     deps = [
         ":path",
+        "//tensorflow_data_validation/anomalies/proto:validation_metadata_proto",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
     ],
 )
@@ -291,6 +292,7 @@ cc_test(
         ":feature_statistics_validator",
         ":test_util",
         "//tensorflow_data_validation/anomalies/proto:validation_config_proto",
+        "//tensorflow_data_validation/anomalies/proto:validation_metadata_proto",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
         "@com_google_googletest//:gtest_main",
         "@org_tensorflow//tensorflow/core:lib",

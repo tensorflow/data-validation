@@ -33,6 +33,18 @@
 
 ## Deprecations
 
+# Release 0.13.2
+
+## Major Features and Improvements
+
+## Bug Fixes and Other Changes
+
+*   Internal cleanup: Define ReasonFeatureNeeded proto.
+
+## Breaking Changes
+
+## Deprecations
+
 # Release 0.13.1
 
 ## Major Features and Improvements
