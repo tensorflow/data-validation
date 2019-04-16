@@ -13,6 +13,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-%include "tensorflow_data_validation/pywrap/validation_api.i"
-%include "tensorflow_data_validation/pywrap/arrow.i"
-%include "tensorflow_data_validation/pywrap/fast_example_decoder.i"
+%{
+#include "tensorflow_data_validation/coders/cc/fast_example_decoder.h"
+%}
+
+namespace tensorflow {
+namespace data_validation {
+PyObject* TFDV_DecodeExample(PyObject* serialized_proto);
+}  // namespace data_validation
+}  // namespace tensorflow

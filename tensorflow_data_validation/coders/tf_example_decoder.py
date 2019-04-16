@@ -20,54 +20,22 @@ from __future__ import division
 from __future__ import print_function
 
 import apache_beam as beam
-import numpy as np
-import tensorflow as tf
 from tensorflow_data_validation import types
-from tensorflow_data_validation.types_compat import Optional
+from tensorflow_data_validation.pywrap import pywrap_tensorflow_data_validation
 
 
-def _make_example_dict_value(feature):
-  """Converts a single TF feature to its example Dict value."""
-  kind = feature.WhichOneof('kind')
-  if kind == 'int64_list':
-    return np.asarray(feature.int64_list.value, dtype=np.int64)
-  elif kind == 'float_list':
-    return np.asarray(feature.float_list.value, dtype=np.float32)
-  elif kind == 'bytes_list':
-    return np.asarray(feature.bytes_list.value, dtype=np.object)
-  elif kind is None:
-    # If we have a feature with no value list, we consider it to be a missing
-    # value.
-    return None
-  else:
-    raise ValueError('Unsupported value type found in feature: {}'.format(kind))
+DecodeExample = pywrap_tensorflow_data_validation.TFDV_DecodeExample  # pylint: disable=invalid-name
 
 
-# TODO(b/118385481): Maybe reuse tft.ExampleProtoCoder when data schema is
-# provided. The difference between this decoder and tensorflow transform's
-# ExampleProtoCoder class is that this decoder does not accept data schema as
-# input, thus we do not know the list of features and their types in advance.
+# TODO(pachristopher): This fast coder can also benefit TFT. Consider moving
+# this coder to tf.Beam once it is available.
 class TFExampleDecoder(object):
   """A decoder for decoding TF examples into tf data validation datasets.
   """
 
-  def __init__(self):
-    # Using pre-allocated tf.train.Example object for performance reasons.
-    # Note that we don't violate the Beam programming model as we don't
-    # return this mutable object.
-    self._decode_example_cache = tf.train.Example()
-
-  def __reduce__(self):
-    return TFExampleDecoder, ()
-
   def decode(self, serialized_example_proto):
     """Decodes serialized tf.Example to tf data validation input dict."""
-    self._decode_example_cache.ParseFromString(serialized_example_proto)
-    feature_map = self._decode_example_cache.features.feature
-    return {
-        feature_name: _make_example_dict_value(feature_map[feature_name])
-        for feature_name in feature_map
-    }
+    return DecodeExample(serialized_example_proto)
 
 
 @beam.ptransform_fn

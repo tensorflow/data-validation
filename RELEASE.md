@@ -8,6 +8,7 @@
 * Add utility method `validate_examples_in_tfrecord`, which identifies anomalous
   examples in TFRecord files containing TFExamples and generates statistics for
   those anomalous examples.
+* Add fast TF example decoder written in C++.
 
 ## Bug Fixes and Other Changes
 
