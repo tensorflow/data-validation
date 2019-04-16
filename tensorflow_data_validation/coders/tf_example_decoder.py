@@ -30,7 +30,7 @@ def _make_example_dict_value(feature):
   """Converts a single TF feature to its example Dict value."""
   kind = feature.WhichOneof('kind')
   if kind == 'int64_list':
-    return np.asarray(feature.int64_list.value, dtype=np.integer)
+    return np.asarray(feature.int64_list.value, dtype=np.int64)
   elif kind == 'float_list':
     return np.asarray(feature.float_list.value, dtype=np.float32)
   elif kind == 'bytes_list':

@@ -230,7 +230,7 @@ def _make_example_dict(row, skip_blank_lines,
       # If the field is an empty string, add the feature key with value as None.
       result[feature_name] = None
     elif feature_type == statistics_pb2.FeatureNameStatistics.INT:
-      result[feature_name] = np.asarray([int(field)], dtype=np.integer)
+      result[feature_name] = np.asarray([int(field)], dtype=np.int64)
     elif feature_type == statistics_pb2.FeatureNameStatistics.FLOAT:
       result[feature_name] = np.asarray([float(field)], dtype=np.float32)
     elif feature_type == statistics_pb2.FeatureNameStatistics.STRING:

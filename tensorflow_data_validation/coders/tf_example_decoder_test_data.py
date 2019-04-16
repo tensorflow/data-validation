@@ -34,7 +34,7 @@ TF_EXAMPLE_DECODER_TESTS = [
             }
           }
         ''',
-        'decoded_example': {'x': np.array([1, 2, 3], dtype=np.integer)}
+        'decoded_example': {'x': np.array([1, 2, 3], dtype=np.int64)}
     },
     {
         'testcase_name': 'float_feature_non_empty',
@@ -71,7 +71,7 @@ TF_EXAMPLE_DECODER_TESTS = [
             }
           }
         ''',
-        'decoded_example': {'x': np.array([], dtype=np.integer)}
+        'decoded_example': {'x': np.array([], dtype=np.int64)}
     },
     {
         'testcase_name': 'float_feature_empty',
@@ -143,8 +143,8 @@ BEAM_TF_EXAMPLE_DECODER_TESTS = [
           }
         ''',
         'decoded_example': {
-            'int_feature_1': np.array([0], dtype=np.integer),
-            'int_feature_2': np.array([1, 2, 3], dtype=np.integer),
+            'int_feature_1': np.array([0], dtype=np.int64),
+            'int_feature_2': np.array([1, 2, 3], dtype=np.int64),
             'float_feature_1': np.array([4.0], dtype=np.float32),
             'float_feature_2': np.array([5.0, 6.0], dtype=np.float32),
             'str_feature_1': np.array([b'female'], dtype=np.object),

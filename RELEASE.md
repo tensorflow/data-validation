@@ -21,6 +21,7 @@
 * Fix divide by zero error in natural language stats generator.
 * Add `load_anomalies_text` and `write_anomalies_text` utility functions.
 * Define ReasonFeatureNeeded proto.
+* Add support for Windows OS.
 * Depends on `pyarrow>=0.11.1,<0.12.0`.
 
 ## Breaking Changes

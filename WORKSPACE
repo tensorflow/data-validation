@@ -55,7 +55,7 @@ git_repository(
 # Required by arrow.
 git_repository(
     name = "com_github_nelhage_rules_boost",
-    commit = "6d6fd834281cb8f8e758dd9ad76df86304bf1869",
+    commit = "c35f4bd933bc609c3bd337d3b59f57837c259602",
     remote = "https://github.com/nelhage/rules_boost",
 )
 

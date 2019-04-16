@@ -41,10 +41,10 @@ class CSVDecoderTest(absltest.TestCase):
                    '5,12.34,world']
     column_names = ['int_feature', 'float_feature', 'str_feature']
     expected_result = [
-        {'int_feature': np.array([1], dtype=np.integer),
+        {'int_feature': np.array([1], dtype=np.int64),
          'float_feature': np.array([2.0], dtype=np.float32),
          'str_feature': np.array([b'hello'], dtype=np.object)},
-        {'int_feature': np.array([5], dtype=np.integer),
+        {'int_feature': np.array([5], dtype=np.int64),
          'float_feature': np.array([12.34], dtype=np.float32),
          'str_feature': np.array([b'world'], dtype=np.object)}]
 
@@ -69,11 +69,11 @@ class CSVDecoderTest(absltest.TestCase):
         """, schema_pb2.Schema())
     expected_result = [
         {'int_feature_parsed_as_float': np.array([1], dtype=np.float32),
-         'int_feature': np.array([1], dtype=np.integer),
+         'int_feature': np.array([1], dtype=np.int64),
          'float_feature': np.array([2.0], dtype=np.float32),
          'str_feature': np.array([b'hello'], dtype=np.object)},
         {'int_feature_parsed_as_float': np.array([5], dtype=np.float32),
-         'int_feature': np.array([5], dtype=np.integer),
+         'int_feature': np.array([5], dtype=np.int64),
          'float_feature': np.array([12.34], dtype=np.float32),
          'str_feature': np.array([b'world'], dtype=np.object)}]
 
@@ -160,7 +160,7 @@ class CSVDecoderTest(absltest.TestCase):
     column_names = ['int_feature', 'unicode_feature',
                     'float_feature', 'str_feature']
     expected_result = [
-        {'int_feature': np.array([1], dtype=np.integer),
+        {'int_feature': np.array([1], dtype=np.int64),
          'unicode_feature': np.array([u'שקרכלשהו'.encode('utf-8')],
                                      dtype=np.object),
          'float_feature': np.array([22.34], dtype=np.float32),
@@ -178,9 +178,9 @@ class CSVDecoderTest(absltest.TestCase):
                    '5,"wx,xy,yz"']
     column_names = ['int_feature', 'str_feature']
     expected_result = [
-        {'int_feature': np.array([1], dtype=np.integer),
+        {'int_feature': np.array([1], dtype=np.int64),
          'str_feature': np.array([b'ab,cd,ef'], dtype=np.object)},
-        {'int_feature': np.array([5], dtype=np.integer),
+        {'int_feature': np.array([5], dtype=np.int64),
          'str_feature': np.array([b'wx,xy,yz'], dtype=np.object)}]
 
     with beam.Pipeline() as p:
@@ -195,9 +195,9 @@ class CSVDecoderTest(absltest.TestCase):
                    '5 "wx,xy,yz"']
     column_names = ['int_feature', 'str_feature']
     expected_result = [
-        {'int_feature': np.array([1], dtype=np.integer),
+        {'int_feature': np.array([1], dtype=np.int64),
          'str_feature': np.array([b'ab,cd,ef'], dtype=np.object)},
-        {'int_feature': np.array([5], dtype=np.integer),
+        {'int_feature': np.array([5], dtype=np.int64),
          'str_feature': np.array([b'wx,xy,yz'], dtype=np.object)}]
 
     with beam.Pipeline() as p:
@@ -213,9 +213,9 @@ class CSVDecoderTest(absltest.TestCase):
                    '5\t']
     column_names = ['int_feature', 'str_feature']
     expected_result = [
-        {'int_feature': np.array([1], dtype=np.integer),
+        {'int_feature': np.array([1], dtype=np.int64),
          'str_feature': np.array([b'this is a \ttext'], dtype=np.object)},
-        {'int_feature': np.array([5], dtype=np.integer),
+        {'int_feature': np.array([5], dtype=np.int64),
          'str_feature': None}]
 
     with beam.Pipeline() as p:
@@ -338,8 +338,8 @@ class CSVDecoderTest(absltest.TestCase):
                    '1,2']
     column_names = ['int_feature1', 'int_feature2']
     expected_result = [
-        {'int_feature1': np.array([1], dtype=np.integer),
-         'int_feature2': np.array([2], dtype=np.integer)}]
+        {'int_feature1': np.array([1], dtype=np.int64),
+         'int_feature2': np.array([2], dtype=np.int64)}]
 
     with beam.Pipeline() as p:
       result = (p | beam.Create(input_lines) |
@@ -371,7 +371,7 @@ class CSVDecoderTest(absltest.TestCase):
                    '1']
     column_names = ['int_feature']
     expected_result = [
-        {'int_feature': np.array([1], dtype=np.integer)}]
+        {'int_feature': np.array([1], dtype=np.int64)}]
 
     with beam.Pipeline() as p:
       result = (p | beam.Create(input_lines) |

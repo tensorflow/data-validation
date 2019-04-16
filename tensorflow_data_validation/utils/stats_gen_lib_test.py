@@ -412,7 +412,7 @@ class StatsGenTest(absltest.TestCase):
     tmp_dir = self._get_temp_dir()
     self._write_records_to_csv(records1, tmp_dir, 'input_data1.csv')
     self._write_records_to_csv(records2, tmp_dir, 'input_data2.csv')
-    input_data_path = tmp_dir + '/input_data*'
+    input_data_path = os.path.join(tmp_dir, 'input_data*')
 
     result = stats_gen_lib.generate_statistics_from_csv(
         data_location=input_data_path,
@@ -497,7 +497,7 @@ class StatsGenTest(absltest.TestCase):
     tmp_dir = self._get_temp_dir()
     self._write_records_to_csv(records1, tmp_dir, 'input_data1.csv')
     self._write_records_to_csv(records2, tmp_dir, 'input_data2.csv')
-    input_data_path = tmp_dir + '/input_data*'
+    input_data_path = os.path.join(tmp_dir, 'input_data*')
 
     with self.assertRaisesRegexp(
         ValueError, 'Files have different headers.'):
@@ -599,7 +599,7 @@ class StatsGenTest(absltest.TestCase):
     self.assertEqual(header, expected_header)
 
   def test_get_csv_header_no_file(self):
-    data_location = ''
+    data_location = os.path.join(self._get_temp_dir(), 'fileA.csv')
     delimiter = ','
     with self.assertRaisesRegexp(ValueError, 'No file found.*'):
       _ = stats_gen_lib.get_csv_header(data_location, delimiter)

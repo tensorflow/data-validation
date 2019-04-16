@@ -31,12 +31,26 @@ else
   fi
 fi
 
+PLATFORM="$(uname -s | tr 'A-Z' 'a-z')"
+function is_windows() {
+  if [[ "${PLATFORM}" =~ (cygwin|mingw32|mingw64|msys)_nt* ]]; then
+    true
+  else
+    false
+  fi
+}
+
 set -u -x
 
-cp -f tensorflow_data_validation/pywrap/pywrap_tensorflow_data_validation.py \
+cp -f ${BUILD_WORKSPACE_DIRECTORY}/bazel-bin/tensorflow_data_validation/pywrap/pywrap_tensorflow_data_validation.py \
   ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/pywrap
-cp -f tensorflow_data_validation/pywrap/_pywrap_tensorflow_data_validation.so \
-  ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/pywrap
+if is_windows; then
+  cp -f ${BUILD_WORKSPACE_DIRECTORY}/bazel-out/x64_windows-opt/genfiles/tensorflow_data_validation/pywrap/_pywrap_tensorflow_data_validation.pyd \
+    ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/pywrap/_pywrap_tensorflow_data_validation.pyd
+else
+  cp -f ${BUILD_WORKSPACE_DIRECTORY}/bazel-bin/tensorflow_data_validation/pywrap/_pywrap_tensorflow_data_validation.so \
+    ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/pywrap
+fi
 
 # Create the wheel
 cd ${BUILD_WORKSPACE_DIRECTORY}
