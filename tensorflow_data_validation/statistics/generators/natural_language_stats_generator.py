@@ -194,7 +194,8 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
       for value in value_list:
         if not value:
           continue
-        if isinstance(value, bytes) and not stats_util.is_valid_utf8(value):
+        if isinstance(value,
+                      bytes) and stats_util.maybe_get_utf8(value) is None:
           accumulator.invalidate = True
           return accumulator
         accumulator.considered += 1

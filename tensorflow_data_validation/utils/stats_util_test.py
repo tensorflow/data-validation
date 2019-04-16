@@ -144,9 +144,10 @@ class StatsUtilTest(absltest.TestCase):
     with self.assertRaisesRegexp(ValueError, 'Weight feature.*single value'):
       stats_util.get_weight_feature(batch, 'w')
 
-  def test_is_valid_utf8(self):
-    self.assertTrue(stats_util.is_valid_utf8(b'This is valid'))
-    self.assertFalse(stats_util.is_valid_utf8(b'\xF0'))
+  def test_get_utf8(self):
+    self.assertEqual(u'This is valid.',
+                     stats_util.maybe_get_utf8(b'This is valid.'))
+    self.assertIsNone(stats_util.maybe_get_utf8(b'\xF0'))
 
   def test_write_load_stats_text(self):
     stats = text_format.Parse("""

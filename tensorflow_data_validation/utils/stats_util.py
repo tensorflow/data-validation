@@ -20,7 +20,7 @@ from __future__ import print_function
 
 import numpy as np
 from tensorflow_data_validation import types
-from tensorflow_data_validation.types_compat import Dict, List, Optional
+from tensorflow_data_validation.types_compat import Dict, List, Optional, Text
 from google.protobuf import text_format
 # TODO(b/125849585): Update to import from TF directly.
 from tensorflow.python.lib.io import file_io  # pylint: disable=g-direct-tensorflow-import
@@ -44,13 +44,19 @@ DOMAIN_INFO = 'domain_info'
 # LINT.ThenChange(../anomalies/custom_domain_util.cc)
 
 
-def is_valid_utf8(value):
-  """Returns True iff the value is valid utf8."""
+def maybe_get_utf8(value):
+  """Returns the value decoded as utf-8, or None if it cannot be decoded.
+
+  Args:
+    value: The bytes value to decode.
+  Returns:
+    The value decoded as utf-8, or None, if the value cannot be decoded.
+  """
   try:
-    value.decode('utf-8')
+    decoded_value = value.decode('utf-8')
   except UnicodeError:
-    return False
-  return True
+    return None
+  return decoded_value
 
 
 def get_feature_type(
