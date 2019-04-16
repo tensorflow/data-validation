@@ -16,7 +16,10 @@
 
 #include <memory>
 
+// This include is needed to avoid C2528. See https://bugs.python.org/issue24643
+#include "arrow/python/platform.h"
 #include "arrow/python/pyarrow.h"
+#include "arrow/api.h"
 #include "absl/strings/str_cat.h"
 #include "tensorflow_data_validation/arrow/cc/macros.h"
 

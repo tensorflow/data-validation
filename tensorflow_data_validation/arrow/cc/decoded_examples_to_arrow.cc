@@ -18,36 +18,34 @@
 #include <cstring>
 #include <memory>
 
+// This include is needed to avoid C2528. See https://bugs.python.org/issue24643
+// Must be included before other arrow headers.
+#include "arrow/python/platform.h"
+#include "arrow/python/common.h"
+#include "arrow/python/init.h"
+#include "arrow/python/numpy_convert.h"
+#include "arrow/python/numpy_to_arrow.h"
 #include "arrow/python/pyarrow.h"
+// NOTE: the numpy headers MUST come after arrow headers because arrow headers
+// define PY_ARRAY_UNIQUE_SYMBOL so that the numpy API (contained in a function
+// pointer array) has external linkage, and import_array() does not have to be
+// called in every translation unit.
+// https://docs.scipy.org/doc/numpy/reference/c-api.array.html?highlight=array#importing-the-api
 #include "numpy/arrayobject.h"
-#include "numpy/ndarraytypes.h"
 #include "numpy/ufuncobject.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "arrow/api.h"
 #include "tensorflow_data_validation/arrow/cc/macros.h"
 
 namespace {
-using arrow::DataType;
-using arrow::Type;
-using arrow::ArrayBuilder;
-using arrow::ArrayVector;
-using arrow::BinaryBuilder;
-using arrow::Field;
-using arrow::FloatBuilder;
-using arrow::Int64Builder;
-using arrow::ListBuilder;
-using arrow::Status;
-using arrow::Table;
-
-// Appends `num_nulls` of nulls to `list_builder`.
-Status AppendNulls(const int64_t num_nulls, ListBuilder* list_builder) {
-  // If the API allows, we should do this in bulk.
-  for (int i = 0; i < num_nulls; ++i) {
-    RETURN_NOT_OK(list_builder->AppendNull());
-  }
-  return Status::OK();
-}
+using ::arrow::ArrayVector;
+using ::arrow::ChunkedArray;
+using ::arrow::DataType;
+using ::arrow::Field;
+using ::arrow::Status;
+using ::arrow::Table;
 
 // Makes a string_view out of a Python bytes object. Note that the Python object
 // still owns the underlying memory.
@@ -94,88 +92,36 @@ Status GetNumPyArray(PyObject* py_obj, PyArrayObject** py_array_obj) {
   return Status::OK();
 }
 
-// Makes an Arrow ListArray builder based on the type of `np_array`.
-// Returns an error if `np_array` is of unsupported type. Currently only
-// np.int64, np.float32 and np.object (for strings) are supported.
-Status MakeListBuilderFromFeature(
-    PyArrayObject* np_array, std::unique_ptr<ListBuilder>* builder) {
-  int np_type = PyArray_TYPE(np_array);
-  if (np_type == NPY_INT64) {
-    *builder = absl::make_unique<ListBuilder>(
-        arrow::default_memory_pool(),
-        std::make_shared<Int64Builder>(arrow::default_memory_pool()));
-  } else if (np_type == NPY_FLOAT32) {
-    *builder = absl::make_unique<ListBuilder>(
-        arrow::default_memory_pool(),
-        std::make_shared<FloatBuilder>(arrow::default_memory_pool()));
-  } else if (np_type == NPY_OBJECT) {
-    *builder = absl::make_unique<ListBuilder>(
-        arrow::default_memory_pool(),
-        std::make_shared<BinaryBuilder>(arrow::default_memory_pool()));
+
+// Returns the arrow DataType of ListArray<x> where x corresponds to `descr`.
+Status ArrowTypeFromNumpyDescr(PyArray_Descr* descr,
+                               std::shared_ptr<DataType>* arrow_type) {
+  std::shared_ptr<DataType> value_type;
+  if (descr->type_num == NPY_OBJECT) {
+    value_type = std::make_shared<arrow::BinaryType>();
   } else {
-    return Status::Invalid(absl::StrCat("Unsupported ndarray type: ", np_type));
+    RETURN_NOT_OK(arrow::py::NumPyDtypeToArrow(descr, &value_type));
   }
-  return Status::OK();
-}
-
-Status ArrowTypeToNumpyType(const DataType& arrow_type, int* np_type) {
-  switch (arrow_type.id()) {
-    case Type::INT64:
-      *np_type = NPY_INT64;
-      break;
-    case Type::FLOAT:
-      *np_type = NPY_FLOAT32;
-      break;
-    case Type::BINARY:
-      *np_type = NPY_OBJECT;
-      break;
-    default:
-      return Status::NotImplemented("Internal error: unsupported type");
-  }
-  return Status::OK();
-}
-
-Status AppendNpArrayToBuilder(PyArrayObject* np_array, ListBuilder* builder) {
-  const int np_type = PyArray_TYPE(np_array);
-  ArrayBuilder* value_builder = builder->value_builder();
-  int expected_np_type = -1;
-  RETURN_NOT_OK(
-      ArrowTypeToNumpyType(*value_builder->type(), &expected_np_type));
-  if (np_type != expected_np_type) {
-    return Status::Invalid(absl::StrCat(
-        "Expected ndarray type ", expected_np_type, " but got ", np_type));
-  }
-
-  // Now that src and dst types match, we can safely static_cast.
-  RETURN_NOT_OK(builder->Append());
-  if (np_type == NPY_INT64) {
-    auto* int64_builder = static_cast<Int64Builder*>(value_builder);
-    RETURN_NOT_OK(int64_builder->AppendValues(
-        static_cast<int64_t*>(PyArray_DATA(np_array)), PyArray_SIZE(np_array)));
-  } else if (np_type == NPY_FLOAT32) {
-    auto* float_builder = static_cast<FloatBuilder*>(value_builder);
-    RETURN_NOT_OK(float_builder->AppendValues(
-        static_cast<float*>(PyArray_DATA(np_array)), PyArray_SIZE(np_array)));
-  } else if (np_type == NPY_OBJECT) {
-    auto* binary_builder = static_cast<BinaryBuilder*>(value_builder);
-    PyObject** py_strings = static_cast<PyObject**>(PyArray_DATA(np_array));
-    for (int i = 0; i < PyArray_SIZE(np_array); ++i) {
-      absl::string_view sv;
-      RETURN_NOT_OK(PyBytesToStringView(py_strings[i], &sv));
-      RETURN_NOT_OK(binary_builder->Append(sv.data(), sv.size()));
-    }
-  } else {
-    return Status::Invalid("Unsupported npy type");
-  }
+  *arrow_type = std::make_shared<arrow::ListType>(std::move(value_type));
   return Status::OK();
 }
 
 // Helper class to convert decoded examples to an Arrow Table.
 // One converter should be created for each Table to be created. Do not re-use.
+// Implementation note:
+// The implementation builds a numpy array of numpy arrays for each feature,
+// and uses arrow's routine to convert that to an Arrow ListArray. The routine
+// is exactly what's used in pyarrow, so we could have built the numpy array
+// of arrays in python and called the same routine (python wrapped), however
+// that is ~8x slower.
+// We also could have gone directly with Arrow's ArrayBuilders without the
+// numpy array indirection but then we would have to implement the type bridge
+// from numpy to arrow.
 class DecodedExamplesToTableConverter {
  public:
-  DecodedExamplesToTableConverter() = default;
-  ~DecodedExamplesToTableConverter() = default;
+  DecodedExamplesToTableConverter(const int64_t num_examples)
+      : num_examples_(num_examples) {}
+  ~DecodedExamplesToTableConverter() {}
 
   // Disallow copy and move.
   DecodedExamplesToTableConverter(
@@ -187,6 +133,8 @@ class DecodedExamplesToTableConverter {
   // to the Table.
   // Returns an error if `decoded_example` is invalid. If an error is returned,
   // this class is in undefined state and no further calls to it should be made.
+  // Note that this must be called exactly `num_examples` times before
+  // BuildTable() is called otherwise BuildTable() will return an error.
   Status AddDecodedExample(PyObject* decoded_example) {
     if (!PyDict_Check(decoded_example)) {
       return Status::Invalid("Expected a dict.");
@@ -194,7 +142,7 @@ class DecodedExamplesToTableConverter {
     PyObject* py_key;
     PyObject* py_value;
     Py_ssize_t pos = 0;
-    std::vector<bool> feature_seen(array_builder_by_index_.size(), false);
+    std::vector<bool> feature_seen(feature_rep_by_index_.size(), false);
     while (PyDict_Next(decoded_example, &pos, &py_key, &py_value)) {
       std::string feature_name;
       RETURN_NOT_OK(FeatureNameToString(py_key, &feature_name));
@@ -206,15 +154,15 @@ class DecodedExamplesToTableConverter {
                                    " error message: ", status.message()));
       }
     }
-
-    // For any unseen feature, append null if there is a builder for it,
-    // otherwise skip, as when the builder is being created when a first
-    // not-None values are seen, the builder will be appened with nulls of
-    // number of examples seen so far.
+    // For any unseen feature, set the value of this example to None if there is
+    // a FeatureRep for it, otherwise skip, as when a FeatureRep is being
+    // created when a first not-None value is seen, it will be populated with
+    // Nones of number of examples seen so far.
     for (int j = 0; j < feature_seen.size(); ++j) {
       if (!feature_seen[j]) {
-        if (array_builder_by_index_[j]) {
-          RETURN_NOT_OK(array_builder_by_index_[j]->AppendNull());
+        if (feature_rep_by_index_[j]) {
+          RETURN_NOT_OK(feature_rep_by_index_[j]->SetValueNdArray(
+              example_count_, Py_None));
         }
       }
     }
@@ -224,17 +172,32 @@ class DecodedExamplesToTableConverter {
 
   // This should be called after all AddDecodedExample() calls are made.
   Status BuildTable(std::shared_ptr<Table>* table) {
+    if (num_examples_ != example_count_) {
+      return Status::Invalid(absl::StrCat(
+          "Internal error: AddExample must be called ", num_examples_,
+          " times but was called ", example_count_));
+    }
     ArrayVector arrays;
     std::vector<std::shared_ptr<Field>> fields;
     for (const auto& pair : feature_name_to_index_) {
       const std::string& feature_name = pair.first;
       const int feature_index = pair.second;
-      const auto& builder = array_builder_by_index_[feature_index];
+      auto& maybe_feature_rep = feature_rep_by_index_[feature_index];
       arrays.emplace_back();
       std::shared_ptr<DataType> type;
-      if (builder) {
-        RETURN_NOT_OK(builder->Finish(&arrays.back()));
-        type = builder->type();
+      if (maybe_feature_rep) {
+        RETURN_NOT_OK(ArrowTypeFromNumpyDescr(
+            maybe_feature_rep->value_ndarray_descr(), &type));
+        std::shared_ptr<ChunkedArray> chunked_array;
+        RETURN_NOT_OK(arrow::py::NdarrayToArrow(
+            arrow::default_memory_pool(),
+            /*ao=*/maybe_feature_rep->ndarray_of_ndarrays(),
+            /*mo=*/nullptr, /*use_pandas_null_sentinels=*/false, type,
+            &chunked_array));
+        if (!chunked_array || chunked_array->num_chunks() != 1) {
+          return Status::Invalid(absl::StrCat("Internal error."));
+        }
+        arrays.back() = chunked_array->chunk(0);
       } else {
         // This feature is None for all the examples we've seen so far. To
         // distinguish the case where the feature did not appear in any of the
@@ -245,11 +208,82 @@ class DecodedExamplesToTableConverter {
       }
       fields.push_back(std::make_shared<Field>(feature_name, type));
     }
-    *table = Table::Make(schema(std::move(fields)), arrays);
+    *table = Table::Make(schema(std::move(fields)), arrays, num_examples_);
     return Status::OK();
   }
 
  private:
+  // Groups internal states about a feature whose type has been determined
+  // (which will be come a column in the resulting table).
+  class FeatureRep {
+   public:
+    FeatureRep(const size_t num_examples, const size_t num_leading_nones,
+               PyArray_Descr* value_ndarray_descr)
+        : value_ndarray_descr_(value_ndarray_descr) {
+      npy_intp values_dims[] = {static_cast<npy_intp>(num_examples)};
+      ndarray_of_ndarrays_.reset(PyArray_SimpleNew(1, values_dims, NPY_OBJECT));
+      ndarray_of_ndarrays_data_ = reinterpret_cast<PyObject**>(PyArray_DATA(
+          reinterpret_cast<PyArrayObject*>(ndarray_of_ndarrays_.obj())));
+      for (int i = 0; i < num_leading_nones; ++i) {
+        ndarray_of_ndarrays_data_[i] = Py_None;
+        Py_INCREF(Py_None);
+      }
+    }
+    ~FeatureRep() = default;
+
+    // Disallow copy (otherwise the refcount is messed up) but allow move (
+    // otherwise cannot be put inside a vector).
+    FeatureRep(const FeatureRep&) = delete;
+    FeatureRep& operator=(const FeatureRep&) = delete;
+    FeatureRep(FeatureRep&&) = default;
+    FeatureRep& operator=(FeatureRep&&) = default;
+
+    // Type of the numpy array of the feature value.
+    int value_npy_type() const {
+      return value_ndarray_descr()->type_num;
+    }
+
+    // The numpy descriptor of one of the numpy arrays in `ndarray_of_ndarrays`.
+    // Used for getting the type only since all the numpy arrays contained
+    // are of the same type.
+    PyArray_Descr* value_ndarray_descr() const {
+      return value_ndarray_descr_;
+    }
+
+    // Sets `ndarray_of_ndarrays`[`index`] to `py_object_np_array`.
+    // `py_object_np_array` could be Py_None or a numpy array. If it's a numpy
+    // array, returns an error if its type does not match `value_npy_type`().
+    Status SetValueNdArray(const size_t index, PyObject* py_obj_np_array) {
+      if (py_obj_np_array != Py_None) {
+        PyArrayObject* np_array;
+        RETURN_NOT_OK(GetNumPyArray(py_obj_np_array, &np_array));
+        const int this_npy_type = PyArray_TYPE(np_array);
+        if (this_npy_type != value_npy_type()) {
+          return Status::Invalid(
+              absl::StrCat("Mismatch feature numpy array types. Previously: ",
+                           value_npy_type(), " , now: ", this_npy_type));
+        }
+      }
+      ndarray_of_ndarrays_data_[index] = py_obj_np_array;
+      Py_INCREF(py_obj_np_array);
+      return Status::OK();
+    }
+
+    PyObject* ndarray_of_ndarrays() const {
+      return ndarray_of_ndarrays_.obj();
+    }
+
+   private:
+    // A numpy array of type np.object that contains feature values
+    // (as numpy arrays).
+    arrow::py::OwnedRef ndarray_of_ndarrays_;
+    // The numpy descriptor of one of the numpy arrays in `ndarray_of_ndarrays_`
+    // .
+    PyArray_Descr* value_ndarray_descr_;
+    // Points to the data buffer of `ndarray_of_ndarrays`.
+    PyObject** ndarray_of_ndarrays_data_;
+  };
+
   // Adds `value`, a feature, i.e. a "cell", to the Table. Returns an error if
   // `value` is not a valid feature.
   Status AddFeature(const std::string& feature_name, PyObject* value,
@@ -260,50 +294,49 @@ class DecodedExamplesToTableConverter {
     // parallel arrays.
     if (iter == feature_name_to_index_.end()) {
       std::tie(iter, std::ignore) = feature_name_to_index_.insert(
-          std::make_pair(feature_name, array_builder_by_index_.size()));
-      array_builder_by_index_.emplace_back();
+          std::make_pair(feature_name, feature_name_to_index_.size()));
       feature_seen->push_back(true);
+      feature_rep_by_index_.emplace_back();
     }
 
-    // We've seen this feature, but it might not have a builder yet (
+    // We've seen this feature, but it might not have a FeatureRep yet (
     // all its previous values are None), and we might
-    // not be able to create a builder (its current value is still None) for it
-    // at this time.
-    // If we do create a builder for it at this time, we need to append nulls
-    // to account for its previous Nones, if any.
+    // not be able to create a FeatureRep (its current value is still None) for
+    // it at this time.
     const int feature_index = iter->second;
     (*feature_seen)[feature_index] = true;
-    auto& array_builder = array_builder_by_index_[feature_index];
-    if (value == Py_None) {
-      if (array_builder) {
-        RETURN_NOT_OK(array_builder->AppendNull());
+    auto& maybe_feature_rep = feature_rep_by_index_[feature_index];
+    if (!maybe_feature_rep) {
+      if (value != Py_None) {
+        PyArrayObject* numpy_array;
+        RETURN_NOT_OK(GetNumPyArray(value, &numpy_array));
+        maybe_feature_rep = FeatureRep(num_examples_, example_count_,
+                                       PyArray_DESCR(numpy_array));
       }
-    } else {
-      PyArrayObject* np_array = nullptr;
-      RETURN_NOT_OK(GetNumPyArray(value, &np_array));
-      if (!array_builder) {
-        RETURN_NOT_OK(MakeListBuilderFromFeature(np_array, &array_builder));
-        RETURN_NOT_OK(AppendNulls(example_count_, array_builder.get()));
-      }
-      RETURN_NOT_OK(AppendNpArrayToBuilder(np_array, array_builder.get()));
     }
+    // maybe_feature_rep might be created at above.
+    if (maybe_feature_rep) {
+      RETURN_NOT_OK(maybe_feature_rep->SetValueNdArray(example_count_, value));
+    }
+
     return Status::OK();
   }
 
+  int64_t num_examples_;
   int64_t example_count_ = 0;
-  std::vector<std::unique_ptr<ListBuilder>> array_builder_by_index_;
+  std::vector<absl::optional<FeatureRep>> feature_rep_by_index_;
   absl::flat_hash_map<std::string, int> feature_name_to_index_;
 };
 
 Status DecodedExamplesToTable(PyObject* list_of_decoded_examples,
                               std::shared_ptr<Table>* table) {
-  DecodedExamplesToTableConverter converter;
   const Py_ssize_t list_size = PyList_Size(list_of_decoded_examples);
   if (list_size == 0) {
     // A table must have at list one column, but we can't know what that column
     // should be given an empty list.
     return Status::Invalid("Could not convert an empty list to a Table.");
   }
+  DecodedExamplesToTableConverter converter(list_size);
   for (int i = 0; i < list_size; ++i) {
     RETURN_NOT_OK(converter.AddDecodedExample(
         PyList_GetItem(list_of_decoded_examples, i)));
@@ -315,12 +348,10 @@ Status DecodedExamplesToTable(PyObject* list_of_decoded_examples,
 
 PyObject* TFDV_Arrow_DecodedExamplesToTable(
     PyObject* list_of_decoded_examples) {
+  arrow_init_numpy();
   static const int kUnused = arrow::py::import_pyarrow();
   // This suppresses the "unused variable" warning.
   (void)kUnused;
-  // Import numpy. (This is actually a macro, and "ret" is the return value
-  // if import fails.)
-  import_array1(/*ret=*/nullptr);
 
   if (!PyList_Check(list_of_decoded_examples)) {
     PyErr_SetString(PyExc_TypeError, "DecodedExamplesToTable Expected a list.");

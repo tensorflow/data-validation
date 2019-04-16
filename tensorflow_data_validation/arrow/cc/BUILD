@@ -29,6 +29,7 @@ cc_library(
         "@arrow",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:optional",
         "@local_config_python//:numpy_headers",
         "@local_config_python//:python_headers",
     ],
