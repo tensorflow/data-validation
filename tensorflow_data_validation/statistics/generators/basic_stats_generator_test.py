@@ -21,6 +21,7 @@ from __future__ import print_function
 
 from absl.testing import absltest
 import numpy as np
+import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import basic_stats_generator
 from tensorflow_data_validation.utils import test_util
 
@@ -34,8 +35,9 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
   def test_basic_stats_generator_single_feature(self):
     # input with two batches: first batch has two examples and second batch
     # has a single example.
-    batches = [{'a': [np.array([1.0, 2.0]), np.array([3.0, 4.0, 5.0])]},
-               {'a': [np.array([1.0])]}]
+    b1 = pa.Table.from_arrays([pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]])], ['a'])
+    b2 = pa.Table.from_arrays([pa.array([[1.0]])], ['a'])
+    batches = [b1, b2]
     expected_result = {
         'a': text_format.Parse(
             """
@@ -131,8 +133,9 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     # input has batches with values that are slightly smaller than the maximum
     # integer value.
     less_than_max_int_value = np.iinfo(np.int64).max - 1
-    batches = [{'a': np.array([np.array([less_than_max_int_value])])},
-               {'a': np.array([np.array([less_than_max_int_value])])}]
+    batches = (
+        [pa.Table.from_arrays([pa.array([[less_than_max_int_value]])], ['a'])] *
+        2)
     generator = basic_stats_generator.BasicStatsGenerator()
     with np.testing.assert_no_warnings():
       accumulators = [
@@ -141,15 +144,202 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
       ]
       generator.merge_accumulators(accumulators)
 
+  def test_basic_stats_generator_handle_null_column(self):
+    # Feature 'a' covers null coming before non-null.
+    # Feature 'b' covers null coming after non-null.
+    b1 = pa.Table.from_arrays([
+        pa.array([None, None, None], type=pa.null()),
+        pa.array([[1.0, 2.0, 3.0], [4.0], [5.0]]),
+    ], ['a', 'b'])
+    b2 = pa.Table.from_arrays([
+        pa.array([[1, 2], None], type=pa.list_(pa.int64())),
+        pa.array([None, None], type=pa.null()),
+    ], ['a', 'b'])
+    batches = [b1, b2]
+    expected_result = {
+        'a': text_format.Parse(
+            """
+            name: "a"
+            num_stats {
+              common_stats {
+                num_non_missing: 1
+                num_missing: 4
+                min_num_values: 2
+                max_num_values: 2
+                avg_num_values: 2.0
+                num_values_histogram {
+                  buckets {
+                    low_value: 2.0
+                    high_value: 2.0
+                    sample_count: 0.25
+                  }
+                  buckets {
+                    low_value: 2.0
+                    high_value: 2.0
+                    sample_count: 0.25
+                  }
+                  buckets {
+                    low_value: 2.0
+                    high_value: 2.0
+                    sample_count: 0.25
+                  }
+                  buckets {
+                    low_value: 2.0
+                    high_value: 2.0
+                    sample_count: 0.25
+                  }
+                  type: QUANTILES
+                }
+                tot_num_values: 2
+              }
+              mean: 1.5
+              std_dev: 0.5
+              min: 1.0
+              median: 2.0
+              max: 2.0
+              histograms {
+                buckets {
+                  low_value: 1.0
+                  high_value: 1.3333333
+                  sample_count: 0.9955556
+                }
+                buckets {
+                  low_value: 1.3333333
+                  high_value: 1.6666667
+                  sample_count: 0.0022222
+                }
+                buckets {
+                  low_value: 1.6666667
+                  high_value: 2.0
+                  sample_count: 1.0022222
+                }
+              }
+              histograms {
+                buckets {
+                  low_value: 1.0
+                  high_value: 1.0
+                  sample_count: 0.5
+                }
+                buckets {
+                  low_value: 1.0
+                  high_value: 2.0
+                  sample_count: 0.5
+                }
+                buckets {
+                  low_value: 2.0
+                  high_value: 2.0
+                  sample_count: 0.5
+                }
+                buckets {
+                  low_value: 2.0
+                  high_value: 2.0
+                  sample_count: 0.5
+                }
+                type: QUANTILES
+              }
+            }
+            """, statistics_pb2.FeatureNameStatistics()),
+        'b': text_format.Parse(
+            """
+            name: "b"
+            type: FLOAT
+            num_stats {
+              common_stats {
+                num_non_missing: 3
+                num_missing: 2
+                min_num_values: 1
+                max_num_values: 3
+                avg_num_values: 1.66666698456
+                num_values_histogram {
+                  buckets {
+                    low_value: 1.0
+                    high_value: 1.0
+                    sample_count: 0.75
+                  }
+                  buckets {
+                    low_value: 1.0
+                    high_value: 1.0
+                    sample_count: 0.75
+                  }
+                  buckets {
+                    low_value: 1.0
+                    high_value: 3.0
+                    sample_count: 0.75
+                  }
+                  buckets {
+                    low_value: 3.0
+                    high_value: 3.0
+                    sample_count: 0.75
+                  }
+                  type: QUANTILES
+                }
+                tot_num_values: 5
+              }
+              mean: 3.0
+              std_dev: 1.4142136
+              min: 1.0
+              median: 3.0
+              max: 5.0
+              histograms {
+                buckets {
+                  low_value: 1.0
+                  high_value: 2.3333333
+                  sample_count: 1.9888889
+                }
+                buckets {
+                  low_value: 2.3333333
+                  high_value: 3.6666667
+                  sample_count: 1.0055556
+                }
+                buckets {
+                  low_value: 3.6666667
+                  high_value: 5.0
+                  sample_count: 2.0055556
+                }
+              }
+              histograms {
+                buckets {
+                  low_value: 1.0
+                  high_value: 2.0
+                  sample_count: 1.25
+                }
+                buckets {
+                  low_value: 2.0
+                  high_value: 3.0
+                  sample_count: 1.25
+                }
+                buckets {
+                  low_value: 3.0
+                  high_value: 4.0
+                  sample_count: 1.25
+                }
+                buckets {
+                  low_value: 4.0
+                  high_value: 5.0
+                  sample_count: 1.25
+                }
+                type: QUANTILES
+              }
+            }
+            """, statistics_pb2.FeatureNameStatistics()),
+    }
+    generator = basic_stats_generator.BasicStatsGenerator(
+        num_values_histogram_buckets=4,
+        num_histogram_buckets=3,
+        num_quantiles_histogram_buckets=4)
+    self.assertCombinerOutputEqual(batches, generator, expected_result)
+
   def test_basic_stats_generator_with_weight_feature(self):
     # input with two batches: first batch has two examples and second batch
     # has a single example.
-    batches = [{'a': [np.array([1.0, 2.0]), np.array([3.0, 4.0, 5.0])],
-                'b': [np.array([1, 2]), np.array([3, 4, 5])],
-                'w': [np.array([1.0]), np.array([2.0])]},
-               {'a': [np.array([1.0, np.NaN, np.NaN, np.NaN]), None],
-                'b': [np.array([1]), None],
-                'w': [np.array([3.0]), np.array([2.0])]}]
+    b1 = pa.Table.from_arrays([pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]]),
+                               pa.array([[1, 2], [3, 4, 5]]),
+                               pa.array([[1.0], [2.0]])], ['a', 'b', 'w'])
+    b2 = pa.Table.from_arrays([pa.array([[1.0, np.NaN, np.NaN, np.NaN], None]),
+                               pa.array([[1], None]),
+                               pa.array([[3.0], [2.0]])], ['a', 'b', 'w'])
+
+    batches = [b1, b2]
     expected_result = {
         'a': text_format.Parse(
             """
@@ -436,11 +626,14 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
   def test_basic_stats_generator_with_entire_feature_value_list_missing(self):
     # input with two batches: first batch has three examples and second batch
     # has two examples.
-    batches = [{'a': [np.array([1.0, 2.0]), None, np.array([3.0, 4.0, 5.0])],
-                'b': [np.array(['x', 'y', 'z', 'w']), None,
-                      np.array(['qwe', 'abc'])]},
-               {'a': [np.array([1.0]), None],
-                'b': [None, np.array(['qwe'])]}]
+    b1 = pa.Table.from_arrays([
+        pa.array([[1.0, 2.0], None, [3.0, 4.0, 5.0]]),
+        pa.array([['x', 'y', 'z', 'w'], None, ['qwe', 'abc']]),
+    ], ['a', 'b'])
+    b2 = pa.Table.from_arrays(
+        [pa.array([[1.0], None]),
+         pa.array([None, ['qwe']])], ['a', 'b'])
+    batches = [b1, b2]
     expected_result = {
         'a': text_format.Parse(
             """
@@ -564,8 +757,10 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
   def test_basic_stats_generator_with_individual_feature_value_missing(self):
     # input with two batches: first batch has two examples and second batch
     # has a single example.
-    batches = [{'a': [np.array([1.0, 2.0]), np.array([3.0, 4.0, np.NaN, 5.0])]},
-               {'a': [np.array([np.NaN, 1.0])]}]
+    b1 = pa.Table.from_arrays([pa.array([[1.0, 2.0], [3.0, 4.0, np.NaN, 5.0]])],
+                              ['a'])
+    b2 = pa.Table.from_arrays([pa.array([[np.NaN, 1.0]])], ['a'])
+    batches = [b1, b2]
 
     expected_result = {
         'a': text_format.Parse(
@@ -656,15 +851,22 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
   def test_basic_stats_generator_with_multiple_features(self):
-    # input with two batches: first batch has two examples and second batch
-    # has a single example.
-    batches = [{'a': [np.array([1.0, 2.0]), np.array([3.0, 4.0, 5.0])],
-                'b': [np.array(['x', 'y', 'z', 'w']), np.array(['qwe', 'abc'])],
-                'c': [np.linspace(1, 1000, 1000, dtype=np.int32),
-                      np.linspace(1001, 2000, 1000, dtype=np.int32)]},
-               {'a': [np.array([1.0])],
-                'b': [np.array(['ab'])],
-                'c': [np.linspace(2001, 3000, 1000, dtype=np.int32)]}]
+
+    b1 = pa.Table.from_arrays([
+        pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]]),
+        pa.array([[b'x', b'y', b'z', b'w'], [b'qwe', b'abc']]),
+        pa.array([
+            np.linspace(1, 1000, 1000, dtype=np.int32),
+            np.linspace(1001, 2000, 1000, dtype=np.int32)
+        ]),
+    ], ['a', 'b', 'c'])
+    b2 = pa.Table.from_arrays([
+        pa.array([[1.0]]),
+        pa.array([[b'ab']]),
+        pa.array([np.linspace(2001, 3000, 1000, dtype=np.int32)]),
+    ], ['a', 'b', 'c'])
+
+    batches = [b1, b2]
     expected_result = {
         'a': text_format.Parse(
             """
@@ -865,41 +1067,41 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
   def test_basic_stats_generator_categorical_feature(self):
-    batches = [{'c': [np.array([1, 5, 10]), np.array([0])]},
-               {'c': [np.array([1, 1, 1, 5, 15])]}]
+    batches = [
+        pa.Table.from_arrays([pa.array([[1, 5, 10], [0]])], ['c']),
+        pa.Table.from_arrays([pa.array([[1, 1, 1, 5, 15], [-1]])], ['c']),
+    ]
     expected_result = {
         'c': text_format.Parse(
             """
-            name: 'c'
-            type: INT
+            name: "c"
             string_stats {
               common_stats {
-                num_non_missing: 3
-                num_missing: 0
+                num_non_missing: 4
                 min_num_values: 1
                 max_num_values: 5
-                avg_num_values: 3.0
-                tot_num_values: 9
+                avg_num_values: 2.5
                 num_values_histogram {
                   buckets {
                     low_value: 1.0
+                    high_value: 1.0
+                    sample_count: 1.3333333
+                  }
+                  buckets {
+                    low_value: 1.0
                     high_value: 3.0
-                    sample_count: 1.0
+                    sample_count: 1.3333333
                   }
                   buckets {
                     low_value: 3.0
                     high_value: 5.0
-                    sample_count: 1.0
-                  }
-                  buckets {
-                    low_value: 5.0
-                    high_value: 5.0
-                    sample_count: 1.0
+                    sample_count: 1.3333333
                   }
                   type: QUANTILES
                 }
+                tot_num_values: 10
               }
-              avg_length: 1.22222222
+              avg_length: 1.29999995232
             }
             """, statistics_pb2.FeatureNameStatistics())}
     schema = text_format.Parse(
@@ -919,7 +1121,8 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
   def test_basic_stats_generator_empty_batch(self):
-    batches = [{'a': []}]
+    batches = [
+        pa.Table.from_arrays([pa.array([], type=pa.list_(pa.binary()))], ['a'])]
     expected_result = {
         'a': text_format.Parse(
             """
@@ -936,36 +1139,75 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     generator = basic_stats_generator.BasicStatsGenerator()
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_basic_stats_generator_empty_dict(self):
-    batches = [{}]
-    expected_result = {}
+  def test_basic_stats_generator_no_value_in_batch(self):
+    batches = [
+        pa.Table.from_arrays([
+            pa.array([[], [], []], type=pa.list_(pa.int64()))], ['a'])]
+    expected_result = {
+        'a': text_format.Parse(
+            """
+             name: "a"
+             num_stats {
+               common_stats {
+                 num_non_missing: 3
+                 num_values_histogram {
+                   buckets {
+                     sample_count: 0.3
+                   }
+                   buckets {
+                     sample_count: 0.3
+                   }
+                   buckets {
+                     sample_count: 0.3
+                   }
+                   buckets {
+                     sample_count: 0.3
+                   }
+                   buckets {
+                     sample_count: 0.3
+                   }
+                   buckets {
+                     sample_count: 0.3
+                   }
+                   buckets {
+                     sample_count: 0.3
+                   }
+                   buckets {
+                     sample_count: 0.3
+                   }
+                   buckets {
+                     sample_count: 0.3
+                   }
+                   buckets {
+                     sample_count: 0.3
+                   }
+                   type: QUANTILES
+                 }
+               }
+             }""", statistics_pb2.FeatureNameStatistics())}
     generator = basic_stats_generator.BasicStatsGenerator()
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_basic_stats_generator_empty_list(self):
-    batches = []
-    expected_result = {}
+  def test_basic_stats_generator_column_not_list(self):
+    batches = [pa.Table.from_arrays([pa.array([1, 2, 3])], ['a'])]
     generator = basic_stats_generator.BasicStatsGenerator()
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
-
-  def test_basic_stats_generator_invalid_value_type(self):
-    batches = [{'a': [{}]}]
-    generator = basic_stats_generator.BasicStatsGenerator()
-    with self.assertRaisesRegexp(
-        TypeError,
-        'Feature a has value.*, should be numpy.ndarray or None'):
+    with self.assertRaisesRegexp(TypeError,
+                                 'Expected feature column to be a List'):
       self.assertCombinerOutputEqual(batches, generator, None)
 
   def test_basic_stats_generator_invalid_value_numpy_dtype(self):
-    batches = [{'a': [np.array([1+2j])]}]
+    batches = [pa.Table.from_arrays(
+        [pa.array([[]], type=pa.list_(pa.date32()))], ['a'])]
     generator = basic_stats_generator.BasicStatsGenerator()
     with self.assertRaisesRegexp(
-        TypeError, 'Feature a has value.*, should be int, float or str types.'):
+        TypeError, 'Feature a has unsupported arrow type'):
       self.assertCombinerOutputEqual(batches, generator, None)
 
   def test_basic_stats_generator_feature_with_different_types(self):
-    batches = [{'a': [np.array([1.0, 2.0]), np.array([3.0, 4.0, 5.0])]},
-               {'a': [np.array([1])]}]
+    batches = [
+        pa.Table.from_arrays([pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]])], ['a']),
+        pa.Table.from_arrays([pa.array([[1]])], ['a']),
+    ]
     generator = basic_stats_generator.BasicStatsGenerator()
     with self.assertRaisesRegexp(TypeError, 'Cannot determine the type'):
       self.assertCombinerOutputEqual(batches, generator, None)

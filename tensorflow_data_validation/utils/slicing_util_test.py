@@ -185,6 +185,11 @@ class SlicingUtilTest(parameterized.TestCase):
     actual_slice_keys = slicer_function(example)
     self.assertCountEqual(expected_slice_keys, actual_slice_keys)
 
+  def test_get_feature_value_slicer_invalid_utf8_slice_key(self):
+    slicer_function = slicing_util.get_feature_value_slicer({'f1': None})
+    with self.assertRaises(UnicodeDecodeError):
+      _ = slicer_function({'f1': np.array([b'\xff'])})
+
   def test_generate_slices_without_kwargs(self):
 
     def slice_function_1(example):

@@ -19,6 +19,7 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
+import pyarrow as pa
 from tensorflow_data_validation import types
 from tensorflow_data_validation.types_compat import Dict, List, Optional, Text
 from google.protobuf import text_format
@@ -70,6 +71,41 @@ def get_feature_type(
     A statistics_pb2.FeatureNameStatistics.Type value.
   """
   return _NP_DTYPE_KIND_TO_FEATURE_TYPE.get(dtype.kind)
+
+
+def get_feature_type_from_arrow_type(
+    feature_name,
+    arrow_type):
+  """Get feature type from Arrow type.
+
+  Args:
+    feature_name: name of the feature.
+    arrow_type: Arrow DataType.
+
+  Returns:
+    A statistics_pb2.FeatureNameStatistics.Type value or None if arrow_type
+    is null (which means it cannot be determined for now).
+
+  Raises:
+    TypeError: if the type is not supported.
+  """
+  if pa.types.is_null(arrow_type):
+    return None
+  if not pa.types.is_list(arrow_type):
+    raise TypeError('Expected feature column to be a List<primitive> or '
+                    'null, but feature {} was {}.'
+                    .format(feature_name, arrow_type))
+
+  value_type = arrow_type.value_type
+  if pa.types.is_integer(value_type):
+    return statistics_pb2.FeatureNameStatistics.INT
+  if pa.types.is_floating(value_type):
+    return statistics_pb2.FeatureNameStatistics.FLOAT
+  if pa.types.is_binary(value_type) or pa.types.is_unicode(value_type):
+    return statistics_pb2.FeatureNameStatistics.STRING
+
+  raise TypeError('Feature {} has unsupported arrow type: {}'.format(
+      feature_name, arrow_type))
 
 
 def make_dataset_feature_stats_proto(

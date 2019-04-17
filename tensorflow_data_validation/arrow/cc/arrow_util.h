@@ -45,5 +45,11 @@ PyObject* TFDV_Arrow_GetFlattenedArrayParentIndices(PyObject* py_list_array);
 // copy-free.
 PyObject* TFDV_Arrow_GetArrayNullBitmapAsByteArray(PyObject* array);
 
+// Returns the total byte size of a BinaryArray (note that StringArray is a
+// subclass of that so is also accepted here) i.e. the length of the
+// concatenation of all the binary strings in the list), in a Python Long.
+// It might be a good idea to make this a pyarrow API.
+PyObject* TFDV_Arrow_GetBinaryArrayTotalByteSize(PyObject* py_binary_array);
+
 #endif  // TENSORFLOW_DATA_VALIDATION_ARROW_CC_ARROW_UTIL_H_
 

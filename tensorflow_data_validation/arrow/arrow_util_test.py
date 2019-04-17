@@ -35,14 +35,20 @@ class ArrowUtilTest(absltest.TestCase):
         arrow_util.GetFlattenedArrayParentIndices,
     ]
     functions_expecting_array = [arrow_util.GetArrayNullBitmapAsByteArray]
+    functions_expecting_binary_array = [arrow_util.GetBinaryArrayTotalByteSize]
     for f in itertools.chain(functions_expecting_list_array,
-                             functions_expecting_array):
+                             functions_expecting_array,
+                             functions_expecting_binary_array):
       with self.assertRaisesRegexp(RuntimeError, "Could not unwrap Array"):
         f(1)
 
     for f in functions_expecting_list_array:
       with self.assertRaisesRegexp(RuntimeError, "Expected ListArray but got"):
         f(pa.array([1, 2, 3]))
+
+    for f in functions_expecting_binary_array:
+      with self.assertRaisesRegexp(RuntimeError, "Expected BinaryArray"):
+        f(pa.array([[1, 2, 3]]))
 
   def test_flatten_list_array(self):
     flattened = arrow_util.FlattenListArray(
@@ -94,6 +100,20 @@ class ArrowUtilTest(absltest.TestCase):
     indices = arrow_util.GetFlattenedArrayParentIndices(
         pa.array([[1.], [2.], [], [3.]]))
     self.assertTrue(indices.equals(pa.array([0, 1, 3], type=pa.int32())))
+
+  def test_get_binary_array_total_byte_size(self):
+    binary_array = pa.array([b"abc", None, b"def", b"", b"ghi"])
+    self.assertEqual(9, arrow_util.GetBinaryArrayTotalByteSize(binary_array))
+    sliced_1_2 = binary_array.slice(1, 2)
+    self.assertEqual(3, arrow_util.GetBinaryArrayTotalByteSize(sliced_1_2))
+    sliced_2 = binary_array.slice(2)
+    self.assertEqual(6, arrow_util.GetBinaryArrayTotalByteSize(sliced_2))
+
+    unicode_array = pa.array([u"abc"])
+    self.assertEqual(3, arrow_util.GetBinaryArrayTotalByteSize(unicode_array))
+
+    empty_array = pa.array([], type=pa.binary())
+    self.assertEqual(0, arrow_util.GetBinaryArrayTotalByteSize(empty_array))
 
 
 if __name__ == "__main__":

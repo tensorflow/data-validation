@@ -36,13 +36,13 @@ class StatsAPITest(absltest.TestCase):
   def test_stats_pipeline(self):
     # input with three examples.
     examples = [{'a': np.array([1.0, 2.0]),
-                 'b': np.array(['a', 'b', 'c', 'e']),
+                 'b': np.array(['a', 'b', 'c', 'e'], dtype=np.object),
                  'c': np.linspace(1, 500, 500, dtype=np.int32)},
                 {'a': np.array([3.0, 4.0, np.NaN, 5.0]),
-                 'b': np.array(['a', 'c', 'd', 'a']),
+                 'b': np.array(['a', 'c', 'd', 'a'], np.object),
                  'c': np.linspace(501, 1250, 750, dtype=np.int32)},
                 {'a': np.array([1.0]),
-                 'b': np.array(['a', 'b', 'c', 'd']),
+                 'b': np.array(['a', 'b', 'c', 'd'], np.object),
                  'c': np.linspace(1251, 3000, 1750, dtype=np.int32)}]
 
     expected_result = text_format.Parse("""

@@ -9,6 +9,10 @@
   examples in TFRecord files containing TFExamples and generates statistics for
   those anomalous examples.
 * Add fast TF example decoder written in C++.
+* Introduced ArrowCombinerStatsGenerator and made BasicStatsGenerator one of
+  it. Example batches are converted to Apache Arrow tables internally and
+  ArrowCombinerStatsGenerators are able to make use of vectorized numpy
+  functions. Improved performance of BasicStatsGenerator by ~40x.
 
 ## Bug Fixes and Other Changes
 

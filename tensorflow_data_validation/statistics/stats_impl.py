@@ -22,10 +22,12 @@ from __future__ import print_function
 import itertools
 
 import apache_beam as beam
+import pyarrow as pa
 import six
 from six.moves import zip
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
+from tensorflow_data_validation.arrow import decoded_examples_to_arrow
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.statistics.generators import basic_stats_generator
 from tensorflow_data_validation.statistics.generators import image_stats_generator
@@ -405,6 +407,9 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
     self._has_example_batch_combiner_generator = any(
         [isinstance(gen, stats_generator.CombinerStatsGenerator)
          for gen in self._generators])
+    self._has_arrow_combiner_generator = any(
+        [isinstance(gen, stats_generator.ArrowCombinerStatsGenerator)
+         for gen in self._generators])
 
     # We really want the batch size to be adaptive like it is in
     # beam.BatchElements(), but there isn't an easy way to make it so.
@@ -466,12 +471,18 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
     if (force and batch_size > 0) or batch_size >= self._desired_batch_size:
       self._combine_add_input_batch_size.update(batch_size)
       merged_batch = None
+      arrow_table = None
       if self._has_example_batch_combiner_generator:
         merged_batch = batch_util.merge_single_batch(accumulator.input_examples)
+      if self._has_arrow_combiner_generator:
+        arrow_table = decoded_examples_to_arrow.DecodedExamplesToTable(
+            accumulator.input_examples)
 
       def _generator_add_input(gen, gen_accumulator):
         if isinstance(gen, stats_generator.CombinerStatsGenerator):
           return gen.add_input(gen_accumulator, merged_batch)
+        elif isinstance(gen, stats_generator.ArrowCombinerStatsGenerator):
+          return gen.add_input(gen_accumulator, arrow_table)
         else:
           raise TypeError('Only stats_generator.CombinerStatsGenerator is '
                           'expected for now')
@@ -560,6 +571,20 @@ def generate_partial_statistics_in_memory(
   """
   result = []
   batch = None
+  arrow_table = None
+  if any([
+      not isinstance(gen, stats_generator.CombinerStatsGeneratorBase)
+      for gen in stats_generators
+  ]):
+    raise TypeError(
+        'In memory stats computation only supports CombinerStatsGenerators')
+
+  # To make PyType happy.
+  stats_generators = stats_generators  # type: List[stats_generator.CombinerStatsGeneratorBase]
+  # DecodedExamplesToTable cannot handle empty input.
+  if not examples:
+    return [gen.create_accumulator() for gen in stats_generators]
+
   for generator in stats_generators:
     if isinstance(generator, stats_generator.CombinerStatsGenerator):
       if batch is None:
@@ -571,9 +596,20 @@ def generate_partial_statistics_in_memory(
               for feature_name in options.feature_whitelist
           }
       result.append(generator.add_input(generator.create_accumulator(), batch))
+    elif isinstance(generator, stats_generator.ArrowCombinerStatsGenerator):
+      if arrow_table is None:
+        arrow_table = decoded_examples_to_arrow.DecodedExamplesToTable(
+            examples)
+        if options.feature_whitelist:
+          whitelisted_columns = [
+              arrow_table.column(f) for f in options.feature_whitelist]
+          arrow_table = pa.Table.from_arrays(whitelisted_columns)
+      result.append(
+          generator.add_input(generator.create_accumulator(), arrow_table))
     else:
-      raise TypeError('Only stats_generator.CombinerStatsGenerator is '
-                      'expected for now')
+      raise TypeError('Unsupported CombinerStatsGenerator type: {}'.format(
+          generator.__class__.__name__))
+
   return result
 
 

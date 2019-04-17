@@ -37,9 +37,9 @@ IDENTIFY_ANOMALOUS_EXAMPLES_VALID_INPUTS = [
         'testcase_name':
             'no_anomalies',
         'examples': [{
-            'annotated_enum': np.array(['A'])
+            'annotated_enum': np.array(['A'], dtype=np.object)
         }, {
-            'annotated_enum': np.array(['C'])
+            'annotated_enum': np.array(['C'], dtype=np.object)
         }],
         'schema_text':
             """
@@ -79,11 +79,11 @@ IDENTIFY_ANOMALOUS_EXAMPLES_VALID_INPUTS = [
         'testcase_name':
             'same_anomaly_reason',
         'examples': [{
-            'annotated_enum': np.array(['D'])
+            'annotated_enum': np.array(['D'], dtype=np.object)
         }, {
-            'annotated_enum': np.array(['D'])
+            'annotated_enum': np.array(['D'], dtype=np.object)
         }, {
-            'annotated_enum': np.array(['C'])
+            'annotated_enum': np.array(['C'], dtype=np.object)
         }],
         'schema_text':
             """
@@ -119,18 +119,18 @@ IDENTIFY_ANOMALOUS_EXAMPLES_VALID_INPUTS = [
               """,
         'expected_result':
             [('annotated_enum_ENUM_TYPE_UNEXPECTED_STRING_VALUES', {
-                'annotated_enum': np.array(['D'])
+                'annotated_enum': np.array(['D'], dtype=np.object)
             }), ('annotated_enum_ENUM_TYPE_UNEXPECTED_STRING_VALUES', {
-                'annotated_enum': np.array(['D'])
+                'annotated_enum': np.array(['D'], dtype=np.object)
             })]
     },
     {
         'testcase_name':
             'different_anomaly_reasons',
         'examples': [{
-            'annotated_enum': np.array(['D'])
+            'annotated_enum': np.array(['D'], dtype=np.object)
         }, {
-            'annotated_enum': np.array(['C'])
+            'annotated_enum': np.array(['C'], dtype=np.object)
         }, {
             'feature_not_in_schema': np.array([1])
         }],
@@ -168,7 +168,7 @@ IDENTIFY_ANOMALOUS_EXAMPLES_VALID_INPUTS = [
               """,
         'expected_result':
             [('annotated_enum_ENUM_TYPE_UNEXPECTED_STRING_VALUES', {
-                'annotated_enum': np.array(['D'])
+                'annotated_enum': np.array(['D'], dtype=np.object)
             }), ('feature_not_in_schema_SCHEMA_NEW_COLUMN', {
                 'feature_not_in_schema': np.array([1])
             })]
@@ -984,7 +984,7 @@ class ValidationApiTest(absltest.TestCase):
                                              serving_statistics=serving_stats)
 
   def test_validate_instance(self):
-    instance = {'annotated_enum': np.array(['D'])}
+    instance = {'annotated_enum': np.array(['D'], dtype=np.object)}
     schema = text_format.Parse(
         """
         string_domain {
@@ -1038,7 +1038,7 @@ class ValidationApiTest(absltest.TestCase):
     self._assert_equal_anomalies(anomalies, expected_anomalies)
 
   def test_validate_instance_global_only_anomaly_type(self):
-    instance = {'annotated_enum': np.array(['D'])}
+    instance = {'annotated_enum': np.array(['D'], dtype=np.object)}
     # This schema has a presence.min_count > 1, which will generate an anomaly
     # of type FEATURE_TYPE_LOW_NUMBER_PRESENT when any single example is
     # validated using this schema. This test checks that this anomaly type
@@ -1097,7 +1097,7 @@ class ValidationApiTest(absltest.TestCase):
     self._assert_equal_anomalies(anomalies, expected_anomalies)
 
   def test_validate_instance_environment(self):
-    instance = {'feature': np.array(['A'])}
+    instance = {'feature': np.array(['A'], dtype=np.object)}
     schema = text_format.Parse(
         """
         default_environment: "TRAINING"
@@ -1144,7 +1144,7 @@ class ValidationApiTest(absltest.TestCase):
     self._assert_equal_anomalies(anomalies_serving, {})
 
   def test_validate_instance_invalid_environment(self):
-    instance = {'feature': np.array(['A'])}
+    instance = {'feature': np.array(['A'], dtype=np.object)}
     schema = text_format.Parse(
         """
         default_environment: "TRAINING"
@@ -1171,13 +1171,13 @@ class ValidationApiTest(absltest.TestCase):
           instance, options, environment='INVALID')
 
   def test_validate_instance_invalid_options(self):
-    instance = {'feature': np.array(['A'])}
+    instance = {'feature': np.array(['A'], dtype=np.object)}
     with self.assertRaisesRegexp(ValueError,
                                  'options must be a StatsOptions object.'):
       _ = validation_api.validate_instance(instance, {})
 
   def test_validate_instance_stats_options_without_schema(self):
-    instance = {'feature': np.array(['A'])}
+    instance = {'feature': np.array(['A'], dtype=np.object)}
     # This instance of StatsOptions has no schema.
     options = stats_options.StatsOptions()
     with self.assertRaisesRegexp(ValueError, 'options must include a schema.'):
@@ -1198,7 +1198,7 @@ class IdentifyAnomalousExamplesTest(parameterized.TestCase):
       util.assert_that(result, util.equal_to(expected_result))
 
   def test_identify_anomalous_examples_options_of_wrong_type(self):
-    examples = [{'annotated_enum': np.array(['D'])}]
+    examples = [{'annotated_enum': np.array(['D'], dtype=np.object)}]
     options = 1
     with self.assertRaisesRegexp(ValueError, 'options must be a `StatsOptions` '
                                  'object.'):
@@ -1208,7 +1208,7 @@ class IdentifyAnomalousExamplesTest(parameterized.TestCase):
             | validation_api.IdentifyAnomalousExamples(options))
 
   def test_identify_anomalous_examples_options_without_schema(self):
-    examples = [{'annotated_enum': np.array(['D'])}]
+    examples = [{'annotated_enum': np.array(['D'], dtype=np.object)}]
     options = stats_options.StatsOptions()
     with self.assertRaisesRegexp(ValueError, 'options must include a schema'):
       with beam.Pipeline() as p:

@@ -79,23 +79,19 @@ GENERATE_STATS_TESTS = [
     {
         'testcase_name':
             'feature_whitelist',
-        'examples': [
-            {
-                'a': np.array([1.0, 2.0]),
-                'b': np.array(['a', 'b', 'c', 'e']),
-                'c': np.linspace(1, 500, 500, dtype=np.int32)
-            },
-            {
-                'a': np.array([3.0, 4.0, np.NaN, 5.0]),
-                'b': np.array(['a', 'c', 'd', 'a']),
-                'c': np.linspace(501, 1250, 750, dtype=np.int32)
-            },
-            {
-                'a': np.array([1.0]),
-                'b': np.array(['a', 'b', 'c', 'd']),
-                'c': np.linspace(1251, 3000, 1750, dtype=np.int32)
-            }
-        ],
+        'examples': [{
+            'a': np.array([1.0, 2.0], dtype=np.float32),
+            'b': np.array([b'a', b'b', b'c', b'e'], dtype=np.object),
+            'c': np.linspace(1, 500, 500, dtype=np.int64)
+        }, {
+            'a': np.array([3.0, 4.0, np.NaN, 5.0], dtype=np.float32),
+            'b': np.array([b'a', b'c', b'd', b'a'], dtype=np.object),
+            'c': np.linspace(501, 1250, 750, dtype=np.int64)
+        }, {
+            'a': np.array([1.0], dtype=np.float32),
+            'b': np.array([b'a', b'b', b'c', b'd'], dtype=np.object),
+            'c': np.linspace(1251, 3000, 1750, dtype=np.int64)
+        }],
         'options':
             stats_options.StatsOptions(
                 feature_whitelist=['b'],
@@ -178,11 +174,13 @@ GENERATE_STATS_TESTS = [
     {
         'testcase_name':
             'schema',
-        'examples': [
-            {'a': np.array([1, 3, 5, 7])},
-            {'a': np.array([2, 4, 6, 8])},
-            {'a': np.array([0, 3, 6, 9])}
-        ],
+        'examples': [{
+            'a': np.array([1, 3, 5, 7])
+        }, {
+            'a': np.array([2, 4, 6, 8])
+        }, {
+            'a': np.array([0, 3, 6, 9])
+        }],
         'options':
             stats_options.StatsOptions(
                 num_top_values=2,
@@ -273,13 +271,14 @@ GENERATE_STATS_TESTS = [
             'weight_feature',
         'examples': [
             {
-                'a': np.array([1.0, 2.0]),
-                'b': np.array(['a', 'b', 'c', 'e']),
-                'w': np.array([1.0])
-            }, {
-                'a': np.array([3.0, 4.0, 5.0, 6.0]),
-                'b': np.array(['d', 'e']),
-                'w': np.array([2.0])
+                'a': np.array([1.0, 2.0], dtype=np.float32),
+                'b': np.array([b'a', b'b', b'c', b'e'], dtype=np.object),
+                'w': np.array([1.0], dtype=np.float32)
+            },
+            {
+                'a': np.array([3.0, 4.0, 5.0, 6.0], dtype=np.float32),
+                'b': np.array([b'd', b'e'], dtype=np.object),
+                'w': np.array([2.0], dtype=np.float32)
             },
         ],
         'options':
@@ -467,14 +466,14 @@ GENERATE_STATS_TESTS = [
             'custom_feature_generator',
         'examples': [
             {
-                'a': np.array(['doing'])
+                'a': np.array([b'doing'], dtype=np.object)
             },
             {
-                'b': np.array(['lala'])
+                'b': np.array([b'lala'], dtype=np.object)
             },
             {
-                'a': np.array(['din', 'don']),
-                'b': np.array(['lolo']),
+                'a': np.array([b'din', b'don'], dtype=np.object),
+                'b': np.array([b'lolo'], dtype=np.object),
             },
         ],
         'options':
@@ -632,15 +631,19 @@ GENERATE_STATS_TESTS = [
         # - Replicate an example not passing checks 10 times
         'examples': [
             {
-                'text_feature': np.array(['This should be natural text']),
+                'text_feature':
+                    np.array([b'This should be natural text'], dtype=np.object),
                 # The png magic header, this should be considered an "image".
-                'image_feature': np.array([b'\211PNG\r\n\032\n'])
+                'image_feature':
+                    np.array([b'\211PNG\r\n\032\n'], dtype=np.object),
             },
         ] * 90 + [
             {
-                'text_feature': np.array(['Thisshouldnotbenaturaltext']),
+                'text_feature':
+                    np.array([b'Thisshouldnotbenaturaltext'], dtype=np.object),
                 # The png magic header, this should be considered an "image".
-                'image_feature': np.array([b'Thisisnotanimage'])
+                'image_feature':
+                    np.array([b'Thisisnotanimage'], dtype=np.object),
             },
         ] * 10,
         'options':
@@ -793,15 +796,19 @@ GENERATE_STATS_TESTS = [
             'semantic_domains_disabled',
         'examples': [
             {
-                'text_feature': np.array(['This should be natural text']),
+                'text_feature':
+                    np.array([b'This should be natural text'], dtype=np.object),
                 # The png magic header, this should be considered an "image".
-                'image_feature': np.array([b'\211PNG\r\n\032\n'])
+                'image_feature':
+                    np.array([b'\211PNG\r\n\032\n'], dtype=np.object)
             },
         ] * 90 + [
             {
-                'text_feature': np.array(['Thisshouldnotbenaturaltext']),
+                'text_feature':
+                    np.array([b'Thisshouldnotbenaturaltext'], dtype=np.object),
                 # The png magic header, this should be considered an "image".
-                'image_feature': np.array([b'Thisisnotanimage'])
+                'image_feature':
+                    np.array([b'Thisisnotanimage'], dtype=np.object)
             },
         ] * 10,
         'options':
@@ -931,19 +938,19 @@ SLICING_TESTS = [
             'feature_value_slicing',
         'examples': [
             {
-                'a': np.array([1.0, 2.0]),
-                'b': np.array(['a']),
-                'c': np.linspace(1, 500, 500, dtype=np.int32)
+                'a': np.array([1.0, 2.0], dtype=np.float32),
+                'b': np.array([b'a'], dtype=np.object),
+                'c': np.linspace(1, 500, 500, dtype=np.int64)
             },
             {
-                'a': np.array([3.0, 4.0, np.NaN, 5.0]),
-                'b': np.array(['a', 'b']),
-                'c': np.linspace(501, 1250, 750, dtype=np.int32)
+                'a': np.array([3.0, 4.0, np.NaN, 5.0], dtype=np.float32),
+                'b': np.array([b'a', b'b'], dtype=np.object),
+                'c': np.linspace(501, 1250, 750, dtype=np.int64)
             },
             {
-                'a': np.array([1.0]),
-                'b': np.array(['b']),
-                'c': np.linspace(1251, 3000, 1750, dtype=np.int32)
+                'a': np.array([1.0], dtype=np.float32),
+                'b': np.array([b'b'], dtype=np.object),
+                'c': np.linspace(1251, 3000, 1750, dtype=np.int64)
             }
         ],
         'options':
@@ -1484,10 +1491,10 @@ class StatsImplTest(parameterized.TestCase):
   def test_generate_sliced_statistics_impl_without_slice_fns(self):
     examples = [
         ('test_slice', {
-            'b': np.array([]),
+            'b': np.array([], dtype=np.float32),
         }),
         ('test_slice', {
-            'b': np.array([]),
+            'b': np.array([], dtype=np.float32),
         }),
     ]
     # No slice functions are specified in options.
@@ -1605,8 +1612,8 @@ class StatsImplTest(parameterized.TestCase):
         return [(None, stats_proto1),
                 (None, stats_proto2)]
 
-    examples = [{'a': np.array([], dtype=np.int32),
-                 'b': np.array([], dtype=np.int32)}]
+    examples = [{'a': np.array([], dtype=np.int64),
+                 'b': np.array([], dtype=np.int64)}]
     expected_result = text_format.Parse("""
     datasets {
       num_examples: 1
@@ -1725,9 +1732,9 @@ class StatsImplTest(parameterized.TestCase):
         return stats_proto
 
     examples = [
-        {'a': np.array(['xyz', 'qwe'])},
-        {'a': np.array(['qwe'])},
-        {'a': np.array(['qwe'])},
+        {'a': np.array([b'xyz', b'qwe'], dtype=np.object)},
+        {'a': np.array([b'qwe'], dtype=np.object)},
+        {'a': np.array([b'qwe'], dtype=np.object)},
     ]
 
     expected_result = text_format.Parse(
@@ -1945,24 +1952,24 @@ class StatsImplTest(parameterized.TestCase):
   def test_tfdv_telemetry(self):
     examples = [
         {
-            'a': np.array([1.0, 2.0], dtype=np.floating),
-            'b': np.array(['a', 'b', 'c', 'e'], dtype=np.object),
+            'a': np.array([1.0, 2.0], dtype=np.float32),
+            'b': np.array([b'a', b'b', b'c', b'e'], dtype=np.object),
             'c': None
         },
         {
-            'a': np.array([3.0, 4.0, np.NaN, 5.0], dtype=np.floating),
-            'b': np.array(['d', 'e', 'f'], dtype=np.object),
+            'a': np.array([3.0, 4.0, np.NaN, 5.0], dtype=np.float32),
+            'b': np.array([b'd', b'e', b'f'], dtype=np.object),
             'c': None
         },
         {
             'a': None,
-            'b': np.array(['a', 'b', 'c'], dtype=np.object),
-            'c': np.array([10, 20, 30], dtype=np.integer)
+            'b': np.array([b'a', b'b', b'c'], dtype=np.object),
+            'c': np.array([10, 20, 30], dtype=np.int64)
         },
         {
-            'a': np.array([5.0], dtype=np.floating),
-            'b': np.array(['d', 'e', 'f'], dtype=np.object),
-            'c': np.array([1], dtype=np.integer)
+            'a': np.array([5.0], dtype=np.float32),
+            'b': np.array([b'd', b'e', b'f'], dtype=np.object),
+            'c': np.array([1], dtype=np.int64)
         }
     ]
 

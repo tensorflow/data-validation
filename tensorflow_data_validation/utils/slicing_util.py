@@ -25,7 +25,7 @@ import six
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 
-from tensorflow_data_validation.types_compat import Iterable, List, Mapping, Optional, Text, Union
+from tensorflow_data_validation.types_compat import Any, Iterable, List, Mapping, Optional, Text, Union
 
 _ValueType = Iterable[Union[Text, int]]
 
@@ -95,8 +95,8 @@ def get_feature_value_slicer(
       if not isinstance(values, collections.Iterable):
         raise TypeError('Feature values must be specified in an iterable.')
       for value in values:
-        if not isinstance(value, six.string_types) and not isinstance(
-            value, int):
+        if (not isinstance(value, (six.string_types, six.binary_type)) and
+            not isinstance(value, int)):
           raise NotImplementedError(
               'Only string and int values are supported as the slice value.')
 
@@ -120,12 +120,12 @@ def get_feature_value_slicer(
             # This match is appended within a list so that we can use
             # itertools.product to get the combinations of matches.
             per_feature_value_matches.append(
-                ['_'.join([feature_name, str(value)])])
+                ['_'.join([feature_name, _to_slice_key(value)])])
       else:
         # If a feature was specified without values, include each distinct
         # value found for that feature in the slice keys.
         per_feature_value_matches.append([
-            '_'.join([feature_name, str(value)])
+            '_'.join([feature_name, _to_slice_key(value)])
             for value in values_in_example
         ])
 
@@ -167,3 +167,10 @@ def generate_slices(
   return [(slice_key, example) for slice_key in slice_keys]
 
 
+def _to_slice_key(feature_value):
+  # For bytes features we try decoding it as utf-8 (and throw an error if
+  # fails). This is because in stats proto the slice name (dataset name) is a
+  # string field which can only accept valid unicode.
+  if isinstance(feature_value, six.binary_type):
+    return feature_value.decode('utf-8')
+  return str(feature_value)

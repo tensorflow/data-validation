@@ -147,3 +147,25 @@ PyObject* TFDV_Arrow_GetArrayNullBitmapAsByteArray(PyObject* array) {
       GetArrayNullBitmapAsByteArray(*unwrapped, &null_bitmap_byte_array));
   return arrow::py::wrap_array(null_bitmap_byte_array);
 }
+
+PyObject* TFDV_Arrow_GetBinaryArrayTotalByteSize(PyObject* py_binary_array) {
+  ImportPyArrow();
+  std::shared_ptr<arrow::Array> unwrapped;
+  TFDV_RAISE_IF_NOT_OK(arrow::py::unwrap_array(py_binary_array, &unwrapped));
+  // StringArray is a subclass of BinaryArray.
+  if (!(unwrapped->type_id() == arrow::Type::BINARY ||
+        unwrapped->type_id() == arrow::Type::STRING)) {
+    PyErr_SetString(
+        PyExc_RuntimeError,
+        absl::StrCat("Expected BinaryArray (or StringArray) but got: ",
+                     unwrapped->type()->ToString())
+            .c_str());
+    return nullptr;
+  }
+  const arrow::BinaryArray* binary_array =
+      static_cast<const arrow::BinaryArray*>(unwrapped.get());
+  const size_t total_byte_size =
+      binary_array->value_offset(binary_array->length()) -
+      binary_array->value_offset(0);
+  return PyLong_FromSize_t(total_byte_size);
+}
