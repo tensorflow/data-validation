@@ -56,5 +56,9 @@ from tensorflow_data_validation.utils.stats_gen_lib import generate_statistics_f
 from tensorflow_data_validation.utils.stats_gen_lib import generate_statistics_from_tfrecord
 from tensorflow_data_validation.utils.stats_gen_lib import load_statistics
 
+# Import validation lib.
+from tensorflow_data_validation.utils.validation_lib import validate_examples_in_csv
+from tensorflow_data_validation.utils.validation_lib import validate_examples_in_tfrecord
+
 # Import version string.
 from tensorflow_data_validation.version import __version__

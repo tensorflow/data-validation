@@ -31,7 +31,7 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 
 class ValidationLibTest(absltest.TestCase):
 
-  def test_validate_tfexamples_in_tfrecord(self):
+  def test_validate_examples_in_tfrecord(self):
     input_examples = [
         # This example is anomalous because its feature contains a value that is
         # not in the string_domain specified in the schema.
@@ -223,21 +223,300 @@ class ValidationLibTest(absltest.TestCase):
     }
     """, statistics_pb2.DatasetFeatureStatisticsList())
 
-    actual_result = validation_lib.validate_tfexamples_in_tfrecord(
+    actual_result = validation_lib.validate_examples_in_tfrecord(
         data_location=input_data_path, stats_options=options)
     compare_fn = test_util.make_dataset_feature_stats_list_proto_equal_fn(
         self, expected_result)
     compare_fn([actual_result])
 
-  def test_validate_tfexamples_in_tfrecord_no_schema(self):
+  def test_validate_examples_in_tfrecord_no_schema(self):
     temp_dir_path = self.create_tempdir().full_path
     input_data_path = os.path.join(temp_dir_path, 'input_data.tfrecord')
     # By default, StatsOptions does not include a schema.
     options = stats_options.StatsOptions()
     with self.assertRaisesRegexp(
         ValueError, 'The specified stats_options must include a schema.'):
-      validation_lib.validate_tfexamples_in_tfrecord(
+      validation_lib.validate_examples_in_tfrecord(
           data_location=input_data_path, stats_options=options)
+
+  def _get_anomalous_csv_test(self, delimiter, output_column_names,
+                              generate_single_file, has_schema):
+    """Creates test CSV(s) and returns a tuple containing information re same.
+
+    This is used to test validate_examples_in_csv. The function creates test CSV
+    file(s) and returns a tuple consisting of the location of those file(s), the
+    column names (if not provided as part of the CSV file), the stats options,
+    and a proto containing the anomalies that should be detected in the examples
+    in the test CSV(s).
+
+    Args:
+      delimiter: The one-character string used to separate fields in the
+        generated CSV file(s).
+      output_column_names: Whether to output a list of column names. If True,
+        this function uses the first record as the column_names value returned
+        in the tuple. If False, this function returns None as the column_names
+        value.
+      generate_single_file: If True, generates a single test CSV file. If false,
+        generates multiple test CSV files.
+      has_schema: If True, includes the schema in the output options.
+
+    Returns:
+      A tuple consisting of the following values:
+        data_location: The location of the test CSV file(s).
+        column_names: A list of column names to be treated as the CSV header, or
+          None if the first line in the test CSV should be used as the
+          header.
+        options: `tfdv.StatsOptions` for generating data statistics.
+        expected_result: The anomalies that should be detected in the examples
+          in the CSV(s).
+    """
+    fields = [['annotated_enum', 'other_feature'], ['D', '1'], ['A', '2']]
+    column_names = None
+    if output_column_names:
+      column_names = fields[0]
+      fields = fields[1:]
+    records = []
+    for row in fields:
+      records.append(delimiter.join(row))
+
+    temp_dir = self.create_tempdir().full_path
+    if not generate_single_file:
+      records_per_file = [records[0:1], records[1:]]
+    else:
+      records_per_file = [records]
+    for i, records in enumerate(records_per_file):
+      filepath = os.path.join(temp_dir, 'input_data_%s.csv' % i)
+      with open(filepath, 'w+') as writer:
+        for record in records:
+          writer.write(record + '\n')
+    data_location = os.path.join(temp_dir, 'input_data_*.csv')
+
+    if has_schema:
+      schema = text_format.Parse(
+          """
+                string_domain {
+                  name: "MyAloneEnum"
+                  value: "A"
+                  value: "B"
+                  value: "C"
+                }
+                feature {
+                  name: "annotated_enum"
+                  value_count {
+                    min:1
+                    max:1
+                  }
+                  presence {
+                    min_count: 1
+                  }
+                  type: BYTES
+                  domain: "MyAloneEnum"
+                }
+                feature {
+                  name: "other_feature"
+                  value_count {
+                    min:1
+                    max:1
+                  }
+                  presence {
+                    min_count: 1
+                  }
+                  type: INT
+                }
+                """, schema_pb2.Schema())
+    else:
+      schema = None
+    options = stats_options.StatsOptions(
+        schema=schema,
+        num_top_values=2,
+        num_rank_histogram_buckets=2,
+        num_values_histogram_buckets=2,
+        num_histogram_buckets=2,
+        num_quantiles_histogram_buckets=2)
+
+    expected_result = text_format.Parse(
+        """
+    datasets {
+      name: 'annotated_enum_ENUM_TYPE_UNEXPECTED_STRING_VALUES'
+      num_examples: 1
+      features {
+        name: 'annotated_enum'
+        type: STRING
+        string_stats {
+          common_stats {
+            num_non_missing: 1
+            num_missing: 0
+            min_num_values: 1
+            max_num_values: 1
+            avg_num_values: 1.0
+            tot_num_values: 1
+            num_values_histogram {
+              buckets {
+                low_value: 1.0
+                high_value: 1.0
+                sample_count: 0.5
+              }
+              buckets {
+                low_value: 1.0
+                high_value: 1.0
+                sample_count: 0.5
+              }
+              type: QUANTILES
+            }
+          }
+          unique: 1
+          top_values {
+            value: "D"
+            frequency: 1.0
+          }
+          avg_length: 1.0
+          rank_histogram {
+            buckets {
+              label: "D"
+              sample_count: 1.0
+            }
+          }
+        }
+      }
+      features {
+        name: 'other_feature'
+        type: INT
+        num_stats {
+          common_stats {
+            num_non_missing: 1
+            num_missing: 0
+            min_num_values: 1
+            max_num_values: 1
+            avg_num_values: 1.0
+            tot_num_values: 1
+            num_values_histogram {
+              buckets {
+                low_value: 1.0
+                high_value: 1.0
+                sample_count: 0.5
+              }
+              buckets {
+                low_value: 1.0
+                high_value: 1.0
+                sample_count: 0.5
+              }
+              type: QUANTILES
+            }
+          }
+          mean: 1.0
+          min: 1.0
+          median: 1.0
+          max: 1.0
+          histograms {
+            buckets {
+              low_value: 1.0
+              high_value: 1.0
+              sample_count: 1.0
+            }
+          }
+          histograms {
+            buckets {
+              low_value: 1.0
+              high_value: 1.0
+              sample_count: 0.5
+            }
+            buckets {
+              low_value: 1.0
+              high_value: 1.0
+              sample_count: 0.5
+            }
+          type: QUANTILES
+          }
+        }
+      }
+    }
+    """, statistics_pb2.DatasetFeatureStatisticsList())
+    return (data_location, column_names, options, expected_result)
+
+  def test_validate_examples_in_csv(self):
+    data_location, _, options, expected_result = (
+        self._get_anomalous_csv_test(
+            delimiter=',',
+            output_column_names=False,
+            generate_single_file=True,
+            has_schema=True))
+
+    result = validation_lib.validate_examples_in_csv(
+        data_location=data_location,
+        stats_options=options,
+        column_names=None,
+        delimiter=',')
+    compare_fn = test_util.make_dataset_feature_stats_list_proto_equal_fn(
+        self, expected_result)
+    compare_fn([result])
+
+  def test_validate_examples_in_csv_no_header_in_file(self):
+    data_location, column_names, options, expected_result = (
+        self._get_anomalous_csv_test(
+            delimiter=',',
+            output_column_names=True,
+            generate_single_file=True,
+            has_schema=True))
+
+    assert column_names is not None
+    result = validation_lib.validate_examples_in_csv(
+        data_location=data_location,
+        stats_options=options,
+        column_names=column_names,
+        delimiter=',')
+    compare_fn = test_util.make_dataset_feature_stats_list_proto_equal_fn(
+        self, expected_result)
+    compare_fn([result])
+
+  def test_validate_examples_in_csv_no_schema(self):
+    data_location, _, options, _ = (
+        self._get_anomalous_csv_test(
+            delimiter=',',
+            output_column_names=False,
+            generate_single_file=True,
+            has_schema=False))
+
+    assert options.schema is None
+    with self.assertRaisesRegexp(ValueError, 'The specified stats_options.*'):
+      validation_lib.validate_examples_in_csv(
+          data_location=data_location,
+          stats_options=options,
+          column_names=None,
+          delimiter=',')
+
+  def test_validate_examples_in_csv_tab_delimiter(self):
+    data_location, _, options, expected_result = (
+        self._get_anomalous_csv_test(
+            delimiter='\t',
+            output_column_names=False,
+            generate_single_file=True,
+            has_schema=True))
+
+    result = validation_lib.validate_examples_in_csv(
+        data_location=data_location,
+        stats_options=options,
+        column_names=None,
+        delimiter='\t')
+    compare_fn = test_util.make_dataset_feature_stats_list_proto_equal_fn(
+        self, expected_result)
+    compare_fn([result])
+
+  def test_validate_examples_in_csv_multiple_files(self):
+    data_location, column_names, options, expected_result = (
+        self._get_anomalous_csv_test(
+            delimiter=',',
+            output_column_names=True,
+            generate_single_file=False,
+            has_schema=True))
+
+    result = validation_lib.validate_examples_in_csv(
+        data_location=data_location,
+        stats_options=options,
+        column_names=column_names,
+        delimiter=',')
+    compare_fn = test_util.make_dataset_feature_stats_list_proto_equal_fn(
+        self, expected_result)
+    compare_fn([result])
 
 
 if __name__ == '__main__':

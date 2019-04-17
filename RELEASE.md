@@ -8,6 +8,8 @@
 * Add utility method `validate_examples_in_tfrecord`, which identifies anomalous
   examples in TFRecord files containing TFExamples and generates statistics for
   those anomalous examples.
+* Add utility method `validate_examples_in_csv`, which identifies anomalous
+  examples in CSV files and generates statistics for those anomalous examples.
 * Add fast TF example decoder written in C++.
 * Introduced ArrowCombinerStatsGenerator and made BasicStatsGenerator one of
   it. Example batches are converted to Apache Arrow tables internally and
