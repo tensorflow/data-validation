@@ -261,7 +261,7 @@ class _PartialNumericStats(object):
       # Note: to_numpy will fail if flattened_value_array is empty.
       if not flattened_value_array:
         continue
-      values = arrow_util.FlattenListArray(feature_array).to_numpy()
+      values = flattened_value_array.to_numpy()
       nan_mask = np.isnan(values)
       non_nan_mask = ~nan_mask
       values_no_nan = values[non_nan_mask]

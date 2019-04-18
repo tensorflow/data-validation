@@ -651,7 +651,7 @@ WrapperAccumulator = Dict[Text, List[Any]]
 
 
 class CombinerFeatureStatsWrapperGenerator(
-    stats_generator.CombinerStatsGenerator):
+    stats_generator.ArrowCombinerStatsGenerator):
   """A combiner that wraps multiple CombinerFeatureStatsGenerators.
 
   This combiner wraps multiple CombinerFeatureStatsGenerators by generating
@@ -701,27 +701,27 @@ class CombinerFeatureStatsWrapperGenerator(
     return {}
 
   def add_input(self, wrapper_accumulator,
-                input_batch):
+                input_table):
     """Returns result of folding a batch of inputs into wrapper_accumulator.
 
     Args:
       wrapper_accumulator: The current wrapper accumulator.
-      input_batch: A Python dict whose keys are strings denoting feature names
-        and values are lists representing a batch of examples, which should be
-        added to the accumulator.
+      input_table: An arrow table representing a batch of examples, which
+        should be added to the accumulator.
 
     Returns:
       The wrapper_accumulator after updating the statistics for the batch of
       inputs.
     """
-    for feature_name, values in six.iteritems(input_batch):
+    for feature_column in input_table.itercolumns():
+      feature_name = feature_column.name
       if feature_name == self._weight_feature:
         continue
       self._perhaps_initialize_for_feature_name(wrapper_accumulator,
                                                 feature_name)
       for index, generator in enumerate(self._feature_stats_generators):
         wrapper_accumulator[feature_name][index] = generator.add_input(
-            generator.create_accumulator(), values)
+            generator.create_accumulator(), feature_column)
     return wrapper_accumulator
 
   def merge_accumulators(

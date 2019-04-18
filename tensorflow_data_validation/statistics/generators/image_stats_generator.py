@@ -32,16 +32,18 @@ from __future__ import print_function
 
 import abc
 import collections
+import functools
 import imghdr
 import numpy as np
+import pandas as pd
+import pyarrow as pa
 import six
 
 import tensorflow as tf
-
-from tensorflow_data_validation import types
+from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import stats_util
-from tensorflow_data_validation.types_compat import List, Iterable, Text, Tuple
+from tensorflow_data_validation.types_compat import List, Iterable, Text
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 _DOMAIN_INFO = 'domain_info'
@@ -59,25 +61,25 @@ class ImageDecoderInterface(six.with_metaclass(abc.ABCMeta)):
   """Interface for extracting image formats and sizes."""
 
   @abc.abstractmethod
-  def get_formats(self, value_list):
+  def get_formats(self, values):
     """Returns the image format name for each value if it represents an image.
 
     Args:
-      value_list: a list of values in bytes to check the image format.
+      values: a list of values in bytes to check the image format.
 
     Returns:
-      A list of string image formats (e.g: 'jpeg', 'bmp', ...) or empty string
+      A list of string image formats (e.g: 'jpeg', 'bmp', ...) or None
       if the value is not a supported image, in the same order as the input
       value_list.
     """
     raise NotImplementedError
 
   @abc.abstractmethod
-  def get_sizes(self, value_list):
+  def get_sizes(self, values):
     """Returns the image size for each value if it represents an image.
 
     Args:
-      value_list: a list of values in bytes to check the image size.
+      values: a list of values in bytes to check the image size.
 
     Returns:
       A list of (image_height, image_width) tuple (if the value represents an
@@ -133,51 +135,35 @@ class TfImageDecoder(ImageDecoderInterface):
     self._lazy_get_sizes_callable = self._session.make_callable(
         fetches=self._image_shapes, feed_list=[self._batch_image_input])
 
-  def get_formats(self, value_list):
+  def get_formats(self, values):
     """Returns the image format name for each value if it represents an image.
 
     Args:
-      value_list: a list of value in bytes to check the image format.
+      values: a list of value in bytes to check the image format.
 
     Returns:
-      A list of image format name (e.g. 'JPG'/'GIF'/etc, or empty string if the
+      A list of image format name (e.g. 'JPG'/'GIF'/etc, or None if the
       value is not an image) in the same order as the input value list.
     """
-    # Extract all formats.
-    formats = [
-        # Ensure input is bytes, in py3 imghdr.what requires bytes input.
-        # TODO(b/126249134): If TFDV provided a guarantee that image features
-        # are never represented as py3 strings, strings should be skipped
-        # instead of manually casting to bytes here.
-        imghdr.what(None,
-                    v.encode('utf-8') if isinstance(v, six.text_type) else v)
-        for v in value_list
-    ]
+    get_format = functools.partial(imghdr.what, None)
+    return np.vectorize(get_format, otypes=[np.object])(values)
 
-    # Replace non supported formats by ''.
-    # Note: Using str(f) to help pytype infer types.
-    return [
-        str(f) if f in ('bmp', 'gif', 'jpeg', 'png') else '' for f in formats
-    ]
-
-  def get_sizes(self, value_list):
+  def get_sizes(self, values):
     """Returns the image size for each value if it represents an image.
 
     Args:
-      value_list: a list of value in bytes to check the image size.
+      values: a list of value in bytes to check the image size.
 
     Returns:
-      A list of (image_height, image_width) tuple (if the value represents an
-      image) in the same order as the input value list.
+      A numpy array containing (image_height, image_width) tuples (if the value
+        represents an image) in the same order as the input value list.
 
     Raises:
       ValueError: If any of the input value does not represents an image.
     """
     if not self._lazy_get_sizes_callable:
       self._initialize_lazy_get_sizes_callable()
-    image_shapes = self._lazy_get_sizes_callable(value_list)
-    # Transform shape from list to tuple.
-    return [tuple(shape) for shape in image_shapes]
+    return self._lazy_get_sizes_callable(values)
 
 
 class _PartialImageStats(object):
@@ -251,54 +237,53 @@ class ImageStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     return _PartialImageStats()
 
   def add_input(self, accumulator,
-                input_batch):
+                input_column):
     """Return result of folding a batch of inputs into accumulator.
 
     Args:
       accumulator: The current accumulator.
-      input_batch: A list representing a batch of feature value_lists (one per
-        example) which should be added to the accumulator.
+      input_column: An arrow column representing a batch of feature values
+        which should be added to the accumulator.
 
     Returns:
       The accumulator after updating the statistics for the batch of inputs.
     """
     if accumulator.invalidate:
       return accumulator
+    feature_type = stats_util.get_feature_type_from_arrow_type(
+        input_column.name, input_column.type)
+    # Ignore null array.
+    if feature_type is None:
+      return accumulator
+    # If we see a different type, invalidate.
+    if feature_type != statistics_pb2.FeatureNameStatistics.STRING:
+      accumulator.invalidate = True
+      return accumulator
 
-    if self._enable_size_stats:
-      # A list of images to decode in order to get image size stats.
-      # This is done separately as a performance optimization to avoid costs
-      # of using tf. The values that have valid formats is being kept in
-      # images_to_decode and a single call to .get_sizes is performed for the
-      # full input_batch.
-      images_to_decode = []
+    for feature_array in input_column.data.iterchunks():
+      # Consider using memoryview to avoid copying after upgrading to
+      # arrow 0.12. Note that this would involve modifying the subsequent logic
+      # to iterate over the values in a loop.
+      values = arrow_util.FlattenListArray(feature_array).to_pandas()
+      accumulator.total_num_values += values.size
+      image_formats = self._image_decoder.get_formats(values)
+      valid_mask = ~pd.isnull(image_formats)
+      valid_formats = image_formats[valid_mask]
+      format_counts = np.unique(valid_formats, return_counts=True)
+      for (image_format, count) in zip(*format_counts):
+        accumulator.counter_by_format[image_format] += count
+      unknown_count = image_formats.size - valid_formats.size
+      if unknown_count > 0:
+        accumulator.counter_by_format[''] += unknown_count
 
-    for value_list in input_batch:
-      if value_list is None or value_list.size == 0:
-        continue
-
-      # Check if the numpy array is of bytes type, if not invalidate the stats.
-      # in examples/features to run image stas gen on.
-      if stats_util.get_feature_type(
-          value_list.dtype) != statistics_pb2.FeatureNameStatistics.STRING:
-        accumulator.invalidate = True
-        return accumulator
-
-      accumulator.total_num_values += len(value_list)
-      image_formats = self._image_decoder.get_formats(value_list)
-      for (value, image_format) in zip(value_list, image_formats):
-        accumulator.counter_by_format[image_format] += 1
-        if self._enable_size_stats and image_format:
-          images_to_decode.append(value)
-
-    # Update the partial image stats.
-    if self._enable_size_stats and images_to_decode:
-      image_sizes = self._image_decoder.get_sizes(images_to_decode)
-      # Update the max image height/width with all image values.
-      accumulator.max_height = max(accumulator.max_height,
-                                   max(x[0] for x in image_sizes))
-      accumulator.max_width = max(accumulator.max_width,
-                                  max(x[1] for x in image_sizes))
+      if self._enable_size_stats:
+        # Get image height and width.
+        image_sizes = self._image_decoder.get_sizes(values[valid_mask])
+        if image_sizes.any():
+          max_sizes = np.max(image_sizes, axis=0)
+          # Update the max image height/width with all image values.
+          accumulator.max_height = max(accumulator.max_height, max_sizes[0])
+          accumulator.max_width = max(accumulator.max_width, max_sizes[1])
     return accumulator
 
   def merge_accumulators(
@@ -344,7 +329,6 @@ class ImageStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
       custom_stats.rank_histogram.buckets.add(
           label=image_format if image_format else 'UNKNOWN',
           sample_count=accumulator.counter_by_format[image_format])
-
     if self._enable_size_stats:
       result.custom_stats.add(
           name=_IMAGE_MAX_WIDTH_STATISTICS, num=accumulator.max_width)

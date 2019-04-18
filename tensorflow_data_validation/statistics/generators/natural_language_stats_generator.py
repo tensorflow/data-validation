@@ -29,9 +29,10 @@ from __future__ import division
 from __future__ import print_function
 
 import abc
+import numpy as np
+import pyarrow as pa
 import six
-
-from tensorflow_data_validation import types
+from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import stats_util
 from tensorflow_data_validation.types_compat import Iterable, Text
@@ -165,41 +166,42 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     return _PartialNLStats()
 
   def add_input(self, accumulator,
-                input_batch):
+                input_column):
     """Return result of folding a batch of inputs into accumulator.
 
     Args:
       accumulator: The current accumulator.
-      input_batch: A list representing a batch of feature value_lists
-        (one per example) which should be added to the accumulator.
+      input_column: An arrow column representing a batch of feature values
+        which should be added to the accumulator.
 
     Returns:
       The accumulator after updating the statistics for the batch of inputs.
     """
     if accumulator.invalidate:
       return accumulator
-    for value_list in input_batch:
-      # If the value_list is None or empty ignore.
-      if value_list is None or value_list.size == 0:
-        continue
+    feature_type = stats_util.get_feature_type_from_arrow_type(
+        input_column.name, input_column.type)
+    # Ignore null array.
+    if feature_type is None:
+      return accumulator
+    # If we see a different type, invalidate.
+    if feature_type != statistics_pb2.FeatureNameStatistics.STRING:
+      accumulator.invalidate = True
+      return accumulator
 
-      # Check if the numpy array is of bytes type, if not invalidate the stats.
-      # in examples/features to run image stas gen on.
-      if stats_util.get_feature_type(
-          value_list.dtype) != statistics_pb2.FeatureNameStatistics.STRING:
+    def _is_non_utf8(value):
+      return (isinstance(value, bytes) and
+              stats_util.maybe_get_utf8(value) is None)
+
+    is_non_utf_vec = np.vectorize(_is_non_utf8, otypes=[np.bool])
+    classify_vec = np.vectorize(self._classifier.classify, otypes=[np.bool])
+    for feature_array in input_column.data.iterchunks():
+      values = arrow_util.FlattenListArray(feature_array).to_pandas()
+      if np.any(is_non_utf_vec(values)):
         accumulator.invalidate = True
         return accumulator
-
-      # Perform heuristic for a value.
-      for value in value_list:
-        if not value:
-          continue
-        if isinstance(value,
-                      bytes) and stats_util.maybe_get_utf8(value) is None:
-          accumulator.invalidate = True
-          return accumulator
-        accumulator.considered += 1
-        accumulator.matched += self._classifier.classify(value)
+      accumulator.considered += values.size
+      accumulator.matched += np.sum(classify_vec(values))
     return accumulator
 
   def merge_accumulators(

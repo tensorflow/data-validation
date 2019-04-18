@@ -36,10 +36,11 @@ import collections
 import re
 
 import numpy as np
-from tensorflow_data_validation import types
+import pyarrow as pa
+from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import stats_util
-from tensorflow_data_validation.types_compat import Generator, Iterable, Optional, Pattern, Text, Tuple
+from tensorflow_data_validation.types_compat import Generator, Iterable, Pattern, Text, Tuple
 
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
@@ -184,23 +185,14 @@ class _PartialTimeStats(object):
     self.matching_formats.update(other.matching_formats)
     return self
 
-  def update(self, value_list):
+  def update(self, values):
     """Updates the partial Time statistics using the value list.
 
     Args:
-      value_list: A list of the values in an example.
+      values: A numpy array of values in a batch.
     """
-    for value in value_list:
-      if not value:
-        continue
-      if isinstance(value, bytes):
-        utf8_or_none = stats_util.maybe_get_utf8(value)
-        if utf8_or_none is None:
-          self.invalidated = True
-          return
-        else:
-          value = utf8_or_none
-      self.considered += 1
+    self.considered += values.size
+    for value in values:
       for strptime_format, time_regex in _TIME_RE_LIST:
         if time_regex.match(value):
           self.matching_formats[strptime_format] += 1
@@ -254,32 +246,41 @@ class TimeStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     return _PartialTimeStats()
 
   def add_input(self, accumulator,
-                input_batch):
+                input_column):
     """Returns result of folding a batch of inputs into the current accumulator.
 
     Args:
       accumulator: The current accumulator.
-      input_batch: A list representing a batch of feature value_lists (one per
-        example) to add to the accumulator.
+      input_column: An arrow column representing a batch of feature values
+        which should be added to the accumulator.
 
     Returns:
       The accumulator after updating the statistics for the batch of inputs.
     """
     if accumulator.invalidated:
       return accumulator
-    for value_list in input_batch:
-      if value_list is None or value_list.size == 0:
-        continue
+    feature_type = stats_util.get_feature_type_from_arrow_type(
+        input_column.name, input_column.type)
+    # Ignore null array.
+    if feature_type is None:
+      return accumulator
+    # TODO(b/126429922): Add support for detecting date/time in integer
+    # If we see a different type, invalidate.
+    if feature_type != statistics_pb2.FeatureNameStatistics.STRING:
+      accumulator.invalidated = True
+      return accumulator
 
-      # TODO(b/126429922): Add support for detecting date/time in integer
-      # features (and then change the type check below accordingly).
-      # Check if the numpy array is of bytes type, if not invalidate the stats.
-      if stats_util.get_feature_type(
-          value_list.dtype) != statistics_pb2.FeatureNameStatistics.STRING:
+    def _maybe_get_utf8(val):
+      return stats_util.maybe_get_utf8(val) if isinstance(val, bytes) else val
+
+    for feature_array in input_column.data.iterchunks():
+      values = arrow_util.FlattenListArray(feature_array).to_pandas()
+      maybe_utf8 = np.vectorize(_maybe_get_utf8, otypes=[np.object])(values)
+      if not maybe_utf8.all():
         accumulator.invalidated = True
         return accumulator
+      accumulator.update(maybe_utf8)
 
-      accumulator.update(value_list)
     return accumulator
 
   def merge_accumulators(

@@ -194,14 +194,14 @@ class CombinerFeatureStatsGenerator(StatsGenerator):
     """
     raise NotImplementedError
 
-  def add_input(self, accumulator, input_batch
+  def add_input(self, accumulator, input_column
                ):
     """Returns result of folding a batch of inputs into accumulator.
 
     Args:
       accumulator: The current accumulator.
-      input_batch: A list representing a batch of feature values (one per
-        example) which should be added to the accumulator.
+      input_column: An arrow column representing a batch of feature values
+        which should be added to the accumulator.
 
     Returns:
       The accumulator after updating the statistics for the batch of inputs.

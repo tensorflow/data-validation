@@ -23,7 +23,9 @@ from absl.testing import parameterized
 import apache_beam as beam
 from apache_beam.testing import util
 import numpy as np
+import pyarrow as pa
 from tensorflow_data_validation import types
+from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.statistics.generators import basic_stats_generator
@@ -62,17 +64,22 @@ class _BaseCounter(stats_generator.CombinerFeatureStatsGenerator):
 class _ValueCounter(_BaseCounter):
   """A _BaseCounter that counts number of values."""
 
-  def add_input(self, accumulator, input_batch):
-    return accumulator + sum(
-        [len(value) for value in input_batch if value is not None])
+  def add_input(self, accumulator, input_column):
+    for feature_array in input_column.data.iterchunks():
+      num_values = arrow_util.ListLengthsFromListArray(feature_array).to_numpy()
+      none_mask = arrow_util.GetArrayNullBitmapAsByteArray(
+          feature_array).to_numpy().view(np.bool)
+      accumulator += np.sum(num_values[~none_mask])
+    return accumulator
 
 
 class _ExampleCounter(_BaseCounter):
   """A _BaseCounter that counts number of examples with feature set."""
 
-  def add_input(self, accumulator, input_batch):
-    return accumulator + len(
-        [value for value in input_batch if value is not None])
+  def add_input(self, accumulator, input_column):
+    for feature_array in input_column.data.iterchunks():
+      accumulator += len(feature_array) - feature_array.null_count
+    return accumulator
 
 
 GENERATE_STATS_TESTS = [
