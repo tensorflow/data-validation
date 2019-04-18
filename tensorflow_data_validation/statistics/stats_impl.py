@@ -22,11 +22,13 @@ from __future__ import print_function
 import itertools
 
 import apache_beam as beam
+import numpy as np
 import pyarrow as pa
 import six
 from six.moves import zip
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
+from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.arrow import decoded_examples_to_arrow
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.statistics.generators import basic_stats_generator
@@ -39,6 +41,7 @@ from tensorflow_data_validation.statistics.generators import top_k_uniques_stats
 
 from tensorflow_data_validation.utils import batch_util
 from tensorflow_data_validation.utils import slicing_util
+from tensorflow_data_validation.utils import stats_util
 from tensorflow_data_validation.types_compat import Any, Callable, Dict, Iterable, List, Optional, Text, Tuple
 
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -220,7 +223,8 @@ def _get_default_generators(
           num_histogram_buckets=options.num_histogram_buckets,
           num_quantiles_histogram_buckets=\
             options.num_quantiles_histogram_buckets,
-          epsilon=options.epsilon)
+          epsilon=options.epsilon),
+      NumExamplesStatsGenerator(options.weight_feature)
   ]
   if in_memory:
     stats_generators.append(
@@ -327,6 +331,28 @@ def _merge_dataset_feature_stats_protos(
   return result
 
 
+def _update_example_and_missing_count(
+    stats):
+  """Updates example count of the dataset and missing count for all features."""
+  dummy_feature = stats_util.get_feature_stats(stats, _DUMMY_FEATURE_NAME)
+  num_examples = stats_util.get_custom_stats(dummy_feature, _NUM_EXAMPLES_KEY)
+  weighted_num_examples = stats_util.get_custom_stats(
+      dummy_feature, _WEIGHTED_NUM_EXAMPLES_KEY)
+  stats.features.remove(dummy_feature)
+  for feature_stats in stats.features:
+    common_stats = None
+    if feature_stats.WhichOneof('stats') == 'num_stats':
+      common_stats = feature_stats.num_stats.common_stats
+    else:
+      common_stats = feature_stats.string_stats.common_stats
+    common_stats.num_missing = int(num_examples - common_stats.num_non_missing)
+    if weighted_num_examples != 0:
+      common_stats.weighted_common_stats.num_missing = (
+          weighted_num_examples -
+          common_stats.weighted_common_stats.num_non_missing)
+  stats.num_examples = int(num_examples)
+
+
 def _make_dataset_feature_statistics_list_proto(
     stats_protos
 ):
@@ -345,7 +371,60 @@ def _make_dataset_feature_statistics_list_proto(
     # Add the input DatasetFeatureStatistics proto.
     new_stats_proto = result.datasets.add()
     new_stats_proto.CopyFrom(stats_proto)
+    # We now update the example count for the dataset and the missing count
+    # for all the features, using the number of examples computed separately
+    # using NumExamplesStatsGenerator. Note that we compute the number of
+    # examples separately to avoid ignoring example counts for features which
+    # may be completely missing in a shard. We set the missing count of a
+    # feature to be num_examples - non_missing_count.
+    _update_example_and_missing_count(new_stats_proto)
   return result
+
+
+_DUMMY_FEATURE_NAME = '__TFDV_INTERNAL_FEATURE__'
+_NUM_EXAMPLES_KEY = '__NUM_EXAMPLES__'
+_WEIGHTED_NUM_EXAMPLES_KEY = '__WEIGHTED_NUM_EXAMPLES__'
+
+
+class NumExamplesStatsGenerator(stats_generator.ArrowCombinerStatsGenerator):
+  """Computes total number of examples."""
+
+  def __init__(self,
+               weight_feature = None):
+    self._weight_feature = weight_feature
+
+  def create_accumulator(self):
+    return [0, 0]  # [num_examples, weighted_num_examples]
+
+  def add_input(self, accumulator,
+                examples_table):
+    accumulator[0] += examples_table.num_rows
+    if self._weight_feature:
+      weights_column = examples_table.column(self._weight_feature)
+      for weight_array in weights_column.data.iterchunks():
+        accumulator[1] += np.sum(
+            arrow_util.FlattenListArray(weight_array).to_numpy())
+    return accumulator
+
+  def merge_accumulators(self, accumulators
+                        ):
+    result = self.create_accumulator()
+    for acc in accumulators:
+      result[0] += acc[0]
+      result[1] += acc[1]
+    return result
+
+  def extract_output(self, accumulator
+                    ):
+    result = statistics_pb2.DatasetFeatureStatistics()
+    dummy_feature = result.features.add()
+    dummy_feature.name = _DUMMY_FEATURE_NAME
+    dummy_feature.custom_stats.add(name=_NUM_EXAMPLES_KEY, num=accumulator[0])
+    dummy_feature.custom_stats.add(name=_WEIGHTED_NUM_EXAMPLES_KEY,
+                                   num=accumulator[1])
+    beam.metrics.Metrics.counter(constants.METRICS_NAMESPACE, 'num_instances'
+                                ).inc(accumulator[0])
+    return result
 
 
 class _CombinerStatsGeneratorsCombineFnAcc(object):

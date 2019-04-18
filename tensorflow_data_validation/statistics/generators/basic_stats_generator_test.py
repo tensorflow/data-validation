@@ -46,7 +46,6 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             num_stats {
               common_stats {
                 num_non_missing: 3
-                num_missing: 0
                 min_num_values: 1
                 max_num_values: 3
                 avg_num_values: 2.0
@@ -163,7 +162,6 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             num_stats {
               common_stats {
                 num_non_missing: 1
-                num_missing: 4
                 min_num_values: 2
                 max_num_values: 2
                 avg_num_values: 2.0
@@ -246,7 +244,6 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             num_stats {
               common_stats {
                 num_non_missing: 3
-                num_missing: 2
                 min_num_values: 1
                 max_num_values: 3
                 avg_num_values: 1.66666698456
@@ -348,7 +345,6 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             num_stats {
               common_stats {
                 num_non_missing: 3
-                num_missing: 1
                 min_num_values: 2
                 max_num_values: 4
                 avg_num_values: 3.0
@@ -378,7 +374,6 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 }
                 weighted_common_stats {
                   num_non_missing: 6.0
-                  num_missing: 2.0
                   avg_num_values: 3.33333333
                   tot_num_values: 20.0
                 }
@@ -488,7 +483,6 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             num_stats {
               common_stats {
                 num_non_missing: 3
-                num_missing: 1
                 min_num_values: 1
                 max_num_values: 3
                 avg_num_values: 2.0
@@ -518,7 +512,6 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 }
                 weighted_common_stats {
                   num_non_missing: 6.0
-                  num_missing: 2.0
                   avg_num_values: 1.83333333
                   tot_num_values: 11.0
                 }
@@ -642,7 +635,6 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             num_stats {
               common_stats {
                 num_non_missing: 3
-                num_missing: 2
                 min_num_values: 1
                 max_num_values: 3
                 avg_num_values: 2.0
@@ -722,7 +714,6 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             string_stats {
               common_stats {
                 num_non_missing: 3
-                num_missing: 2
                 min_num_values: 1
                 max_num_values: 4
                 avg_num_values: 2.33333333
@@ -770,7 +761,6 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             num_stats {
               common_stats {
                 num_non_missing: 3
-                num_missing: 0
                 min_num_values: 2
                 max_num_values: 4
                 avg_num_values: 2.66666666
@@ -875,7 +865,6 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             num_stats {
               common_stats {
                 num_non_missing: 3
-                num_missing: 0
                 min_num_values: 1
                 max_num_values: 3
                 avg_num_values: 2.0
@@ -955,7 +944,6 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             string_stats {
               common_stats {
                 num_non_missing: 3
-                num_missing: 0
                 min_num_values: 1
                 max_num_values: 4
                 avg_num_values: 2.33333333
@@ -989,7 +977,6 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             num_stats {
               common_stats {
                 num_non_missing: 3
-                num_missing: 0
                 min_num_values: 1000
                 max_num_values: 1000
                 avg_num_values: 1000.0
@@ -1131,7 +1118,6 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             string_stats {
               common_stats {
                 num_non_missing: 0
-                num_missing: 0
                 tot_num_values: 0
               }
             }

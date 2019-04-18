@@ -936,6 +936,12 @@ GENERATE_STATS_TESTS = [
               }
             }""",
     },
+    {
+        'testcase_name': 'empty_batch',
+        'examples': [{}, {}, {}],
+        'options': stats_options.StatsOptions(),
+        'expected_result_proto_text': """datasets { num_examples: 3 }""",
+    },
 ]
 
 
@@ -1934,13 +1940,21 @@ class StatsImplTest(parameterized.TestCase):
   def test_make_dataset_feature_statistics_list_proto(self):
     input_proto = text_format.Parse(
         """
-        num_examples: 7
         features: {
           name: 'feature1'
           type: STRING
+          string_stats {
+            common_stats {
+              num_non_missing: 3
+            }
+          }
         }
         """, statistics_pb2.DatasetFeatureStatistics())
-
+    dummy_feature = input_proto.features.add(
+        name=stats_impl._DUMMY_FEATURE_NAME)
+    dummy_feature.custom_stats.add(name=stats_impl._NUM_EXAMPLES_KEY, num=7)
+    dummy_feature.custom_stats.add(name=stats_impl._WEIGHTED_NUM_EXAMPLES_KEY,
+                                   num=0)
     expected = text_format.Parse(
         """
         datasets {
@@ -1948,6 +1962,12 @@ class StatsImplTest(parameterized.TestCase):
           features: {
             name: 'feature1'
             type: STRING
+            string_stats {
+              common_stats {
+                num_non_missing: 3
+                num_missing: 4
+              }
+            }
           }
         }
         """, statistics_pb2.DatasetFeatureStatisticsList())
@@ -1985,7 +2005,8 @@ class StatsImplTest(parameterized.TestCase):
          | 'CreateBatches' >> beam.Create(examples)
          | 'BasicStatsCombiner' >> beam.CombineGlobally(
              stats_impl._CombinerStatsGeneratorsCombineFn(
-                 [basic_stats_generator.BasicStatsGenerator()])))
+                 [basic_stats_generator.BasicStatsGenerator(),
+                  stats_impl.NumExamplesStatsGenerator()])))
 
     runner = p.run()
     runner.wait_until_finish()
@@ -1994,7 +2015,6 @@ class StatsImplTest(parameterized.TestCase):
     # TODO(b/125474748): Add all the counters.
     expected_result = {
         'num_instances': 4,
-        'num_missing_feature_values': 3,
         'num_int_feature_values': 2,
         'int_feature_values_min_count': 1,
         'int_feature_values_max_count': 3,

@@ -163,6 +163,40 @@ class StatsUtilTest(absltest.TestCase):
         TypeError, '.*should be a DatasetFeatureStatisticsList proto.'):
       _ = stats_util.write_stats_text({}, 'stats.pbtxt')
 
+  def test_get_custom_stats_numeric(self):
+    stats = text_format.Parse(
+        """
+            name: 'feature'
+            custom_stats {
+              name: 'abc'
+              num: 100.0
+            }
+        """, statistics_pb2.FeatureNameStatistics())
+    self.assertEqual(stats_util.get_custom_stats(stats, 'abc'), 100.0)
+
+  def test_get_custom_stats_string(self):
+    stats = text_format.Parse(
+        """
+            name: 'feature'
+            custom_stats {
+              name: 'abc'
+              str: 'xyz'
+            }
+        """, statistics_pb2.FeatureNameStatistics())
+    self.assertEqual(stats_util.get_custom_stats(stats, 'abc'), 'xyz')
+
+  def test_get_custom_stats_not_found(self):
+    stats = text_format.Parse(
+        """
+            name: 'feature'
+            custom_stats {
+              name: 'abc'
+              num: 100.0
+            }
+        """, statistics_pb2.FeatureNameStatistics())
+    with self.assertRaisesRegexp(ValueError, 'Custom statistics.*not found'):
+      stats_util.get_custom_stats(stats, 'xyz')
+
 
 if __name__ == '__main__':
   absltest.main()

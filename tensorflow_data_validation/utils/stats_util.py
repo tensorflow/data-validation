@@ -21,7 +21,7 @@ from __future__ import print_function
 import numpy as np
 import pyarrow as pa
 from tensorflow_data_validation import types
-from tensorflow_data_validation.types_compat import Dict, List, Optional, Text
+from tensorflow_data_validation.types_compat import Dict, List, Optional, Text, Union
 from google.protobuf import text_format
 # TODO(b/125849585): Update to import from TF directly.
 from tensorflow.python.lib.io import file_io  # pylint: disable=g-direct-tensorflow-import
@@ -245,3 +245,64 @@ def load_stats_text(
   stats_text = file_io.read_file_to_string(input_path)
   text_format.Parse(stats_text, stats_proto)
   return stats_proto
+
+
+def get_feature_stats(stats,
+                      feature_name
+                     ):
+  """Get feature statistics from the dataset statistics.
+
+  Args:
+    stats: A DatasetFeatureStatistics protocol buffer.
+    feature_name: The name of the feature whose statistics to obtain from the
+      dataset statistics.
+
+  Returns:
+    A FeatureNameStatistics protocol buffer.
+
+  Raises:
+    TypeError: If the input statistics is not of the expected type.
+    ValueError: If the input feature is not found in the dataset statistics.
+  """
+  if not isinstance(stats, statistics_pb2.DatasetFeatureStatistics):
+    raise TypeError('statistics is of type %s, should be a '
+                    'DatasetFeatureStatistics proto.' %
+                    type(stats).__name__)
+
+  for feature_stats in stats.features:
+    if feature_stats.name == feature_name:
+      return feature_stats
+
+  raise ValueError('Feature %s not found in the dataset statistics.' %
+                   feature_name)
+
+
+def get_custom_stats(
+    feature_stats,
+    custom_stats_name
+):
+  """Get custom statistics from the feature statistics.
+
+  Args:
+    feature_stats: A FeatureNameStatistics protocol buffer.
+    custom_stats_name: The name of the custom statistics to obtain from the
+      feature statistics proto.
+
+  Returns:
+    The custom statistic.
+
+  Raises:
+    TypeError: If the input feature statistics is not of the expected type.
+    ValueError: If the custom statistic is not found in the feature statistics.
+  """
+  if not isinstance(feature_stats, statistics_pb2.FeatureNameStatistics):
+    raise TypeError('feature_stats is of type %s, should be a '
+                    'FeatureNameStatistics proto.' %
+                    type(feature_stats).__name__)
+
+  for custom_stats in feature_stats.custom_stats:
+    if custom_stats.name == custom_stats_name:
+      return getattr(custom_stats, custom_stats.WhichOneof('val'))
+
+  raise ValueError('Custom statistics %s not found in the feature statistics.' %
+                   custom_stats_name)

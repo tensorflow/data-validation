@@ -66,16 +66,13 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 class _PartialCommonStats(object):
   """Holds partial common statistics for a single feature."""
 
-  __slots__ = ['num_non_missing', 'num_missing', 'min_num_values',
-               'max_num_values', 'total_num_values', 'type',
-               'num_values_summary', 'has_weights', 'weighted_num_non_missing',
-               'weighted_num_missing', 'weighted_total_num_values']
+  __slots__ = ['num_non_missing', 'min_num_values', 'max_num_values',
+               'total_num_values', 'type', 'num_values_summary', 'has_weights',
+               'weighted_num_non_missing', 'weighted_total_num_values']
 
   def __init__(self, has_weights):
     # The number of examples with at least one value for this feature.
     self.num_non_missing = 0
-    # The number of examples with no values for this feature.
-    self.num_missing = 0
     # The minimum number of values in a single example for this feature.
     self.min_num_values = sys.maxsize
     # The maximum number of values in a single example for this feature.
@@ -94,15 +91,12 @@ class _PartialCommonStats(object):
       # The sum of weights of all the examples with at least one value for this
       # feature.
       self.weighted_num_non_missing = 0
-      # The sum of weights of all the examples with no values for this feature.
-      self.weighted_num_missing = 0
       # The sum of weights of all the values for this feature.
       self.weighted_total_num_values = 0
 
   def __iadd__(self, other):
     """Merge two partial common statistics and return the merged statistics."""
     self.num_non_missing += other.num_non_missing
-    self.num_missing += other.num_missing
     self.min_num_values = min(self.min_num_values, other.min_num_values)
     self.max_num_values = max(self.max_num_values, other.max_num_values)
     self.total_num_values += other.total_num_values
@@ -110,7 +104,6 @@ class _PartialCommonStats(object):
     assert self.has_weights == other.has_weights
     if self.has_weights:
       self.weighted_num_non_missing += other.weighted_num_non_missing
-      self.weighted_num_missing += other.weighted_num_missing
       self.weighted_total_num_values += other.weighted_total_num_values
 
     # Set the type of the merged common stats.
@@ -130,12 +123,10 @@ class _PartialCommonStats(object):
              num_values_quantiles_combiner,
              weight_column = None):
     """Update the partial common statistics using the input value."""
-
     # All the values in this column is null and we cannot deduce the type of
     # the feature. This is not an error as this feature might have some values
-    # in other batches. The only stats needs to be updated is num_missig.
+    # in other batches.
     if feature_type is None:
-      self.num_missing += feature_column.null_count
       return
 
     if self.type is None:
@@ -165,7 +156,6 @@ class _PartialCommonStats(object):
           feature_array).to_numpy().view(np.bool)
 
       num_values_not_none = num_values[~none_mask]
-      self.num_missing += feature_array.null_count
       self.num_non_missing += len(feature_array) - feature_array.null_count
       self.max_num_values = max(
           np.max(num_values_not_none), self.max_num_values)
@@ -181,9 +171,7 @@ class _PartialCommonStats(object):
         if weights.size != num_values.size:
           raise ValueError('Weight feature must not be missing.')
         self.weighted_total_num_values += np.sum(num_values * weights)
-        sum_weights_missing = np.sum(weights[none_mask])
-        self.weighted_num_non_missing += np.sum(weights) - sum_weights_missing
-        self.weighted_num_missing += sum_weights_missing
+        self.weighted_num_non_missing += np.sum(weights[~none_mask])
 
 
 class _PartialNumericStats(object):
@@ -351,7 +339,6 @@ def _make_common_stats_proto(
   """Convert the partial common stats into a CommonStatistics proto."""
   result = statistics_pb2.CommonStatistics()
   result.num_non_missing = common_stats.num_non_missing
-  result.num_missing = common_stats.num_missing
   result.tot_num_values = common_stats.total_num_values
 
   # TODO(b/79685042): Need to decide on what is the expected values for
@@ -376,7 +363,6 @@ def _make_common_stats_proto(
   if has_weights:
     weighted_common_stats_proto = statistics_pb2.WeightedCommonStatistics(
         num_non_missing=common_stats.weighted_num_non_missing,
-        num_missing=common_stats.weighted_num_missing,
         tot_num_values=common_stats.weighted_total_num_values)
 
     if common_stats.weighted_num_non_missing > 0:
@@ -585,7 +571,6 @@ _TFDVMetrics.__new__.__defaults__ = (0, sys.maxsize, 0, 0)
 def _update_tfdv_telemetry(
     accumulator):
   """Update TFDV Beam metrics."""
-  num_instances, num_missing_feature_values = 0, 0
   # Aggregate type specific metrics.
   metrics = {
       statistics_pb2.FeatureNameStatistics.INT: _TFDVMetrics(),
@@ -595,9 +580,6 @@ def _update_tfdv_telemetry(
 
   for basic_stats in accumulator.values():
     common_stats = basic_stats.common_stats
-    if num_instances == 0:
-      num_instances = common_stats.num_missing + common_stats.num_non_missing
-    num_missing_feature_values += common_stats.num_missing
     if common_stats.type is None:
       continue
     # Update type specific metrics.
@@ -615,10 +597,6 @@ def _update_tfdv_telemetry(
 
   # Update Beam counters.
   counter = beam.metrics.Metrics.counter
-  counter(constants.METRICS_NAMESPACE, 'num_instances').inc(num_instances)
-  counter(constants.METRICS_NAMESPACE, 'num_missing_feature_values').inc(
-      num_missing_feature_values)
-
   for feature_type in metrics:
     type_str = statistics_pb2.FeatureNameStatistics.Type.Name(
         feature_type).lower()

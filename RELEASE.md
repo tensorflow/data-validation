@@ -30,6 +30,8 @@
 * Define ReasonFeatureNeeded proto.
 * Add support for Windows OS.
 * Make semantic domain stats generators to take arrow column as input.
+* Fix error in number of missing examples and total number of examples
+  computation.
 * Depends on `pyarrow>=0.11.1,<0.12.0`.
 
 ## Breaking Changes
