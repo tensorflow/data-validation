@@ -24,6 +24,7 @@ from __future__ import print_function
 
 import collections
 import logging
+import numbers
 import apache_beam as beam
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
@@ -118,9 +119,12 @@ def make_feature_stats_proto_with_topk_stats(
     value, count = top_k_value_count_list[i]
     if count < frequency_threshold:
       break
+    # Convert to string if integer.
+    if isinstance(value, numbers.Integral):
+      value = str(value)
     # Check if we have a valid utf-8 string. If not, assign a default invalid
     # string value.
-    if isinstance(value, bytes) and maybe_get_utf8(value) is None:
+    elif isinstance(value, bytes) and maybe_get_utf8(value) is None:
       logging.warning('Feature "%s" has bytes value "%s" which cannot be '
                       'decoded as a UTF-8 string.', feature_name, value)
       value = _INVALID_STRING

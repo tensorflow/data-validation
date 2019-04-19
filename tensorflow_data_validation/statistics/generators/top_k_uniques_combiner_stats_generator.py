@@ -20,14 +20,15 @@ from __future__ import print_function
 
 import collections
 import numpy as np
+import pyarrow as pa
 import six
 from tensorflow_data_validation import types
+from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.statistics.generators import top_k_uniques_stats_generator
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
-from tensorflow_data_validation.utils.stats_util import get_feature_type
-from tensorflow_data_validation.types_compat import Dict, Iterable, List, Optional, Set, Text
+from tensorflow_data_validation.types_compat import Any, Dict, Iterable, List, Optional, Set, Text
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
@@ -96,19 +97,26 @@ def _make_dataset_feature_stats_proto_with_multiple_features(
   return result
 
 
-class _WeightedCounter(collections.Counter):
-  """An extension of collections.Counter that supports weights."""
+class _WeightedCounter(collections.defaultdict):
+  """A counter that support weighted counts."""
 
-  def weighted_update(self, iterable=None, weight=1):
-    """Like Counter.update(), except weights the counts when adding them."""
+  def __init__(self):
+    super(_WeightedCounter, self).__init__(int)
 
-    if iterable is not None:
-      self_get = self.get
-      for elem in iterable:
-        self[elem] = self_get(elem, 0) + weight
+  def weighted_update(self, values,
+                      weights):
+    """Updates the count of elements in `values` with weights."""
+
+    for v, w in six.moves.zip(values, weights):
+      self[v] += w
+
+  def update(self, other):
+    for k, v in six.iteritems(other):
+      self[k] += v
 
 
-class TopKUniquesCombinerStatsGenerator(stats_generator.CombinerStatsGenerator):
+class TopKUniquesCombinerStatsGenerator(
+    stats_generator.ArrowCombinerStatsGenerator):
   """Combiner statistics generator that computes top-k and uniques stats.
 
   This generator is for in-memory data only. The TopKStatsGenerator and
@@ -153,33 +161,64 @@ class TopKUniquesCombinerStatsGenerator(stats_generator.CombinerStatsGenerator):
   def create_accumulator(self):
     return {}
 
-  def add_input(
-      self, accumulator,
-      input_batch):
-    if self._weight_feature is not None:
-      weights = stats_util.get_weight_feature(input_batch, self._weight_feature)
+  # Implementation note:
+  # The current implementation loops over the flattened value ndarrays and
+  # weight ndarrays which is slow. We could have used np.unique() (or similar
+  # vectorized approach) but np.unique() involves a sort(), which is slow if
+  # dtype==np.object (for strings, which is our most common use case).
+  # However pandas allows us to group-by-and-count-and-sum without sorting.
+  # So one way to improve the performance would be, for each feature, to
+  # construct an Arrow Table that consists of flattend values and weights
+  # (zero copy here), then table.to_pandas() (one copy here, but unavoidable
+  # anyways), then use something like DataFrame.groupby().agg(['sum', 'count']).
+  # The accumulator could simply be a DataFrame for each feature, and make use
+  # of DataFrame merging provided by pandas.
+  def add_input(self, accumulator,
+                input_table):
 
-    for feature_name, values in six.iteritems(input_batch):
-      # Skip the weight feature.
+    weight_ndarrays = []
+    if self._weight_feature is not None:
+      for a in input_table.column(self._weight_feature).data.iterchunks():
+        weight_array = arrow_util.FlattenListArray(a)
+        if len(weight_array) != len(a):
+          raise ValueError(
+              'If weight is specified, then each example must have a weight '
+              'feature of length 1.')
+        # to_numpy() can only be called against a non-empty arrow array.
+        if weight_array:
+          weight_ndarrays.append(weight_array.to_numpy())
+        else:
+          weight_ndarrays.append(
+              np.array([], dtype=weight_array.to_pandas_dtype()))
+
+    for column in input_table.columns:
+      feature_name = column.name
       if feature_name == self._weight_feature:
         continue
       unweighted_counts = collections.Counter()
       weighted_counts = _WeightedCounter()
+      feature_type = stats_util.get_feature_type_from_arrow_type(
+          feature_name, column.type)
+      if not (feature_name in self._categorical_features or
+              feature_type == statistics_pb2.FeatureNameStatistics.STRING):
+        continue
 
-      for i, value in enumerate(values):
-        # Check if we have a numpy array with at least one value.
-        if not isinstance(value, np.ndarray) or value.size == 0:
+      for feature_array, weight_ndarray in six.moves.zip_longest(
+          column.data.iterchunks(), weight_ndarrays, fillvalue=None):
+        flattened_values_array = arrow_util.FlattenListArray(feature_array)
+        # to_numpy() cannot be called if the array is empty.
+        if not flattened_values_array:
           continue
-        # Check that the feature is either categorical or of string type.
-        if not (feature_name in self._categorical_features or get_feature_type(
-            value.dtype) == statistics_pb2.FeatureNameStatistics.STRING):
-          continue
-        if feature_name in self._categorical_features:
-          value = value.astype(str)
-
-        unweighted_counts.update(value)
-        if self._weight_feature is not None:
-          weighted_counts.weighted_update(value, weights[i][0])
+        if feature_type == statistics_pb2.FeatureNameStatistics.STRING:
+          values_ndarray = flattened_values_array.to_pandas()
+        else:
+          values_ndarray = flattened_values_array.to_numpy()
+        value_parent_indices = arrow_util.GetFlattenedArrayParentIndices(
+            feature_array).to_numpy()
+        unweighted_counts.update(values_ndarray)
+        if weight_ndarray is not None:
+          weight_per_value = weight_ndarray[value_parent_indices]
+          weighted_counts.weighted_update(values_ndarray, weight_per_value)
 
       if feature_name not in accumulator:
         accumulator[feature_name] = _ValueCounts(

@@ -18,7 +18,7 @@ from __future__ import division
 from __future__ import print_function
 
 from absl.testing import absltest
-import numpy as np
+import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import top_k_uniques_combiner_stats_generator
 from tensorflow_data_validation.utils import test_util
 
@@ -31,14 +31,17 @@ class TopKUniquesCombinerStatsGeneratorTest(
     test_util.CombinerStatsGeneratorTest):
   """Tests for TopKUniquesCombinerStatsGenerator."""
 
-  def test_topk_uniques_combiner_with_single_string_feature(self):
+  def test_topk_uniques_combiner_with_single_bytes_feature(self):
     # 'fa': 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
-    batches = [{
-        'fa': [np.array(['a', 'b', 'c', 'e']),
-               np.array(['a', 'c', 'd', 'a'])]
-    }, {
-        'fa': [np.array(['a', 'b', 'c', 'd'])]
-    }]
+    batches = [
+        pa.Table.from_arrays([
+            pa.array([['a', 'b', 'c', 'e'], ['a', 'c', 'd', 'a']],
+                     type=pa.list_(pa.binary()))
+        ], ['fa']),
+        pa.Table.from_arrays(
+            [pa.array([['a', 'b', 'c', 'd']], type=pa.list_(pa.binary()))],
+            ['fa'])
+    ]
     # Note that if two feature values have the same frequency, the one with the
     # lexicographically larger feature value will be higher in the order.
     expected_result = {
@@ -98,14 +101,16 @@ class TopKUniquesCombinerStatsGeneratorTest(
     # 3 'a', 2 'e', 2 'd', 2 'c', 1 'b'
     # weighted ordering
     # fa: 20 'e', 20 'd', 15 'a', 10 'c', 5 'b'
-    batches = [{
-        'fa': [np.array(['a', 'b', 'c', 'e']),
-               np.array(['a', 'c', 'd', 'a'])],
-        'w': [np.array([5.0]), np.array([5.0])]
-    }, {
-        'fa': [np.array(['d', 'e'])],
-        'w': [np.array([15.0])]
-    }]
+    batches = [
+        pa.Table.from_arrays([
+            pa.array([['a', 'b', 'c', 'e'], ['a', 'c', 'd', 'a']]),
+            pa.array([[5.0], [5.0]]),
+        ], ['fa', 'w']),
+        pa.Table.from_arrays([
+            pa.array([['d', 'e']]),
+            pa.array([[15.0]]),
+        ], ['fa', 'w']),
+    ]
     expected_result = {
         'fa':
             text_format.Parse(
@@ -198,12 +203,12 @@ class TopKUniquesCombinerStatsGeneratorTest(
 
   def test_topk_uniques_combiner_with_single_unicode_feature(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
-    batches = [{
-        'fa': [np.array(['a', 'b', 'c', 'e']),
-               np.array(['a', 'c', 'd', 'a'])]
-    }, {
-        'fa': [np.array(['a', 'b', 'c', 'd'])]
-    }]
+    batches = [
+        pa.Table.from_arrays(
+            [pa.array([[u'a', u'b', u'c', u'e'], [u'a', u'c', u'd', u'a']])],
+            ['fa']),
+        pa.Table.from_arrays([pa.array([[u'a', u'b', u'c', u'd']])], ['fa']),
+    ]
     expected_result = {
         'fa':
             text_format.Parse(
@@ -259,17 +264,16 @@ class TopKUniquesCombinerStatsGeneratorTest(
   def test_topk_uniques_combiner_with_multiple_features(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
     # fb: 1 'a', 2 'b', 3 'c'
-    batches = [{
-        'fa': [np.array(['a', 'b', 'c', 'e']), None,
-               np.array(['a', 'c', 'd'])],
-        'fb': [np.array(['a', 'c', 'c']),
-               np.array(['b']), None],
-    },
-               {
-                   'fa': [np.array(['a', 'a', 'b', 'c', 'd']), None],
-                   'fb': [None, np.array(['b', 'c'])]
-               }]
-
+    batches = [
+        pa.Table.from_arrays([
+            pa.array([['a', 'b', 'c', 'e'], None, ['a', 'c', 'd']]),
+            pa.array([['a', 'c', 'c'], ['b'], None]),
+        ], ['fa', 'fb']),
+        pa.Table.from_arrays([
+            pa.array([['a', 'a', 'b', 'c', 'd'], None]),
+            pa.array([None, ['b', 'c']])
+        ], ['fa', 'fb']),
+    ]
     expected_result = {
         'fa':
             text_format.Parse(
@@ -362,8 +366,11 @@ class TopKUniquesCombinerStatsGeneratorTest(
             num_top_values=4, num_rank_histogram_buckets=3))
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_topk_uniques_combiner_with_empty_batch(self):
-    batches = [{'a': []}]
+  def test_topk_uniques_combiner_zero_row(self):
+    batches = [
+        pa.Table.from_arrays([pa.array([], type=pa.list_(pa.binary()))],
+                             ['f1'])
+    ]
     expected_result = {}
     generator = (
         top_k_uniques_combiner_stats_generator
@@ -371,17 +378,8 @@ class TopKUniquesCombinerStatsGeneratorTest(
             num_top_values=4, num_rank_histogram_buckets=3))
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_topk_uniques_combiner_with_empty_dict(self):
-    batches = [{}]
-    expected_result = {}
-    generator = (
-        top_k_uniques_combiner_stats_generator
-        .TopKUniquesCombinerStatsGenerator(
-            num_top_values=4, num_rank_histogram_buckets=3))
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
-
-  def test_topk_uniques_combiner_with_empty_list(self):
-    batches = []
+  def test_topk_uniques_combiners_empty_table(self):
+    batches = [pa.Table.from_arrays([], [])]
     expected_result = {}
     generator = (
         top_k_uniques_combiner_stats_generator
@@ -392,14 +390,15 @@ class TopKUniquesCombinerStatsGeneratorTest(
   def test_topk_uniques_combiner_with_missing_feature(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
     # fb: 1 'a', 1 'b', 2 'c'
-    batches = [{
-        'fa': [np.array(['a', 'b', 'c', 'e']), None,
-               np.array(['a', 'c', 'd'])],
-        'fb': [np.array(['a', 'c', 'c']),
-               np.array(['b']), None],
-    }, {
-        'fa': [np.array(['a', 'a', 'b', 'c', 'd']), None],
-    }]
+    batches = [
+        pa.Table.from_arrays([
+            pa.array([['a', 'b', 'c', 'e'], None, ['a', 'c', 'd']]),
+            pa.array([['a', 'c', 'c'], ['b'], None]),
+        ], ['fa', 'fb']),
+        pa.Table.from_arrays([
+            pa.array([['a', 'a', 'b', 'c', 'd'], None]),
+        ], ['fa'])
+    ]
     expected_result = {
         'fa':
             text_format.Parse(
@@ -494,15 +493,16 @@ class TopKUniquesCombinerStatsGeneratorTest(
 
   def test_topk_uniques_combiner_with_numeric_feature(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
-    batches = [{
-        'fa': [np.array(['a', 'b', 'c', 'e']), None,
-               np.array(['a', 'c', 'd'])],
-        'fb': [np.array([1.0, 2.0, 3.0]),
-               np.array([4.0, 5.0]), None]
-    }, {
-        'fa': [np.array(['a', 'a', 'b', 'c', 'd'])],
-        'fb': [None]
-    }]
+    batches = [
+        pa.Table.from_arrays([
+            pa.array([['a', 'b', 'c', 'e'], None, ['a', 'c', 'd']]),
+            pa.array([[1.0, 2.0, 3.0], [4.0, 5.0], None]),
+        ], ['fa', 'fb']),
+        pa.Table.from_arrays([
+            pa.array([['a', 'a', 'b', 'c', 'd']]),
+            pa.array([None], type=pa.list_(pa.float32())),
+        ], ['fa', 'fb']),
+    ]
     expected_result = {
         'fa':
             text_format.Parse(
@@ -557,12 +557,10 @@ class TopKUniquesCombinerStatsGeneratorTest(
 
   def test_topk_uniques_combiner_with_categorical_feature(self):
     # fa: 4 12, 2 23, 2 34, 2 45
-    batches = [{
-        'fa': [np.array([12, 23, 34, 12]),
-               np.array([45, 23])]
-    }, {
-        'fa': [np.array([12, 12, 34, 45])]
-    }]
+    batches = [
+        pa.Table.from_arrays([pa.array([[12, 23, 34, 12], [45, 23]])], ['fa']),
+        pa.Table.from_arrays([pa.array([[12, 12, 34, 45]])], ['fa']),
+    ]
     expected_result = {
         'fa':
             text_format.Parse(
@@ -626,14 +624,16 @@ class TopKUniquesCombinerStatsGeneratorTest(
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
   def test_topk_with_frequency_threshold(self):
-    batches = [{
-        'fa': [np.array(['a', 'b', 'y', 'b'])],
-        'w': [np.array([5.0])]
-    }, {
-        'fa': [np.array(['a', 'x', 'a', 'z'])],
-        'w': [np.array([15.0])]
-    }]
-
+    batches = [
+        pa.Table.from_arrays([
+            pa.array([['a', 'b', 'y', 'b']]),
+            pa.array([[5.0]]),
+        ], ['fa', 'w']),
+        pa.Table.from_arrays([
+            pa.array([['a', 'x', 'a', 'z']]),
+            pa.array([[15.0]]),
+        ], ['fa', 'w'])
+    ]
     expected_result = {
         'fa': text_format.Parse(
             """

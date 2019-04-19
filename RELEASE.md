@@ -11,7 +11,7 @@
 * Add utility method `validate_examples_in_csv`, which identifies anomalous
   examples in CSV files and generates statistics for those anomalous examples.
 * Add fast TF example decoder written in C++.
-* Introduced ArrowCombinerStatsGenerator and made BasicStatsGenerator one of
+* Introduce ArrowCombinerStatsGenerator and made BasicStatsGenerator one of
   it. Example batches are converted to Apache Arrow tables internally and
   ArrowCombinerStatsGenerators are able to make use of vectorized numpy
   functions. Improved performance of BasicStatsGenerator by ~40x.
@@ -32,6 +32,7 @@
 * Make semantic domain stats generators to take arrow column as input.
 * Fix error in number of missing examples and total number of examples
   computation.
+* Make TopKUniquesCombinerStatsGenerator to take arrow table as input.
 * Depends on `pyarrow>=0.11.1,<0.12.0`.
 
 ## Breaking Changes
