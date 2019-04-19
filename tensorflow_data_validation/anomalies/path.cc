@@ -25,12 +25,14 @@ limitations under the License.
 #include "re2/re2.h"
 #include "tensorflow/core/lib/core/errors.h"
 #include "tensorflow/core/lib/core/status.h"
+#include "tensorflow/core/platform/platform.h"
 
 namespace tensorflow {
 namespace data_validation {
 namespace {
 
-#ifdef HAS_GLOBAL_STRING
+#if defined(PLATFORM_GOOGLE) || defined(PLATFORM_GOOGLE_ANDROID) || \
+    defined(GOOGLE_RE2)
 using Re2StringPiece = absl::string_view;
 #else
 using Re2StringPiece = re2::StringPiece;
