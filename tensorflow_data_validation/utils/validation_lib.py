@@ -63,6 +63,8 @@ def validate_examples_in_tfrecord(
       function uses a temporary directory. The output will be a TFRecord file
       containing a single data statistics list proto, and can be read with the
       'load_statistics' function.
+      If you run this function on Google Cloud, you must specify an
+      output_path. Specifying None may cause an error.
     pipeline_options: Optional beam pipeline options. This allows users to
       specify various beam pipeline execution parameters like pipeline runner
       (DirectRunner or DataflowRunner), cloud dataflow service project id, etc.
@@ -138,6 +140,8 @@ def validate_examples_in_csv(
       function uses a temporary directory. The output will be a TFRecord file
       containing a single data statistics list proto, and can be read with the
       'load_statistics' function.
+      If you run this function on Google Cloud, you must specify an
+      output_path. Specifying None may cause an error.
     pipeline_options: Optional beam pipeline options. This allows users to
       specify various beam pipeline execution parameters like pipeline runner
       (DirectRunner or DataflowRunner), cloud dataflow service project id, etc.

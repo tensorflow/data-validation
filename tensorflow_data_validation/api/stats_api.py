@@ -17,19 +17,18 @@ The Statistics API for TF Data Validation consists of a single beam.PTransform,
 GenerateStatistics, that computes a set of statistics on an input set of
 examples in a single pass over the examples.
 
-GenerateStatistics applies a set of statistics generator each of which
-computes a specific type of statistic.  Specifically, we have five default
+GenerateStatistics applies a set of statistics generators, each of which
+computes different types of statistics.  Specifically, we have two default
 generators:
-  1) CommonStatsGenerator, which computes the common statistics for all
-     the features.
-  2) NumericStatsGenerator, which computes the numeric statistics for features
-     of numeric type (INT or FLOAT).
-  3) StringStatsGenerator, which computes the common string statistics for
-     features of string type.
-  4) TopKStatsGenerator, which computes the top-k values for features
-     of string type.
-  5) UniqueStatsGenerator, which computes the number of unique values for
-     features of string type.
+  1) BasicStatsGenerator, which computes the common statistics for all features,
+     numeric statistics for features of numeric type (INT or FLOAT), and common
+     string statistics for features of string type.
+  2) TopKUniquesStatsGenerator, which computes the top-k and number of unique
+     values for features of string type.
+
+If the enable_semantic_domain_stats option in `StatsOptions` is True,
+GenerateStatistics will also apply generators that compute statistics for
+semantic domains (e.g., ImageStatsGenerator).
 
 Additional generators can be implemented and added to the default set to
 compute additional custom statistics.

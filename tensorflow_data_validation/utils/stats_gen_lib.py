@@ -65,6 +65,8 @@ def generate_statistics_from_tfrecord(
     output_path: The file path to output data statistics result to. If None, we
       use a temporary directory. It will be a TFRecord file containing a single
       data statistics proto, and can be read with the 'load_statistics' API.
+      If you run this function on Google Cloud, you must specify an
+      output_path. Specifying None may cause an error.
     stats_options: `tfdv.StatsOptions` for generating data statistics.
     pipeline_options: Optional beam pipeline options. This allows users to
       specify various beam pipeline execution parameters like pipeline runner
@@ -128,6 +130,8 @@ def generate_statistics_from_csv(
     output_path: The file path to output data statistics result to. If None, we
       use a temporary directory. It will be a TFRecord file containing a single
       data statistics proto, and can be read with the 'load_statistics' API.
+      If you run this function on Google Cloud, you must specify an
+      output_path. Specifying None may cause an error.
     stats_options: `tfdv.StatsOptions` for generating data statistics.
     pipeline_options: Optional beam pipeline options. This allows users to
       specify various beam pipeline execution parameters like pipeline runner
