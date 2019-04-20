@@ -186,9 +186,15 @@ in the schema.
 ## Checking the data for errors
 
 Given a schema, it is possible to check whether a dataset conforms to the
-expectations set in the schema or whether there exist any data anomalies. TFDV
-performs this check by matching the statistics of the dataset against the schema
-and marking any discrepancies. For example:
+expectations set in the schema or whether there exist any data anomalies. You
+can check your data for errors (a) in the aggregate across an entire dataset by
+matching the statistics of the dataset against the schema, or (b) by checking
+for errors on a per-example basis.
+
+### Matching the statistics of the dataset against a schema
+
+To check for errors in the aggregate, TFDV matches the statistics of the dataset
+against the schema and marks any discrepancies. For example:
 
 ```python
     # Assume that other_path points to another TFRecord file
@@ -230,6 +236,42 @@ of each error.
 
 ![Screenshot of anomalies](images/anomaly.png)
 
+### Checking for errors on a per-example basis
+
+TFDV also provides the option to validate data on a per-example basis, instead
+of comparing dataset-wide statistics against the schema. TFDV provides functions
+for validating data on a per-example basis and then generating summary
+statistics for the anomalous examples found. For example:
+
+```python
+   options = tfdv.StatsOptions(schema=schema)
+   anomalous_example_stats = tfdv.validate_tfexamples_in_tfrecord(
+       data_location=input, stats_options=options)
+```
+
+The `anomalous_example_stats` that `validate_tfexamples_in_tfrecord` returns is
+a [DatasetFeatureStatisticsList](https://github.com/tensorflow/metadata/tree/master/tensorflow_metadata/proto/v0/statistics.proto)
+protocol buffer in which each dataset consists of the set of examples that
+exhibit a particular anomaly. You can use this to determine the number of
+examples in your dataset that exhibit a given anomaly and the characteristics of
+those examples.
+
+TFDV also provides the `validate_instance` function for identifying whether an
+individual example exhibits anomalies when matched against a schema. To use this
+function, the example must be a dict mapping feature names to numpy arrays of
+feature values. You can use the `TFExampleDecoder` to decode serialized
+`tf.train.Example`s into this format. For example:
+
+```python
+   decoder = tfdv.TFExampleDecoder()
+   example = decoder.decode(serialized_tfexample)
+   options = tfdv.StatsOptions(schema=schema)
+   anomalies = tfdv.validate_instance(example, options)
+```
+
+As with `validate_statistics`, the result is an instance of the [Anomalies](https://github.com/tensorflow/metadata/tree/master/tensorflow_metadata/proto/v0/anomalies.proto)
+protocol buffer that describes any errors where the example does not agree with
+the specified schema.
 
 ## Schema Environments
 
