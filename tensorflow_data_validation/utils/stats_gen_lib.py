@@ -197,7 +197,7 @@ def generate_statistics_from_dataframe(
     raise TypeError('dataframe argument is of type {}. Must be a '
                     'pandas DataFrame.'.format(type(dataframe).__name__))
 
-  stats_generators = stats_impl.get_generators(stats_options, in_memory=True)
+  stats_generators = stats_impl.get_generators(stats_options, in_memory=True)  # type: List[stats_generator.CombinerStatsGenerator]
   if n_jobs < -1 or n_jobs == 0:
     raise ValueError('Invalid n_jobs parameter {}. Should be either '
                      ' -1 or >= 1.'.format(n_jobs))

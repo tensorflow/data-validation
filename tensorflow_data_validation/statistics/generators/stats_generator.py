@@ -26,9 +26,10 @@ parallel. We support two types of generators:
    Initializes an accumulator to store the partial state and returns it.
        create_accumulator()
 
-   Incorporates a batch of input examples into the current accumulator
+   Incorporates a batch of input examples (represented as an arrow table) into
+   the current accumulator
    and returns the updated accumulator.
-       add_input(accumulator, input_batch)
+       add_input(accumulator, input_table)
 
    Merge the partial states in the accumulators and returns the accumulator
    containing the merged state.
@@ -38,11 +39,7 @@ parallel. We support two types of generators:
    return the result as a DatasetFeatureStatistics proto.
        extract_output(accumulator)
 
-2) ArrowCombinerStatsGenerator
-   Like CombinerStatsGenerator, except that add_input() takes an Arrow Table
-   containing a batch of examples.
-
-3) TransformStatsGenerator
+2) TransformStatsGenerator
    This generator computes statistics using a user-provided Beam PTransform.
    The PTransform must accept a Beam PCollection where each element is a tuple
    containing a slice key and a dict whose keys are feature names and values
@@ -58,7 +55,6 @@ from __future__ import print_function
 
 import apache_beam as beam
 import pyarrow as pa
-from tensorflow_data_validation import types
 from tensorflow_data_validation.types_compat import Iterable, Optional, Text, TypeVar
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -91,12 +87,7 @@ class StatsGenerator(object):
 ACCTYPE = TypeVar('ACCTYPE')
 
 
-# This base class is introduced to facilitate migrating TFDV internal data
-# structure to Arrow. After the migration CombinerStatsGeneratorBase and its
-# sub-class will be folded into one.
-# TODO(zhuo): Fold the hierarchy once all CombinerStatsGenerators are
-# ArrowCombinerStatsGenerators.
-class CombinerStatsGeneratorBase(StatsGenerator):
+class CombinerStatsGenerator(StatsGenerator):
   """Generate statistics using combiner function.
 
   This object mirrors a beam.CombineFn except for the add_input interface, which
@@ -108,6 +99,22 @@ class CombinerStatsGeneratorBase(StatsGenerator):
 
     Returns:
       An empty accumulator.
+    """
+    raise NotImplementedError
+
+  def add_input(
+      self, accumulator, input_table):
+    """Returns result of folding a batch of inputs into accumulator.
+
+    Args:
+      accumulator: The current accumulator.
+      input_table: An Arrow Table whose columns are features rows are examples.
+        The columns are of type List<primitive> or Null (If a feature's value
+        is None across all the examples in the batch, its corresponding column
+        is of Null type).
+
+    Returns:
+      The accumulator after updating the statistics for the batch of inputs.
     """
     raise NotImplementedError
 
@@ -135,45 +142,6 @@ class CombinerStatsGeneratorBase(StatsGenerator):
 
     Returns:
       A proto representing the result of this stats generator.
-    """
-    raise NotImplementedError
-
-
-class CombinerStatsGenerator(CombinerStatsGeneratorBase):
-  """Full interface for stats generators that work like a combine function."""
-
-  def add_input(
-      self, accumulator, input_batch):
-    """Returns result of folding a batch of inputs into accumulator.
-
-    Args:
-      accumulator: The current accumulator.
-      input_batch: A Python dict whose keys are strings denoting feature names
-        and values are lists representing a batch of examples, which should be
-        added to the accumulator.
-
-    Returns:
-      The accumulator after updating the statistics for the batch of inputs.
-    """
-    raise NotImplementedError
-
-
-class ArrowCombinerStatsGenerator(CombinerStatsGeneratorBase):
-  """Full interface for stats generators that work like a combine function."""
-
-  def add_input(
-      self, accumulator, input_table):
-    """Returns result of folding a batch of inputs into accumulator.
-
-    Args:
-      accumulator: The current accumulator.
-      input_table: An Arrow Table whose columns are features rows are examples.
-        The columns are of type List<primitive> or Null (If a feature's value
-        is None across all the examples in the batch, its corresponding column
-        is of Null type).
-
-    Returns:
-      The accumulator after updating the statistics for the batch of inputs.
     """
     raise NotImplementedError
 

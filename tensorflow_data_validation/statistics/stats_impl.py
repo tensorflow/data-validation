@@ -39,7 +39,6 @@ from tensorflow_data_validation.statistics.generators import time_stats_generato
 from tensorflow_data_validation.statistics.generators import top_k_uniques_combiner_stats_generator
 from tensorflow_data_validation.statistics.generators import top_k_uniques_stats_generator
 
-from tensorflow_data_validation.utils import batch_util
 from tensorflow_data_validation.utils import slicing_util
 from tensorflow_data_validation.utils import stats_util
 from tensorflow_data_validation.types_compat import Any, Callable, Dict, Iterable, List, Optional, Text, Tuple
@@ -117,7 +116,7 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
     combiner_stats_generators = []
     result_protos = []
     for generator in get_generators(self._options):
-      if isinstance(generator, stats_generator.CombinerStatsGeneratorBase):
+      if isinstance(generator, stats_generator.CombinerStatsGenerator):
         combiner_stats_generators.append(generator)
       elif isinstance(generator, stats_generator.TransformStatsGenerator):
         result_protos.append(
@@ -194,10 +193,10 @@ def get_generators(options,
     ]
   if in_memory:
     for generator in generators:
-      if not isinstance(generator, stats_generator.CombinerStatsGeneratorBase):
+      if not isinstance(generator, stats_generator.CombinerStatsGenerator):
         raise TypeError('Statistics generator used in '
                         'generate_statistics_in_memory must '
-                        'extend CombinerStatsGeneratorBase, found object of '
+                        'extend CombinerStatsGenerator, found object of '
                         'type %s.' % generator.__class__.__name__)
   return generators
 
@@ -386,7 +385,7 @@ _NUM_EXAMPLES_KEY = '__NUM_EXAMPLES__'
 _WEIGHTED_NUM_EXAMPLES_KEY = '__WEIGHTED_NUM_EXAMPLES__'
 
 
-class NumExamplesStatsGenerator(stats_generator.ArrowCombinerStatsGenerator):
+class NumExamplesStatsGenerator(stats_generator.CombinerStatsGenerator):
   """Computes total number of examples."""
 
   def __init__(self,
@@ -483,12 +482,6 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
       generators,
       desired_batch_size = None):
     self._generators = generators
-    self._has_example_batch_combiner_generator = any(
-        [isinstance(gen, stats_generator.CombinerStatsGenerator)
-         for gen in self._generators])
-    self._has_arrow_combiner_generator = any(
-        [isinstance(gen, stats_generator.ArrowCombinerStatsGenerator)
-         for gen in self._generators])
 
     # We really want the batch size to be adaptive like it is in
     # beam.BatchElements(), but there isn't an easy way to make it so.
@@ -549,25 +542,12 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
     batch_size = len(accumulator.input_examples)
     if (force and batch_size > 0) or batch_size >= self._desired_batch_size:
       self._combine_add_input_batch_size.update(batch_size)
-      merged_batch = None
-      arrow_table = None
-      if self._has_example_batch_combiner_generator:
-        merged_batch = batch_util.merge_single_batch(accumulator.input_examples)
-      if self._has_arrow_combiner_generator:
-        arrow_table = decoded_examples_to_arrow.DecodedExamplesToTable(
-            accumulator.input_examples)
-
-      def _generator_add_input(gen, gen_accumulator):
-        if isinstance(gen, stats_generator.CombinerStatsGenerator):
-          return gen.add_input(gen_accumulator, merged_batch)
-        elif isinstance(gen, stats_generator.ArrowCombinerStatsGenerator):
-          return gen.add_input(gen_accumulator, arrow_table)
-        else:
-          raise TypeError('Only stats_generator.CombinerStatsGenerator is '
-                          'expected for now')
+      arrow_table = decoded_examples_to_arrow.DecodedExamplesToTable(
+          accumulator.input_examples)
 
       accumulator.partial_accumulators = self._for_each_generator(
-          _generator_add_input, accumulator.partial_accumulators)
+          lambda gen, gen_acc: gen.add_input(gen_acc, arrow_table),
+          accumulator.partial_accumulators)
       del accumulator.input_examples[:]
 
   def add_input(
@@ -643,51 +623,25 @@ def generate_partial_statistics_in_memory(
   Args:
     examples: A list of input examples.
     options: Options for generating data statistics.
-    stats_generators: A list of statistics generators.
+    stats_generators: A list of combiner statistics generators.
 
   Returns:
     A list of accumulators containing partial statistics.
   """
   result = []
-  batch = None
-  arrow_table = None
-  if any([
-      not isinstance(gen, stats_generator.CombinerStatsGeneratorBase)
-      for gen in stats_generators
-  ]):
-    raise TypeError(
-        'In memory stats computation only supports CombinerStatsGenerators')
 
-  # To make PyType happy.
-  stats_generators = stats_generators  # type: List[stats_generator.CombinerStatsGeneratorBase]
   # DecodedExamplesToTable cannot handle empty input.
   if not examples:
     return [gen.create_accumulator() for gen in stats_generators]
 
+  table = decoded_examples_to_arrow.DecodedExamplesToTable(examples)
+  if options.feature_whitelist:
+    whitelisted_columns = [
+        table.column(f) for f in options.feature_whitelist]
+    table = pa.Table.from_arrays(whitelisted_columns)
   for generator in stats_generators:
-    if isinstance(generator, stats_generator.CombinerStatsGenerator):
-      if batch is None:
-        batch = batch_util.merge_single_batch(examples)
-        # If whitelist features are provided, keep only those features.
-        if options.feature_whitelist:
-          batch = {
-              feature_name: batch[feature_name]
-              for feature_name in options.feature_whitelist
-          }
-      result.append(generator.add_input(generator.create_accumulator(), batch))
-    elif isinstance(generator, stats_generator.ArrowCombinerStatsGenerator):
-      if arrow_table is None:
-        arrow_table = decoded_examples_to_arrow.DecodedExamplesToTable(
-            examples)
-        if options.feature_whitelist:
-          whitelisted_columns = [
-              arrow_table.column(f) for f in options.feature_whitelist]
-          arrow_table = pa.Table.from_arrays(whitelisted_columns)
-      result.append(
-          generator.add_input(generator.create_accumulator(), arrow_table))
-    else:
-      raise TypeError('Unsupported CombinerStatsGenerator type: {}'.format(
-          generator.__class__.__name__))
+    result.append(
+        generator.add_input(generator.create_accumulator(), table))
 
   return result
 
@@ -705,7 +659,7 @@ def generate_statistics_in_memory(
   Returns:
     A DatasetFeatureStatisticsList proto.
   """
-  stats_generators = get_generators(options, in_memory=True)
+  stats_generators = get_generators(options, in_memory=True)  # type: List[stats_generator.CombinerStatsGenerator]
   partial_stats = generate_partial_statistics_in_memory(
       examples, options, stats_generators)
   return extract_statistics_output(partial_stats, stats_generators)
@@ -730,7 +684,7 @@ WrapperAccumulator = Dict[Text, List[Any]]
 
 
 class CombinerFeatureStatsWrapperGenerator(
-    stats_generator.ArrowCombinerStatsGenerator):
+    stats_generator.CombinerStatsGenerator):
   """A combiner that wraps multiple CombinerFeatureStatsGenerators.
 
   This combiner wraps multiple CombinerFeatureStatsGenerators by generating

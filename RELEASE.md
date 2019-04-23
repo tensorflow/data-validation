@@ -11,10 +11,10 @@
 * Add utility method `validate_examples_in_csv`, which identifies anomalous
   examples in CSV files and generates statistics for those anomalous examples.
 * Add fast TF example decoder written in C++.
-* Introduce ArrowCombinerStatsGenerator and made BasicStatsGenerator one of
-  it. Example batches are converted to Apache Arrow tables internally and
-  ArrowCombinerStatsGenerators are able to make use of vectorized numpy
-  functions. Improved performance of BasicStatsGenerator by ~40x.
+* Make BasicStatsGenerator to take arrow table as input. Example batches are
+  converted to Apache Arrow tables internally and we are able to make use of
+  vectorized numpy functions. Improved performance of BasicStatsGenerator
+  by ~40x.
 
 ## Bug Fixes and Other Changes
 

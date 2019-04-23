@@ -632,7 +632,7 @@ _NUM_QUANTILES_FACTOR_FOR_STD_HISTOGRAM = 100
 # Dict representation of input (mapping from feature name to a batch of
 # values). But we process each feature independently. We should
 # consider making the stats generator to operate per feature.
-class BasicStatsGenerator(stats_generator.ArrowCombinerStatsGenerator):
+class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
   """A combiner statistics generator that computes the common statistics
   for all the features, numeric statistics for numeric features and
   string statistics for string features.

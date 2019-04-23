@@ -116,7 +116,7 @@ class _WeightedCounter(collections.defaultdict):
 
 
 class TopKUniquesCombinerStatsGenerator(
-    stats_generator.ArrowCombinerStatsGenerator):
+    stats_generator.CombinerStatsGenerator):
   """Combiner statistics generator that computes top-k and uniques stats.
 
   This generator is for in-memory data only. The TopKStatsGenerator and
