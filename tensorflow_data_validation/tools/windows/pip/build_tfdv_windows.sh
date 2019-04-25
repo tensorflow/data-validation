@@ -144,9 +144,6 @@ pip uninstall -y Cython
 
 # Install TFDV and Tensorflow.
 pip install dist/*.whl
-# TODO(caveness): Fix tf_estimator_nightly version due to
-# https://github.com/tensorflow/tensorflow/issues/28044. Remove this once fixed.
-pip install tf_estimator_nightly==1.14.0.dev2019041901
 pip install ${TENSORFLOW}
 
 run_py_tests "tensorflow_data_validation" $@
