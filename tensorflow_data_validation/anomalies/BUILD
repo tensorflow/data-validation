@@ -10,11 +10,25 @@ exports_files(["LICENSE"])
 
 cc_library(
     name = "features_needed",
+    srcs = ["features_needed.cc"],
     hdrs = ["features_needed.h"],
     deps = [
         ":path",
         "//tensorflow_data_validation/anomalies/proto:validation_metadata_proto",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
+        "@org_tensorflow//tensorflow/core:lib",
+    ],
+)
+
+cc_test(
+    name = "features_needed_test",
+    srcs = ["features_needed_test.cc"],
+    deps = [
+        ":features_needed",
+        ":path",
+        ":test_util",
+        "//tensorflow_data_validation/anomalies/proto:validation_metadata_proto",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 

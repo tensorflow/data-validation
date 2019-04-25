@@ -19,9 +19,21 @@ package tensorflow.data_validation;
 
 // TODO(martinz): consider adding an environment.
 // TODO(martinz): consider adding a LifecycleStage.
-message ReasonFeatureNeeded  {
+message ReasonFeatureNeeded {
   // If there is an issue in creating the field, the comment should help
   // explain why.
   // Example: "This is needed for transform XYZ (see /A/B/C)"
   string comment = 1;
+}
+
+message ReasonFeatureNeededList {
+  repeated ReasonFeatureNeeded reason_feature_needed = 1;
+}
+
+// A proto representation of tensorflow::data_validation::FeaturesNeeded
+// used to for serialization and deserialization.
+message FeaturesNeededProto {
+  // Key string are expected to be instances of
+  // metadata::v0::Path::SerializeAsString()
+  map<string, ReasonFeatureNeededList> feature_needed = 1;
 }

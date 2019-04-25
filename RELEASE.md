@@ -18,22 +18,23 @@
 
 ## Bug Fixes and Other Changes
 
-* Expand unit test coverage.
-* Update natural language stats generator to generate stats if actual ratio
-  equals `match_ratio`.
-* Use `__slots__` in accumulators.
-* Fix overflow warning when generating numeric stats for large integers.
-* Set max value count in schema when the feature has same valency, thereby
-  inferring shape for multivalent required features.
-* Fix divide by zero error in natural language stats generator.
-* Add `load_anomalies_text` and `write_anomalies_text` utility functions.
-* Define ReasonFeatureNeeded proto.
-* Add support for Windows OS.
-* Make semantic domain stats generators to take arrow column as input.
-* Fix error in number of missing examples and total number of examples
-  computation.
-* Make TopKUniquesCombinerStatsGenerator to take arrow table as input.
-* Depends on `pyarrow>=0.11.1,<0.12.0`.
+*   Expand unit test coverage.
+*   Update natural language stats generator to generate stats if actual ratio
+    equals `match_ratio`.
+*   Use `__slots__` in accumulators.
+*   Fix overflow warning when generating numeric stats for large integers.
+*   Set max value count in schema when the feature has same valency, thereby
+    inferring shape for multivalent required features.
+*   Fix divide by zero error in natural language stats generator.
+*   Add `load_anomalies_text` and `write_anomalies_text` utility functions.
+*   Define ReasonFeatureNeeded proto.
+*   Add support for Windows OS.
+*   Make semantic domain stats generators to take arrow column as input.
+*   Fix error in number of missing examples and total number of examples
+    computation.
+*   Make TopKUniquesCombinerStatsGenerator to take arrow table as input.
+*   Make FeaturesNeeded serializable.
+*   Depends on `pyarrow>=0.11.1,<0.12.0`.
 
 ## Breaking Changes
 
