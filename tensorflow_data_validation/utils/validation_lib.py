@@ -40,7 +40,7 @@ def validate_examples_in_tfrecord(
     data_location,
     stats_options,
     output_path = None,
-    # TODO(b/118835367): Add option to output a sample of anomalous examples for
+    # TODO(b/131719250): Add option to output a sample of anomalous examples for
     # each anomaly reason.
     pipeline_options = None,
 ):
@@ -112,7 +112,7 @@ def validate_examples_in_csv(
     column_names = None,
     delimiter = ',',
     output_path = None,
-    # TODO(b/118835367): Add option to output a sample of anomalous examples for
+    # TODO(b/131719250): Add option to output a sample of anomalous examples for
     # each anomaly reason.
     pipeline_options = None,
 ):

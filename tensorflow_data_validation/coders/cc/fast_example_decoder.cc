@@ -109,10 +109,8 @@ PyObject* TFDV_DecodeExample(PyObject* serialized_proto) {
         CHECK(false) << "Invalid value list in input proto.";
       }
     }
-    int err = PyDict_SetItemString(
-        result, feature_name.data(), feature_values_ndarray);
-    Py_XDECREF(feature_values_ndarray);
-    if (err == -1) {
+    if (PyDict_SetItemString(
+            result, feature_name.data(), feature_values_ndarray) == -1) {
       PyErr_Format(PyExc_ValueError, "Failed to insert item into Dict.");
       return nullptr;
     }
