@@ -90,7 +90,8 @@ setup(
         'pandas>=0.18,<1',
 
         # Dependency for mutual information computation.
-        'scikit-learn>=0.18,<1',
+        # Note: 0.21.0 dropped support for Py2
+        'scikit-learn>=0.18,<0.21',
 
         # Dependency for multi-processing.
         'joblib>=0.12,<1',
