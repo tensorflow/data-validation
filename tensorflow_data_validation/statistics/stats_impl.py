@@ -106,7 +106,7 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
     """
     self._options = options
     self._is_slicing_enabled = (
-        is_slicing_enabled or self._options.slice_functions is not None)
+        is_slicing_enabled or self._options.slice_functions)
 
   def expand(self, dataset):
     # Handles generators by their type:
@@ -168,7 +168,7 @@ def get_generators(options,
     A list of stats generator objects.
   """
   generators = _get_default_generators(options, in_memory)
-  if options.generators is not None:
+  if options.generators:
     # Add custom stats generators.
     generators.extend(options.generators)
   if options.enable_semantic_domain_stats:
