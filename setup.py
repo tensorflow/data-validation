@@ -90,7 +90,7 @@ setup(
         'pandas>=0.18,<1',
 
         # Dependency for mutual information computation.
-        'scikit-learn>=0.18,<1',
+        'scikit-learn>=0.18,<0.21',
 
         # Dependency for multi-processing.
         'joblib>=0.12,<1',

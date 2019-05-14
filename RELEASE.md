@@ -36,6 +36,7 @@
 * Make FeaturesNeeded serializable.
 * Fix memory leak in fast example decoder.
 * Depends on `pyarrow>=0.11.1,<0.12.0`.
+* Depends on `scikit-learn>=0.18,<0.21`.
 
 ## Breaking Changes
 
