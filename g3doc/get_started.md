@@ -45,6 +45,14 @@ protocol buffer. The [example notebook](https://nbviewer.jupyter.org/github/tens
 The previous example assumes that the data is stored in a `TFRecord` file. TFDV
 also supports CSV input format, with extensibility for other common formats.
 You can find the available data decoders [here](https://github.com/tensorflow/data-validation/tree/master/tensorflow_data_validation/coders).
+In addition, TFDV provides the `tfdv.generate_statistics_from_dataframe` utility
+function for users with in-memory data represented as a pandas DataFrame.
+
+In addition to computing a default set of data statistics, TFDV can also
+compute statistics for semantic domains (e.g., images, text). To enable
+computation of semantic domain statistics, pass a [tfdv.StatsOptions](https://github.com/tensorflow/data-validation/blob/master/tensorflow_data_validation/statistics/stats_options.py)
+object with `enable_semantic_domain_stats` set to True to
+`tfdv.generate_statistics_from_tfrecord`.
 
 ### Running on Google Cloud
 
@@ -111,6 +119,10 @@ tfdv.generate_statistics_from_tfrecord(GCS_DATA_LOCATION,
 In this case, the generated statistics proto is stored in a TFRecord file
 written to `GCS_STATS_OUTPUT_PATH`.
 
+NOTE When calling any of the `tfdv.generate_statistics_...` functions (e.g.,
+`tfdv.generate_statistics_from_tfrecord`) on Google Cloud, you must provide an
+`output_path`. Specifying None may cause an error.
+
 ## Inferring a schema over the data
 
 The
@@ -144,6 +156,10 @@ from the statistics in order to avoid overfitting the schema to the specific
 dataset. It is strongly advised to **review the inferred schema and refine
 it as needed**, to capture any domain knowledge about the data that TFDV's
 heuristics might have missed.
+
+By default, `tfdv.infer_schema` infers the shape of each required feature, if
+`value_count.min` equals `value_count.max` for the feature. Set the
+`infer_feature_shape` argument to False to disable shape inference.
 
 The schema itself is stored as a
 [Schema protocol buffer](https://github.com/tensorflow/metadata/tree/master/tensorflow_metadata/proto/v0/schema.proto)
