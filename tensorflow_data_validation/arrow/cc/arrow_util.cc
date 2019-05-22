@@ -58,7 +58,7 @@ Status GetFlattenedArrayParentIndices(
     const int range_begin = list_array->value_offset(i);
     const int range_end = list_array->value_offset(i + 1);
     for (int j = range_begin; j < range_end; ++j) {
-      RETURN_NOT_OK(indices_builder.Append(i));
+      indices_builder.UnsafeAppend(i);
     }
   }
   return indices_builder.Finish(parent_indices_array);
@@ -73,7 +73,7 @@ Status ListLengthsFromListArray(
   arrow::Int32Builder lengths_builder;
   RETURN_NOT_OK(lengths_builder.Reserve(list_array->length()));
   for (int i = 0; i < list_array->length(); ++i) {
-    RETURN_NOT_OK(lengths_builder.Append(list_array->value_length(i)));
+    lengths_builder.UnsafeAppend(list_array->value_length(i));
   }
   return lengths_builder.Finish(list_lengths_array);
 }
@@ -87,14 +87,12 @@ Status GetArrayNullBitmapAsByteArray(
   // is just a number (although it can be kUnknownNullCount in which case
   // the else branch is followed).
   if (array.null_bitmap_data() == nullptr || array.data()->null_count == 0) {
-    // the masks array should not contain null, and its contents should be
-    // all zero. AppendNulls() does exactly that.
-    RETURN_NOT_OK(
-        masks_builder.AppendNulls(/*valid_bytes=*/nullptr, array.length()));
+    for (int i = 0; i < array.length(); ++i) {
+      masks_builder.UnsafeAppend(0);
+    }
   } else {
     for (int i = 0; i < array.length(); ++i) {
-      RETURN_NOT_OK(
-          masks_builder.Append(static_cast<uint8_t>(array.IsNull(i))));
+      masks_builder.UnsafeAppend(static_cast<uint8_t>(array.IsNull(i)));
     }
   }
   return masks_builder.Finish(byte_array);
