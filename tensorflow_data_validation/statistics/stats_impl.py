@@ -344,6 +344,10 @@ def _update_example_and_missing_count(
       common_stats = feature_stats.num_stats.common_stats
     else:
       common_stats = feature_stats.string_stats.common_stats
+    assert num_examples >= common_stats.num_non_missing, (
+        'Total number of examples: {} is less than number of non missing '
+        'examples: {} for feature {}.'.format(
+            num_examples, common_stats.num_non_missing, feature_stats.name))
     common_stats.num_missing = int(num_examples - common_stats.num_non_missing)
     if weighted_num_examples != 0:
       common_stats.weighted_common_stats.num_missing = (
