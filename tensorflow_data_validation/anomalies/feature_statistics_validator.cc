@@ -262,34 +262,5 @@ tensorflow::Status UpdateSchema(
   return tensorflow::Status::OK();
 }
 
-Status FeatureStatisticsValidator::ValidateFeatureStatistics(
-    const metadata::v0::DatasetFeatureStatistics& feature_statistics,
-    const metadata::v0::Schema& schema_proto,
-    const gtl::optional<string>& environment,
-    const gtl::optional<metadata::v0::DatasetFeatureStatistics>&
-        prev_feature_statistics,
-    const gtl::optional<metadata::v0::DatasetFeatureStatistics>&
-        serving_feature_statistics,
-    const gtl::optional<FeaturesNeeded>& features_needed,
-    const ValidationConfig& validation_config,
-    metadata::v0::Anomalies* result) const {
-  return ::tensorflow::data_validation::ValidateFeatureStatistics(
-      feature_statistics, schema_proto, environment, prev_feature_statistics,
-      serving_feature_statistics, features_needed, validation_config,
-      /*enable_diff_regions=*/true, result);
-}
-
-Status FeatureStatisticsValidator::UpdateSchema(
-    const FeatureStatisticsToProtoConfig& feature_statistics_to_proto_config,
-    const metadata::v0::Schema& schema_to_update,
-    const metadata::v0::DatasetFeatureStatistics& feature_statistics,
-    const gtl::optional<std::vector<Path>>& paths_to_consider,
-    const gtl::optional<string>& environment,
-    metadata::v0::Schema* result) const {
-  return ::tensorflow::data_validation::UpdateSchema(
-      feature_statistics_to_proto_config, schema_to_update, feature_statistics,
-      paths_to_consider, environment, result);
-}
-
 }  // namespace data_validation
 }  // namespace tensorflow

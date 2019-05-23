@@ -117,38 +117,6 @@ Status UpdateSchema(
     const gtl::optional<string>& environment,
     metadata::v0::Schema* result);
 
-// A wrapper class of the above functions for mockability.
-class FeatureStatisticsValidator {
- public:
-  FeatureStatisticsValidator() = default;
-  virtual ~FeatureStatisticsValidator() = default;
-
-  // Disallow copy and move.
-  FeatureStatisticsValidator(const FeatureStatisticsValidator&) = delete;
-  FeatureStatisticsValidator& operator=(const FeatureStatisticsValidator&) =
-      delete;
-
-  virtual Status ValidateFeatureStatistics(
-      const metadata::v0::DatasetFeatureStatistics& feature_statistics,
-      const metadata::v0::Schema& schema_proto,
-      const gtl::optional<string>& environment,
-      const gtl::optional<metadata::v0::DatasetFeatureStatistics>&
-          prev_feature_statistics,
-      const gtl::optional<metadata::v0::DatasetFeatureStatistics>&
-          serving_feature_statistics,
-      const gtl::optional<FeaturesNeeded>& features_needed,
-      const ValidationConfig& validation_config,
-      metadata::v0::Anomalies* result) const;
-
-  virtual Status UpdateSchema(
-      const FeatureStatisticsToProtoConfig& feature_statistics_to_proto_config,
-      const metadata::v0::Schema& schema_to_update,
-      const metadata::v0::DatasetFeatureStatistics& feature_statistics,
-      const gtl::optional<std::vector<Path>>& paths_to_consider,
-      const gtl::optional<string>& environment,
-      metadata::v0::Schema* result) const;
-};
-
 }  // namespace data_validation
 }  // namespace tensorflow
 

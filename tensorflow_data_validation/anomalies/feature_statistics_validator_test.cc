@@ -651,9 +651,8 @@ TEST(FeatureStatisticsValidatorUpdateSchema, TestLargeStringDomain) {
     })");
   Schema got;
 
-  TF_EXPECT_OK(FeatureStatisticsValidator().UpdateSchema(
-      FeatureStatisticsToProtoConfig(), Schema(), statistics, gtl::nullopt,
-      gtl::nullopt, &got));
+  TF_EXPECT_OK(UpdateSchema(FeatureStatisticsToProtoConfig(), Schema(),
+                            statistics, gtl::nullopt, gtl::nullopt, &got));
   EXPECT_THAT(got, EqualsProto(want));
 
   TestSchemaUpdate(ValidationConfig(), statistics, Schema(), want);
