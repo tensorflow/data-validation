@@ -41,6 +41,19 @@ PyObject* InferSchema(const string& statistics_proto_string,
   return ConvertToPythonString(schema_proto_string);
 }
 
+PyObject* UpdateSchema(const string& schema_proto_string,
+                       const string& statistics_proto_string,
+                       int max_string_domain_size) {
+  string output_schema_proto_string;
+  const tensorflow::Status status = tensorflow::data_validation::UpdateSchema(
+    schema_proto_string, statistics_proto_string, max_string_domain_size,
+    &output_schema_proto_string);
+  if (!status.ok()) {
+    PyErr_SetString(PyExc_RuntimeError, status.error_message().c_str());
+    return NULL;
+  }
+  return ConvertToPythonString(output_schema_proto_string);
+}
 
 PyObject* ValidateFeatureStatistics(
   const string& statistics_proto_string,
@@ -72,6 +85,10 @@ PyObject* ValidateFeatureStatistics(
 
 PyObject* InferSchema(const string& statistics_proto_string,
                       int max_string_domain_size);
+
+PyObject* UpdateSchema(const string& schema_proto_string,
+                       const string& statistics_proto_string,
+                       int max_string_domain_size);
 
 PyObject* ValidateFeatureStatistics(
   const string& statistics_proto_string,

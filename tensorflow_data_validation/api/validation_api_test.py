@@ -26,6 +26,7 @@ from apache_beam.testing import util
 import numpy as np
 from tensorflow_data_validation.api import validation_api
 from tensorflow_data_validation.statistics import stats_options
+from tensorflow_data_validation.utils import schema_util
 from google.protobuf import text_format
 from tensorflow_metadata.proto.v0 import anomalies_pb2
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -460,6 +461,108 @@ class ValidationApiTest(absltest.TestCase):
                        expected_anomalies[feature_name])
     self.assertEqual(
         len(actual_anomalies.anomaly_info), len(expected_anomalies))
+
+  def test_update_schema(self):
+    schema = text_format.Parse(
+        """
+        string_domain {
+          name: "MyAloneEnum"
+          value: "A"
+          value: "B"
+          value: "C"
+        }
+        feature {
+          name: "annotated_enum"
+          value_count {
+            min:1
+            max:1
+          }
+          presence {
+            min_count: 1
+          }
+          type: BYTES
+          domain: "MyAloneEnum"
+        }
+        feature {
+          name: "ignore_this"
+          lifecycle_stage: DEPRECATED
+          value_count {
+            min:1
+          }
+          presence {
+            min_count: 1
+          }
+          type: BYTES
+        }
+        """, schema_pb2.Schema())
+    statistics = text_format.Parse(
+        """
+        datasets{
+          num_examples: 10
+          features {
+            name: 'annotated_enum'
+            type: STRING
+            string_stats {
+              common_stats {
+                num_missing: 3
+                num_non_missing: 7
+                min_num_values: 1
+                max_num_values: 1
+              }
+              unique: 3
+              rank_histogram {
+                buckets {
+                  label: "D"
+                  sample_count: 1
+                }
+              }
+            }
+          }
+        }
+        """, statistics_pb2.DatasetFeatureStatisticsList())
+    expected_anomalies = {
+        'annotated_enum':
+            text_format.Parse(
+                """
+      description: "Examples contain values missing from the schema: D (?). "
+      severity: ERROR
+      short_description: "Unexpected string values"
+      reason {
+        type: ENUM_TYPE_UNEXPECTED_STRING_VALUES
+        short_description: "Unexpected string values"
+        description: "Examples contain values missing from the schema: D (?). "
+      }
+            """, anomalies_pb2.AnomalyInfo())
+    }
+
+    # Validate the stats.
+    anomalies = validation_api.validate_statistics(statistics, schema)
+    self._assert_equal_anomalies(anomalies, expected_anomalies)
+
+    # Verify the updated schema.
+    actual_updated_schema = validation_api.update_schema(schema, statistics)
+    expected_updated_schema = schema
+    schema_util.get_domain(expected_updated_schema,
+                           'annotated_enum').value.append('D')
+    self.assertEqual(actual_updated_schema, expected_updated_schema)
+
+    # Verify that there are no anomalies with the updated schema.
+    actual_updated_anomalies = validation_api.validate_statistics(
+        statistics, actual_updated_schema)
+    self._assert_equal_anomalies(actual_updated_anomalies, {})
+
+  def test_update_schema_invalid_schema_input(self):
+    statistics = statistics_pb2.DatasetFeatureStatisticsList()
+    statistics.datasets.extend([statistics_pb2.DatasetFeatureStatistics()])
+    with self.assertRaisesRegexp(
+        TypeError, 'schema is of type.*'):
+      _ = validation_api.update_schema({}, statistics)
+
+  def test_update_schema_invalid_statistics_input(self):
+    schema = schema_pb2.Schema()
+    with self.assertRaisesRegexp(
+        TypeError, 'statistics is of type.*'):
+      _ = validation_api.update_schema(schema, {})
 
   def test_validate_stats(self):
     schema = text_format.Parse(

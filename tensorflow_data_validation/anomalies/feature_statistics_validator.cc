@@ -73,6 +73,34 @@ tensorflow::Status InferSchema(const string& feature_statistics_proto_string,
   return tensorflow::Status::OK();
 }
 
+tensorflow::Status UpdateSchema(const string& schema_proto_string,
+                                const string& feature_statistics_proto_string,
+                                const int max_string_domain_size,
+                                string* output_schema_proto_string) {
+  tensorflow::metadata::v0::Schema schema;
+  if (!schema.ParseFromString(schema_proto_string)) {
+    return tensorflow::errors::InvalidArgument("Failed to parse Schema proto.");
+  }
+  tensorflow::metadata::v0::DatasetFeatureStatistics feature_statistics;
+  if (!feature_statistics.ParseFromString(feature_statistics_proto_string)) {
+    return tensorflow::errors::InvalidArgument(
+        "Failed to parse DatasetFeatureStatistics proto.");
+  }
+  FeatureStatisticsToProtoConfig feature_statistics_to_proto_config;
+  feature_statistics_to_proto_config.set_enum_threshold(max_string_domain_size);
+  tensorflow::metadata::v0::Schema output_schema;
+  TF_RETURN_IF_ERROR(
+      UpdateSchema(feature_statistics_to_proto_config,
+                   schema, feature_statistics,
+                   /* paths_to_consider= */ gtl::nullopt,
+                   /* environment= */ gtl::nullopt, &output_schema));
+  if (!output_schema.SerializeToString(output_schema_proto_string)) {
+    return tensorflow::errors::Internal(
+        "Could not serialize Schema output proto to string.");
+  }
+  return tensorflow::Status::OK();
+}
+
 tensorflow::Status ValidateFeatureStatistics(
     const tensorflow::metadata::v0::DatasetFeatureStatistics&
         feature_statistics,

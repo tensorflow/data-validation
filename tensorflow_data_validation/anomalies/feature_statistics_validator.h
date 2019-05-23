@@ -51,6 +51,17 @@ Status InferSchema(const string& feature_statistics_proto_string,
                                const int max_string_domain_size,
                                string* schema_proto_string);
 
+// Updates the input schema to match the data characteristics in the input
+// feature statistics. This method will take as input the serialized input
+// schema proto string, the serialized statistics proto string and will output
+// the serialized updated schema proto string.
+// max_string_domain_size argument refers to the maximum size of the domain of
+// a string feature in order to be interpreted as a categorical feature.
+Status UpdateSchema(const string& schema_proto_string,
+                    const string& feature_statistics_proto_string,
+                    const int max_string_domain_size,
+                    string* output_schema_proto_string);
+
 // Validates the feature statistics in <feature_statistics> with respect to
 // the <schema_proto> and returns a schema diff proto which captures the
 // changes that need to be made to <schema_proto> to make the statistics

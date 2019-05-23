@@ -15,6 +15,7 @@
   converted to Apache Arrow tables internally and we are able to make use of
   vectorized numpy functions. Improved performance of BasicStatsGenerator
   by ~40x.
+* Add `update_schema` API which updates the schema to conform to statistics
 
 ## Bug Fixes and Other Changes
 
