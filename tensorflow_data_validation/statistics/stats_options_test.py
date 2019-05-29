@@ -179,6 +179,30 @@ INVALID_STATS_OPTIONS = [
         'exception_type': ValueError,
         'error_message': 'Invalid desired_batch_size -1'
     },
+    {
+        'testcase_name': 'semantic_domain_stats_sample_rate_zero',
+        'stats_options_kwargs': {
+            'semantic_domain_stats_sample_rate': 0
+        },
+        'exception_type': ValueError,
+        'error_message': 'Invalid semantic_domain_stats_sample_rate 0'
+    },
+    {
+        'testcase_name': 'semantic_domain_stats_sample_rate_negative',
+        'stats_options_kwargs': {
+            'semantic_domain_stats_sample_rate': -1
+        },
+        'exception_type': ValueError,
+        'error_message': 'Invalid semantic_domain_stats_sample_rate -1'
+    },
+    {
+        'testcase_name': 'semantic_domain_stats_sample_rate_above_one',
+        'stats_options_kwargs': {
+            'semantic_domain_stats_sample_rate': 2
+        },
+        'exception_type': ValueError,
+        'error_message': 'Invalid semantic_domain_stats_sample_rate 2'
+    },
 ]
 
 

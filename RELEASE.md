@@ -36,6 +36,8 @@
 * Make TopKUniquesCombinerStatsGenerator to take arrow table as input.
 * Make FeaturesNeeded serializable.
 * Fix memory leak in fast example decoder.
+* Add `semantic_domain_stats_sample_rate` option to compute semantic domain
+  statistics over a sample.
 * Depends on `pyarrow>=0.11.1,<0.12.0`.
 * Depends on `scikit-learn>=0.18,<0.21`.
 

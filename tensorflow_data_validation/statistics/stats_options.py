@@ -55,7 +55,8 @@ class StatsOptions(object):
       epsilon = 0.01,
       infer_type_from_schema = False,
       desired_batch_size = None,
-      enable_semantic_domain_stats = False):
+      enable_semantic_domain_stats = False,
+      semantic_domain_stats_sample_rate = None):
     """Initializes statistics options.
 
     Args:
@@ -106,6 +107,8 @@ class StatsOptions(object):
         batch that is passed to the statistics generators.
       enable_semantic_domain_stats: If True statistics for semantic domains are
         generated (e.g: image, text domains).
+      semantic_domain_stats_sample_rate: An optional sampling rate for semantic
+        domain statistics. If specified, statistics is computed over a sample.
     """
     self.generators = generators
     self.feature_whitelist = feature_whitelist
@@ -125,6 +128,7 @@ class StatsOptions(object):
     self.infer_type_from_schema = infer_type_from_schema
     self.desired_batch_size = desired_batch_size
     self.enable_semantic_domain_stats = enable_semantic_domain_stats
+    self.semantic_domain_stats_sample_rate = semantic_domain_stats_sample_rate
 
   @property
   def generators(self):
@@ -266,3 +270,16 @@ class StatsOptions(object):
       raise ValueError('Invalid desired_batch_size %d' %
                        desired_batch_size)
     self._desired_batch_size = desired_batch_size
+
+  @property
+  def semantic_domain_stats_sample_rate(self):
+    return self._semantic_domain_stats_sample_rate
+
+  @semantic_domain_stats_sample_rate.setter
+  def semantic_domain_stats_sample_rate(
+      self, semantic_domain_stats_sample_rate):
+    if semantic_domain_stats_sample_rate is not None:
+      if not 0 < semantic_domain_stats_sample_rate <= 1:
+        raise ValueError('Invalid semantic_domain_stats_sample_rate %f'
+                         % semantic_domain_stats_sample_rate)
+    self._semantic_domain_stats_sample_rate = semantic_domain_stats_sample_rate

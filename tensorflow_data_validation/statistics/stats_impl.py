@@ -20,6 +20,7 @@ from __future__ import division
 from __future__ import print_function
 
 import itertools
+import random
 
 import apache_beam as beam
 import numpy as np
@@ -172,11 +173,19 @@ def get_generators(options,
     # Add custom stats generators.
     generators.extend(options.generators)
   if options.enable_semantic_domain_stats:
-    generators += [
+    semantic_domain_feature_stats_generators = [
         image_stats_generator.ImageStatsGenerator(),
         natural_language_stats_generator.NLStatsGenerator(),
         time_stats_generator.TimeStatsGenerator(),
     ]
+    # Wrap semantic domain feature stats generators as a separate combiner
+    # stats generator, so that we can apply sampling only for those and other
+    # feature stats generators are not affected by it.
+    generators.append(
+        CombinerFeatureStatsWrapperGenerator(
+            semantic_domain_feature_stats_generators,
+            weight_feature=options.weight_feature,
+            sample_rate=options.semantic_domain_stats_sample_rate))
   # Replace all CombinerFeatureStatsGenerator with a single
   # CombinerFeatureStatsWrapperGenerator.
   feature_generators = [
@@ -702,7 +711,8 @@ class CombinerFeatureStatsWrapperGenerator(
                feature_stats_generators,
                name = 'CombinerFeatureStatsWrapperGenerator',
                schema = None,
-               weight_feature = None):
+               weight_feature = None,
+               sample_rate = None):
     """Initializes a CombinerFeatureStatsWrapperGenerator.
 
     Args:
@@ -712,10 +722,13 @@ class CombinerFeatureStatsWrapperGenerator(
       weight_feature: An optional feature name whose numeric value represents
         the weight of an example. Currently the weight feature is ignored by
         feature level stats generators.
+      sample_rate: An optional sampling rate. If specified, statistics is
+        computed over the sample.
     """
     super(CombinerFeatureStatsWrapperGenerator, self).__init__(name, schema)
     self._feature_stats_generators = feature_stats_generators
     self._weight_feature = weight_feature
+    self._sample_rate = sample_rate
 
   def _perhaps_initialize_for_feature_name(
       self, wrapper_accumulator,
@@ -750,6 +763,8 @@ class CombinerFeatureStatsWrapperGenerator(
       The wrapper_accumulator after updating the statistics for the batch of
       inputs.
     """
+    if self._sample_rate is not None and random.random() <= self._sample_rate:
+      return wrapper_accumulator
     for feature_column in input_table.itercolumns():
       feature_name = feature_column.name
       if feature_name == self._weight_feature:
