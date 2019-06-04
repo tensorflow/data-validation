@@ -204,8 +204,35 @@ class CombinerStatsGeneratorTest(absltest.TestCase):
           normalize_numbers=True)
 
 
+class _DatasetFeatureStatisticsComparatorWrapper(object):
+  """Wraps a DatasetFeatureStatistics and provides a custom comparator.
+
+  This is to facilitate assertCountEqual().
+  """
+
+  # Disable the built-in __hash__ (in python2). This forces __eq__ to be
+  # used in assertCountEqual().
+  __hash__ = None
+
+  def __init__(self, wrapped):
+    self._wrapped = wrapped
+    self._normalized = statistics_pb2.DatasetFeatureStatistics()
+    self._normalized.MergeFrom(wrapped)
+    compare.NormalizeNumberFields(self._normalized)
+
+  def __eq__(self, other):
+    return compare.ProtoEq(self._normalized, other._normalized)  # pylint: disable=protected-access
+
+  def __repr__(self):
+    return self._normalized.__repr__()
+
+
 class TransformStatsGeneratorTest(absltest.TestCase):
   """Test class with extra transform stats generator related functionality."""
+
+  def setUp(self):
+    super(TransformStatsGeneratorTest, self).setUp()
+    self.maxDiff = None  # pylint: disable=invalid-name
 
   # Runs the provided slicing aware transform statistics generator and tests
   # if the output matches the expected result.
@@ -235,20 +262,11 @@ class TransformStatsGeneratorTest(absltest.TestCase):
 
       def _equal(actual_results):
         """Matcher for comparing a list of DatasetFeatureStatistics protos."""
-        test.assertLen(expected_results, len(actual_results))
-        # Sort both list of protos based on their string presentation to make
-        # sure the sort is stable.
-        sorted_expected_results = sorted(
-            expected_results, key=lambda x: (x[0], x[1].SerializeToString()))
-        sorted_actual_results = sorted(
-            actual_results, key=lambda x: (x[0], x[1].SerializeToString()))
-        for index, actual in enumerate(sorted_actual_results):
-          test.assertEqual(sorted_expected_results[index][0], actual[0])
-          compare.assertProtoEqual(
-              test,
-              actual[1],
-              sorted_expected_results[index][1],
-              normalize_numbers=True)
+        test.assertCountEqual(
+            [(k, _DatasetFeatureStatisticsComparatorWrapper(v))
+             for k, v in expected_results],
+            [(k, _DatasetFeatureStatisticsComparatorWrapper(v))
+             for k, v in actual_results])
 
       return _equal
 

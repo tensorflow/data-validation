@@ -310,6 +310,7 @@ class NonStreamingCustomStatsGeneratorTest(
   """Tests for NonStreamingCustomStatsGenerator."""
 
   def setUp(self):
+    super(NonStreamingCustomStatsGeneratorTest, self).setUp()
     # Integration tests involving Beam and AMI are challenging to write
     # because Beam PCollections are unordered while the results of adjusted MI
     # depend on the order of the data for small datasets. This test case tests
