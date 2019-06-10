@@ -37,7 +37,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "arrow/api.h"
-#include "tensorflow_data_validation/arrow/cc/macros.h"
+#include "tensorflow_data_validation/arrow/cc/common.h"
 
 namespace {
 using ::arrow::ArrayVector;
@@ -349,9 +349,7 @@ Status DecodedExamplesToTable(PyObject* list_of_decoded_examples,
 PyObject* TFDV_Arrow_DecodedExamplesToTable(
     PyObject* list_of_decoded_examples) {
   arrow_init_numpy();
-  static const int kUnused = arrow::py::import_pyarrow();
-  // This suppresses the "unused variable" warning.
-  (void)kUnused;
+  tensorflow::data_validation::ImportPyArrow();
 
   if (!PyList_Check(list_of_decoded_examples)) {
     PyErr_SetString(PyExc_TypeError, "DecodedExamplesToTable Expected a list.");

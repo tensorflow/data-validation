@@ -1,4 +1,4 @@
-// Copyright 2018 Google LLC
+// Copyright 2019 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef TENSORFLOW_DATA_VALIDATION_ARROW_CC_MACROS_H_
-#define TENSORFLOW_DATA_VALIDATION_ARROW_CC_MACROS_H_
+#ifndef THIRD_PARTY_PY_TENSORFLOW_DATA_VALIDATION_ARROW_CC_COMMON_H_
+#define THIRD_PARTY_PY_TENSORFLOW_DATA_VALIDATION_ARROW_CC_COMMON_H_
 
 // Raises a python exception if `s` (a statement that evaluates to an
 // arrow::Status) is not OK.
@@ -26,4 +26,11 @@
     }                                                            \
   } while (0);
 
-#endif  // TENSORFLOW_DATA_VALIDATION_ARROW_CC_MACROS_H_
+namespace tensorflow {
+namespace data_validation {
+// Imports pyarrow python (cython) modules.
+// This must be called before calling any functions under arrow::py::.
+void ImportPyArrow();
+}  // namespace data_validation
+}  // namespace tensorflow
+#endif  // THIRD_PARTY_PY_TENSORFLOW_DATA_VALIDATION_ARROW_CC_COMMON_H_

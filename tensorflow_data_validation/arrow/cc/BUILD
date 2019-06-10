@@ -1,11 +1,15 @@
 licenses(["notice"])  # Apache 2.0
 
-package(default_visibility = ["//tensorflow_data_validation/pywrap:__subpackages__"])
+package(default_visibility = [
+    "//tensorflow_data_validation/google/scratch/arrow:__subpackages__",
+    "//tensorflow_data_validation/pywrap:__subpackages__",
+])
 
 cc_library(
-    name = "macros",
-    hdrs = ["macros.h"],
-    deps = [],
+    name = "common",
+    srcs = ["common.cc"],
+    hdrs = ["common.h"],
+    deps = ["@arrow"],
 )
 
 cc_library(
@@ -13,7 +17,7 @@ cc_library(
     srcs = ["arrow_util.cc"],
     hdrs = ["arrow_util.h"],
     deps = [
-        ":macros",
+        ":common",
         "@arrow",
         "@com_google_absl//absl/strings",
         "@local_config_python//:python_headers",
@@ -25,7 +29,7 @@ cc_library(
     srcs = ["decoded_examples_to_arrow.cc"],
     hdrs = ["decoded_examples_to_arrow.h"],
     deps = [
-        ":macros",
+        ":common",
         "@arrow",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/strings",

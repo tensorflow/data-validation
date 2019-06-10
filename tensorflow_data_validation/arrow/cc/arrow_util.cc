@@ -21,13 +21,14 @@
 #include "arrow/python/pyarrow.h"
 #include "arrow/api.h"
 #include "absl/strings/str_cat.h"
-#include "tensorflow_data_validation/arrow/cc/macros.h"
+#include "tensorflow_data_validation/arrow/cc/common.h"
 
 namespace {
 using ::arrow::Status;
 using ::arrow::Array;
 using ::arrow::ListArray;
 using ::arrow::Type;
+using ::tensorflow::data_validation::ImportPyArrow;
 
 Status GetListArray(const Array& array, const ListArray** list_array) {
   if (array.type()->id() != Type::LIST) {
@@ -96,13 +97,6 @@ Status GetArrayNullBitmapAsByteArray(
     }
   }
   return masks_builder.Finish(byte_array);
-}
-
-// This must be called before calling any functions under arrow::py::.
-void ImportPyArrow() {
-  static const int kUnused = arrow::py::import_pyarrow();
-  // This suppresses the "unused variable" warning.
-  (void)kUnused;
 }
 
 }  // namespace
