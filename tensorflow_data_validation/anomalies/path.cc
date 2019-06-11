@@ -32,7 +32,7 @@ namespace data_validation {
 namespace {
 
 #if defined(PLATFORM_GOOGLE) || defined(PLATFORM_GOOGLE_ANDROID) || \
-    defined(GOOGLE_RE2)
+    defined(PLATFORM_RE2_STRINGPIECE_IS_NOW_ABSL_STRING_VIEW)
 using Re2StringPiece = absl::string_view;
 #else
 using Re2StringPiece = re2::StringPiece;
