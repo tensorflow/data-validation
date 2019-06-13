@@ -44,14 +44,6 @@ http_archive(
     ],
 )
 
-# Required by tf.Metadata.
-git_repository(
-    name = "protobuf_bzl",
-     # 5902e759108d14ee8e6b0b07653dac2f4e70ac73 is based on 3.7.1 with a fix for BUILD file.
-    commit = "5902e759108d14ee8e6b0b07653dac2f4e70ac73",
-    remote = "https://github.com/google/protobuf.git",
-)
-
 # Required by arrow.
 git_repository(
     name = "com_github_nelhage_rules_boost",
