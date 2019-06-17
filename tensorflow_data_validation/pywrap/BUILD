@@ -8,6 +8,12 @@ licenses(["notice"])  # Apache 2.0
 
 load("@org_tensorflow//tensorflow:tensorflow.bzl", "tf_py_wrap_cc")
 
+# Exported so the staging pywrap can refer to them.
+exports_files([
+    "exported_symbols",
+    "version_script.lds",
+])
+
 # Note that the name of the target should follow specific naming
 # pattern specified in tensorflow/tf_exported_symbols.lds in order
 # for the init function in the generated .so file to be exported.
