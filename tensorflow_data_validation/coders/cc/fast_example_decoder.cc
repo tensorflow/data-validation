@@ -103,6 +103,7 @@ PyObject* TFDV_DecodeExample(PyObject* serialized_proto) {
         // If we have a feature with no value list, we consider it to be a
         // missing value.
         feature_values_ndarray = Py_None;
+        Py_INCREF(Py_None);
         break;
       }
       default: {

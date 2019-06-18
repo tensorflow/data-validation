@@ -16,6 +16,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import sys
 from absl.testing import absltest
 from absl.testing import parameterized
 import apache_beam as beam
@@ -65,6 +66,21 @@ class TFExampleDecoderTest(parameterized.TestCase):
           result,
           test_util.make_example_dict_equal_fn(self, [decoded_example]))
 
+  def test_decode_example_none_ref_count(self):
+    example = text_format.Parse(
+        '''
+          features {
+            feature {
+              key: 'x'
+              value { }
+            }
+          }
+        ''', tf.train.Example())
+    before_refcount = sys.getrefcount(None)
+    _ = tf_example_decoder.TFExampleDecoder().decode(
+        example.SerializeToString())
+    after_refcount = sys.getrefcount(None)
+    self.assertEqual(before_refcount + 1, after_refcount)
 
 if __name__ == '__main__':
   absltest.main()
