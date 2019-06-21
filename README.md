@@ -125,3 +125,14 @@ Please direct any questions about working with TF Data Validation to
 [Stack Overflow](https://stackoverflow.com) using the
 [tensorflow-data-validation](https://stackoverflow.com/questions/tagged/tensorflow-data-validation)
 tag.
+
+## Links
+
+  * [TensorFlow Data Validation Getting Started Guide](https://www.tensorflow.org/tfx/data_validation/get_started)
+  * [TensorFlow Data Validation Notebook](https://colab.research.google.com/github/tensorflow/tfx/blob/master/docs/tutorials/data_validation/chicago_taxi.ipynb)
+  * [TensorFlow Data Validation API Documentation](https://www.tensorflow.org/tfx/data_validation/api_docs/python/tfdv)
+  * [TensorFlow Data Validation Blog Post](https://medium.com/tensorflow/introducing-tensorflow-data-validation-data-understanding-validation-and-monitoring-at-scale-d38e3952c2f0).
+  * [TensorFlow Data Validation PyPI](https://pypi.org/project/tensorflow-data-validation/)
+  * [TensorFlow Data Validation Paper](https://www.sysml.cc/doc/2019/167.pdf)
+  * [TensorFlow Data Validation Slides](https://conf.slac.stanford.edu/xldb2018/sites/xldb2018.conf.slac.stanford.edu/files/Tues_09.45_NeoklisPolyzotis_Data%20Analysis%20and%20Validation%20(1).pdf)
+
