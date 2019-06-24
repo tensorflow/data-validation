@@ -16,9 +16,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import gzip
 import os
 import tempfile
 from absl.testing import absltest
+from absl.testing import parameterized
+from apache_beam.io.filesystem import CompressionTypes
 import pandas as pd
 import tensorflow as tf
 
@@ -27,14 +30,14 @@ from tensorflow_data_validation.utils import stats_gen_lib
 from tensorflow_data_validation.utils import test_util
 
 from google.protobuf import text_format
-from tensorflow.core.example import example_pb2
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
-class StatsGenTest(absltest.TestCase):
+class StatsGenTest(parameterized.TestCase):
 
   def setUp(self):
+    super(StatsGenTest, self).setUp()
     self._default_stats_options = stats_options.StatsOptions(
         num_top_values=2,
         num_rank_histogram_buckets=2,
@@ -59,7 +62,7 @@ class StatsGenTest(absltest.TestCase):
     Returns:
       A tf.Example.
     """
-    result = example_pb2.Example()
+    result = tf.train.Example()
     for feature_name in feature_name_to_type_values_tuple_map:
       (feature_type, feature_values) = (
           feature_name_to_type_values_tuple_map[feature_name])
@@ -76,14 +79,27 @@ class StatsGenTest(absltest.TestCase):
         raise ValueError('Invalid feature type: ' + feature_type)
     return result
 
-  def _write_tfexamples_to_tfrecords(self, examples):
+  def _write_tfexamples_to_tfrecords(self, examples, compression_type):
     data_location = os.path.join(self._get_temp_dir(), 'input_data.tfrecord')
-    with tf.python_io.TFRecordWriter(data_location) as writer:
+    with tf.python_io.TFRecordWriter(
+        data_location, options=compression_type) as writer:
       for example in examples:
         writer.write(example.SerializeToString())
     return data_location
 
-  def test_stats_gen_with_tfrecords_of_tfexamples(self):
+  _BEAM_COMPRESSION_TYPES = [
+      {
+          'testcase_name': 'auto_infer_compression',
+          'compression_type': CompressionTypes.AUTO
+      },
+      {
+          'testcase_name': 'gzip_compression',
+          'compression_type': CompressionTypes.GZIP
+      },
+  ]
+
+  @parameterized.named_parameters(*_BEAM_COMPRESSION_TYPES)
+  def test_stats_gen_with_tfrecords_of_tfexamples(self, compression_type):
     examples = [
         self._make_example({
             'a': ('float', [1.0, 2.0]),
@@ -98,7 +114,11 @@ class StatsGenTest(absltest.TestCase):
             'b': ('bytes', [b'a', b'b', b'c', b'd'])
         })
     ]
-    input_data_path = self._write_tfexamples_to_tfrecords(examples)
+    tf_compression_lookup = {
+        CompressionTypes.AUTO: tf.io.TFRecordCompressionType.NONE,
+        CompressionTypes.GZIP: tf.io.TFRecordCompressionType.GZIP}
+    input_data_path = self._write_tfexamples_to_tfrecords(
+        examples, tf_compression_lookup[compression_type])
 
     expected_result = text_format.Parse(
         """
@@ -220,16 +240,21 @@ class StatsGenTest(absltest.TestCase):
 
     result = stats_gen_lib.generate_statistics_from_tfrecord(
         data_location=input_data_path,
-        stats_options=self._default_stats_options)
+        stats_options=self._default_stats_options,
+        compression_type=compression_type)
     compare_fn = test_util.make_dataset_feature_stats_list_proto_equal_fn(
         self, expected_result)
     compare_fn([result])
 
-  def _write_records_to_csv(self, records, tmp_dir, filename):
+  def _write_records_to_csv(self, records, tmp_dir, filename,
+                            compression_type=''):
     data_location = os.path.join(tmp_dir, filename)
-    with open(data_location, 'w') as writer:
-      for record in records:
-        writer.write(record + '\n')
+    if compression_type == 'gzip':
+      with gzip.GzipFile(data_location, 'wb') as writer:
+        writer.write('\n'.join(records).encode('utf-8'))
+    else:
+      with open(data_location, 'w') as writer:
+        writer.write('\n'.join(records))
     return data_location
 
   def _get_csv_test(self, delimiter=',', with_header=False):
@@ -357,17 +382,24 @@ class StatsGenTest(absltest.TestCase):
       return (records, None, expected_result)
     return (records[1:], records[0].split(delimiter), expected_result)
 
-  def test_stats_gen_with_csv_no_header_in_file(self):
+  @parameterized.named_parameters(*_BEAM_COMPRESSION_TYPES)
+  def test_stats_gen_with_csv_no_header_in_file(self, compression_type):
     records, header, expected_result = self._get_csv_test(delimiter=',',
                                                           with_header=False)
-    input_data_path = self._write_records_to_csv(records, self._get_temp_dir(),
-                                                 'input_data.csv')
+    compression_type_lookup = {
+        CompressionTypes.AUTO: '',
+        CompressionTypes.GZIP: 'gzip'
+    }
+    input_data_path = self._write_records_to_csv(
+        records, self._get_temp_dir(), 'input_data.csv',
+        compression_type=compression_type_lookup[compression_type])
 
     result = stats_gen_lib.generate_statistics_from_csv(
         data_location=input_data_path,
         column_names=header,
         delimiter=',',
-        stats_options=self._default_stats_options)
+        stats_options=self._default_stats_options,
+        compression_type=compression_type)
     compare_fn = test_util.make_dataset_feature_stats_list_proto_equal_fn(
         self, expected_result)
     compare_fn([result])

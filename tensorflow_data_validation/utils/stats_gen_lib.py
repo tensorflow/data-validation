@@ -25,6 +25,7 @@ import os
 import tempfile
 
 import apache_beam as beam
+from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.options.pipeline_options import PipelineOptions
 from joblib import delayed
 from joblib import Parallel
@@ -49,6 +50,7 @@ def generate_statistics_from_tfrecord(
     output_path = None,
     stats_options = options.StatsOptions(),
     pipeline_options = None,
+    compression_type = CompressionTypes.AUTO,
 ):
   """Compute data statistics from TFRecord files containing TFExamples.
 
@@ -73,6 +75,9 @@ def generate_statistics_from_tfrecord(
       (DirectRunner or DataflowRunner), cloud dataflow service project id, etc.
       See https://cloud.google.com/dataflow/pipelines/specifying-exec-params for
       more details.
+    compression_type: Used to handle compressed input files. Default value is
+      CompressionTypes.AUTO, in which case the file_path's extension will be
+      used to detect the compression.
 
   Returns:
     A DatasetFeatureStatisticsList proto.
@@ -90,7 +95,8 @@ def generate_statistics_from_tfrecord(
     # path suffix.
     _ = (
         p
-        | 'ReadData' >> beam.io.ReadFromTFRecord(file_pattern=data_location)
+        | 'ReadData' >> beam.io.ReadFromTFRecord(
+            file_pattern=data_location, compression_type=compression_type)
         | 'DecodeData' >> tf_example_decoder.DecodeTFExample()
         | 'GenerateStatistics' >> stats_api.GenerateStatistics(stats_options)
         # TODO(b/112014711) Implement a custom sink to write the stats proto.
@@ -109,6 +115,7 @@ def generate_statistics_from_csv(
     output_path = None,
     stats_options = options.StatsOptions(),
     pipeline_options = None,
+    compression_type = CompressionTypes.AUTO,
 ):
   """Compute data statistics from CSV files.
 
@@ -138,6 +145,9 @@ def generate_statistics_from_csv(
       (DirectRunner or DataflowRunner), cloud dataflow service project id, etc.
       See https://cloud.google.com/dataflow/pipelines/specifying-exec-params for
       more details.
+    compression_type: Used to handle compressed input files. Default value is
+      CompressionTypes.AUTO, in which case the file_path's extension will be
+      used to detect the compression.
 
   Returns:
     A DatasetFeatureStatisticsList proto.
@@ -159,7 +169,8 @@ def generate_statistics_from_csv(
     _ = (
         p
         | 'ReadData' >> beam.io.textio.ReadFromText(
-            file_pattern=data_location, skip_header_lines=skip_header_lines)
+            file_pattern=data_location, skip_header_lines=skip_header_lines,
+            compression_type=compression_type)
         | 'DecodeData' >> csv_decoder.DecodeCSV(
             column_names=column_names, delimiter=delimiter,
             schema=stats_options.schema,
