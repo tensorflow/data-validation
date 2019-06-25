@@ -95,8 +95,6 @@ class SchemaAnomaly {
  private:
   // Returns an AnomalyInfo representing the change. Takes as an input the
   // text version of the existing schema and the new schema.
-  // Called as part of GetAnomalyInfoV0(...) and GetAnomalyInfoV1(...) to do
-  // the part of the work that is common between them.
   tensorflow::metadata::v0::AnomalyInfo GetAnomalyInfoCommon(
       const string& existing_schema, const string& new_schema,
       bool enable_diff_regions) const;

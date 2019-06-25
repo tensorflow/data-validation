@@ -521,13 +521,6 @@ TEST(EnumType, DomainSizeLimit) {
   }
 }
 
-struct EnumGetStringDomainV1Test {
-  string name;
-  string enum_name;
-  std::vector<string> features;
-  StringDomain expected;
-};
-
 TEST(Enum, Add) {
   StringDomain to_modify = ParseTextProtoOrDie<StringDomain>("name: 'MyEnum'");
   const FeatureNameStatistics stats =

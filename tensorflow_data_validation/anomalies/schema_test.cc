@@ -245,10 +245,10 @@ TEST(SchemaTest, EmbeddedStringDomainTooLarge) {
                 })"));
 }
 
-// Test that initializing from a schema proto, then exporting a schema v1 proto,
+// Test that initializing from a schema proto, then exporting a schema proto,
 // does not change the schema proto. See
 // CreateFromProtoWithEmbeddedStringDomain for when this doesn't work.
-TEST(SchemaTest, CreateFromSchemaV1) {
+TEST(SchemaTest, CreateFromSchema) {
   const tensorflow::metadata::v0::Schema initial =
       ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
         string_domain {

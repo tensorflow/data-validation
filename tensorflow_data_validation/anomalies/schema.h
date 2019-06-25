@@ -46,14 +46,14 @@ namespace data_validation {
 // // Create a new schema.
 // Schema schema;
 // TF_RETURN_IF_ERROR(schema.Update(statistics, config));
-// tensorflow::metadata::v0::Schema schema_proto = schema.GetSchemaV1();
+// tensorflow::metadata::v0::Schema schema_proto = schema.GetSchema();
 // ...save proto somewhere...
 // Schema schema2;
 // TF_RETURN_IF_ERROR(schema2.Init(schema_proto));
 // DatasetStatsView next_statistics = ...
 // Update the schema again.
 // TF_RETURN_IF_ERROR(schema2.Update(next_statistics, config));
-// tensorflow::metadata::v0::Schema schema_proto2 = schema2.GetSchemaV1();
+// tensorflow::metadata::v0::Schema schema_proto2 = schema2.GetSchema();
 class Schema {
  public:
   // Holds the configuration for updating the schema, based on
