@@ -21,23 +21,17 @@
 // This include is needed to avoid C2528. See https://bugs.python.org/issue24643
 // Must be included before other arrow headers.
 #include "arrow/python/platform.h"
-#include "arrow/python/common.h"
+// TODO(zhuo): this header no longer needed once we build with arrow shared
+// libraries.
 #include "arrow/python/init.h"
-#include "arrow/python/numpy_convert.h"
-#include "arrow/python/numpy_to_arrow.h"
 #include "arrow/python/pyarrow.h"
-// NOTE: the numpy headers MUST come after arrow headers because arrow headers
-// define PY_ARRAY_UNIQUE_SYMBOL so that the numpy API (contained in a function
-// pointer array) has external linkage, and import_array() does not have to be
-// called in every translation unit.
-// https://docs.scipy.org/doc/numpy/reference/c-api.array.html?highlight=array#importing-the-api
-#include "numpy/arrayobject.h"
-#include "numpy/ufuncobject.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "arrow/api.h"
 #include "tensorflow_data_validation/arrow/cc/common.h"
+#include "tensorflow_data_validation/arrow/cc/init_numpy.h"
+#include "tensorflow_data_validation/arrow/cc/pyarrow_numpy_stub.h"
 
 namespace {
 using ::arrow::ArrayVector;
@@ -46,6 +40,8 @@ using ::arrow::DataType;
 using ::arrow::Field;
 using ::arrow::Status;
 using ::arrow::Table;
+namespace pyarrow_numpy_stub =
+    ::tensorflow::data_validation::pyarrow_numpy_stub;
 
 // Makes a string_view out of a Python bytes object. Note that the Python object
 // still owns the underlying memory.
@@ -100,11 +96,52 @@ Status ArrowTypeFromNumpyDescr(PyArray_Descr* descr,
   if (descr->type_num == NPY_OBJECT) {
     value_type = std::make_shared<arrow::BinaryType>();
   } else {
-    RETURN_NOT_OK(arrow::py::NumPyDtypeToArrow(descr, &value_type));
+    RETURN_NOT_OK(pyarrow_numpy_stub::NumPyDtypeToArrow(
+        reinterpret_cast<PyObject*>(descr), &value_type));
   }
   *arrow_type = std::make_shared<arrow::ListType>(std::move(value_type));
   return Status::OK();
 }
+
+// PyRef holds a PyObject and automatically decreases its refcount upon
+// destruction.
+class PyRef {
+ public:
+  PyRef() : PyRef(nullptr) {}
+  explicit PyRef(PyObject* obj) : obj_(obj) {}
+  ~PyRef() {
+    Py_XDECREF(obj_);
+  }
+  // Not copyable but movable.
+  PyRef(const PyRef&) = delete;
+  PyRef& operator=(const PyRef&) = delete;
+
+  PyRef(PyRef&& other) {
+    obj_ = other.release();
+  }
+  PyRef& operator=(PyRef&& other) {
+    obj_ = other.release();
+    return *this;
+  }
+
+  PyObject* get() const {
+    return obj_;
+  }
+
+  void reset(PyObject* obj) {
+    Py_XDECREF(obj_);
+    obj_ = obj;
+  }
+
+  PyObject* release() {
+    PyObject* result = obj_;
+    obj_ = nullptr;
+    return result;
+  }
+
+ private:
+  PyObject* obj_;
+};
 
 // Helper class to convert decoded examples to an Arrow Table.
 // One converter should be created for each Table to be created. Do not re-use.
@@ -189,7 +226,7 @@ class DecodedExamplesToTableConverter {
         RETURN_NOT_OK(ArrowTypeFromNumpyDescr(
             maybe_feature_rep->value_ndarray_descr(), &type));
         std::shared_ptr<ChunkedArray> chunked_array;
-        RETURN_NOT_OK(arrow::py::NdarrayToArrow(
+        RETURN_NOT_OK(pyarrow_numpy_stub::NdarrayToArrow(
             arrow::default_memory_pool(),
             /*ao=*/maybe_feature_rep->ndarray_of_ndarrays(),
             /*mo=*/nullptr, /*use_pandas_null_sentinels=*/false, type,
@@ -223,12 +260,13 @@ class DecodedExamplesToTableConverter {
       npy_intp values_dims[] = {static_cast<npy_intp>(num_examples)};
       ndarray_of_ndarrays_.reset(PyArray_SimpleNew(1, values_dims, NPY_OBJECT));
       ndarray_of_ndarrays_data_ = reinterpret_cast<PyObject**>(PyArray_DATA(
-          reinterpret_cast<PyArrayObject*>(ndarray_of_ndarrays_.obj())));
+          reinterpret_cast<PyArrayObject*>(ndarray_of_ndarrays_.get())));
       for (int i = 0; i < num_leading_nones; ++i) {
         ndarray_of_ndarrays_data_[i] = Py_None;
         Py_INCREF(Py_None);
       }
     }
+
     ~FeatureRep() = default;
 
     // Disallow copy (otherwise the refcount is messed up) but allow move (
@@ -270,13 +308,13 @@ class DecodedExamplesToTableConverter {
     }
 
     PyObject* ndarray_of_ndarrays() const {
-      return ndarray_of_ndarrays_.obj();
+      return ndarray_of_ndarrays_.get();
     }
 
    private:
     // A numpy array of type np.object that contains feature values
     // (as numpy arrays).
-    arrow::py::OwnedRef ndarray_of_ndarrays_;
+    PyRef ndarray_of_ndarrays_;
     // The numpy descriptor of one of the numpy arrays in `ndarray_of_ndarrays_`
     // .
     PyArray_Descr* value_ndarray_descr_;
@@ -348,8 +386,16 @@ Status DecodedExamplesToTable(PyObject* list_of_decoded_examples,
 
 PyObject* TFDV_Arrow_DecodedExamplesToTable(
     PyObject* list_of_decoded_examples) {
-  arrow_init_numpy();
+  // Although ImportPyArrow() will eventually lead to an arrow_init_numpy()
+  // call, that call sets up Numpy API defined in libarrow.so, but we are in
+  // _pywrap_tensorflow_data_validation.so now.
+  // TODO(zhuo): this is no longer needed once we build with arrow shared
+  // libraries.
+  static const int kUnused = arrow_init_numpy();
+  (void)kUnused;
+
   tensorflow::data_validation::ImportPyArrow();
+  tensorflow::data_validation::ImportNumpy();
 
   if (!PyList_Check(list_of_decoded_examples)) {
     PyErr_SetString(PyExc_TypeError, "DecodedExamplesToTable Expected a list.");

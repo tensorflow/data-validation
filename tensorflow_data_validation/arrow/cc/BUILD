@@ -9,7 +9,10 @@ cc_library(
     name = "common",
     srcs = ["common.cc"],
     hdrs = ["common.h"],
-    deps = ["@arrow"],
+    deps = [
+        "@arrow",
+        "@local_config_python//:numpy_headers",
+    ],
 )
 
 cc_library(
@@ -30,11 +33,33 @@ cc_library(
     hdrs = ["decoded_examples_to_arrow.h"],
     deps = [
         ":common",
+        ":init_numpy",
+        ":pyarrow_numpy_stub",
         "@arrow",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:optional",
         "@local_config_python//:numpy_headers",
         "@local_config_python//:python_headers",
+    ],
+)
+
+cc_library(
+    name = "init_numpy",
+    srcs = ["init_numpy.cc"],
+    hdrs = ["init_numpy.h"],
+    deps = [
+        "@local_config_python//:numpy_headers",
+        "@local_config_python//:python_headers",
+    ],
+)
+
+cc_library(
+    name = "pyarrow_numpy_stub",
+    srcs = ["pyarrow_numpy_stub.cc"],
+    hdrs = ["pyarrow_numpy_stub.h"],
+    deps = [
+        "@arrow",
+        "@local_config_python//:numpy_headers",
     ],
 )
