@@ -107,20 +107,23 @@ mode but can also run in distributed mode using
 [Google Cloud Dataflow](https://cloud.google.com/dataflow/).
 TFDV is designed to be extensible for other Apache Beam runners.
 
+[Apache Arrow](https://arrow.apache.org/) is also required. TFDV uses Arrow to
+represent data internally in order to make use of vectorized numpy functions.
+
 ## Compatible versions
 
 The following table shows the  package versions that are
 compatible with each other. This is determined by our testing framework, but
 other *untested* combinations may also work.
 
-|tensorflow-data-validation                                                            |tensorflow    |apache-beam[gcp]|
-|--------------------------------------------------------------------------------------|--------------|----------------|
-|[GitHub master](https://github.com/tensorflow/data-validation/blob/master/RELEASE.md) |nightly (1.x) |2.11.0          |
-|[0.13.1](https://github.com/tensorflow/data-validation/blob/v0.13.1/RELEASE.md)       |1.13          |2.11.0          |
-|[0.13.0](https://github.com/tensorflow/data-validation/blob/v0.13.0/RELEASE.md)       |1.13          |2.11.0          |
-|[0.12.0](https://github.com/tensorflow/data-validation/blob/v0.12.0/RELEASE.md)       |1.12          |2.10.0          |
-|[0.11.0](https://github.com/tensorflow/data-validation/blob/v0.11.0/RELEASE.md)       |1.11          |2.8.0           |
-|[0.9.0](https://github.com/tensorflow/data-validation/blob/v0.9.0/RELEASE.md)         |1.9           |2.6.0           |
+|tensorflow-data-validation                                                            |tensorflow    |apache-beam[gcp] |pyarrow |
+|--------------------------------------------------------------------------------------|--------------|-----------------|--------|
+|[GitHub master](https://github.com/tensorflow/data-validation/blob/master/RELEASE.md) |nightly (1.x) |2.11.0           |0.11.1  |
+|[0.13.1](https://github.com/tensorflow/data-validation/blob/v0.13.1/RELEASE.md)       |1.13          |2.11.0           |n/a     |
+|[0.13.0](https://github.com/tensorflow/data-validation/blob/v0.13.0/RELEASE.md)       |1.13          |2.11.0           |n/a     |
+|[0.12.0](https://github.com/tensorflow/data-validation/blob/v0.12.0/RELEASE.md)       |1.12          |2.10.0           |n/a     |
+|[0.11.0](https://github.com/tensorflow/data-validation/blob/v0.11.0/RELEASE.md)       |1.11          |2.8.0            |n/a     |
+|[0.9.0](https://github.com/tensorflow/data-validation/blob/v0.9.0/RELEASE.md)         |1.9           |2.6.0            |n/a     |
 
 ## Questions
 
