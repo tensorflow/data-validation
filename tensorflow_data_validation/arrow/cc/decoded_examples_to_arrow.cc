@@ -17,13 +17,16 @@
 #include <iostream>
 #include <cstring>
 #include <memory>
+// CAUTION: Arrow API and NumPy API are both used in this file. Care must be
+// taken to make sure we use our own NumPy API stubs instead of Arrow's:
+// - Do not include any arrow header that pulls in numpy headers. If you have
+//   to use certain APIs in such a header, you need to create a stub (
+//   see pyarrow_numpy_stub.h)
+// - Do not directly include numpy headers. Include init_numpy.h instead.
 
 // This include is needed to avoid C2528. See https://bugs.python.org/issue24643
 // Must be included before other arrow headers.
 #include "arrow/python/platform.h"
-// TODO(zhuo): this header no longer needed once we build with arrow shared
-// libraries.
-#include "arrow/python/init.h"
 #include "arrow/python/pyarrow.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
@@ -386,14 +389,6 @@ Status DecodedExamplesToTable(PyObject* list_of_decoded_examples,
 
 PyObject* TFDV_Arrow_DecodedExamplesToTable(
     PyObject* list_of_decoded_examples) {
-  // Although ImportPyArrow() will eventually lead to an arrow_init_numpy()
-  // call, that call sets up Numpy API defined in libarrow.so, but we are in
-  // _pywrap_tensorflow_data_validation.so now.
-  // TODO(zhuo): this is no longer needed once we build with arrow shared
-  // libraries.
-  static const int kUnused = arrow_init_numpy();
-  (void)kUnused;
-
   tensorflow::data_validation::ImportPyArrow();
   tensorflow::data_validation::ImportNumpy();
 
