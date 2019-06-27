@@ -251,14 +251,19 @@ class _PartialNumericStats(object):
         continue
       values = flattened_value_array.to_numpy()
       nan_mask = np.isnan(values)
+      self.num_nan += np.sum(nan_mask)
       non_nan_mask = ~nan_mask
       values_no_nan = values[non_nan_mask]
+      # We do this check to avoid failing in np.min/max with empty array.
+      if values_no_nan.size == 0:
+        continue
       # This is to avoid integer overflow when computing sum or sum of squares.
       values_no_nan_as_double = values_no_nan.astype(np.float64)
-      self.num_nan += np.sum(nan_mask)
       self.sum += np.sum(values_no_nan_as_double)
       self.sum_of_squares += np.sum(
           values_no_nan_as_double* values_no_nan_as_double)
+      # Use np.minimum.reduce(values_no_nan, initial=self.min) once we upgrade
+      # to numpy 1.16
       self.min = min(self.min, np.min(values_no_nan))
       self.max = max(self.max, np.max(values_no_nan))
       self.num_zeros += values_no_nan.size - np.count_nonzero(values_no_nan)
@@ -389,9 +394,13 @@ def _make_numeric_stats_proto(
   if numeric_stats.num_nan > 0:
     total_num_values -= numeric_stats.num_nan
 
-  # Set the stats in the proto only if we have at least one value for the
-  # feature.
   if total_num_values == 0:
+    # If we only have nan values, we only set num_nan.
+    if numeric_stats.num_nan > 0:
+      result.histograms.add(type=statistics_pb2.Histogram.STANDARD).num_nan = (
+          numeric_stats.num_nan)
+      result.histograms.add(type=statistics_pb2.Histogram.QUANTILES).num_nan = (
+          numeric_stats.num_nan)
     return result
 
   mean = numeric_stats.sum / total_num_values

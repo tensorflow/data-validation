@@ -1174,6 +1174,51 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     generator = basic_stats_generator.BasicStatsGenerator()
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
+  def test_basic_stats_generator_only_nan(self):
+    b1 = pa.Table.from_arrays([pa.array([[np.NaN]],
+                                        type=pa.list_(pa.float32()))], ['a'])
+    batches = [b1]
+    expected_result = {
+        'a': text_format.Parse(
+            """
+            name: 'a'
+            type: FLOAT
+            num_stats {
+              common_stats {
+                num_non_missing: 1
+                min_num_values: 1
+                max_num_values: 1
+                avg_num_values: 1.0
+                tot_num_values: 1
+                num_values_histogram {
+                  buckets {
+                    low_value: 1.0
+                    high_value: 1.0
+                    sample_count: 0.5
+                  }
+                  buckets {
+                    low_value: 1.0
+                    high_value: 1.0
+                    sample_count: 0.5
+                  }
+                  type: QUANTILES
+                }
+              }
+              histograms {
+                num_nan: 1
+                type: STANDARD
+              }
+              histograms {
+                num_nan: 1
+                type: QUANTILES
+              }
+            }
+            """, statistics_pb2.FeatureNameStatistics())}
+    generator = basic_stats_generator.BasicStatsGenerator(
+        num_values_histogram_buckets=2, num_histogram_buckets=3,
+        num_quantiles_histogram_buckets=4)
+    self.assertCombinerOutputEqual(batches, generator, expected_result)
+
   def test_basic_stats_generator_column_not_list(self):
     batches = [pa.Table.from_arrays([pa.array([1, 2, 3])], ['a'])]
     generator = basic_stats_generator.BasicStatsGenerator()
