@@ -15,14 +15,29 @@
 
 from setuptools import find_packages
 from setuptools import setup
+from setuptools.command.install import install
 from setuptools.dist import Distribution
 
 
-class BinaryDistribution(Distribution):
+# TFDV is not a purelib. However because of the extension module is not built
+# by setuptools, it will be incorrectly treated as a purelib. The following
+# works around that bug.
+class _InstallPlatlib(install):
+
+  def finalize_options(self):
+    install.finalize_options(self)
+    self.install_lib = self.install_platlib
+
+
+class _BinaryDistribution(Distribution):
   """This class is needed in order to create OS specific wheels."""
+
+  def is_pure(self):
+    return False
 
   def has_ext_modules(self):
     return True
+
 
 # Get version from version module.
 with open('tensorflow_data_validation/version.py') as fp:
@@ -33,6 +48,11 @@ __version__ = globals_dict['__version__']
 # Get the long description from the README file.
 with open('README.md') as fp:
   _LONG_DESCRIPTION = fp.read()
+
+
+with open('third_party/pyarrow.version') as fp:
+  _PYARROW_VERSION_REQUIREMENT = fp.read().strip()
+
 
 setup(
     name='tensorflow-data-validation',
@@ -72,7 +92,6 @@ setup(
         'apache-beam[gcp]>=2.11,<3',
         'numpy>=1.14.5,<2',
         'protobuf>=3.7,<4',
-        'pyarrow>=0.11.1,<0.12.0',
         'six>=1.10,<2',
 
         # TODO(pachristopher): Add a method to check if we are using a
@@ -94,17 +113,18 @@ setup(
 
         # Dependency for multi-processing.
         'joblib>=0.12,<1',
-    ],
+    ] + [_PYARROW_VERSION_REQUIREMENT],
     python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,<4',
     packages=find_packages(),
     include_package_data=True,
     package_data={'': ['*.lib', '*.pyd', '*.so']},
     zip_safe=False,
-    distclass=BinaryDistribution,
+    distclass=_BinaryDistribution,
     description='A library for exploring and validating machine learning data.',
     long_description=_LONG_DESCRIPTION,
     long_description_content_type='text/markdown',
     keywords='tensorflow data validation tfx',
     url='https://www.tensorflow.org/tfx/data_validation',
     download_url='https://github.com/tensorflow/data-validation/tags',
-    requires=[])
+    requires=[],
+    cmdclass={'install': _InstallPlatlib})

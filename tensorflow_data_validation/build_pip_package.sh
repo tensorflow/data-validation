@@ -50,6 +50,7 @@ if is_windows; then
 else
   cp -f ${BUILD_WORKSPACE_DIRECTORY}/bazel-bin/tensorflow_data_validation/pywrap/_pywrap_tensorflow_data_validation.so \
     ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/pywrap
+  chmod +w ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/pywrap/_pywrap_tensorflow_data_validation.so
 fi
 
 # Create the wheel

@@ -44,13 +44,6 @@ http_archive(
     ],
 )
 
-# Required by arrow.
-git_repository(
-    name = "com_github_nelhage_rules_boost",
-    commit = "c35f4bd933bc609c3bd337d3b59f57837c259602",
-    remote = "https://github.com/nelhage/rules_boost",
-)
-
 # Please add all new TensorFlow Data Validation dependencies in workspace.bzl.
 load("//tensorflow_data_validation:workspace.bzl", "tf_data_validation_workspace")
 

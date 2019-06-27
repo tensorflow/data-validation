@@ -14,6 +14,12 @@
 
 """Init module for TensorFlow Data Validation."""
 
+# TFDV's extension module depends on pyarrow's shared libraries. importing
+# pyarrow will cause those libraries to be loaded. This way the dynamic linker
+# wouldn't need to search for those libraries in the filesystem (
+# which is bound to fail).
+import pyarrow as _
+
 # Import stats API.
 from tensorflow_data_validation.api.stats_api import GenerateStatistics
 
