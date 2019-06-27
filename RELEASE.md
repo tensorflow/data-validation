@@ -40,6 +40,7 @@
   statistics over a sample.
 * Increment refcount of None in fast example decoder.
 * Add `compression_type` option to `generate_statistics_from_*` methods.
+* Add link to SysML paper describing some technical details behind TFDV.
 * Depends on `pyarrow>=0.11.1,<0.12.0`.
 * Depends on `scikit-learn>=0.18,<0.21`.
 
