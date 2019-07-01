@@ -20,6 +20,7 @@ from __future__ import print_function
 
 import apache_beam as beam
 import numpy as np
+import pyarrow as pa
 
 from tensorflow_data_validation.types_compat import Callable, Dict, List, Optional, Text, Tuple, Union
 
@@ -46,6 +47,9 @@ SliceKeysList = List[SliceKey]
 
 # Type of the tuple containing an input example along with the slice key.
 SlicedExample = Tuple[SliceKey, Example]
+
+# Type of the tuple containing an input arrow table along with the slice key.
+SlicedTable = Tuple[SliceKey, pa.Table]
 
 # Type of the function that is used to generate a list of slice keys for a given
 # example. This function should take the form: slice_fn(example, **kwargs) ->
