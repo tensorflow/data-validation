@@ -19,7 +19,11 @@ from __future__ import division
 
 from __future__ import print_function
 
+import apache_beam as beam
+from apache_beam.transforms import window
+import pyarrow as pa
 from tensorflow_data_validation import types
+from tensorflow_data_validation.arrow import decoded_examples_to_arrow
 from tensorflow_data_validation.types_compat import List
 
 
@@ -34,3 +38,28 @@ def merge_single_batch(batch):
         result[feature] = [None] * batch_size
       result[feature][idx] = example[feature]
   return result
+
+
+@beam.typehints.with_input_types(types.Example)
+@beam.typehints.with_output_types(pa.Table)
+class BatchExamplesDoFn(beam.DoFn):
+  """A DoFn which batches input example dicts into an arrow table."""
+
+  def __init__(self, desired_batch_size):
+    self._desired_batch_size = desired_batch_size
+    self._buffer = []
+
+  def _flush_buffer(self):
+    arrow_table = decoded_examples_to_arrow.DecodedExamplesToTable(
+        self._buffer)
+    del self._buffer[:]
+    return arrow_table
+
+  def finish_bundle(self):
+    if self._buffer:
+      yield window.GlobalWindows.windowed_value(self._flush_buffer())
+
+  def process(self, example):
+    self._buffer.append(example)
+    if len(self._buffer) >= self._desired_batch_size:
+      yield self._flush_buffer()
