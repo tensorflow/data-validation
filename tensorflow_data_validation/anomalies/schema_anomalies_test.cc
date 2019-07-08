@@ -347,13 +347,13 @@ TEST(SchemaAnomalies, FindSkew) {
   expected_anomalies["foo"].expected_info_without_diff = ParseTextProtoOrDie<
       tensorflow::metadata::v0::AnomalyInfo>(R"(
     path { step: "foo" }
-    description: "The Linfty distance between serving and training is 0.2 (up to six significant digits), above the threshold 0.1. The feature value with maximum difference is: a"
+    description: "The Linfty distance between training and serving is 0.2 (up to six significant digits), above the threshold 0.1. The feature value with maximum difference is: a"
     severity: ERROR
-    short_description: "High Linfty distance between serving and training"
+    short_description: "High Linfty distance between training and serving"
     reason {
       type: COMPARATOR_L_INFTY_HIGH
-      short_description: "High Linfty distance between serving and training"
-      description: "The Linfty distance between serving and training is 0.2 (up to six significant digits), above the threshold 0.1. The feature value with maximum difference is: a"
+      short_description: "High Linfty distance between training and serving"
+      description: "The Linfty distance between training and serving is 0.2 (up to six significant digits), above the threshold 0.1. The feature value with maximum difference is: a"
     })");
   TestAnomalies(skew.GetSchemaDiff(/*enable_diff_regions=*/false),
                 schema_proto, expected_anomalies);

@@ -658,13 +658,13 @@ class ValidationApiTest(absltest.TestCase):
             }"""
 
   _bar_anomaly_info = """
-            short_description: "High Linfty distance between serving and training"
-            description: "The Linfty distance between serving and training is 0.2 (up to six significant digits), above the threshold 0.1. The feature value with maximum difference is: a"
+            short_description: "High Linfty distance between training and serving"
+            description: "The Linfty distance between training and serving is 0.2 (up to six significant digits), above the threshold 0.1. The feature value with maximum difference is: a"
             severity: ERROR
             reason {
               type: COMPARATOR_L_INFTY_HIGH
-              short_description: "High Linfty distance between serving and training"
-              description: "The Linfty distance between serving and training is 0.2 (up to six significant digits), above the threshold 0.1. The feature value with maximum difference is: a"
+              short_description: "High Linfty distance between training and serving"
+              description: "The Linfty distance between training and serving is 0.2 (up to six significant digits), above the threshold 0.1. The feature value with maximum difference is: a"
             }"""
 
   def test_validate_stats_with_previous_stats(self):

@@ -39,7 +39,7 @@ constexpr char kDropped[] = "Column dropped";
 ComparatorContext GetContext(ComparatorType comparator_type) {
   switch (comparator_type) {
     case ComparatorType::SKEW:
-      return {"training", "serving"};
+      return {"serving", "training"};
     case ComparatorType::DRIFT:
       return {"previous", "current"};
   }
@@ -47,11 +47,11 @@ ComparatorContext GetContext(ComparatorType comparator_type) {
 
 // TODO(martinz): These functions show that the interface in
 // FeatureStatsView was "too cute", in that I might as well get the appropriate
-// treatment dataset view, and then get the right FeatureStatsView.
+// control dataset view, and then get the right FeatureStatsView.
 // Should probably remove FeatureStatsView::GetServing and
 // FeatureStatsView::GetPrevious.
-bool HasTreatmentDataset(const FeatureStatsView& stats,
-                         ComparatorType comparator_type) {
+bool HasControlDataset(const FeatureStatsView& stats,
+                       ComparatorType comparator_type) {
   switch (comparator_type) {
     case ComparatorType::SKEW:
       return stats.parent_view().GetServing() != absl::nullopt;
@@ -60,7 +60,7 @@ bool HasTreatmentDataset(const FeatureStatsView& stats,
   }
 }
 
-absl::optional<FeatureStatsView> GetTreatmentStats(
+absl::optional<FeatureStatsView> GetControlStats(
     const FeatureStatsView& stats, ComparatorType comparator_type) {
   switch (comparator_type) {
     case ComparatorType::SKEW:
@@ -178,12 +178,12 @@ std::vector<Description> UpdateFeatureComparatorDirect(
     return {};
   }
   const ComparatorContext& context = GetContext(comparator_type);
-  absl::optional<FeatureStatsView> treatment_stats =
-      GetTreatmentStats(stats, comparator_type);
-  if (treatment_stats) {
+  absl::optional<FeatureStatsView> control_stats =
+      GetControlStats(stats, comparator_type);
+  if (control_stats) {
     const double threshold = comparator->infinity_norm().threshold();
     const std::pair<string, double> distance =
-        LInftyDistance(stats, *treatment_stats);
+        LInftyDistance(stats, *control_stats);
     const string max_difference_value = distance.first;
     const double stats_infinity_norm = distance.second;
     if (stats_infinity_norm > threshold) {
@@ -201,14 +201,16 @@ std::vector<Description> UpdateFeatureComparatorDirect(
                         max_difference_value)}};
     }
 
-  } else if (HasTreatmentDataset(stats, comparator_type)) {
-    // Treatment is missing.
+  } else if (HasControlDataset(stats, comparator_type)) {
+    // If there is a control dataset, but that dataset does not contain
+    // statistics for the feature at issue, generate a missing control data
+    // anomaly.
     // TODO(martinz): Consider clearing entire object.
     comparator->mutable_infinity_norm()->clear_threshold();
-    return {{tensorflow::metadata::v0::AnomalyInfo::
-                 COMPARATOR_TREATMENT_DATA_MISSING,
-             absl::StrCat(context.treatment_name, " data missing"),
-             absl::StrCat(context.treatment_name, " data is missing.")}};
+    return {
+        {tensorflow::metadata::v0::AnomalyInfo::COMPARATOR_CONTROL_DATA_MISSING,
+         absl::StrCat(context.control_name, " data missing"),
+         absl::StrCat(context.control_name, " data is missing.")}};
   }
   return {};
 }
