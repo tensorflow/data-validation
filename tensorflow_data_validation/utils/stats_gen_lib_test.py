@@ -23,8 +23,8 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from apache_beam.io.filesystem import CompressionTypes
 import pandas as pd
-import tensorflow as tf
 
+from tensorflow_data_validation.pyarrow_tf import tensorflow as tf
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.utils import stats_gen_lib
 from tensorflow_data_validation.utils import test_util

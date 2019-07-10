@@ -125,7 +125,7 @@ pip install setuptools --upgrade
 pip install wheel --upgrade
 pip freeze --all
 
-PYARROW_REQUIREMENT="$(< third_party/pyarrow.version)"
+PYARROW_REQUIREMENT=$(python -c "fp = open('third_party/pyarrow_version.bzl', 'r'); d = {}; exec(fp.read(), d); fp.close(); print(d['PY_DEP'])")
 pip install "${PYARROW_REQUIREMENT}"
 ./configure.sh
 bazel run -c opt --cxxopt=-D_GLIBCXX_USE_CXX11_ABI=0 --copt=-DWIN32_LEAN_AND_MEAN tensorflow_data_validation:build_pip_package

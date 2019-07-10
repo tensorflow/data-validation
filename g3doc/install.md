@@ -22,8 +22,12 @@ TF Data Validation includes:
 *    An anomalies viewer so that you can see what features have anomalies and
      learn more in order to correct them.
 
-For instructions on using TFDV, see the [get started guide](get_started.md)
-and try out the [example notebook](https://colab.research.google.com/github/tensorflow/tfx/blob/master/docs/tutorials/data_validation/chicago_taxi.ipynb).
+For instructions on using TFDV, see the
+[get started guide](https://github.com/tensorflow/data-validation/blob/master/g3doc/get_started.md)
+and try out the
+[example notebook](https://colab.research.google.com/github/tensorflow/tfx/blob/master/docs/tutorials/data_validation/chicago_taxi.ipynb).
+Some of the techniques implemented in TFDV are described in a
+[technical paper published in SysML'19](https://www.sysml.cc/doc/2019/167.pdf).
 
 Caution: TFDV may be backwards incompatible before version 1.0.
 
@@ -58,11 +62,11 @@ TFDV needs to be built with specific PyArrow versions (
 as indicated in third_party/pyarrow.version). Install pyarrow by following
 [these directions](https://arrow.apache.org/docs/python/install.html).
 
-When installing please make sure to specify the version requirements in
-third_party/pyarrow.version. For example:
+When installing please make sure to specify the compatible pyarrow version. For
+example:
 
 ```shell
-pip install "$(< third_party/pyarrow.version)"
+pip install "pyarrow>=0.14.0,<0.15.0"
 ```
 
 ### 2. Clone the TFDV repository
@@ -118,20 +122,23 @@ mode but can also run in distributed mode using
 [Google Cloud Dataflow](https://cloud.google.com/dataflow/).
 TFDV is designed to be extensible for other Apache Beam runners.
 
+[Apache Arrow](https://arrow.apache.org/) is also required. TFDV uses Arrow to
+represent data internally in order to make use of vectorized numpy functions.
+
 ## Compatible versions
 
 The following table shows the  package versions that are
 compatible with each other. This is determined by our testing framework, but
 other *untested* combinations may also work.
 
-|tensorflow-data-validation                                                            |tensorflow    |apache-beam[gcp]|
-|--------------------------------------------------------------------------------------|--------------|----------------|
-|[GitHub master](https://github.com/tensorflow/data-validation/blob/master/RELEASE.md) |nightly (1.x) |2.11.0          |
-|[0.13.1](https://github.com/tensorflow/data-validation/blob/v0.13.1/RELEASE.md)       |1.13          |2.11.0          |
-|[0.13.0](https://github.com/tensorflow/data-validation/blob/v0.13.0/RELEASE.md)       |1.13          |2.11.0          |
-|[0.12.0](https://github.com/tensorflow/data-validation/blob/v0.12.0/RELEASE.md)       |1.12          |2.10.0          |
-|[0.11.0](https://github.com/tensorflow/data-validation/blob/v0.11.0/RELEASE.md)       |1.11          |2.8.0           |
-|[0.9.0](https://github.com/tensorflow/data-validation/blob/v0.9.0/RELEASE.md)         |1.9           |2.6.0           |
+tensorflow-data-validation                                                            | tensorflow    | apache-beam[gcp] | pyarrow
+------------------------------------------------------------------------------------- | ------------- | ---------------- | -------
+[GitHub master](https://github.com/tensorflow/data-validation/blob/master/RELEASE.md) | nightly (1.x) | 2.11.0           | 0.14.0
+[0.13.1](https://github.com/tensorflow/data-validation/blob/v0.13.1/RELEASE.md)       | 1.13          | 2.11.0           | n/a
+[0.13.0](https://github.com/tensorflow/data-validation/blob/v0.13.0/RELEASE.md)       | 1.13          | 2.11.0           | n/a
+[0.12.0](https://github.com/tensorflow/data-validation/blob/v0.12.0/RELEASE.md)       | 1.12          | 2.10.0           | n/a
+[0.11.0](https://github.com/tensorflow/data-validation/blob/v0.11.0/RELEASE.md)       | 1.11          | 2.8.0            | n/a
+[0.9.0](https://github.com/tensorflow/data-validation/blob/v0.9.0/RELEASE.md)         | 1.9           | 2.6.0            | n/a
 
 ## Questions
 
@@ -139,3 +146,13 @@ Please direct any questions about working with TF Data Validation to
 [Stack Overflow](https://stackoverflow.com) using the
 [tensorflow-data-validation](https://stackoverflow.com/questions/tagged/tensorflow-data-validation)
 tag.
+
+## Links
+
+*   [TensorFlow Data Validation Getting Started Guide](https://www.tensorflow.org/tfx/data_validation/get_started)
+*   [TensorFlow Data Validation Notebook](https://colab.research.google.com/github/tensorflow/tfx/blob/master/docs/tutorials/data_validation/chicago_taxi.ipynb)
+*   [TensorFlow Data Validation API Documentation](https://www.tensorflow.org/tfx/data_validation/api_docs/python/tfdv)
+*   [TensorFlow Data Validation Blog Post](https://medium.com/tensorflow/introducing-tensorflow-data-validation-data-understanding-validation-and-monitoring-at-scale-d38e3952c2f0)
+*   [TensorFlow Data Validation PyPI](https://pypi.org/project/tensorflow-data-validation/)
+*   [TensorFlow Data Validation Paper](https://www.sysml.cc/doc/2019/167.pdf)
+*   [TensorFlow Data Validation Slides](https://conf.slac.stanford.edu/xldb2018/sites/xldb2018.conf.slac.stanford.edu/files/Tues_09.45_NeoklisPolyzotis_Data%20Analysis%20and%20Validation%20\(1\).pdf)

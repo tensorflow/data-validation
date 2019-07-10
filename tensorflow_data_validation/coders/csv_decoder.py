@@ -23,8 +23,8 @@ import csv
 import apache_beam as beam
 import numpy as np
 import six
-import tensorflow as tf
 from tensorflow_data_validation import types
+from tensorflow_data_validation.pyarrow_tf import tensorflow as tf
 from tensorflow_data_validation.types_compat import Dict, List, Optional, Text, Union
 
 from tensorflow_metadata.proto.v0 import schema_pb2

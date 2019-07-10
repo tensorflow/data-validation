@@ -18,7 +18,7 @@ from __future__ import division
 
 from __future__ import print_function
 
-import pyarrow as pa
+from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import natural_language_stats_generator as nlsg
 from tensorflow_data_validation.utils import test_util
 from tensorflow_data_validation.types_compat import Text

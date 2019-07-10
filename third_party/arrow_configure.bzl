@@ -8,6 +8,7 @@ ARROW_SHARED_LIBRARY_DIR
 """
 
 load("@bazel_skylib//lib:paths.bzl", "paths")
+load("//third_party:pyarrow_version.bzl", "LIBARROW_DYLIB", "LIBARROW_PYTHON_DYLIB", "LIBARROW_PYTHON_SO", "LIBARROW_SO")
 
 _ARROW_HEADER_DIR = "ARROW_HEADER_DIR"
 _ARROW_SHARED_LIBRARY_DIR = "ARROW_SHARED_LIBRARY_DIR"
@@ -172,12 +173,25 @@ def _symlink_genrule_for_dir(
     return genrule
 
 def _arrow_shared_library_genrule(repository_ctx, library_name):
+    library_files = []
+    dest_files = []
     if _is_mac(repository_ctx):
-        library_files = ["lib%s.dylib" % library_name]
+        if library_name == "arrow":
+            library_files = [LIBARROW_DYLIB]
+            dest_files = ["libarrow.dylib"]
+        elif library_name == "arrow_python":
+            library_files = [LIBARROW_PYTHON_DYLIB]
+            dest_files = ["libarrow_python.dylib"]
     elif _is_windows((repository_ctx)):
         library_files = ["%s.lib" % library_name, "%s.dll" % library_name]
-    else:
-        library_files = ["lib%s.so" % library_name]
+        dest_files = library_files
+    elif library_name == "arrow":
+        # Linux environment.
+        library_files = [LIBARROW_SO]
+        dest_files = ["libarrow.so"]
+    elif library_name == "arrow_python":
+        library_files = [LIBARROW_PYTHON_SO]
+        dest_files = ["libarrow_python.so"]
 
     arrow_shared_library_dir = repository_ctx.os.environ[_ARROW_SHARED_LIBRARY_DIR]
     return _symlink_genrule_for_dir(
@@ -186,7 +200,7 @@ def _arrow_shared_library_genrule(repository_ctx, library_name):
         "",
         "%s_shared_lib" % library_name,
         [paths.join(arrow_shared_library_dir, f) for f in library_files],
-        library_files,
+        dest_files,
     )
 
 def _arrow_pip_impl(repository_ctx):

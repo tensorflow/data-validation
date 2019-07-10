@@ -21,7 +21,7 @@ from __future__ import print_function
 from absl.testing import absltest
 from absl.testing import parameterized
 import mock
-import pyarrow as pa
+from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import time_stats_generator
 from tensorflow_data_validation.utils import test_util
 

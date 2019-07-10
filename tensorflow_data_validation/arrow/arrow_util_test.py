@@ -21,8 +21,8 @@ import itertools
 
 from absl.testing import absltest
 import numpy as np
-import pyarrow as pa
 from tensorflow_data_validation.arrow import arrow_util
+from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 
 
 class ArrowUtilTest(absltest.TestCase):

@@ -22,7 +22,7 @@ from absl.testing import absltest
 import apache_beam as beam
 from apache_beam.testing import util
 import numpy as np
-import pyarrow as pa
+from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.utils import batch_util
 
 

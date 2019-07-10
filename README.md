@@ -57,6 +57,19 @@ directions](https://www.scipy.org/scipylib/download.html).
 If Bazel is not installed on your system, install it now by following [these
 directions](https://bazel.build/versions/master/docs/install.html).
 
+#### Install PyArrow
+
+TFDV needs to be built with specific PyArrow versions (
+as indicated in third_party/pyarrow.version). Install pyarrow by following
+[these directions](https://arrow.apache.org/docs/python/install.html).
+
+When installing please make sure to specify the compatible pyarrow version. For
+example:
+
+```shell
+pip install "pyarrow>=0.14.0,<0.15.0"
+```
+
 ### 2. Clone the TFDV repository
 
 ```shell
@@ -70,13 +83,16 @@ pass `-b <branchname>` to the `git clone` command.
 
 ### 3. Build the pip package
 
-TFDV uses Bazel to build the pip package from source:
+TFDV uses Bazel to build the pip package from source. Before invoking the
+following commands, make sure the `python` in your `$PATH` is the one of the
+target version and has NumPy and PyArrow installed.
 
 ```shell
+./configure.sh
 bazel run -c opt --cxxopt=-D_GLIBCXX_USE_CXX11_ABI=0 tensorflow_data_validation:build_pip_package
 ```
 
-Note that we are assuming here that dependent packages (e.g. pyarrow) are built
+Note that we are assuming here that dependent packages (e.g. PyArrow) are built
 with a GCC older than 5.1 and use the flag `D_GLIBCXX_USE_CXX11_ABI=0` to be
 [compatible with the old std::string ABI](https://gcc.gnu.org/onlinedocs/libstdc++/manual/using_dual_abi.html).
 
@@ -118,7 +134,7 @@ other *untested* combinations may also work.
 
 |tensorflow-data-validation                                                            |tensorflow    |apache-beam[gcp] |pyarrow |
 |--------------------------------------------------------------------------------------|--------------|-----------------|--------|
-|[GitHub master](https://github.com/tensorflow/data-validation/blob/master/RELEASE.md) |nightly (1.x) |2.11.0           |0.11.1  |
+|[GitHub master](https://github.com/tensorflow/data-validation/blob/master/RELEASE.md) |nightly (1.x) |2.11.0           |0.14.0  |
 |[0.13.1](https://github.com/tensorflow/data-validation/blob/v0.13.1/RELEASE.md)       |1.13          |2.11.0           |n/a     |
 |[0.13.0](https://github.com/tensorflow/data-validation/blob/v0.13.0/RELEASE.md)       |1.13          |2.11.0           |n/a     |
 |[0.12.0](https://github.com/tensorflow/data-validation/blob/v0.12.0/RELEASE.md)       |1.12          |2.10.0           |n/a     |
@@ -137,7 +153,7 @@ tag.
   * [TensorFlow Data Validation Getting Started Guide](https://www.tensorflow.org/tfx/data_validation/get_started)
   * [TensorFlow Data Validation Notebook](https://colab.research.google.com/github/tensorflow/tfx/blob/master/docs/tutorials/data_validation/chicago_taxi.ipynb)
   * [TensorFlow Data Validation API Documentation](https://www.tensorflow.org/tfx/data_validation/api_docs/python/tfdv)
-  * [TensorFlow Data Validation Blog Post](https://medium.com/tensorflow/introducing-tensorflow-data-validation-data-understanding-validation-and-monitoring-at-scale-d38e3952c2f0).
+  * [TensorFlow Data Validation Blog Post](https://medium.com/tensorflow/introducing-tensorflow-data-validation-data-understanding-validation-and-monitoring-at-scale-d38e3952c2f0)
   * [TensorFlow Data Validation PyPI](https://pypi.org/project/tensorflow-data-validation/)
   * [TensorFlow Data Validation Paper](https://www.sysml.cc/doc/2019/167.pdf)
   * [TensorFlow Data Validation Slides](https://conf.slac.stanford.edu/xldb2018/sites/xldb2018.conf.slac.stanford.edu/files/Tues_09.45_NeoklisPolyzotis_Data%20Analysis%20and%20Validation%20(1).pdf)

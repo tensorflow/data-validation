@@ -24,13 +24,13 @@ import random
 
 import apache_beam as beam
 import numpy as np
-import pyarrow as pa
 import six
 from six.moves import zip
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.arrow import decoded_examples_to_arrow
+from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.statistics.generators import basic_stats_generator
 from tensorflow_data_validation.statistics.generators import image_stats_generator
@@ -39,7 +39,6 @@ from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.statistics.generators import time_stats_generator
 from tensorflow_data_validation.statistics.generators import top_k_uniques_combiner_stats_generator
 from tensorflow_data_validation.statistics.generators import top_k_uniques_stats_generator
-
 from tensorflow_data_validation.utils import slicing_util
 from tensorflow_data_validation.utils import stats_util
 from tensorflow_data_validation.types_compat import Any, Callable, Dict, Iterable, List, Optional, Text, Tuple

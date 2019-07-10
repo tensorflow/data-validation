@@ -15,7 +15,7 @@
 
 # This script prepares the bazel workspace for build.
 
-PYARROW_REQUIREMENT="$(< third_party/pyarrow.version)"
+PYARROW_REQUIREMENT=$(python -c "fp = open('third_party/pyarrow_version.bzl', 'r'); d = {}; exec(fp.read(), d); fp.close(); print(d['PY_DEP'])")
 
 function write_to_bazelrc() {
   echo "$1" >> .bazelrc

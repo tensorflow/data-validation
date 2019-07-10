@@ -54,7 +54,7 @@ from __future__ import division
 from __future__ import print_function
 
 import apache_beam as beam
-import pyarrow as pa
+from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.types_compat import Iterable, Optional, Text, TypeVar
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2

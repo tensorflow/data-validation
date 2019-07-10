@@ -21,9 +21,9 @@ from __future__ import print_function
 
 import apache_beam as beam
 from apache_beam.transforms import window
-import pyarrow as pa
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import decoded_examples_to_arrow
+from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.types_compat import List
 
 

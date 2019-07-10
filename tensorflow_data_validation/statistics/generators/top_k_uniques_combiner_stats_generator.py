@@ -20,10 +20,10 @@ from __future__ import print_function
 
 import collections
 import numpy as np
-import pyarrow as pa
 import six
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
+from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.statistics.generators import top_k_uniques_stats_generator
 from tensorflow_data_validation.utils import schema_util

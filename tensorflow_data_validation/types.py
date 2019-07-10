@@ -20,7 +20,7 @@ from __future__ import print_function
 
 import apache_beam as beam
 import numpy as np
-import pyarrow as pa
+from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 
 from tensorflow_data_validation.types_compat import Callable, Dict, List, Optional, Text, Tuple, Union
 

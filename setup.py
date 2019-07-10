@@ -49,9 +49,11 @@ __version__ = globals_dict['__version__']
 with open('README.md') as fp:
   _LONG_DESCRIPTION = fp.read()
 
-
-with open('third_party/pyarrow.version') as fp:
-  _PYARROW_VERSION_REQUIREMENT = fp.read().strip()
+# Get pyarrow dependency.
+with open('third_party/pyarrow_version.bzl') as fp:
+  globals_dict = {}
+  exec (fp.read(), globals_dict)  # pylint: disable=exec-used
+  _PYARROW_VERSION_REQUIREMENT = globals_dict['PY_DEP']
 
 
 setup(

@@ -23,8 +23,8 @@ from __future__ import print_function
 
 import logging
 import apache_beam as beam
-import tensorflow as tf
 from tensorflow_data_validation import types
+from tensorflow_data_validation.pyarrow_tf import tensorflow as tf
 from tensorflow_data_validation.pywrap import pywrap_tensorflow_data_validation
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options
