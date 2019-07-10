@@ -27,3 +27,5 @@ GetFlattenedArrayParentIndices = pywrap.TFDV_Arrow_GetFlattenedArrayParentIndice
 GetArrayNullBitmapAsByteArray = pywrap.TFDV_Arrow_GetArrayNullBitmapAsByteArray
 GetBinaryArrayTotalByteSize = pywrap.TFDV_Arrow_GetBinaryArrayTotalByteSize
 ValueCounts = pywrap.TFDV_Arrow_ValueCounts
+MakeListArrayFromParentIndicesAndValues = (
+    pywrap.TFDV_Arrow_MakeListArrayFromParentIndicesAndValues)

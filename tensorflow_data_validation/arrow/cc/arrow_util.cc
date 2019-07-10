@@ -19,16 +19,21 @@
 // This include is needed to avoid C2528. See https://bugs.python.org/issue24643
 #include "arrow/python/platform.h"
 #include "arrow/python/pyarrow.h"
+#include "absl/strings/str_cat.h"
+#include "absl/types/span.h"
 #include "arrow/api.h"
 #include "arrow/compute/api.h"
-#include "absl/strings/str_cat.h"
 #include "tensorflow_data_validation/arrow/cc/common.h"
+#include "tensorflow_data_validation/arrow/cc/init_numpy.h"
 
 namespace {
-using ::arrow::Status;
 using ::arrow::Array;
+using ::arrow::Buffer;
 using ::arrow::ListArray;
+using ::arrow::Status;
 using ::arrow::Type;
+using ::arrow::TypedBufferBuilder;
+using ::tensorflow::data_validation::ImportNumpy;
 using ::tensorflow::data_validation::ImportPyArrow;
 
 Status GetListArray(const Array& array, const ListArray** list_array) {
@@ -98,6 +103,67 @@ Status GetArrayNullBitmapAsByteArray(
     }
   }
   return masks_builder.Finish(byte_array);
+}
+
+Status MakeListArrayFromParentIndicesAndValues(
+    const int64_t num_parents,
+    absl::Span<const int64_t> parent_indices,
+    const std::shared_ptr<Array>& values,
+    std::shared_ptr<Array>* out) {
+  if (values->length() != parent_indices.size()) {
+    return arrow::Status::Invalid(
+        "values array and parent indices array must be of the same length: ",
+        values->length(), " v.s. ", parent_indices.size());
+  }
+  if (!parent_indices.empty() && num_parents < parent_indices.back() + 1) {
+    return arrow::Status::Invalid("Found a parent index ",
+                                  parent_indices.back(),
+                                  " while num_parents was ", num_parents);
+  }
+
+  TypedBufferBuilder<bool> null_bitmap_builder;
+  RETURN_NOT_OK(null_bitmap_builder.Reserve(num_parents));
+  TypedBufferBuilder<int32_t> offsets_builder;
+  RETURN_NOT_OK(offsets_builder.Reserve(num_parents + 1));
+
+  offsets_builder.UnsafeAppend(0);
+  for (int i = 0, current_pi = 0; i < num_parents; ++i) {
+    if (current_pi >= parent_indices.size() ||
+        parent_indices[current_pi] != i) {
+      null_bitmap_builder.UnsafeAppend(false);
+    } else {
+      while (current_pi < parent_indices.size() &&
+             parent_indices[current_pi] == i) {
+        ++current_pi;
+      }
+      null_bitmap_builder.UnsafeAppend(true);
+    }
+    offsets_builder.UnsafeAppend(current_pi);
+  }
+
+  const int64_t null_count = null_bitmap_builder.false_count();
+  std::shared_ptr<Buffer> null_bitmap_buffer;
+  RETURN_NOT_OK(null_bitmap_builder.Finish(&null_bitmap_buffer));
+  std::shared_ptr<Buffer> offsets_buffer;
+  RETURN_NOT_OK(offsets_builder.Finish(&offsets_buffer));
+
+  *out = std::make_shared<ListArray>(arrow::list(values->type()), num_parents,
+                                     offsets_buffer, values, null_bitmap_buffer,
+                                     null_count, /*offset=*/0);
+  return Status::OK();
+}
+
+Status PythonIntToInt64(PyObject* py_int, int64_t* out) {
+  if (PyLong_Check(py_int)) *out = PyLong_AsLongLong(py_int);
+#if PY_MAJOR_VERSION < 3
+  else if (PyInt_Check(py_int)) *out = PyInt_AsLong(py_int);
+#endif
+  else
+    return Status::Invalid("Expected integer.");
+  if (PyErr_Occurred()) {
+    return Status::Invalid("Integer overflow during conversion.");
+  }
+  return Status::OK();
 }
 
 }  // namespace
@@ -171,4 +237,42 @@ PyObject* TFDV_Arrow_ValueCounts(PyObject* array) {
   std::shared_ptr<arrow::Array> result;
   TFDV_RAISE_IF_NOT_OK(arrow::compute::ValueCounts(&ctx, unwrapped, &result));
   return arrow::py::wrap_array(result);
+}
+
+PyObject* TFDV_Arrow_MakeListArrayFromParentIndicesAndValues(
+    PyObject* num_parents, PyObject* parent_indices, PyObject* values_array) {
+  ImportPyArrow();
+  ImportNumpy();
+  int64_t num_parents_int;
+  TFDV_RAISE_IF_NOT_OK(PythonIntToInt64(num_parents, &num_parents_int));
+
+  PyArrayObject* parent_indices_np;
+  if (!PyArray_Check(parent_indices)) {
+    PyErr_SetString(PyExc_TypeError,
+                    "MakeListArrayFromParentIndicesAndValues expected "
+                    "parent_indices to be a numpy array.");
+    return nullptr;
+  }
+
+  parent_indices_np = reinterpret_cast<PyArrayObject*>(parent_indices);
+  if (PyArray_TYPE(parent_indices_np) != NPY_INT64 ||
+      PyArray_NDIM(parent_indices_np) != 1) {
+    PyErr_SetString(PyExc_TypeError,
+                    "MakeListArrayFromParentIndicesAndValues expected "
+                    "parent_indices to be a 1-D int64 numpy array.");
+    return nullptr;
+  }
+
+  std::shared_ptr<Array> unwrapped_values_array;
+  TFDV_RAISE_IF_NOT_OK(
+      arrow::py::unwrap_array(values_array, &unwrapped_values_array));
+
+  absl::Span<const int64_t> parent_indices_span(
+      static_cast<const int64_t*>(PyArray_DATA(parent_indices_np)),
+      PyArray_SIZE(parent_indices_np));
+  std::shared_ptr<Array> list_array;
+  TFDV_RAISE_IF_NOT_OK(MakeListArrayFromParentIndicesAndValues(
+      num_parents_int, parent_indices_span, unwrapped_values_array,
+      &list_array));
+  return arrow::py::wrap_array(list_array);
 }

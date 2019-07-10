@@ -1,6 +1,7 @@
 licenses(["notice"])  # Apache 2.0
 
 package(default_visibility = [
+    "//tensorflow_data_validation/google/coders:__subpackages__",
     "//tensorflow_data_validation/google/scratch/arrow:__subpackages__",
     "//tensorflow_data_validation/pywrap:__subpackages__",
 ])
@@ -21,8 +22,10 @@ cc_library(
     hdrs = ["arrow_util.h"],
     deps = [
         ":common",
+        ":init_numpy",
         "@arrow",
         "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
         "@local_config_python//:python_headers",
     ],
 )

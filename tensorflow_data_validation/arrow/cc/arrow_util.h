@@ -54,5 +54,19 @@ PyObject* TFDV_Arrow_GetBinaryArrayTotalByteSize(PyObject* py_binary_array);
 // Get counts of values in the array. Returns a struct array <values, counts>.
 PyObject* TFDV_Arrow_ValueCounts(PyObject* array);
 
+// Makes an Arrow ListArray from parent indices and values.
+// For example, if num_parents = 6, parent_indices = [0, 1, 1, 3, 3] and
+// values_array_py is (an arrow Array of) [0, 1, 2, 3, 4], then the result will
+// be a ListArray of integers: [[0], [1, 2], None, [3, 4], None].
+// `num_parents` must be a Python integer (int or long) and it must be greater
+// than or equal to max(parent_indices) + 1.
+// `parent_indices` must be a int64 1-D numpy array and the indices must be
+// sorted in increasing order.
+// `values_array` must be an arrow Array and its length must equal to the
+//  length of `parent_indices`.
+PyObject* TFDV_Arrow_MakeListArrayFromParentIndicesAndValues(
+    PyObject* num_parents, PyObject* parent_indices,
+    PyObject* values_array);
+
 #endif  // TENSORFLOW_DATA_VALIDATION_ARROW_CC_ARROW_UTIL_H_
 
