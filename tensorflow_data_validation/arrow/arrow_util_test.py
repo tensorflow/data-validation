@@ -115,6 +115,30 @@ class ArrowUtilTest(absltest.TestCase):
     empty_array = pa.array([], type=pa.binary())
     self.assertEqual(0, arrow_util.GetBinaryArrayTotalByteSize(empty_array))
 
+  def _value_counts_struct_array_to_dict(self, value_counts):
+    result = {}
+    for value_count in value_counts:
+      value_count = value_count.as_py()
+      result[value_count["values"]] = value_count["counts"]
+    return result
+
+  def test_value_counts_binary(self):
+    binary_array = pa.array([b"abc", b"ghi", b"def", b"ghi", b"ghi", b"def"])
+    expected_result = {b"abc": 1, b"ghi": 3, b"def": 2}
+    self.assertDictEqual(self._value_counts_struct_array_to_dict(
+        arrow_util.ValueCounts(binary_array)), expected_result)
+
+  def test_value_counts_integer(self):
+    int_array = pa.array([1, 4, 1, 3, 1, 4])
+    expected_result = {1: 3, 4: 2, 3: 1}
+    self.assertDictEqual(self._value_counts_struct_array_to_dict(
+        arrow_util.ValueCounts(int_array)), expected_result)
+
+  def test_value_counts_empty(self):
+    empty_array = pa.array([])
+    expected_result = {}
+    self.assertDictEqual(self._value_counts_struct_array_to_dict(
+        arrow_util.ValueCounts(empty_array)), expected_result)
 
 if __name__ == "__main__":
   absltest.main()

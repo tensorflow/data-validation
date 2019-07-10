@@ -51,5 +51,8 @@ PyObject* TFDV_Arrow_GetArrayNullBitmapAsByteArray(PyObject* array);
 // It might be a good idea to make this a pyarrow API.
 PyObject* TFDV_Arrow_GetBinaryArrayTotalByteSize(PyObject* py_binary_array);
 
+// Get counts of values in the array. Returns a struct array <values, counts>.
+PyObject* TFDV_Arrow_ValueCounts(PyObject* array);
+
 #endif  // TENSORFLOW_DATA_VALIDATION_ARROW_CC_ARROW_UTIL_H_
 

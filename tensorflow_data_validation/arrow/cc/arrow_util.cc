@@ -20,6 +20,7 @@
 #include "arrow/python/platform.h"
 #include "arrow/python/pyarrow.h"
 #include "arrow/api.h"
+#include "arrow/compute/api.h"
 #include "absl/strings/str_cat.h"
 #include "tensorflow_data_validation/arrow/cc/common.h"
 
@@ -160,4 +161,14 @@ PyObject* TFDV_Arrow_GetBinaryArrayTotalByteSize(PyObject* py_binary_array) {
       binary_array->value_offset(binary_array->length()) -
       binary_array->value_offset(0);
   return PyLong_FromSize_t(total_byte_size);
+}
+
+PyObject* TFDV_Arrow_ValueCounts(PyObject* array) {
+  ImportPyArrow();
+  std::shared_ptr<arrow::Array> unwrapped;
+  TFDV_RAISE_IF_NOT_OK(arrow::py::unwrap_array(array, &unwrapped));
+  arrow::compute::FunctionContext ctx;
+  std::shared_ptr<arrow::Array> result;
+  TFDV_RAISE_IF_NOT_OK(arrow::compute::ValueCounts(&ctx, unwrapped, &result));
+  return arrow::py::wrap_array(result);
 }
