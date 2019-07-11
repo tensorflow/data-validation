@@ -54,6 +54,7 @@ using ::tensorflow::metadata::v0::Feature;
 using ::tensorflow::metadata::v0::FeatureNameStatistics;
 using ::tensorflow::metadata::v0::SparseFeature;
 using ::tensorflow::metadata::v0::StringDomain;
+using PathProto = ::tensorflow::metadata::v0::Path;
 
 constexpr char kTrainingServingSkew[] = "Training/Serving skew";
 
@@ -309,8 +310,8 @@ Schema::Updater::Updater(const FeatureStatisticsToProtoConfig& config)
       columns_to_ignore_(config.column_to_ignore().begin(),
                          config.column_to_ignore().end()) {
   for (const ColumnConstraint& constraint : config.column_constraint()) {
-    for (const string& column_name : constraint.column_name()) {
-      grouped_enums_[column_name] = constraint.enum_name();
+    for (const PathProto& column_path : constraint.column_path()) {
+      grouped_enums_[Path(column_path)] = constraint.enum_name();
     }
   }
 }
@@ -320,7 +321,7 @@ Status Schema::Updater::CreateColumn(
     tensorflow::metadata::v0::AnomalyInfo::Severity* severity) const {
   if (schema->GetExistingFeature(feature_stats_view.GetPath()) != nullptr) {
     return InvalidArgument("Schema already contains \"",
-                           feature_stats_view.name(), "\".");
+                           feature_stats_view.GetPath().Serialize(), "\".");
   }
 
   *severity = config_.new_features_are_warnings()
@@ -340,8 +341,8 @@ Status Schema::Updater::CreateColumn(
   if (BestEffortUpdateCustomDomain(feature_stats_view.custom_stats(),
                                    feature)) {
     return Status::OK();
-  } else if (ContainsKey(grouped_enums_, feature_stats_view.name())) {
-    const string& enum_name = grouped_enums_.at(feature_stats_view.name());
+  } else if (ContainsKey(grouped_enums_, feature_stats_view.GetPath())) {
+    const string& enum_name = grouped_enums_.at(feature_stats_view.GetPath());
     StringDomain* result = schema->GetExistingStringDomain(enum_name);
     if (result == nullptr) {
       result = schema->GetNewStringDomain(enum_name);
@@ -363,7 +364,7 @@ Status Schema::Updater::CreateColumn(
   } else if (IsStringDomainCandidate(feature_stats_view,
                                      config_.enum_threshold())) {
     StringDomain* string_domain =
-        schema->GetNewStringDomain(feature_stats_view.name());
+        schema->GetNewStringDomain(feature_stats_view.GetPath().Serialize());
     UpdateStringDomain(*this, feature_stats_view, 0, string_domain);
     *feature->mutable_domain() = string_domain->name();
     return Status::OK();
@@ -512,7 +513,7 @@ Status Schema::GetRelatedEnums(const DatasetStatsView& dataset_stats,
     for (const string& enum_name : set) {
       if (ContainsKey(enum_name_to_paths, enum_name)) {
         for (const auto& column : enum_name_to_paths.at(enum_name)) {
-          *column_constraint->add_column_name() = column.Serialize();
+          *column_constraint->add_column_path() = column.AsProto();
         }
       }
     }
@@ -838,7 +839,7 @@ std::vector<Description> Schema::UpdateFeatureInternal(
     descriptions.push_back(
         {tensorflow::metadata::v0::AnomalyInfo::SCHEMA_NEW_COLUMN,
          "Column missing in environment",
-         absl::StrCat("New column ", view.name(),
+         absl::StrCat("New column ", view.GetPath().Serialize(),
                       " found in data but not in the "
                       "environment ",
                       view_environment, " in the schema.")});

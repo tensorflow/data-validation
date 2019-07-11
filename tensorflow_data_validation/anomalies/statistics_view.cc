@@ -23,6 +23,7 @@ limitations under the License.
 #include "tensorflow_data_validation/anomalies/map_util.h"
 #include "tensorflow/core/platform/logging.h"
 #include "tensorflow/core/platform/types.h"
+#include "tensorflow_metadata/proto/v0/statistics.pb.h"
 namespace tensorflow {
 namespace data_validation {
 
@@ -73,6 +74,53 @@ class DatasetStatsViewImpl {
         environment_(environment),
         previous_(previous),
         serving_(serving) {
+    const auto& features = data_.features();
+    if (std::all_of(features.begin(), features.end(),
+                    [](const FeatureNameStatistics& f) {
+                      // The case of empty feature name is covered by
+                      // FIELD_ID_NOT_SET.
+                      return f.field_id_case() ==
+                                 FeatureNameStatistics::kName ||
+                             f.field_id_case() ==
+                                 FeatureNameStatistics::FIELD_ID_NOT_SET;
+                    })) {
+      InitializeWithFeatureName();
+    } else if (std::all_of(features.begin(), features.end(),
+                           [](const FeatureNameStatistics& f) {
+                             return f.field_id_case() ==
+                                    FeatureNameStatistics::kPath;
+                           })) {
+      InitializeWithFeaturePath();
+    } else {
+      LOG(QFATAL) << "Some features had .name and some features had .path. "
+                     "This is unexpected. "
+                  << data_.DebugString();
+    }
+  }
+
+  void InitializeWithFeaturePath() {
+    for (int i = 0; i < data_.features_size(); ++i) {
+      const FeatureNameStatistics& feature = data_.features(i);
+      path_location_[Path(feature.path())] = i;
+      context_[i] = FeatureContext();
+    }
+    for (const auto& path_and_index : path_location_) {
+      const Path& path = path_and_index.first;
+      const int index = path_and_index.second;
+      FeatureContext& context = context_[index];
+      context.path = path;
+      if (!path.empty()) {
+        const Path parent_path = path.GetParent();
+        auto iter = path_location_.find(parent_path);
+        if (iter != path_location_.end()) {
+          context.parent_index = iter->second;
+          context_[iter->second].child_indices.push_back(index);
+        }
+      }
+    }
+  }
+
+  void InitializeWithFeatureName() {
     // It takes O(n log n) time to construct location, a BST from the name
     // of a feature to its location in data_.features().
     // Map from name to location.

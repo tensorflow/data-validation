@@ -15,12 +15,14 @@
 
 syntax = "proto2";
 
+import "tensorflow_metadata/proto/v0/path.proto";
+
 package tensorflow.data_validation;
 
 // Manual constraints on the automatic generation of a schema.
 message ColumnConstraint {
   // A column constraint can apply to multiple columns.
-  repeated string column_name = 1;
+  repeated tensorflow.metadata.v0.Path column_path = 3;
   // The name of the enum representing all the columns, if present.
   optional string enum_name = 2;
 }

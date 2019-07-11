@@ -120,8 +120,6 @@ class FeatureStatsView {
  public:
   FeatureStatsView(const FeatureStatsView& other) = default;
 
-  const string& name() const { return data().name(); }
-
   const Path& GetPath() const;
 
   const absl::optional<string>& environment() const {

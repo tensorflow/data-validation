@@ -148,8 +148,8 @@ TEST(FeatureStatsView, Name) {
           common_stats: { num_missing: 3 min_num_values: 3 max_num_values: 7 }
         })");
 
-  EXPECT_EQ("bar",
-            testing::DatasetForTesting(input).feature_stats_view().name());
+  EXPECT_EQ(Path({"bar"}),
+            testing::DatasetForTesting(input).feature_stats_view().GetPath());
 }
 
 TEST(FeatureStatsView, Type) {
@@ -280,7 +280,7 @@ TEST(DatasetStatsView, GetParentGetPath) {
   ASSERT_TRUE(actual);
   absl::optional<FeatureStatsView> parent = actual->GetParent();
   ASSERT_TRUE(parent);
-  EXPECT_EQ(parent->name(), "foo");
+  EXPECT_EQ(Path({"foo"}), parent->GetPath());
   EXPECT_EQ(Path({"foo", "bar"}), actual->GetPath());
 }
 
@@ -350,7 +350,7 @@ TEST(DatasetStatsView, GetRootFeatures) {
   DatasetStatsView stats(input);
   std::vector<FeatureStatsView> roots = stats.GetRootFeatures();
   ASSERT_EQ(roots.size(), 1);
-  EXPECT_EQ(roots[0].name(), "foo");
+  EXPECT_EQ(Path({"foo"}), roots[0].GetPath());
 }
 
 
@@ -375,7 +375,7 @@ TEST(DatasetStatsView, GetRootFeaturesWithSkip) {
   DatasetStatsView stats(input);
   std::vector<FeatureStatsView> roots = stats.GetRootFeatures();
   ASSERT_EQ(roots.size(), 1);
-  EXPECT_EQ(roots[0].name(), "foo");
+  EXPECT_EQ(Path({"foo"}), roots[0].GetPath());
   EXPECT_TRUE(roots[0].GetChildren().empty());
 }
 
@@ -796,9 +796,9 @@ TEST(DatasetStatsView, GetByPathOrNull) {
             max_num_values: 1
           }
         })"));
-  EXPECT_EQ(
-      "optional_float",
-      dataset.dataset_stats_view().GetByPath(Path({"optional_float"}))->name());
+  EXPECT_EQ(Path({"optional_float"}), dataset.dataset_stats_view()
+                                          .GetByPath(Path({"optional_float"}))
+                                          ->GetPath());
   EXPECT_EQ(absl::nullopt,
             dataset.dataset_stats_view().GetByPath(Path({"imaginary_field"})));
 }
@@ -863,7 +863,7 @@ TEST(DatasetStatsView, WeightedStatisticsExistNoWeightedCommonStats) {
   EXPECT_FALSE(DatasetStatsView(statistics).WeightedStatisticsExist());
 }
 
-TEST(FeatureStatsView, GetParentGetPath) {
+TEST(FeatureStatsView, GetParentGetPath_FieldIdIsName) {
   const DatasetFeatureStatistics input =
       ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
         features: {
@@ -897,11 +897,11 @@ TEST(FeatureStatsView, GetParentGetPath) {
   absl::optional<FeatureStatsView> parent_view = view->GetParent();
   ASSERT_TRUE(parent_view);
 
-  EXPECT_EQ(parent_view->name(), "foo");
+  EXPECT_EQ(Path({"foo"}), parent_view->GetPath());
   EXPECT_EQ(Path({"foo", "baz"}), view->GetPath());
 }
 
-TEST(DatasetStatsView, GetChildren) {
+TEST(DatasetStatsView, GetChildren_FieldIdIsName) {
   const DatasetFeatureStatistics input =
       ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
         features: {
@@ -933,7 +933,121 @@ TEST(DatasetStatsView, GetChildren) {
   ASSERT_TRUE(parent);
   std::vector<FeatureStatsView> children = parent->GetChildren();
   ASSERT_EQ(children.size(), 1);
-  EXPECT_EQ(children[0].name(), "foo.bar");
+  EXPECT_EQ(Path({"foo", "bar"}), children[0].GetPath());
+}
+
+TEST(FeatureStatsView, GetParentGetPath_FieldIdIsPath) {
+  const DatasetFeatureStatistics input =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        features: {
+          path: {
+            step: 'foo'
+            step: 'baz'
+          }
+          type: FLOAT
+          num_stats: {
+            common_stats: {
+              num_missing: 3
+              num_non_missing: 6
+              min_num_values: 3
+              max_num_values: 7
+            }
+          }
+        }
+        features: {
+          path: {
+            step: 'foo'
+          }
+          type: STRUCT
+          struct_stats: {
+            common_stats: {
+              num_missing: 0
+              num_non_missing: 6
+              min_num_values: 1
+              max_num_values: 1
+            }
+          }
+        })");
+  DatasetStatsView stats(input);
+
+  absl::optional<FeatureStatsView> view = stats.GetByPath(Path({"foo", "baz"}));
+  ASSERT_TRUE(view);
+  absl::optional<FeatureStatsView> parent_view = view->GetParent();
+  ASSERT_TRUE(parent_view);
+
+  EXPECT_EQ(Path({"foo"}), parent_view->GetPath());
+  EXPECT_EQ(Path({"foo", "baz"}), view->GetPath());
+}
+
+TEST(DatasetStatsView, GetChildren_FieldIdIsPath) {
+  const DatasetFeatureStatistics input =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        features: {
+          path: {
+            step: 'foo'
+            step: 'bar'
+          }
+          type: FLOAT
+          num_stats: {
+            common_stats: {
+              num_missing: 3
+              num_non_missing: 6
+              min_num_values: 3
+              max_num_values: 7
+            }
+          }
+        }
+        features: {
+          path: {
+            step: 'foo'
+          }
+          type: STRUCT
+          struct_stats: {
+            common_stats: {
+              num_missing: 0
+              num_non_missing: 6
+              min_num_values: 1
+              max_num_values: 1
+            }
+          }
+        })");
+  DatasetStatsView stats(input);
+  absl::optional<FeatureStatsView> parent = stats.GetByPath(Path({"foo"}));
+  ASSERT_TRUE(parent);
+  std::vector<FeatureStatsView> children = parent->GetChildren();
+  ASSERT_EQ(children.size(), 1);
+  EXPECT_EQ(Path({"foo", "bar"}), children[0].GetPath());
+}
+
+TEST(DatasetStatsViewDeathTest, MixedFieldId) {
+  const DatasetFeatureStatistics input =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        features: {
+          path: { step: 'foo' step: 'bar' }
+          type: FLOAT
+          num_stats: {
+            common_stats: {
+              num_missing: 3
+              num_non_missing: 6
+              min_num_values: 3
+              max_num_values: 7
+            }
+          }
+        }
+        features: {
+          name: 'foo'
+          type: STRUCT
+          struct_stats: {
+            common_stats: {
+              num_missing: 0
+              num_non_missing: 6
+              min_num_values: 1
+              max_num_values: 1
+            }
+          }
+        })");
+  EXPECT_DEATH({ DatasetStatsView stats(input); },
+               "Some features had .name and some features had .path");
 }
 
 }  // namespace data_validation

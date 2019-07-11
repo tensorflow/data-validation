@@ -79,7 +79,7 @@ class Schema {
     // The columns to ignore, extracted from config_.
     const std::set<string> columns_to_ignore_;
     // A map from a key to an enum, extracted from config_.
-    std::map<string, string> grouped_enums_;
+    std::map<Path, string> grouped_enums_;
   };
 
   // This creates an empty schema. In order to populate it, either call

@@ -10,6 +10,7 @@ tfdv_proto_library(
     name = "feature_statistics_to_proto_proto",
     srcs = ["feature_statistics_to_proto.proto"],
     cc_api_version = 2,
+    deps = ["@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:cc_metadata_v0_proto_cc"],
 )
 
 tfdv_proto_library(

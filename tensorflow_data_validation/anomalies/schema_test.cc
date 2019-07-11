@@ -2709,8 +2709,65 @@ TEST(Schema, GetRelatedEnums) {
   EXPECT_THAT(actual, EqualsProto(R"(
                 enum_threshold: 400
                 column_constraint {
-                  column_name: "field_a"
-                  column_name: "field_b"
+                  column_path {
+                    step: "field_a"
+                  }
+                  column_path  {
+                    step: "field_b"
+                  }
+                  enum_name: "field_a"
+                })"));
+}
+
+TEST(Schema, GetRelatedEnumsFeatureIdIsPath) {
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        features: {
+          path {
+            step: 'field_a'
+          }
+          type: STRING
+          string_stats: {
+            common_stats: { num_missing: 3 min_num_values: 1 max_num_values: 1 }
+            unique: 3
+            rank_histogram: {
+              buckets: { label: "A" }
+              buckets: { label: "B" }
+              buckets: { label: "C" }
+            }
+          }
+        }
+        features: {
+          path {
+            step: 'field_b'
+          }
+          type: STRING
+          string_stats: {
+            common_stats: { num_missing: 3 min_num_values: 1 max_num_values: 1 }
+            unique: 3
+            rank_histogram: {
+              buckets: { label: "A" }
+              buckets: { label: "B" }
+              buckets: { label: "C" }
+            }
+          }
+        }
+      )");
+  const FeatureStatisticsToProtoConfig proto_config =
+      ParseTextProtoOrDie<FeatureStatisticsToProtoConfig>(
+          R"(enum_threshold: 400)");
+  FeatureStatisticsToProtoConfig actual = proto_config;
+  TF_ASSERT_OK(
+      Schema::GetRelatedEnums(DatasetStatsView(statistics, false), &actual));
+  EXPECT_THAT(actual, EqualsProto(R"(
+                enum_threshold: 400
+                column_constraint {
+                  column_path {
+                    step: "field_a"
+                  }
+                  column_path  {
+                    step: "field_b"
+                  }
                   enum_name: "field_a"
                 })"));
 }
