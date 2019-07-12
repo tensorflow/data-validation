@@ -48,6 +48,22 @@ cc_library(
 )
 
 cc_library(
+    name = "merge",
+    srcs = ["merge.cc"],
+    hdrs = ["merge.h"],
+    deps = [
+        ":common",
+        ":init_numpy",
+        "@arrow",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:variant",
+        "@local_config_python//:numpy_headers",
+        "@local_config_python//:python_headers",
+    ],
+)
+
+cc_library(
     name = "init_numpy",
     srcs = ["init_numpy.cc"],
     hdrs = ["init_numpy.h"],
