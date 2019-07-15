@@ -80,5 +80,6 @@ cc_library(
     deps = [
         "@arrow",
         "@local_config_python//:numpy_headers",
+        "@local_config_python//:python_headers",
     ],
 )
