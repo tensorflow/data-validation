@@ -13,10 +13,15 @@
 # limitations under the License.
 """Module that computes statistics for features of Time type.
 
-This module uses regex matching to determine whether values are in the Time
-semantic domain. It uses defined lists of date formats and time formats written
+This module determines whether values are in the Time semantic domain in
+different ways, depending on the data type of the values. If the values are
+strings, it uses defined lists of date formats and time formats written
 with strptime directives along with delimiters (for building date and time
 combinations) to create a list of regexes against which each value is matched.
+If the values are integers, it uses ranges of values that correspond to valid
+Unix times. This generator considers times that fall on or after
+01-Jan-90 00:00:00 UTC and before 01-Jan-30 00:00:00 UTC to be valid times when
+analyzing integers.
 
 The TimeStatsGenerator tracks the most common matching time format across all
 input values. If the match rate for that format is high enough (as compared to
@@ -36,17 +41,52 @@ import collections
 import re
 
 import numpy as np
+
+from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import stats_util
 from tensorflow_data_validation.types_compat import Generator, Iterable, Pattern, Text, Tuple
 
+from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 # TimeStatsGenerator default initialization values.
 _MATCH_RATIO = 0.8
 _VALUES_THRESHOLD = 100
+
+
+_UnixTime = collections.namedtuple(
+    '_UnixTime', ['format_constant', 'begin', 'end']
+    )
+
+# Named tuples containing values used to detect integer times.
+# The beginning times correspond to 01-Jan-90 00:00:00 UTC.
+# The ending times correspond to 01-Jan-30 00:00:00 UTC.
+_UNIX_TIMES = [
+    _UnixTime(
+        format_constant=schema_pb2.TimeDomain.IntegerTimeFormat.UNIX_SECONDS,
+        begin=631152000,
+        end=1893456000),
+    _UnixTime(
+        format_constant=schema_pb2.TimeDomain.IntegerTimeFormat
+        .UNIX_MILLISECONDS,
+        begin=631152000000,
+        end=1893456000000),
+    _UnixTime(
+        format_constant=schema_pb2.TimeDomain.IntegerTimeFormat
+        .UNIX_MICROSECONDS,
+        begin=631152000000000,
+        end=1893456000000000),
+    _UnixTime(
+        format_constant=schema_pb2.TimeDomain.IntegerTimeFormat
+        .UNIX_NANOSECONDS,
+        begin=631152000000000000,
+        end=1893456000000000000),
+]
+
+_UNIX_TIME_FORMATS = set([time.format_constant for time in _UNIX_TIMES])
 
 # Custom statistics exported by this generator.
 _MATCHING_FORMAT = 'time_format'
@@ -185,17 +225,32 @@ class _PartialTimeStats(object):
     self.matching_formats.update(other.matching_formats)
     return self
 
-  def update(self, values):
-    """Updates the partial Time statistics using the value list.
+  def update(self, values,
+             value_type):
+    """Updates the partial Time statistics using the values.
 
     Args:
       values: A numpy array of values in a batch.
+      value_type: The type of the values.
     """
     self.considered += values.size
-    for value in values:
-      for strptime_format, time_regex in _TIME_RE_LIST:
-        if time_regex.match(value):
-          self.matching_formats[strptime_format] += 1
+    if value_type == statistics_pb2.FeatureNameStatistics.STRING:
+      for value in values:
+        for strptime_format, time_regex in _TIME_RE_LIST:
+          if time_regex.match(value):
+            self.matching_formats[strptime_format] += 1
+    elif value_type == statistics_pb2.FeatureNameStatistics.INT:
+      for unix_time in _UNIX_TIMES:
+        num_matching_values = np.sum((values >= unix_time.begin)
+                                     & (values < unix_time.end))
+        if num_matching_values > 0:
+          self.matching_formats[
+              unix_time.format_constant] += num_matching_values
+    else:
+      raise ValueError(
+          'Attempt to update partial time stats with values of an '
+          'unsupported type.'
+      )
 
 
 class TimeStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
@@ -264,23 +319,26 @@ class TimeStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     # Ignore null array.
     if feature_type is None:
       return accumulator
-    # TODO(b/126429922): Add support for detecting date/time in integer
-    # If we see a different type, invalidate.
-    if feature_type != statistics_pb2.FeatureNameStatistics.STRING:
+    if feature_type == statistics_pb2.FeatureNameStatistics.STRING:
+
+      def _maybe_get_utf8(val):
+        return stats_util.maybe_get_utf8(val) if isinstance(val, bytes) else val
+
+      for feature_array in input_column.data.iterchunks():
+        values = arrow_util.FlattenListArray(feature_array).to_pandas()
+        maybe_utf8 = np.vectorize(_maybe_get_utf8, otypes=[np.object])(values)
+        if not maybe_utf8.all():
+          accumulator.invalidated = True
+          return accumulator
+        accumulator.update(maybe_utf8, feature_type)
+
+    elif feature_type == statistics_pb2.FeatureNameStatistics.INT:
+      for feature_array in input_column.data.iterchunks():
+        values = arrow_util.FlattenListArray(feature_array).to_pandas()
+        accumulator.update(values, feature_type)
+
+    else:
       accumulator.invalidated = True
-      return accumulator
-
-    def _maybe_get_utf8(val):
-      return stats_util.maybe_get_utf8(val) if isinstance(val, bytes) else val
-
-    for feature_array in input_column.data.iterchunks():
-      values = arrow_util.FlattenListArray(feature_array).to_pandas()
-      maybe_utf8 = np.vectorize(_maybe_get_utf8, otypes=[np.object])(values)
-      if not maybe_utf8.all():
-        accumulator.invalidated = True
-        return accumulator
-      accumulator.update(maybe_utf8)
-
     return accumulator
 
   def merge_accumulators(
@@ -312,7 +370,6 @@ class TimeStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     Returns:
       A proto representing the result of this stats generator.
     """
-    # TODO(b/126429922): Add to stats_impl.
     result = statistics_pb2.FeatureNameStatistics()
     if (accumulator.invalidated or
         accumulator.considered < self._values_threshold or
@@ -324,8 +381,13 @@ class TimeStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     assert most_common_count > 0
     match_ratio = most_common_count / accumulator.considered
     if match_ratio >= self._match_ratio:
-      result.custom_stats.add(
-          name=stats_util.DOMAIN_INFO,
-          str="time_domain {format: '%s'}" % most_common_format)
+      if most_common_format in _UNIX_TIME_FORMATS:
+        result.custom_stats.add(
+            name=stats_util.DOMAIN_INFO,
+            str='time_domain {integer_format: %s}' % most_common_format)
+      else:
+        result.custom_stats.add(
+            name=stats_util.DOMAIN_INFO,
+            str="time_domain {string_format: '%s'}" % most_common_format)
       result.custom_stats.add(name=_TIME_MATCH_RATIO, num=match_ratio)
     return result

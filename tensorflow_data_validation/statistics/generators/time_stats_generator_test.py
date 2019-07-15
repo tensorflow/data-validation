@@ -25,6 +25,7 @@ from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import time_stats_generator
 from tensorflow_data_validation.utils import test_util
 
+from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
@@ -141,7 +142,8 @@ class TimeStatsGeneratorTest(test_util.CombinerFeatureStatsGeneratorTest):
         input_batches, generator,
         statistics_pb2.FeatureNameStatistics(custom_stats=[
             statistics_pb2.CustomStatistic(
-                name='domain_info', str="time_domain {format: '%Y-%m-%d'}"),
+                name='domain_info',
+                str="time_domain {string_format: '%Y-%m-%d'}"),
             statistics_pb2.CustomStatistic(name='time_match_ratio', num=1.0),
         ]))
 
@@ -260,7 +262,8 @@ class TimeStatsGeneratorTest(test_util.CombinerFeatureStatsGeneratorTest):
         input_batches, generator,
         statistics_pb2.FeatureNameStatistics(custom_stats=[
             statistics_pb2.CustomStatistic(
-                name='domain_info', str="time_domain {format: '%Y-%m-%d'}"),
+                name='domain_info',
+                str="time_domain {string_format: '%Y-%m-%d'}"),
             statistics_pb2.CustomStatistic(name='time_match_ratio', num=0.50),
         ]))
 
@@ -283,7 +286,8 @@ class TimeStatsGeneratorTest(test_util.CombinerFeatureStatsGeneratorTest):
         input_batches, generator,
         statistics_pb2.FeatureNameStatistics(custom_stats=[
             statistics_pb2.CustomStatistic(
-                name='domain_info', str="time_domain {format: '%m/%d/%y'}"),
+                name='domain_info',
+                str="time_domain {string_format: '%m/%d/%y'}"),
             statistics_pb2.CustomStatistic(name='time_match_ratio', num=0.2),
         ]))
 
@@ -310,8 +314,8 @@ class TimeStatsGeneratorTest(test_util.CombinerFeatureStatsGeneratorTest):
     self.assertCombinerOutputEqual(input_batches, generator,
                                    statistics_pb2.FeatureNameStatistics())
 
-  def test_time_stats_generator_combined_formats(self):
-    """Tests that the generator handles combined formats."""
+  def test_time_stats_generator_combined_string_formats(self):
+    """Tests that the generator handles combined string formats."""
     # The combined format is the most common, since the generator should count
     # it only as the combined format and not its component parts.
     input_batches = [
@@ -329,9 +333,47 @@ class TimeStatsGeneratorTest(test_util.CombinerFeatureStatsGeneratorTest):
         statistics_pb2.FeatureNameStatistics(custom_stats=[
             statistics_pb2.CustomStatistic(
                 name='domain_info',
-                str="time_domain {format: '%Y/%m/%d %H:%M'}"),
+                str="time_domain {string_format: '%Y/%m/%d %H:%M'}"),
             statistics_pb2.CustomStatistic(name='time_match_ratio', num=0.5),
         ]))
+
+  def test_time_stats_generator_integer_formats(self):
+    """Tests that the generator handles integer formats."""
+    # Three of values are within the valid range for Unix seconds, one is within
+    # the valid range for Unix milliseconds, and the other two are not within
+    # the valid range for any integer time formats.
+    input_batches = [
+        pa.Column.from_array(
+            'feature', pa.array([[631152001, 631152002]])),
+        pa.Column.from_array(
+            'feature', pa.array([[631152003, 631152000001]])),
+        pa.Column.from_array(
+            'feature', pa.array([[1, 2]]))
+    ]
+    generator = time_stats_generator.TimeStatsGenerator(
+        match_ratio=0.1, values_threshold=1)
+    assert schema_pb2.TimeDomain.IntegerTimeFormat.UNIX_SECONDS == 1
+    self.assertCombinerOutputEqual(
+        input_batches, generator,
+        statistics_pb2.FeatureNameStatistics(custom_stats=[
+            statistics_pb2.CustomStatistic(
+                name='domain_info',
+                str=('time_domain {integer_format: 1}')
+            ),
+            statistics_pb2.CustomStatistic(name='time_match_ratio', num=0.5),
+        ]))
+
+  def test_time_stats_generator_non_time_integers(self):
+    """Tests that the generator handles integers that are not times."""
+    # None of these numbers are valid times.
+    input_batches = [
+        pa.Column.from_array(
+            'feature', pa.array([[1, 2]])),
+    ]
+    generator = time_stats_generator.TimeStatsGenerator(
+        match_ratio=0.1, values_threshold=1)
+    self.assertCombinerOutputEqual(
+        input_batches, generator, statistics_pb2.FeatureNameStatistics())
 
 
 if __name__ == '__main__':
