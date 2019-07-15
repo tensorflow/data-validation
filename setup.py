@@ -101,7 +101,7 @@ setup(
         # TODO(pachristopher): Uncomment this once TF can automatically
         # select between CPU and GPU installation.
         # 'tensorflow>=1.13.1,<2',
-        'tensorflow-metadata>=0.12.1,<0.14',
+        'tensorflow-metadata>=0.14,<0.15',
         'tensorflow-transform>=0.13,<0.14',
 
         # Dependencies needed for visualization.
