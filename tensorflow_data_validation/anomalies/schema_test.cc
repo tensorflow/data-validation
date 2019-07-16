@@ -686,8 +686,9 @@ TEST(SchemaTest, UpdateColumnsWithEnvironments) {
         TF_ASSERT_OK(schema.Init(schema_proto));
         DatasetStatsView stats(statistics_proto,
                                /* by_weight= */ false, environment,
-                               /* previous= */ nullptr,
-                               /* serving= */ nullptr);
+                               /* previous_span= */ nullptr,
+                               /* serving= */ nullptr,
+                               /* previous_version= */ nullptr);
         TF_ASSERT_OK(schema.Update(stats, FeatureStatisticsToProtoConfig(),
                                    {Path({"feature"})}));
         EXPECT_THAT(schema.GetSchema(), EqualsProto(result_schema_proto));
@@ -767,7 +768,7 @@ TEST(SchemaTest, UpdateColumnsWithNewEnvironmentDescription) {
         }
       )");
   DatasetStatsView dataset_stats_view(statistics_feature, false, "SERVING",
-                                      nullptr, nullptr);
+                                      nullptr, nullptr, nullptr);
   std::vector<Description> descriptions;
   tensorflow::metadata::v0::AnomalyInfo::Severity severity;
 
@@ -870,7 +871,9 @@ TEST(SchemaTest, FindSkew) {
           training,
           /* by_weight= */ false,
           /* environment= */ absl::nullopt,
-          /* previous= */ std::shared_ptr<DatasetStatsView>(), serving_view);
+          /* previous_span= */ std::shared_ptr<DatasetStatsView>(),
+          serving_view,
+          /* previous_version= */ std::shared_ptr<DatasetStatsView>());
 
   Schema schema;
   TF_ASSERT_OK(schema.Init(schema_proto));
@@ -939,7 +942,8 @@ TEST(SchemaTest, FindDrift) {
       std::make_shared<DatasetStatsView>(training,
                                          /* by_weight= */ false,
                                          /* environment= */ absl::nullopt,
-                                         previous_view, /* serving= */ nullptr);
+                                         previous_view, /* serving= */ nullptr,
+                                         /* previous_version= */ nullptr);
 
   Schema schema;
   TF_ASSERT_OK(schema.Init(schema_proto));
@@ -962,6 +966,89 @@ TEST(SchemaTest, FindDrift) {
   EXPECT_FALSE(descriptions.empty());
   // Drift is always an error.
   EXPECT_EQ(tensorflow::metadata::v0::AnomalyInfo::ERROR, severity);
+}
+
+TEST(SchemaTest, FindNumExamplesDrift) {
+  const DatasetFeatureStatistics current =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(num_examples: 2)");
+  const DatasetFeatureStatistics previous_span =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(num_examples: 4)");
+
+  const tensorflow::metadata::v0::Schema schema_proto =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(
+          R"(dataset_constraints {
+               num_examples_drift_comparator {
+                 min_fraction_threshold: 1.0,
+                 max_fraction_threshold: 1.0
+               }
+             })");
+  std::shared_ptr<DatasetStatsView> previous_span_view =
+      std::make_shared<DatasetStatsView>(previous_span);
+  DatasetStatsView training_view =
+      DatasetStatsView(current,
+                       /* by_weight= */ false,
+                       /* environment= */ absl::nullopt, previous_span_view,
+                       /* serving= */ nullptr,
+                       /* previous_version= */ nullptr);
+
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(schema_proto));
+
+  tensorflow::metadata::v0::Schema expected_schema =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(
+          R"(dataset_constraints {
+               num_examples_drift_comparator {
+                 min_fraction_threshold: 0.5,
+                 max_fraction_threshold: 1.0
+               }
+             })");
+  const std::vector<Description> result =
+      schema.UpdateDatasetComparator(training_view);
+
+  EXPECT_THAT(schema.GetSchema(), EqualsProto(expected_schema));
+  // We're not particular about the description, just that there be one.
+  EXPECT_FALSE(result.empty());
+}
+
+TEST(SchemaTest, FindNumExamplesChangeAcrossVersions) {
+  const DatasetFeatureStatistics current =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(num_examples: 2)");
+  const DatasetFeatureStatistics previous_version =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(num_examples: 1)");
+
+  const tensorflow::metadata::v0::Schema schema_proto =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(
+          R"(dataset_constraints {
+               num_examples_version_comparator {
+                 min_fraction_threshold: 1.0,
+                 max_fraction_threshold: 1.0
+               }
+             })");
+  std::shared_ptr<DatasetStatsView> previous_version_view =
+      std::make_shared<DatasetStatsView>(previous_version);
+  DatasetStatsView training_view = DatasetStatsView(
+      current,
+      /* by_weight= */ false,
+      /* environment= */ absl::nullopt, /* previous_span= */ nullptr,
+      /* serving= */ nullptr, previous_version_view);
+
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(schema_proto));
+
+  tensorflow::metadata::v0::Schema expected_schema =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(
+          R"(dataset_constraints {
+               num_examples_version_comparator {
+                 min_fraction_threshold: 1.0,
+                 max_fraction_threshold: 2.0
+               }
+             })");
+  const std::vector<Description> result =
+      schema.UpdateDatasetComparator(training_view);
+
+  EXPECT_THAT(schema.GetSchema(), EqualsProto(expected_schema));
+  // We're not particular about the description, just that there be one.
+  EXPECT_FALSE(result.empty());
 }
 
 // This test captures what happens today with embedded string domains. In the

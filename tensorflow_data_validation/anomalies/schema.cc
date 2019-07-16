@@ -26,6 +26,7 @@ limitations under the License.
 #include "absl/types/optional.h"
 #include "tensorflow_data_validation/anomalies/bool_domain_util.h"
 #include "tensorflow_data_validation/anomalies/custom_domain_util.h"
+#include "tensorflow_data_validation/anomalies/dataset_constraints_util.h"
 #include "tensorflow_data_validation/anomalies/feature_util.h"
 #include "tensorflow_data_validation/anomalies/float_domain_util.h"
 #include "tensorflow_data_validation/anomalies/int_domain_util.h"
@@ -589,6 +590,14 @@ Feature* Schema::GetNewFeature(const Path& path) {
   }
 }
 
+::tensorflow::metadata::v0::DatasetConstraints*
+Schema::GetExistingDatasetConstraints() {
+  if (schema_.has_dataset_constraints()) {
+    return schema_.mutable_dataset_constraints();
+  }
+  return nullptr;
+}
+
 bool Schema::IsFeatureInEnvironment(
     const Feature& feature, const absl::optional<string>& environment) const {
   if (environment) {
@@ -771,10 +780,10 @@ std::vector<Description> Schema::UpdateSkewComparator(
     const FeatureStatsView& feature_stats_view) {
   Feature* feature = GetExistingFeature(feature_stats_view.GetPath());
   if (feature != nullptr &&
-      FeatureHasComparator(*feature, ComparatorType::SKEW)) {
+      FeatureHasComparator(*feature, FeatureComparatorType::SKEW)) {
     return UpdateFeatureComparatorDirect(
-        feature_stats_view, ComparatorType::SKEW,
-        GetFeatureComparator(feature, ComparatorType::SKEW));
+        feature_stats_view, FeatureComparatorType::SKEW,
+        GetFeatureComparator(feature, FeatureComparatorType::SKEW));
   }
   return {};
 }
@@ -979,8 +988,8 @@ std::vector<Description> Schema::UpdateFeatureInternal(
       DCHECK(false);
   }
 
-  const std::vector<ComparatorType> all_comparator_types = {
-      ComparatorType::DRIFT, ComparatorType::SKEW};
+  const std::vector<FeatureComparatorType> all_comparator_types = {
+      FeatureComparatorType::DRIFT, FeatureComparatorType::SKEW};
   // Handle comparators here.
   for (const auto& comparator_type : all_comparator_types) {
     if (FeatureHasComparator(*feature, comparator_type)) {
@@ -1041,6 +1050,29 @@ std::vector<Description> Schema::UpdateSparseFeature(
   }
   if (!descriptions.empty()) {
     ::tensorflow::data_validation::DeprecateSparseFeature(sparse_feature);
+  }
+  return descriptions;
+}
+
+std::vector<Description> Schema::UpdateDatasetComparator(
+    const DatasetStatsView& dataset_stats_view) {
+  std::vector<Description> descriptions;
+  tensorflow::metadata::v0::DatasetConstraints* dataset_constraints =
+      GetExistingDatasetConstraints();
+  if (dataset_constraints != nullptr) {
+    const std::vector<DatasetComparatorType> all_comparator_types = {
+        DatasetComparatorType::DRIFT, DatasetComparatorType::VERSION};
+    for (const auto& comparator_type : all_comparator_types) {
+      if (DatasetConstraintsHasComparator(*dataset_constraints,
+                                          comparator_type)) {
+        std::vector<Description> description_updates =
+            UpdateNumExamplesComparatorDirect(
+                dataset_stats_view, comparator_type,
+                GetNumExamplesComparator(dataset_constraints, comparator_type));
+        descriptions.insert(descriptions.end(), description_updates.begin(),
+                            description_updates.end());
+      }
+    }
   }
   return descriptions;
 }

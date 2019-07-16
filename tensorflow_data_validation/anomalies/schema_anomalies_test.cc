@@ -138,6 +138,60 @@ TEST(SchemaAnomalies, FindChangesCategoricalIntFeature) {
   }
 }
 
+TEST(SchemaAnomalies, FindChangesDatasetLevelChanges) {
+  const DatasetFeatureStatistics stats =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(num_examples: 1)");
+  const DatasetFeatureStatistics previous_version =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(num_examples: 2)");
+
+  const Schema schema_proto = ParseTextProtoOrDie<Schema>(R"(
+    dataset_constraints {
+      num_examples_version_comparator {
+        min_fraction_threshold: 1.0,
+        max_fraction_threshold: 1.0
+      }
+    }
+  )");
+  std::shared_ptr<DatasetStatsView> previous_version_view =
+      std::make_shared<DatasetStatsView>(previous_version);
+  DatasetStatsView stats_view =
+      DatasetStatsView(stats,
+                       /* by_weight= */ false,
+                       /* environment= */ absl::nullopt,
+                       /* previous_span= */ std::shared_ptr<DatasetStatsView>(),
+                       /* serving= */ std::shared_ptr<DatasetStatsView>(),
+                       /* previous_version= */ previous_version_view);
+
+  testing::ExpectedAnomalyInfo expected_anomaly_info;
+  expected_anomaly_info.expected_info_without_diff = ParseTextProtoOrDie<
+      metadata::v0::AnomalyInfo>(R"(
+    description: "The ratio of num examples in the current dataset versus the previous version is 0.5 (up to six significant digits), which is below the threshold 1."
+    severity: ERROR,
+    short_description: "Low num examples in current dataset versus the previous version."
+    reason {
+      type: COMPARATOR_LOW_NUM_EXAMPLES,
+      short_description: "Low num examples in current dataset versus the previous version.",
+      description: "The ratio of num examples in the current dataset versus the previous version is 0.5 (up to six significant digits), which is below the threshold 1."
+    })");
+  expected_anomaly_info.new_schema =
+      ParseTextProtoOrDie<Schema>(R"(dataset_constraints {
+                                       num_examples_version_comparator {
+                                         min_fraction_threshold: 0.5,
+                                         max_fraction_threshold: 1.0
+                                       }
+                                     })");
+
+  SchemaAnomalies anomalies(schema_proto);
+  for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
+    TF_CHECK_OK(anomalies.FindChanges(stats_view, absl::nullopt, config));
+    tensorflow::metadata::v0::Anomalies actual_anomalies =
+        anomalies.GetSchemaDiff(/*enable_diff_regions=*/false);
+
+    testing::TestAnomalyInfo(actual_anomalies.dataset_anomaly_info(),
+                             schema_proto, expected_anomaly_info, "");
+  }
+}
+
 TEST(SchemaAnomalies, SemanticTypeUpdates) {
   const Schema initial = ParseTextProtoOrDie<Schema>(R"pb(
     feature {
@@ -175,18 +229,17 @@ TEST(SchemaAnomalies, SemanticTypeUpdates) {
           type: BYTES
           natural_language_domain {}
         })pb");
-  expected_anomalies["old_nl_feature"]
-      .expected_info_without_diff = ParseTextProtoOrDie<
-      tensorflow::metadata::v0::AnomalyInfo>(R"pb(
-    path { step: "old_nl_feature" }
-    description: "Updated semantic domain for feature: old_nl_feature"
-    severity: ERROR
-    short_description: "Updated semantic domain"
-    reason {
-      type: SEMANTIC_DOMAIN_UPDATE
-      short_description: "Updated semantic domain"
-      description: "Updated semantic domain for feature: old_nl_feature"
-    })pb");
+  expected_anomalies["old_nl_feature"].expected_info_without_diff =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"pb(
+        path { step: "old_nl_feature" }
+        description: "Updated semantic domain for feature: old_nl_feature"
+        severity: ERROR
+        short_description: "Updated semantic domain"
+        reason {
+          type: SEMANTIC_DOMAIN_UPDATE
+          short_description: "Updated semantic domain"
+          description: "Updated semantic domain for feature: old_nl_feature"
+        })pb");
   // Anomaly for creating a new feature with semantic type.
   expected_anomalies["new_nl_feature"].new_schema =
       ParseTextProtoOrDie<Schema>(R"pb(
@@ -333,7 +386,9 @@ TEST(SchemaAnomalies, FindSkew) {
           training,
           /* by_weight= */ false,
           /* environment= */ absl::nullopt,
-          /* previous= */ std::shared_ptr<DatasetStatsView>(), serving_view);
+          /* previous_span= */ std::shared_ptr<DatasetStatsView>(),
+          serving_view,
+          /* previous_version= */ std::shared_ptr<DatasetStatsView>());
 
   SchemaAnomalies skew(schema_proto);
   TF_CHECK_OK(skew.FindSkew(*training_view));
@@ -355,8 +410,8 @@ TEST(SchemaAnomalies, FindSkew) {
       short_description: "High Linfty distance between training and serving"
       description: "The Linfty distance between training and serving is 0.2 (up to six significant digits), above the threshold 0.1. The feature value with maximum difference is: a"
     })");
-  TestAnomalies(skew.GetSchemaDiff(/*enable_diff_regions=*/false),
-                schema_proto, expected_anomalies);
+  TestAnomalies(skew.GetSchemaDiff(/*enable_diff_regions=*/false), schema_proto,
+                expected_anomalies);
 }
 
 TEST(Schema, FindChangesEmptySchemaProto) {
@@ -446,21 +501,28 @@ TEST(Schema, FindChangesOnlyValidateSchemaFeatures) {
     })");
 
   std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
-  expected_anomalies["new_feature"].new_schema = ParseTextProtoOrDie<Schema>(R"(
-    feature {
-      name: "annotated_enum"
-      value_count { min: 1 max: 1 }
-      type: BYTES
-      domain: "MyAloneEnum"
-      presence { min_count: 1 }
-    }
-    feature {
-      name: "new_feature"
-      value_count { min: 1 max: 1 }
-      type: INT
-      presence { min_count: 1 }
-    }
-    string_domain { name: "MyAloneEnum" value: "A" value: "B" value: "C" })");
+  expected_anomalies["new_feature"].new_schema =
+      ParseTextProtoOrDie<Schema>(
+          R"(
+            feature {
+              name: "annotated_enum"
+              value_count { min: 1 max: 1 }
+              type: BYTES
+              domain: "MyAloneEnum"
+              presence { min_count: 1 }
+            }
+            feature {
+              name: "new_feature"
+              value_count { min: 1 max: 1 }
+              type: INT
+              presence { min_count: 1 }
+            }
+            string_domain {
+              name: "MyAloneEnum"
+              value: "A"
+              value: "B"
+              value: "C"
+            })");
   expected_anomalies["new_feature"].expected_info_without_diff =
       ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"pb(
         path: { step: "new_feature" }
@@ -651,8 +713,8 @@ TEST(GetSchemaDiff, FindSelectedChanges) {
 }
 
 TEST(GetSchemaDiff, ValidSparseFeature) {
-  // Note: This schema is incomplete, as it does not fully define the index and
-  // value features and we do not generate feature stats for them.
+  // Note: This schema is incomplete, as it does not fully define the index
+  // and value features and we do not generate feature stats for them.
   const Schema schema_proto =
       ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
         sparse_feature: {
@@ -700,8 +762,8 @@ TEST(GetSchemaDiff, ValidSparseFeature) {
 
 // Same as above, but with name collision with existing feature.
 TEST(GetSchemaDiff, SparseFeatureNameCollision) {
-  // Note: This schema is incomplete, as it does not fully define the index and
-  // value features and we do not generate feature stats for them.
+  // Note: This schema is incomplete, as it does not fully define the index
+  // and value features and we do not generate feature stats for them.
   const Schema schema_proto =
       ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
         sparse_feature: {
@@ -844,8 +906,8 @@ TEST(SchemaAnomalyTest, CreateNewField) {
         })pb");
 
   testing::TestAnomalyInfo(
-      anomaly.GetAnomalyInfo(baseline, /*enable_diff_regions=*/false),
-      baseline, expected_anomaly_info, "CreateNewField failed");
+      anomaly.GetAnomalyInfo(baseline, /*enable_diff_regions=*/false), baseline,
+      expected_anomaly_info, "CreateNewField failed");
 }
 
 TEST(SchemaAnomalyTest, CreateNewFieldSome) {
@@ -929,8 +991,8 @@ TEST(SchemaAnomalyTest, CreateNewFieldSome) {
       )pb");
 
   testing::TestAnomalyInfo(
-      anomaly.GetAnomalyInfo(baseline, /*enable_diff_regions=*/false),
-      baseline, expected_anomaly_info, "CreateNewField failed");
+      anomaly.GetAnomalyInfo(baseline, /*enable_diff_regions=*/false), baseline,
+      expected_anomaly_info, "CreateNewField failed");
 }
 
 // When there is a new structured feature, we create all of its children
@@ -1213,8 +1275,8 @@ TEST(SchemaAnomalyTest, FeatureIsDeprecated) {
 }
 
 TEST(GetSchemaDiff, MissingFeatureSparseFeature) {
-  // Note: This schema is incomplete, as it does not fully define the index and
-  // value features and we do not generate feature stats for them.
+  // Note: This schema is incomplete, as it does not fully define the index
+  // and value features and we do not generate feature stats for them.
   const Schema schema_proto =
       ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
         sparse_feature: {
@@ -1282,8 +1344,8 @@ TEST(GetSchemaDiff, MissingFeatureSparseFeature) {
 }
 
 TEST(GetSchemaDiff, LengthMismatchSparseFeature) {
-  // Note: This schema is incomplete, as it does not fully define the index and
-  // value features and we do not generate feature stats for them.
+  // Note: This schema is incomplete, as it does not fully define the index
+  // and value features and we do not generate feature stats for them.
   const Schema schema_proto =
       ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
         sparse_feature: {
@@ -1421,8 +1483,8 @@ TEST(SchemaAnomalies, GetSchemaDiffTwoReasons) {
       short_description: "Superfluous values"
       description: "Some examples have more values than expected."
     })pb");
-  TestAnomalies(anomalies.GetSchemaDiff(/*enable_diff_regions=*/false),
-                initial, expected_anomalies);
+  TestAnomalies(anomalies.GetSchemaDiff(/*enable_diff_regions=*/false), initial,
+                expected_anomalies);
 }
 
 TEST(GetSchemaDiff, TwoChanges) {

@@ -162,6 +162,7 @@ cc_library(
     srcs = [
         "bool_domain_util.cc",
         "custom_domain_util.cc",
+        "dataset_constraints_util.cc",
         "feature_util.cc",
         "float_domain_util.cc",
         "int_domain_util.cc",
@@ -173,6 +174,7 @@ cc_library(
     hdrs = [
         "bool_domain_util.h",
         "custom_domain_util.h",
+        "dataset_constraints_util.h",
         "feature_util.h",
         "float_domain_util.h",
         "int_domain_util.h",
@@ -197,6 +199,18 @@ cc_library(
         "@com_google_absl//absl/types:optional",
         "@com_google_absl//absl/types:variant",
         "@org_tensorflow//tensorflow/core:lib",
+    ],
+)
+
+cc_test(
+    name = "dataset_constraints_util_test",
+    srcs = ["dataset_constraints_util_test.cc"],
+    deps = [
+        ":internal_types",
+        ":schema",
+        ":statistics_view",
+        ":test_util",
+        "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
     ],
 )
 

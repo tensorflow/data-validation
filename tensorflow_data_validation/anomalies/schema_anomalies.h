@@ -35,20 +35,72 @@ limitations under the License.
 namespace tensorflow {
 namespace data_validation {
 
+// A base class for individual schema anomalies, which can identify problems
+// at the dataset or feature level.
+class SchemaAnomalyBase {
+ public:
+  SchemaAnomalyBase();
+
+  virtual ~SchemaAnomalyBase() {}
+
+  SchemaAnomalyBase(SchemaAnomalyBase&& schema_anomaly_base);
+
+  SchemaAnomalyBase& operator=(SchemaAnomalyBase&& schema_anomaly_base);
+
+  // Initializes schema_.
+  tensorflow::Status InitSchema(const tensorflow::metadata::v0::Schema& schema);
+
+  // If new_severity is more severe that current severity, increases
+  // severity. Otherwise, does nothing.
+  void UpgradeSeverity(
+      tensorflow::metadata::v0::AnomalyInfo::Severity new_severity);
+
+  // Identifies if there is an issue.
+  bool is_problem() {
+    return severity_ != tensorflow::metadata::v0::AnomalyInfo::UNKNOWN;
+  }
+
+  // Returns an AnomalyInfo representing the change.
+  // baseline is the original schema.
+  virtual tensorflow::metadata::v0::AnomalyInfo GetAnomalyInfo(
+      const tensorflow::metadata::v0::Schema& baseline,
+      bool enable_diff_regions) const;
+
+ protected:
+  // Returns an AnomalyInfo representing the change. Takes as an input the
+  // text version of the existing schema and the new schema.
+  tensorflow::metadata::v0::AnomalyInfo GetBaseAnomalyInfoCommon(
+      const tensorflow::metadata::v0::Schema& existing_schema,
+      const tensorflow::metadata::v0::Schema& new_schema,
+      bool enable_diff_regions) const;
+
+  // A new schema that will make the anomaly go away.
+  std::unique_ptr<Schema> schema_;
+  // Descriptions of what caused the anomaly.
+  std::vector<Description> descriptions_;
+  // The severity of the anomaly.
+  tensorflow::metadata::v0::AnomalyInfo::Severity severity_;
+  //
+};
+
+// DatasetSchemaAnomaly represents all dataset-level issues.
+class DatasetSchemaAnomaly : public SchemaAnomalyBase {
+ public:
+  DatasetSchemaAnomaly();
+
+  void UpdateDatasetComparator(const DatasetStatsView& dataset_stats_view);
+};
+
 // SchemaAnomaly represents all the issues related to a single column.
 // TODO(martinz): consider putting this inside SchemaAnomalies,
 // and making it private, or putting it in its own file.
-class SchemaAnomaly {
+class SchemaAnomaly : public SchemaAnomalyBase {
  public:
   SchemaAnomaly();
 
   SchemaAnomaly(SchemaAnomaly&& schema_anomaly);
 
   SchemaAnomaly& operator=(SchemaAnomaly&& schema_anomaly);
-
-  // Initializes schema_.
-  tensorflow::Status InitSchema(
-      const tensorflow::metadata::v0::Schema& schema);
 
   // Updates based upon the relevant current feature statistics.
   tensorflow::Status Update(const Schema::Updater& updater,
@@ -71,57 +123,39 @@ class SchemaAnomaly {
   // and leaves a description.
   void ObserveMissing();
 
-  // If new_severity is more severe that current severity, increases
-  // severity. Otherwise, does nothing.
-  void UpgradeSeverity(
-      tensorflow::metadata::v0::AnomalyInfo::Severity new_severity);
-
-  // Returns an AnomalyInfo representing the change.
-  // baseline is the original schema.
-  tensorflow::metadata::v0::AnomalyInfo GetAnomalyInfo(
-      const tensorflow::metadata::v0::Schema& baseline,
-      bool enable_diff_regions) const;
-
-  // Identifies if there is an issue.
-  bool is_problem() {
-    return severity_ != tensorflow::metadata::v0::AnomalyInfo::UNKNOWN;
-  }
   void set_path(const Path& path) { path_ = path; }
 
   // Returns true iff the feature is deprecated after changes in this anomaly
   // have been applied.
   bool FeatureIsDeprecated(const Path& path);
 
+  // Returns an AnomalyInfo representing the change for a feature-level anomaly
+  // (and so populates the path in AnomalyInfo).
+  // baseline is the original schema.
+  tensorflow::metadata::v0::AnomalyInfo GetAnomalyInfo(
+      const tensorflow::metadata::v0::Schema& baseline,
+      bool enable_diff_regions) const override;
+
  private:
-  // Returns an AnomalyInfo representing the change. Takes as an input the
-  // text version of the existing schema and the new schema.
-  tensorflow::metadata::v0::AnomalyInfo GetAnomalyInfoCommon(
-      const string& existing_schema, const string& new_schema,
-      bool enable_diff_regions) const;
-  // A new schema that will make the anomaly go away.
-  std::unique_ptr<Schema> schema_;
   // The name of the feature being fixed.
   Path path_;
-  // Descriptions of what caused the anomaly.
-  std::vector<Description> descriptions_;
-  // The severity of the anomaly
-  tensorflow::metadata::v0::AnomalyInfo::Severity severity_;
 };
 
 // A class for tracking all anomalies that occur based upon the feature that
 // created the anomaly.
 class SchemaAnomalies {
  public:
-  explicit SchemaAnomalies(
-      const tensorflow::metadata::v0::Schema& schema)
-      : serialized_baseline_(schema) {}
+  explicit SchemaAnomalies(const tensorflow::metadata::v0::Schema& schema)
+      : dataset_anomalies_(absl::nullopt), serialized_baseline_(schema) {}
 
-  // Finds any columns that have issues, and creates a new Schema proto
-  // involving only the changes for that column. Returns a map where the key is
-  // the key of the column with an anomaly, and the Schema proto is a changed
-  // schema that would allow the column to be valid.
-  // If fields_needed is set, then a field that is not present in the schema
-  // will only be created if it is present in that set.
+  // Finds any column- and dataset-level issues. For column-level issues,
+  // creates a map where the key is the key of the column with an anomaly, and
+  // the value is a SchemaAnomaly object that contains a changed schema proto
+  // that would allow the column at issue to be valid. For dataset-level issues,
+  // creates a DatasetSchemaAnomaly object that contains a changed schema proto
+  // that would allow the dataset to be valid. If fields_needed is set, then a
+  // field that is not present in the schema will only be created if it is
+  // present in that set.
   // TODO(martinz): If a field is in features_needed, but not in statistics
   // or in the schema, then come up with a special kind of anomaly.
   tensorflow::Status FindChanges(
@@ -157,11 +191,26 @@ class SchemaAnomalies {
       const std::function<tensorflow::Status(SchemaAnomaly* anomaly)>& update,
       const Path& path);
 
+  // Find dataset-level anomalies.
+  tensorflow::Status FindDatasetChanges(
+      const DatasetStatsView& dataset_stats_view);
+
+  // Creates a new DatasetSchemaAnomaly and initializes it using the
+  // serialized_baseline_. Then, it tries the update(...) function. If there is
+  // a problem, then the new DatasetSchemaAnomaly gets added to
+  // dataset_anomalies_.
+  tensorflow::Status GenericDatasetUpdate(
+      const std::function<tensorflow::Status(DatasetSchemaAnomaly* anomaly)>&
+          update);
+
   // Initialize a schema from the serialized_baseline_.
   tensorflow::Status InitSchema(Schema* schema) const;
 
   // A map from feature columns to anomalies in that column.
   std::map<Path, SchemaAnomaly> anomalies_;
+
+  // Dataset-level anomalies.
+  absl::optional<DatasetSchemaAnomaly> dataset_anomalies_;
 
   // The initial schema. Each SchemaAnomaly is initialized from this.
   tensorflow::metadata::v0::Schema serialized_baseline_;

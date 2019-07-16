@@ -65,15 +65,18 @@ struct FeatureContext {
 // GetByPath() takes O(log # features) time.
 class DatasetStatsViewImpl {
  public:
-  DatasetStatsViewImpl(const DatasetFeatureStatistics& data, bool by_weight,
-                       const absl::optional<string>& environment,
-                       const std::shared_ptr<DatasetStatsView>& previous,
-                       const std::shared_ptr<DatasetStatsView>& serving)
+  DatasetStatsViewImpl(
+      const DatasetFeatureStatistics& data, bool by_weight,
+      const absl::optional<string>& environment,
+      const std::shared_ptr<DatasetStatsView>& previous_span,
+      const std::shared_ptr<DatasetStatsView>& serving,
+      const std::shared_ptr<DatasetStatsView>& previous_version)
       : data_(data),
         by_weight_(by_weight),
         environment_(environment),
-        previous_(previous),
-        serving_(serving) {
+        previous_span_(previous_span),
+        serving_(serving),
+        previous_version_(previous_version) {
     const auto& features = data_.features();
     if (std::all_of(features.begin(), features.end(),
                     [](const FeatureNameStatistics& f) {
@@ -232,13 +235,16 @@ class DatasetStatsViewImpl {
   // Environment.
   const absl::optional<string> environment_;
 
-  // The previous dataset stats (if available).
+  // The previous span dataset stats (if available).
   // Note that DatasetStatsView objects are very lightweight, so this
   // cost is minimal.
-  const std::shared_ptr<DatasetStatsView> previous_;
+  const std::shared_ptr<DatasetStatsView> previous_span_;
 
   // The serving dataset stats (if available).
   const std::shared_ptr<DatasetStatsView> serving_;
+
+  // The previous version dataset stats (if available).
+  const std::shared_ptr<DatasetStatsView> previous_version_;
 
   /*********** Cached information below, derivable from data_ *****************/
 
@@ -251,23 +257,27 @@ class DatasetStatsViewImpl {
   std::map<Path, int> path_location_;
 };
 
-DatasetStatsView::DatasetStatsView(const DatasetFeatureStatistics& data,
-                                   bool by_weight,
-                                   const absl::optional<string>& environment,
-                                   std::shared_ptr<DatasetStatsView> previous,
-                                   std::shared_ptr<DatasetStatsView> serving)
-    : impl_(new DatasetStatsViewImpl(data, by_weight, environment, previous,
-                                     serving)) {}
+DatasetStatsView::DatasetStatsView(
+    const DatasetFeatureStatistics& data, bool by_weight,
+    const absl::optional<string>& environment,
+    std::shared_ptr<DatasetStatsView> previous_span,
+    std::shared_ptr<DatasetStatsView> serving,
+    std::shared_ptr<DatasetStatsView> previous_version)
+    : impl_(new DatasetStatsViewImpl(data, by_weight, environment,
+                                     previous_span, serving,
+                                     previous_version)) {}
 
 DatasetStatsView::DatasetStatsView(const DatasetFeatureStatistics& data,
                                    bool by_weight)
     : impl_(new DatasetStatsViewImpl(data, by_weight, absl::nullopt,
+                                     std::shared_ptr<DatasetStatsView>(),
                                      std::shared_ptr<DatasetStatsView>(),
                                      std::shared_ptr<DatasetStatsView>())) {}
 
 DatasetStatsView::DatasetStatsView(
     const tensorflow::metadata::v0::DatasetFeatureStatistics& data)
     : impl_(new DatasetStatsViewImpl(data, false, absl::nullopt,
+                                     std::shared_ptr<DatasetStatsView>(),
                                      std::shared_ptr<DatasetStatsView>(),
                                      std::shared_ptr<DatasetStatsView>())) {}
 
@@ -349,9 +359,10 @@ const absl::optional<string>& DatasetStatsView::environment() const {
   return impl_->environment_;
 }
 
-const absl::optional<DatasetStatsView> DatasetStatsView::GetPrevious() const {
-  if (impl_->previous_) {
-    return *impl_->previous_;
+const absl::optional<DatasetStatsView> DatasetStatsView::GetPreviousSpan()
+    const {
+  if (impl_->previous_span_) {
+    return *impl_->previous_span_;
   }
   return absl::nullopt;
 }
@@ -359,6 +370,14 @@ const absl::optional<DatasetStatsView> DatasetStatsView::GetPrevious() const {
 const absl::optional<DatasetStatsView> DatasetStatsView::GetServing() const {
   if (impl_->serving_) {
     return *impl_->serving_;
+  }
+  return absl::nullopt;
+}
+
+const absl::optional<DatasetStatsView> DatasetStatsView::GetPreviousVersion()
+    const {
+  if (impl_->previous_version_) {
+    return *impl_->previous_version_;
   }
   return absl::nullopt;
 }
@@ -482,9 +501,9 @@ absl::optional<FeatureStatsView> FeatureStatsView::GetServing() const {
   return absl::nullopt;
 }
 
-absl::optional<FeatureStatsView> FeatureStatsView::GetPrevious() const {
+absl::optional<FeatureStatsView> FeatureStatsView::GetPreviousSpan() const {
   absl::optional<DatasetStatsView> dataset_stats_view =
-      parent_view_.GetPrevious();
+      parent_view_.GetPreviousSpan();
   if (dataset_stats_view) {
     return dataset_stats_view->GetByPath(GetPath());
   }

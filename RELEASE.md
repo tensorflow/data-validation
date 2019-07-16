@@ -15,7 +15,10 @@
   converted to Apache Arrow tables internally and we are able to make use of
   vectorized numpy functions. Improved performance of BasicStatsGenerator
   by ~40x.
-* Add `update_schema` API which updates the schema to conform to statistics
+* Add `update_schema` API which updates the schema to conform to statistics.
+* Add support for validating changes in the number of examples between the
+  current and previous spans of data (using the existing `validate_statistics`
+  function).
 
 ## Bug Fixes and Other Changes
 

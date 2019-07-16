@@ -1341,13 +1341,13 @@ TEST(FeatureTypeTest, ValidateCustomFeatures) {
 
 TEST(FeatureTypeTest, HasSkewComparatorFalse) {
   const Feature feature = ParseTextProtoOrDie<Feature>(R"(name: "feature_name")");
-  EXPECT_FALSE(FeatureHasComparator(feature, ComparatorType::SKEW));
+  EXPECT_FALSE(FeatureHasComparator(feature, FeatureComparatorType::SKEW));
 }
 
 TEST(FeatureTypeTest, HasSkewComparatorTrue) {
   const Feature feature = ParseTextProtoOrDie<Feature>(R"(name: "feature_name"
     skew_comparator {})");
-  EXPECT_TRUE(FeatureHasComparator(feature, ComparatorType::SKEW));
+  EXPECT_TRUE(FeatureHasComparator(feature, FeatureComparatorType::SKEW));
 }
 
 TEST(FeatureTypeTest, MutableSkewComparator) {
@@ -1357,7 +1357,7 @@ TEST(FeatureTypeTest, MutableSkewComparator) {
         infinity_norm: {
           threshold: 0.1}})");
   FeatureComparator* comparator =
-      GetFeatureComparator(&feature, ComparatorType::SKEW);
+      GetFeatureComparator(&feature, FeatureComparatorType::SKEW);
   ASSERT_TRUE(comparator != nullptr);
   EXPECT_THAT(*comparator, EqualsProto(R"(
     infinity_norm: { threshold: 0.1 })"));
@@ -1370,7 +1370,7 @@ TEST(FeatureTypeTest, MutableComparator2) {
         infinity_norm: {
         threshold: 0.1}})");
   FeatureComparator* comparator =
-      GetFeatureComparator(&feature, ComparatorType::SKEW);
+      GetFeatureComparator(&feature, FeatureComparatorType::SKEW);
   ASSERT_TRUE(comparator != nullptr);
   comparator->mutable_infinity_norm()->set_threshold(0.2);
   EXPECT_THAT(feature.skew_comparator(),
@@ -1384,7 +1384,7 @@ TEST(FeatureTypeTest, MutableComparatorWithDrift) {
         infinity_norm: {
         threshold: 0.1}})");
   FeatureComparator* comparator =
-      GetFeatureComparator(&feature, ComparatorType::DRIFT);
+      GetFeatureComparator(&feature, FeatureComparatorType::DRIFT);
   ASSERT_TRUE(comparator != nullptr);
   comparator->mutable_infinity_norm()->set_threshold(0.2);
   EXPECT_THAT(feature.drift_comparator(),
@@ -1398,7 +1398,7 @@ TEST(FeatureTypeTest, GetComparatorNormal) {
         infinity_norm: {
           threshold: 0.1}})");
   FeatureComparator* comparator =
-      GetFeatureComparator(&feature, ComparatorType::SKEW);
+      GetFeatureComparator(&feature, FeatureComparatorType::SKEW);
 
   ASSERT_TRUE(comparator != nullptr);
   EXPECT_THAT(*comparator, EqualsProto("infinity_norm: { threshold: 0.1 }"));

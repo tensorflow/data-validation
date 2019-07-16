@@ -26,7 +26,6 @@ limitations under the License.
 #include "tensorflow_data_validation/anomalies/features_needed.h"
 #include "tensorflow_data_validation/anomalies/path.h"
 #include "tensorflow_data_validation/anomalies/proto/feature_statistics_to_proto.pb.h"
-
 #include "tensorflow_data_validation/anomalies/proto/validation_config.pb.h"
 #include "tensorflow/core/lib/core/status.h"
 #include "tensorflow/core/lib/gtl/optional.h"
@@ -62,31 +61,32 @@ Status UpdateSchema(const string& schema_proto_string,
                     const int max_string_domain_size,
                     string* output_schema_proto_string);
 
-// Validates the feature statistics in <feature_statistics> with respect to
-// the <schema_proto> and returns a schema diff proto which captures the
+// Validates the statistics in <feature_statistics> with respect to the
+// <schema_proto> and returns a schema diff proto which captures the
 // changes that need to be made to <schema_proto> to make the statistics
 // conform to it. If a drift comparator is specified in the schema and the
 // stats for the previous span are provided, then the schema diff may also
-// contains changes that need to be made the drift comparators to make the
+// contain changes that need to be made to the drift comparators to make the
 // <schema_proto> conform. If a skew comparator is specified in the schema and
 // the serving stats are provided, the validation will detect if there exists
-// distribution skew between current data and serving data.
-// If an environment is specified, only validate the feature statistics of the
-// fields in that environment. Otherwise, validate all fields.
+// distribution skew between current data and serving data. If a dataset-level
+// num examples comparator is specified in the schema and the relevant previous
+// stats (span or version) are provided, then the validation will detect if
+// there are changes in num examples beyond the specified thresholds. If an
+// environment is specified, only validate the feature statistics of the fields
+// in that environment. Otherwise, validate all fields.
 Status ValidateFeatureStatistics(
-    const metadata::v0::DatasetFeatureStatistics&
-        feature_statistics,
+    const metadata::v0::DatasetFeatureStatistics& feature_statistics,
     const metadata::v0::Schema& schema_proto,
     const gtl::optional<string>& environment,
-    const gtl::optional<
-        metadata::v0::DatasetFeatureStatistics>&
-        prev_feature_statistics,
-    const gtl::optional<
-        metadata::v0::DatasetFeatureStatistics>&
+    const gtl::optional<metadata::v0::DatasetFeatureStatistics>&
+        prev_span_feature_statistics,
+    const gtl::optional<metadata::v0::DatasetFeatureStatistics>&
         serving_feature_statistics,
+    const gtl::optional<metadata::v0::DatasetFeatureStatistics>&
+        prev_version_feature_statistics,
     const gtl::optional<FeaturesNeeded>& features_needed,
-    const ValidationConfig& validation_config,
-    bool enable_diff_regions,
+    const ValidationConfig& validation_config, bool enable_diff_regions,
     metadata::v0::Anomalies* result);
 
 // Similar to the above, but takes all the proto parameters as serialized
@@ -94,10 +94,10 @@ Status ValidateFeatureStatistics(
 // Python code using SWIG.
 Status ValidateFeatureStatisticsWithoutDiff(
     const string& feature_statistics_proto_string,
-    const string& schema_proto_string,
-    const string& environment,
-    const string& previous_statistics_proto_string,
+    const string& schema_proto_string, const string& environment,
+    const string& previous_span_statistics_proto_string,
     const string& serving_statistics_proto_string,
+    const string& previous_version_statistics_proto_string,
     string* anomalies_proto_string);
 
 // Updates an existing schema to match the data characteristics in

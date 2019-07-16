@@ -59,12 +59,14 @@ PyObject* ValidateFeatureStatistics(
   const string& statistics_proto_string,
   const string& schema_proto_string,
   const string& environment,
-  const string& previous_statistics_proto_string,
-  const string& serving_statistics_proto_string) {
+  const string& previous_span_statistics_proto_string,
+  const string& serving_statistics_proto_string,
+  const string& previous_version_statistics_proto_string) {
   string anomalies_proto_string;
   const tensorflow::Status status = tensorflow::data_validation::ValidateFeatureStatisticsWithoutDiff(
     statistics_proto_string, schema_proto_string, environment,
-    previous_statistics_proto_string, serving_statistics_proto_string,
+    previous_span_statistics_proto_string, serving_statistics_proto_string,
+    previous_version_statistics_proto_string,
     &anomalies_proto_string);
   if (!status.ok()) {
     PyErr_SetString(PyExc_RuntimeError, status.error_message().c_str());
@@ -94,5 +96,6 @@ PyObject* ValidateFeatureStatistics(
   const string& statistics_proto_string,
   const string& schema_proto_string,
   const string& environment,
-  const string& previous_statistics_proto_string,
-  const string& serving_statistics_proto_string);
+  const string& previous_span_statistics_proto_string,
+  const string& serving_statistics_proto_string,
+  const string& previous_version_statistics_proto_string);

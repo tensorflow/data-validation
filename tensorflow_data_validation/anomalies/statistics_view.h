@@ -46,11 +46,12 @@ class DatasetStatsView {
   DatasetStatsView(
       const tensorflow::metadata::v0::DatasetFeatureStatistics& data,
       bool by_weight, const absl::optional<string>& environment,
-      std::shared_ptr<DatasetStatsView> previous,
-      std::shared_ptr<DatasetStatsView> serving);
+      std::shared_ptr<DatasetStatsView> previous_span,
+      std::shared_ptr<DatasetStatsView> serving,
+      std::shared_ptr<DatasetStatsView> previous_version);
 
-  // Default value of by_weight is false, there is no environment, previous,
-  // or serving.
+  // Default value of by_weight is false, there is no environment,
+  // previous_span, previous_version, or serving.
   explicit DatasetStatsView(
       const tensorflow::metadata::v0::DatasetFeatureStatistics& data);
 
@@ -102,9 +103,11 @@ class DatasetStatsView {
 
   const absl::optional<string>& environment() const;
 
-  const absl::optional<DatasetStatsView> GetPrevious() const;
+  const absl::optional<DatasetStatsView> GetPreviousSpan() const;
 
   const absl::optional<DatasetStatsView> GetServing() const;
+
+  const absl::optional<DatasetStatsView> GetPreviousVersion() const;
 
  private:
   // Guaranteed not to be null. This being a shared_ptr makes this object
@@ -178,7 +181,7 @@ class FeatureStatsView {
 
   absl::optional<FeatureStatsView> GetServing() const;
 
-  absl::optional<FeatureStatsView> GetPrevious() const;
+  absl::optional<FeatureStatsView> GetPreviousSpan() const;
 
   const DatasetStatsView& parent_view() const { return parent_view_; }
 

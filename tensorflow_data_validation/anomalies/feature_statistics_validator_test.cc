@@ -31,6 +31,7 @@ namespace tensorflow {
 namespace data_validation {
 namespace {
 
+using ::tensorflow::metadata::v0::AnomalyInfo;
 using ::tensorflow::metadata::v0::DatasetFeatureStatistics;
 using ::tensorflow::metadata::v0::Schema;
 using testing::EqualsProto;
@@ -47,27 +48,30 @@ void TestSchemaUpdate(const ValidationConfig& config,
   EXPECT_THAT(result, EqualsProto(expected));
 }
 
-bool operator==(const tensorflow::metadata::v0::AnomalyInfo::Reason& a,
-                const tensorflow::metadata::v0::AnomalyInfo::Reason& b) {
-  return a.type() == b.type() &&
-         a.short_description() == b.short_description() &&
-         a.description() == b.description();
-}
-
 void TestFeatureStatisticsValidator(
     const Schema& old_schema, const ValidationConfig& validation_config,
     const DatasetFeatureStatistics& feature_statistics,
     const tensorflow::gtl::optional<DatasetFeatureStatistics>&
-        prev_feature_statistics,
+        prev_span_feature_statistics,
+    const tensorflow::gtl::optional<DatasetFeatureStatistics>&
+        prev_version_feature_statistics,
     const tensorflow::gtl::optional<string>& environment,
     const tensorflow::gtl::optional<FeaturesNeeded>& features_needed,
-    const std::map<string, testing::ExpectedAnomalyInfo>& expected_anomalies) {
+    const std::map<string, testing::ExpectedAnomalyInfo>& expected_anomalies,
+    const tensorflow::gtl::optional<testing::ExpectedAnomalyInfo>&
+        expected_dataset_anomalies) {
   tensorflow::metadata::v0::Anomalies result;
   TF_CHECK_OK(ValidateFeatureStatistics(
-      feature_statistics, old_schema, environment, prev_feature_statistics,
-      /*serving_feature_statistics=*/gtl::nullopt, features_needed,
-      validation_config, /*enable_diff_regions=*/false, &result));
+      feature_statistics, old_schema, environment, prev_span_feature_statistics,
+      /*serving_feature_statistics=*/gtl::nullopt,
+      prev_version_feature_statistics, features_needed, validation_config,
+      /*enable_diff_regions=*/false, &result));
   TestAnomalies(result, old_schema, expected_anomalies);
+  if (expected_dataset_anomalies != gtl::nullopt) {
+    TestAnomalyInfo(result.dataset_anomaly_info(), old_schema,
+                    expected_dataset_anomalies.value(),
+                    "Actual dataset anomalies do not match expected.");
+  }
 }
 
 TEST(FeatureStatisticsValidatorTest, EndToEnd) {
@@ -137,8 +141,8 @@ TEST(FeatureStatisticsValidatorTest, EndToEnd) {
       value: "C"
       value: "D"
     })");
-  anomalies["annotated_enum"].expected_info_without_diff = ParseTextProtoOrDie<
-      tensorflow::metadata::v0::AnomalyInfo>(R"(
+  anomalies["annotated_enum"]
+      .expected_info_without_diff = ParseTextProtoOrDie<AnomalyInfo>(R"(
     description: "Examples contain values missing from the schema: D (?). "
     severity: ERROR
     short_description: "Unexpected string values"
@@ -152,9 +156,11 @@ TEST(FeatureStatisticsValidatorTest, EndToEnd) {
 
   TestFeatureStatisticsValidator(
       schema, ValidationConfig(), statistics,
-      /*prev_feature_statistics=*/tensorflow::gtl::nullopt,
+      /*prev_span_feature_statistics=*/tensorflow::gtl::nullopt,
+      /*prev_version_feature_statistics=*/tensorflow::gtl::nullopt,
       /*environment=*/gtl::nullopt,
-      /*features_needed=*/gtl::nullopt, anomalies);
+      /*features_needed=*/gtl::nullopt, anomalies,
+      /*expected_dataset_anomalies=*/gtl::nullopt);
 }
 
 TEST(FeatureStatisticsValidatorTest, MissingColumn) {
@@ -183,7 +189,7 @@ TEST(FeatureStatisticsValidatorTest, MissingColumn) {
     }
   )");
   anomalies["feature"].expected_info_without_diff =
-      ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
+      ParseTextProtoOrDie<AnomalyInfo>(R"(
         description: "Column is completely missing"
         severity: ERROR
         short_description: "Column dropped"
@@ -193,10 +199,13 @@ TEST(FeatureStatisticsValidatorTest, MissingColumn) {
           description: "Column is completely missing"
         }
         path { step: "feature" })");
-  TestFeatureStatisticsValidator(schema, ValidationConfig(), statistics,
-                                 tensorflow::gtl::nullopt,
-                                 /*environment=*/gtl::nullopt,
-                                 /*features_needed=*/gtl::nullopt, anomalies);
+  TestFeatureStatisticsValidator(
+      schema, ValidationConfig(), statistics,
+      /*prev_span_feature_statistics=*/tensorflow::gtl::nullopt,
+      /*prev_version_feature_statistics=*/tensorflow::gtl::nullopt,
+      /*environment=*/gtl::nullopt,
+      /*features_needed=*/gtl::nullopt, anomalies,
+      /*expected_dataset_anomalies=*/gtl::nullopt);
 }
 
 TEST(FeatureStatisticsValidatorTest, MissingFeatureAndEnvironments) {
@@ -253,7 +262,7 @@ TEST(FeatureStatisticsValidatorTest, MissingFeatureAndEnvironments) {
     }
   )");
   anomalies["label"].expected_info_without_diff =
-      ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
+      ParseTextProtoOrDie<AnomalyInfo>(R"(
         description: "Column is completely missing"
         severity: ERROR
         short_description: "Column dropped"
@@ -266,20 +275,27 @@ TEST(FeatureStatisticsValidatorTest, MissingFeatureAndEnvironments) {
 
   // Running for no environment, or "TRAINING" environment without feature
   // 'label' should deprecate the feature.
-  TestFeatureStatisticsValidator(schema, ValidationConfig(), statistics,
-                                 tensorflow::gtl::nullopt,
-                                 /*environment=*/gtl::nullopt,
-                                 /*features_needed=*/gtl::nullopt, anomalies);
-  TestFeatureStatisticsValidator(schema, ValidationConfig(), statistics,
-                                 tensorflow::gtl::nullopt, "TRAINING",
-                                 /*features_needed=*/gtl::nullopt, anomalies);
+  TestFeatureStatisticsValidator(
+      schema, ValidationConfig(), statistics,
+      /*prev_span_feature_statistics=*/tensorflow::gtl::nullopt,
+      /*prev_version_feature_statistics=*/tensorflow::gtl::nullopt,
+      /*environment=*/gtl::nullopt,
+      /*features_needed=*/gtl::nullopt, anomalies,
+      /*expected_dataset_anomalies=*/gtl::nullopt);
+  TestFeatureStatisticsValidator(
+      schema, ValidationConfig(), statistics,
+      /*prev_span_feature_statistics=*/tensorflow::gtl::nullopt,
+      /*prev_version_feature_statistics=*/tensorflow::gtl::nullopt, "TRAINING",
+      /*features_needed=*/gtl::nullopt, anomalies,
+      /*expected_dataset_anomalies=*/gtl::nullopt);
 
   // Running for environment "SERVING" should not generate anomalies.
   TestFeatureStatisticsValidator(
       schema, ValidationConfig(), statistics,
-      /*prev_feature_statistics=*/tensorflow::gtl::nullopt, "SERVING",
+      /*prev_span_feature_statistics=*/tensorflow::gtl::nullopt,
+      /*prev_version_feature_statistics=*/tensorflow::gtl::nullopt, "SERVING",
       /*features_needed=*/gtl::nullopt,
-      /*expected_anomalies=*/{});
+      /*expected_anomalies=*/{}, /*expected_dataset_anomalies=*/gtl::nullopt);
 }
 
 TEST(FeatureStatisticsValidatorTest, FeaturesNeeded) {
@@ -309,7 +325,7 @@ TEST(FeatureStatisticsValidatorTest, FeaturesNeeded) {
 
   std::map<string, testing::ExpectedAnomalyInfo> anomalies;
   anomalies["feature1"].expected_info_without_diff =
-      ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"pb(
+      ParseTextProtoOrDie<AnomalyInfo>(R"pb(
         description: "New column (column in data but not in schema)"
         severity: ERROR
         short_description: "New column"
@@ -334,10 +350,12 @@ TEST(FeatureStatisticsValidatorTest, FeaturesNeeded) {
   ReasonFeatureNeeded reason;
   reason.set_comment("needed");
   TestFeatureStatisticsValidator(
-      empty_schema, ValidationConfig(), statistics, tensorflow::gtl::nullopt,
+      empty_schema, ValidationConfig(), statistics,
+      /*prev_span_feature_statistics=*/tensorflow::gtl::nullopt,
+      /*prev_version_feature_statistics=*/tensorflow::gtl::nullopt,
       /*environment=*/gtl::nullopt,
       /*features_needed=*/FeaturesNeeded({{Path({"feature1"}), {reason}}}),
-      anomalies);
+      anomalies, /*expected_dataset_anomalies=*/gtl::nullopt);
 }
 
 // If there are no examples, then we don't crazily fire every exception, we
@@ -358,8 +376,9 @@ TEST(FeatureStatisticsValidatorTest, MissingExamples) {
   tensorflow::metadata::v0::Anomalies got;
   TF_ASSERT_OK(ValidateFeatureStatistics(
       statistics, schema, /*environment=*/tensorflow::gtl::nullopt,
-      /*prev_feature_statistics=*/tensorflow::gtl::nullopt,
+      /*prev_span_feature_statistics=*/tensorflow::gtl::nullopt,
       /*serving_feature_statistics=*/gtl::nullopt,
+      /*prev_version_feature_statistics=*/gtl::nullopt,
       /*features_needed=*/absl::nullopt, ValidationConfig(),
       /*enable_diff_regions=*/false, &got));
   EXPECT_THAT(got, EqualsProto(want));
@@ -565,7 +584,7 @@ TEST(FeatureStatisticsValidatorTest, UpdateDriftComparatorInSchema) {
       }
     })");
 
-  const DatasetFeatureStatistics prev_statistics = ParseTextProtoOrDie<
+  const DatasetFeatureStatistics prev_span_statistics = ParseTextProtoOrDie<
       DatasetFeatureStatistics>(R"(
     num_examples: 4
     features: {
@@ -591,8 +610,8 @@ TEST(FeatureStatisticsValidatorTest, UpdateDriftComparatorInSchema) {
 
   std::map<string, testing::ExpectedAnomalyInfo> anomalies;
   anomalies["annotated_enum"].new_schema = want_fixed_schema;
-  anomalies["annotated_enum"].expected_info_without_diff = ParseTextProtoOrDie<
-      tensorflow::metadata::v0::AnomalyInfo>(R"(
+  anomalies["annotated_enum"]
+      .expected_info_without_diff = ParseTextProtoOrDie<AnomalyInfo>(R"(
     description: "Examples contain values missing from the schema: b (?).  The Linfty distance between current and previous is 0.25 (up to six significant digits), above the threshold 0.01. The feature value with maximum difference is: b"
     severity: ERROR
     short_description: "Multiple errors"
@@ -608,10 +627,77 @@ TEST(FeatureStatisticsValidatorTest, UpdateDriftComparatorInSchema) {
     }
     path: { step: "annotated_enum" }
   )");
-  TestFeatureStatisticsValidator(old_schema, ValidationConfig(), statistics,
-                                 prev_statistics,
-                                 /*environment=*/gtl::nullopt,
-                                 /*features_needed=*/gtl::nullopt, anomalies);
+  TestFeatureStatisticsValidator(
+      old_schema, ValidationConfig(), statistics, prev_span_statistics,
+      /*prev_version_feature_statistics=*/tensorflow::gtl::nullopt,
+      /*environment=*/gtl::nullopt,
+      /*features_needed=*/gtl::nullopt, anomalies,
+      /*expected_dataset_anomalies=*/gtl::nullopt);
+}
+
+TEST(FeatureStatisticsValidatorTest,
+     ValidateFeatureStatsWithNumExamplesComparators) {
+  const Schema old_schema = ParseTextProtoOrDie<Schema>(R"(
+    dataset_constraints {
+      num_examples_drift_comparator {
+        min_fraction_threshold: 1.0
+        max_fraction_threshold: 1.0
+      }
+      num_examples_version_comparator {
+        min_fraction_threshold: 1.0
+        max_fraction_threshold: 1.0
+      }
+    })");
+
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        num_examples: 2)");
+
+  const DatasetFeatureStatistics prev_statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        num_examples: 4)");
+
+  const Schema want_fixed_schema = ParseTextProtoOrDie<Schema>(R"(
+    dataset_constraints {
+      num_examples_drift_comparator {
+        min_fraction_threshold: 0.5
+        max_fraction_threshold: 1.0
+      }
+      num_examples_version_comparator {
+        min_fraction_threshold: 0.5
+        max_fraction_threshold: 1.0
+      }
+    })");
+
+  const AnomalyInfo expected_info = ParseTextProtoOrDie<AnomalyInfo>(R"(
+    description: "The ratio of num examples in the current dataset versus the previous span is 0.5 (up to six significant digits), which is below the threshold 1. The ratio of num examples in the current dataset versus the previous version is 0.5 (up to six significant digits), which is below the threshold 1."
+    severity: ERROR
+    short_description: "Multiple errors"
+    reason {
+      type: COMPARATOR_LOW_NUM_EXAMPLES
+      short_description: "Low num examples in current dataset versus the previous span."
+      description: "The ratio of num examples in the current dataset versus the previous span is 0.5 (up to six significant digits), which is below the threshold 1."
+    }
+    reason {
+      type: COMPARATOR_LOW_NUM_EXAMPLES
+      short_description: "Low num examples in current dataset versus the previous version."
+      description: "The ratio of num examples in the current dataset versus the previous version is 0.5 (up to six significant digits), which is below the threshold 1."
+    }
+  )");
+
+  testing::ExpectedAnomalyInfo expected_anomaly_info;
+  expected_anomaly_info.new_schema = want_fixed_schema;
+  expected_anomaly_info.expected_info_without_diff = expected_info;
+  gtl::optional<testing::ExpectedAnomalyInfo> dataset_anomalies =
+      gtl::make_optional(expected_anomaly_info);
+
+  TestFeatureStatisticsValidator(
+      old_schema, ValidationConfig(), statistics,
+      /*prev_span_feature_statistics=*/prev_statistics,
+      /*prev_version_feature_statistics=*/prev_statistics,
+      /*environment=*/gtl::nullopt,
+      /*features_needed=*/gtl::nullopt,
+      /*expected_anomalies=*/{}, dataset_anomalies);
 }
 
 TEST(FeatureStatisticsValidatorUpdateSchema, TestLargeStringDomain) {

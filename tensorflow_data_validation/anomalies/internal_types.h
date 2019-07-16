@@ -50,7 +50,16 @@ struct UpdateSummary {
   std::vector<Description> descriptions;
 };
 
-enum class ComparatorType { SKEW, DRIFT };
+// Enum for comparators used in feature-level comparisons.
+enum class FeatureComparatorType {
+  SKEW,  // Compares serving and training data.
+  DRIFT  // Compares previous and current spans.
+};
+// Enum for comparators used in dataset-level comparisons.
+enum class DatasetComparatorType {
+  DRIFT,   // Compares previous and current spans.
+  VERSION  // Compares previous and current versions.
+};
 
 // The context for a tensorflow::metadata::v0::FeatureComparator.
 // In tensorflow::metadata::v0::Feature, there are two comparisons:

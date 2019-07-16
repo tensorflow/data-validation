@@ -161,6 +161,10 @@ class Schema {
       const DatasetStatsView& dataset_stats, const Updater& updater,
       const absl::optional<std::set<Path>>& paths_to_consider);
 
+  // Updates a dataset comparator.
+  std::vector<Description> UpdateDatasetComparator(
+      const DatasetStatsView& dataset_stats_view);
+
  private:
   using Feature = tensorflow::metadata::v0::Feature;
   using SparseFeature = tensorflow::metadata::v0::SparseFeature;
@@ -244,6 +248,10 @@ class Schema {
   // Note that TFDV doesn't generate sparse feature statistics currently.
   std::vector<Description> UpdateSparseFeature(const FeatureStatsView& view,
                                                SparseFeature* sparse_feature);
+
+  // Gets existing dataset constraints, and returns null if it doesn't exist.
+  ::tensorflow::metadata::v0::DatasetConstraints*
+  GetExistingDatasetConstraints();
 
   // Note: do not manually add string_domains or features.
   // Call GetNewEnum() or GetNewFeature().

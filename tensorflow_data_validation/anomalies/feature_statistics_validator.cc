@@ -106,15 +106,14 @@ tensorflow::Status ValidateFeatureStatistics(
         feature_statistics,
     const tensorflow::metadata::v0::Schema& schema_proto,
     const gtl::optional<string>& environment,
-    const gtl::optional<
-        tensorflow::metadata::v0::DatasetFeatureStatistics>&
-        prev_feature_statistics,
-    const gtl::optional<
-        tensorflow::metadata::v0::DatasetFeatureStatistics>&
+    const gtl::optional<tensorflow::metadata::v0::DatasetFeatureStatistics>&
+        prev_span_feature_statistics,
+    const gtl::optional<tensorflow::metadata::v0::DatasetFeatureStatistics>&
         serving_feature_statistics,
+    const gtl::optional<metadata::v0::DatasetFeatureStatistics>&
+        prev_version_feature_statistics,
     const gtl::optional<FeaturesNeeded>& features_needed,
-    const ValidationConfig& validation_config,
-    bool enable_diff_regions,
+    const ValidationConfig& validation_config, bool enable_diff_regions,
     tensorflow::metadata::v0::Anomalies* result) {
   // TODO(b/113295423): Clean up the optional conversions.
   const absl::optional<string> maybe_environment =
@@ -134,24 +133,38 @@ tensorflow::Status ValidateFeatureStatistics(
     // TODO(martinz): populate previous if possible. Make this happen as we
     // complete the refactor to make FindChanges also FindDrift at the same
     // time.
-    std::shared_ptr<DatasetStatsView> previous =
-        (prev_feature_statistics)
+    std::shared_ptr<DatasetStatsView> previous_span =
+        (prev_span_feature_statistics)
             ? std::make_shared<DatasetStatsView>(
-                  prev_feature_statistics.value(), by_weight, maybe_environment,
-                  /* previous= */ nullptr,
-                  /* serving= */ nullptr)
+                  prev_span_feature_statistics.value(), by_weight,
+                  maybe_environment,
+                  /* previous_span= */ nullptr,
+                  /* serving= */ nullptr,
+                  /* previous_version= */ nullptr)
             : nullptr;
 
     std::shared_ptr<DatasetStatsView> serving =
         (serving_feature_statistics) ? std::make_shared<DatasetStatsView>(
                                            serving_feature_statistics.value(),
                                            by_weight, maybe_environment,
-                                           /* previous= */ nullptr,
-                                           /* serving= */ nullptr)
+                                           /* previous_span= */ nullptr,
+                                           /* serving= */ nullptr,
+                                           /* previous_version= */ nullptr)
                                      : nullptr;
 
-    const DatasetStatsView training = DatasetStatsView(
-        feature_statistics, by_weight, maybe_environment, previous, serving);
+    std::shared_ptr<DatasetStatsView> previous_version =
+        (prev_version_feature_statistics)
+            ? std::make_shared<DatasetStatsView>(
+                  prev_version_feature_statistics.value(), by_weight,
+                  maybe_environment,
+                  /* previous_span= */ nullptr,
+                  /* serving= */ nullptr,
+                  /* previous_version= */ nullptr)
+            : nullptr;
+
+    const DatasetStatsView training =
+        DatasetStatsView(feature_statistics, by_weight, maybe_environment,
+                         previous_span, serving, previous_version);
     TF_RETURN_IF_ERROR(
         schema_anomalies.FindChanges(training, ToAbslOptional(features_needed),
                                      feature_statistics_to_proto_config));
@@ -164,8 +177,9 @@ tensorflow::Status ValidateFeatureStatistics(
 tensorflow::Status ValidateFeatureStatisticsWithoutDiff(
     const string& feature_statistics_proto_string,
     const string& schema_proto_string, const string& environment,
-    const string& previous_statistics_proto_string,
+    const string& previous_span_statistics_proto_string,
     const string& serving_statistics_proto_string,
+    const string& previous_version_statistics_proto_string,
     string* anomalies_proto_string) {
   tensorflow::metadata::v0::Schema schema;
   if (!schema.ParseFromString(schema_proto_string)) {
@@ -179,14 +193,14 @@ tensorflow::Status ValidateFeatureStatisticsWithoutDiff(
   }
 
   tensorflow::gtl::optional<tensorflow::metadata::v0::DatasetFeatureStatistics>
-      previous_statistics = tensorflow::gtl::nullopt;
-  if (!previous_statistics_proto_string.empty()) {
+      previous_span_statistics = tensorflow::gtl::nullopt;
+  if (!previous_span_statistics_proto_string.empty()) {
     tensorflow::metadata::v0::DatasetFeatureStatistics tmp_stats;
-    if (!tmp_stats.ParseFromString(previous_statistics_proto_string)) {
+    if (!tmp_stats.ParseFromString(previous_span_statistics_proto_string)) {
       return tensorflow::errors::InvalidArgument(
           "Failed to parse DatasetFeatureStatistics proto.");
     }
-    previous_statistics = tmp_stats;
+    previous_span_statistics = tmp_stats;
   }
 
   tensorflow::gtl::optional<tensorflow::metadata::v0::DatasetFeatureStatistics>
@@ -200,6 +214,17 @@ tensorflow::Status ValidateFeatureStatisticsWithoutDiff(
     serving_statistics = tmp_stats;
   }
 
+  tensorflow::gtl::optional<tensorflow::metadata::v0::DatasetFeatureStatistics>
+      previous_version_statistics = tensorflow::gtl::nullopt;
+  if (!previous_version_statistics_proto_string.empty()) {
+    tensorflow::metadata::v0::DatasetFeatureStatistics tmp_stats;
+    if (!tmp_stats.ParseFromString(previous_version_statistics_proto_string)) {
+      return tensorflow::errors::InvalidArgument(
+          "Failed to parse DatasetFeatureStatistics proto.");
+    }
+    previous_version_statistics = tmp_stats;
+  }
+
   tensorflow::gtl::optional<string> may_be_environment =
       tensorflow::gtl::nullopt;
   if (!environment.empty()) {
@@ -208,8 +233,9 @@ tensorflow::Status ValidateFeatureStatisticsWithoutDiff(
 
   tensorflow::metadata::v0::Anomalies anomalies;
   TF_RETURN_IF_ERROR(ValidateFeatureStatistics(
-      feature_statistics, schema, may_be_environment, previous_statistics,
-      serving_statistics, /*features_needed=*/gtl::nullopt, ValidationConfig(),
+      feature_statistics, schema, may_be_environment, previous_span_statistics,
+      serving_statistics, previous_version_statistics,
+      /*features_needed=*/gtl::nullopt, ValidationConfig(),
       /*enable_diff_regions=*/false, &anomalies));
 
   if (!anomalies.SerializeToString(anomalies_proto_string)) {
@@ -248,14 +274,16 @@ tensorflow::Status UpdateSchema(
   if (paths_to_consider) {
     TF_RETURN_IF_ERROR(schema.Update(
         DatasetStatsView(feature_statistics, by_weight, maybe_environment,
-                         /* previous= */ nullptr,
-                         /* serving= */ nullptr),
+                         /* previous_span= */ nullptr,
+                         /* serving= */ nullptr,
+                         /* previous_version= */ nullptr),
         feature_statistics_to_proto_config, *paths_to_consider));
   } else {
     TF_RETURN_IF_ERROR(schema.Update(
         DatasetStatsView(feature_statistics, by_weight, maybe_environment,
-                         /* previous= */ nullptr,
-                         /* serving= */ nullptr),
+                         /* previous_span= */ nullptr,
+                         /* serving= */ nullptr,
+                         /* previous_version= */ nullptr),
         feature_statistics_to_proto_config));
   }
   *result = schema.GetSchema();

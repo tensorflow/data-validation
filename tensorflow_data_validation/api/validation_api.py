@@ -44,6 +44,8 @@ _GLOBAL_ONLY_ANOMALY_TYPES = set([
     anomalies_pb2.AnomalyInfo.COMPARATOR_CONTROL_DATA_MISSING,
     anomalies_pb2.AnomalyInfo.COMPARATOR_TREATMENT_DATA_MISSING,
     anomalies_pb2.AnomalyInfo.COMPARATOR_L_INFTY_HIGH,
+    anomalies_pb2.AnomalyInfo.COMPARATOR_LOW_NUM_EXAMPLES,
+    anomalies_pb2.AnomalyInfo.COMPARATOR_HIGH_NUM_EXAMPLES,
     anomalies_pb2.AnomalyInfo.NO_DATA_IN_SPAN,
 ])
 
@@ -285,6 +287,9 @@ def validate_statistics(
   serialized_serving_stats = (
       serving_statistics.datasets[0].SerializeToString()
       if serving_statistics is not None else '')
+  # TODO(b/132102563): Update API to support validation against previous version
+  # stats.
+  serialized_previous_version_stats = ''
 
   anomalies_proto_string = (
       pywrap_tensorflow_data_validation.ValidateFeatureStatistics(
@@ -292,7 +297,8 @@ def validate_statistics(
           tf.compat.as_bytes(serialized_schema),
           tf.compat.as_bytes(environment),
           tf.compat.as_bytes(serialized_previous_stats),
-          tf.compat.as_bytes(serialized_serving_stats)))
+          tf.compat.as_bytes(serialized_serving_stats),
+          tf.compat.as_bytes(serialized_previous_version_stats)))
 
   # Parse the serialized Anomalies proto.
   result = anomalies_pb2.Anomalies()

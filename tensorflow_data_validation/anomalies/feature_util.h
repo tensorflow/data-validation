@@ -40,16 +40,17 @@ std::vector<Description> UpdatePresence(
     tensorflow::metadata::v0::FeaturePresence* presence);
 
 bool FeatureHasComparator(const tensorflow::metadata::v0::Feature& feature,
-                          ComparatorType comparator_type);
+                          FeatureComparatorType comparator_type);
 
 // Gets the feature comparator, creating it if it does not exist.
 tensorflow::metadata::v0::FeatureComparator* GetFeatureComparator(
-    tensorflow::metadata::v0::Feature* feature, ComparatorType comparator_type);
+    tensorflow::metadata::v0::Feature* feature,
+    FeatureComparatorType comparator_type);
 
 // Updates comparator from the feature stats.
 // Note that if the "control" was missing, we have deprecated the column.
 std::vector<Description> UpdateFeatureComparatorDirect(
-    const FeatureStatsView& stats, const ComparatorType comparator_type,
+    const FeatureStatsView& stats, const FeatureComparatorType comparator_type,
     tensorflow::metadata::v0::FeatureComparator* comparator);
 
 // Initializes the value count and presence given a feature_stats_view.

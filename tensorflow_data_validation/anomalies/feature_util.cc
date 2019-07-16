@@ -36,11 +36,11 @@ constexpr char kSuperfluousValues[] = "Superfluous values";
 constexpr char kMissingValues[] = "Missing values";
 constexpr char kDropped[] = "Column dropped";
 
-ComparatorContext GetContext(ComparatorType comparator_type) {
+ComparatorContext GetContext(FeatureComparatorType comparator_type) {
   switch (comparator_type) {
-    case ComparatorType::SKEW:
+    case FeatureComparatorType::SKEW:
       return {"serving", "training"};
-    case ComparatorType::DRIFT:
+    case FeatureComparatorType::DRIFT:
       return {"previous", "current"};
   }
 }
@@ -51,22 +51,22 @@ ComparatorContext GetContext(ComparatorType comparator_type) {
 // Should probably remove FeatureStatsView::GetServing and
 // FeatureStatsView::GetPrevious.
 bool HasControlDataset(const FeatureStatsView& stats,
-                       ComparatorType comparator_type) {
+                       FeatureComparatorType comparator_type) {
   switch (comparator_type) {
-    case ComparatorType::SKEW:
+    case FeatureComparatorType::SKEW:
       return stats.parent_view().GetServing() != absl::nullopt;
-    case ComparatorType::DRIFT:
-      return stats.parent_view().GetPrevious() != absl::nullopt;
+    case FeatureComparatorType::DRIFT:
+      return stats.parent_view().GetPreviousSpan() != absl::nullopt;
   }
 }
 
 absl::optional<FeatureStatsView> GetControlStats(
-    const FeatureStatsView& stats, ComparatorType comparator_type) {
+    const FeatureStatsView& stats, FeatureComparatorType comparator_type) {
   switch (comparator_type) {
-    case ComparatorType::SKEW:
+    case FeatureComparatorType::SKEW:
       return stats.GetServing();
-    case ComparatorType::DRIFT:
-      return stats.GetPrevious();
+    case FeatureComparatorType::DRIFT:
+      return stats.GetPreviousSpan();
   }
 }
 
@@ -101,21 +101,21 @@ std::vector<Description> UpdateValueCount(
 }
 
 bool FeatureHasComparator(const Feature& feature,
-                          ComparatorType comparator_type) {
+                          FeatureComparatorType comparator_type) {
   switch (comparator_type) {
-    case ComparatorType::DRIFT:
+    case FeatureComparatorType::DRIFT:
       return feature.has_drift_comparator();
-    case ComparatorType::SKEW:
+    case FeatureComparatorType::SKEW:
       return feature.has_skew_comparator();
   }
 }
 
 tensorflow::metadata::v0::FeatureComparator* GetFeatureComparator(
-    Feature* feature, ComparatorType comparator_type) {
+    Feature* feature, FeatureComparatorType comparator_type) {
   switch (comparator_type) {
-    case ComparatorType::DRIFT:
+    case FeatureComparatorType::DRIFT:
       return feature->mutable_drift_comparator();
-    case ComparatorType::SKEW:
+    case FeatureComparatorType::SKEW:
       return feature->mutable_skew_comparator();
   }
 }
@@ -171,7 +171,7 @@ bool SparseFeatureIsDeprecated(const SparseFeature& sparse_feature) {
 }
 
 std::vector<Description> UpdateFeatureComparatorDirect(
-    const FeatureStatsView& stats, const ComparatorType comparator_type,
+    const FeatureStatsView& stats, const FeatureComparatorType comparator_type,
     tensorflow::metadata::v0::FeatureComparator* comparator) {
   if (!comparator->infinity_norm().has_threshold()) {
     // There is nothing to check.

@@ -43,9 +43,9 @@ TEST(DatasetStatsView, Environment) {
           }
         })");
 
-  DatasetStatsView view(current, false, "environment_name",
-                        std::shared_ptr<DatasetStatsView>(),
-                        std::shared_ptr<DatasetStatsView>());
+  DatasetStatsView view(
+      current, false, "environment_name", std::shared_ptr<DatasetStatsView>(),
+      std::shared_ptr<DatasetStatsView>(), std::shared_ptr<DatasetStatsView>());
 
   EXPECT_TRUE(view.environment());
   EXPECT_EQ("environment_name", *view.environment());
@@ -65,9 +65,9 @@ TEST(FeatureStatsView, Environment) {
           }
         })");
 
-  DatasetStatsView view(current, false, "environment_name",
-                        std::shared_ptr<DatasetStatsView>(),
-                        std::shared_ptr<DatasetStatsView>());
+  DatasetStatsView view(
+      current, false, "environment_name", std::shared_ptr<DatasetStatsView>(),
+      std::shared_ptr<DatasetStatsView>(), std::shared_ptr<DatasetStatsView>());
 
   EXPECT_TRUE(view.GetByPath(Path({"bar"}))->environment());
   EXPECT_EQ("environment_name", *view.GetByPath(Path({"bar"}))->environment());
@@ -97,10 +97,13 @@ TEST(FeatureStatsView, Previous) {
       std::make_shared<DatasetStatsView>(previous);
 
   DatasetStatsView view(current, false, "environment_name", previous_view,
+                        std::shared_ptr<DatasetStatsView>(),
                         std::shared_ptr<DatasetStatsView>());
 
-  EXPECT_EQ(10, view.GetByPath(Path({"bar"}))->GetPrevious()->max_num_values());
-  EXPECT_EQ(10, view.GetPrevious()->GetByPath(Path({"bar"}))->max_num_values());
+  EXPECT_EQ(10,
+            view.GetByPath(Path({"bar"}))->GetPreviousSpan()->max_num_values());
+  EXPECT_EQ(10,
+            view.GetPreviousSpan()->GetByPath(Path({"bar"}))->max_num_values());
   DatasetStatsView view_no_previous(current, false);
   EXPECT_FALSE(view_no_previous.GetServing());
   EXPECT_FALSE(view_no_previous.GetByPath(Path({"bar"}))->GetServing());
@@ -130,7 +133,8 @@ TEST(FeatureStatsView, Serving) {
       std::make_shared<DatasetStatsView>(serving);
 
   DatasetStatsView view(current, false, "environment_name",
-                        std::shared_ptr<DatasetStatsView>(), serving_view);
+                        std::shared_ptr<DatasetStatsView>(), serving_view,
+                        std::shared_ptr<DatasetStatsView>());
 
   EXPECT_EQ(10, view.GetServing()->GetByPath(Path({"bar"}))->max_num_values());
   EXPECT_EQ(10, view.GetByPath(Path({"bar"}))->GetServing()->max_num_values());
@@ -353,13 +357,10 @@ TEST(DatasetStatsView, GetRootFeatures) {
   EXPECT_EQ(Path({"foo"}), roots[0].GetPath());
 }
 
-
 TEST(DatasetStatsView, GetRootFeaturesWithSkip) {
   const DatasetFeatureStatistics input =
       ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
-        features: {
-          name: 'bar'
-        }
+        features: { name: 'bar' }
         features: {
           name: 'foo'
           type: STRUCT
@@ -1048,6 +1049,42 @@ TEST(DatasetStatsViewDeathTest, MixedFieldId) {
         })");
   EXPECT_DEATH({ DatasetStatsView stats(input); },
                "Some features had .name and some features had .path");
+}
+
+TEST(DatasetStatsView, GetPreviousVersion) {
+  const DatasetFeatureStatistics current =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        num_examples: 1
+        features {
+          name: 'bar'
+          type: FLOAT
+          num_stats: {
+            common_stats: { num_missing: 3 min_num_values: 3 max_num_values: 7 }
+          }
+        })");
+  const DatasetFeatureStatistics previous_version = ParseTextProtoOrDie<
+      DatasetFeatureStatistics>(R"(
+    num_examples: 2
+    features {
+      name: 'bar'
+      type: FLOAT
+      num_stats: {
+        common_stats: { num_missing: 3 min_num_values: 3 max_num_values: 10 }
+      }
+    })");
+
+  std::shared_ptr<DatasetStatsView> previous_version_view =
+      std::make_shared<DatasetStatsView>(previous_version);
+
+  DatasetStatsView view(
+      current, false, "environment_name", std::shared_ptr<DatasetStatsView>(),
+      std::shared_ptr<DatasetStatsView>(), previous_version_view);
+
+  EXPECT_EQ(
+      10,
+      view.GetPreviousVersion()->GetByPath(Path({"bar"}))->max_num_values());
+  DatasetStatsView view_no_previous_version(current, false);
+  EXPECT_FALSE(view_no_previous_version.GetPreviousVersion());
 }
 
 }  // namespace data_validation
