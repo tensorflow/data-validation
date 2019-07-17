@@ -304,7 +304,7 @@ class _FeatureTypeInferrer(beam.CombineFn):
     # If the row is empty and we don't want to skip blank lines,
     # add an empty string to each column.
     if not input_row and not self._skip_blank_lines:
-      input_row = ['' for _ in range(len(self._column_names))]
+      input_row = ['' for _ in six.moves.range(len(self._column_names))]
     elif input_row and len(input_row) != len(self._column_names):
       raise ValueError('Columns do not match specified csv headers: %s -> %s' %
                        (self._column_names, input_row))

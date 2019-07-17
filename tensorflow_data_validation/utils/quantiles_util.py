@@ -23,6 +23,7 @@ import bisect
 import collections
 
 import numpy as np
+import six
 from tensorflow_transform import analyzers
 from tensorflow_data_validation.types_compat import List, Optional, Union
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -136,7 +137,7 @@ def generate_quantiles_histogram(quantiles,
   # Sample count of the current bucket.
   running_sample_count = 0
   # Iterate to create the first num_buckets - 1 buckets.
-  for i in range(len(quantiles)-1):
+  for i in six.moves.range(len(quantiles)-1):
     if running_sample_count + current_sample_count >= required_sample_count:
       # Sample count needed for the current bucket.
       needed_sample_count = required_sample_count - running_sample_count
@@ -259,7 +260,8 @@ def generate_equi_width_buckets(quantiles,
   carry_over = 0
 
   # Iterate to create the first num_buckets - 1 buckets.
-  bucket_boundaries = [min_val + (ix * width) for ix in range(num_buckets)]
+  bucket_boundaries = [min_val + (ix * width)
+                       for ix in six.moves.range(num_buckets)]
   for (bucket_start, bucket_end) in zip(bucket_boundaries[:-1],
                                         bucket_boundaries[1:]):
     # Add carried over sample count to the current bucket.
