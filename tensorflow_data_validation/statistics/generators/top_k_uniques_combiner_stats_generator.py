@@ -19,7 +19,6 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
-import numpy as np
 import six
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
@@ -175,51 +174,46 @@ class TopKUniquesCombinerStatsGenerator(
   # of DataFrame merging provided by pandas.
   def add_input(self, accumulator,
                 input_table):
-
-    weight_ndarrays = []
-    if self._weight_feature is not None:
-      for a in input_table.column(self._weight_feature).data.iterchunks():
-        weight_array = arrow_util.FlattenListArray(a)
-        if len(weight_array) != len(a):
-          raise ValueError(
-              'If weight is specified, then each example must have a weight '
-              'feature of length 1.')
-        # to_numpy() can only be called against a non-empty arrow array.
-        if weight_array:
-          weight_ndarrays.append(weight_array.to_numpy())
-        else:
-          weight_ndarrays.append(
-              np.array([], dtype=weight_array.to_pandas_dtype()))
+    weight_column = (input_table.column(self._weight_feature)
+                     if self._weight_feature else None)
+    weight_array = weight_column.data.chunk(0) if weight_column else []
+    if weight_array:
+      flattened_weights = arrow_util.FlattenListArray(weight_array).to_numpy()
 
     for column in input_table.columns:
       feature_name = column.name
+      # Skip the weight feature.
       if feature_name == self._weight_feature:
         continue
       feature_path = types.FeaturePath([feature_name])
-      unweighted_counts = collections.Counter()
-      weighted_counts = _WeightedCounter()
       feature_type = stats_util.get_feature_type_from_arrow_type(
           feature_path, column.type)
+      # if it's not a categorical feature nor a string feature, we don't bother
+      # with topk stats.
       if not (feature_path in self._categorical_features or
               feature_type == statistics_pb2.FeatureNameStatistics.STRING):
         continue
+      value_array = column.data.chunk(0)
+      flattened_values = arrow_util.FlattenListArray(value_array)
+      unweighted_counts = collections.Counter()
+      # Compute unweighted counts.
+      value_counts = arrow_util.ValueCounts(flattened_values)
+      for value_count in value_counts:
+        value_count = value_count.as_py()
+        unweighted_counts[value_count['values']] = value_count['counts']
 
-      for feature_array, weight_ndarray in six.moves.zip_longest(
-          column.data.iterchunks(), weight_ndarrays, fillvalue=None):
-        flattened_values_array = arrow_util.FlattenListArray(feature_array)
-        # to_numpy() cannot be called if the array is empty.
-        if not flattened_values_array:
-          continue
-        if feature_type == statistics_pb2.FeatureNameStatistics.STRING:
-          values_ndarray = flattened_values_array.to_pandas()
+      # Compute weighted counts if a weight feature is specified.
+      weighted_counts = _WeightedCounter()
+      if weight_array:
+        if (pa.types.is_binary(flattened_values.type) or
+            pa.types.is_string(flattened_values.type)):
+          # no free conversion.
+          flattened_values_np = flattened_values.to_pandas()
         else:
-          values_ndarray = flattened_values_array.to_numpy()
-        value_parent_indices = arrow_util.GetFlattenedArrayParentIndices(
-            feature_array).to_numpy()
-        unweighted_counts.update(values_ndarray)
-        if weight_ndarray is not None:
-          weight_per_value = weight_ndarray[value_parent_indices]
-          weighted_counts.weighted_update(values_ndarray, weight_per_value)
+          flattened_values_np = flattened_values.to_numpy()
+        indices = arrow_util.GetFlattenedArrayParentIndices(value_array)
+        weighted_counts.weighted_update(flattened_values_np,
+                                        flattened_weights[indices.to_numpy()])
 
       if feature_path not in accumulator:
         accumulator[feature_path] = _ValueCounts(
