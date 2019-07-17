@@ -40,7 +40,7 @@ _ValueCounts = collections.namedtuple('_ValueCounts',
 
 
 def _make_feature_stats_proto(
-    feature_name,
+    feature_path,
     value_count_list,
     weighted_value_count_list, is_categorical,
     num_top_values, frequency_threshold,
@@ -51,7 +51,7 @@ def _make_feature_stats_proto(
   # stats.
   result = (
       top_k_uniques_stats_generator.make_feature_stats_proto_with_topk_stats(
-          feature_name, value_count_list, is_categorical, False, num_top_values,
+          feature_path, value_count_list, is_categorical, False, num_top_values,
           frequency_threshold, num_rank_histogram_buckets))
 
   # If weights were provided, create another FeatureNameStatistics proto that
@@ -60,7 +60,7 @@ def _make_feature_stats_proto(
   if weighted_value_count_list:
     weighted_result = (
         top_k_uniques_stats_generator.make_feature_stats_proto_with_topk_stats(
-            feature_name, weighted_value_count_list, is_categorical, True,
+            feature_path, weighted_value_count_list, is_categorical, True,
             num_top_values, weighted_frequency_threshold,
             num_rank_histogram_buckets))
 
@@ -81,16 +81,16 @@ def _make_dataset_feature_stats_proto_with_multiple_features(
     num_rank_histogram_buckets):
   """Makes a DatasetFeatureStatistics proto containing multiple features."""
   result = statistics_pb2.DatasetFeatureStatistics()
-  for feature_name, value_count in feature_names_to_value_counts.items():
+  for feature_path, value_count in six.iteritems(feature_names_to_value_counts):
     if weighted_feature_names_to_value_counts:
       weighted_value_count = weighted_feature_names_to_value_counts[
-          feature_name]
+          feature_path]
     else:
       weighted_value_count = None
     result.features.add().CopyFrom(
-        _make_feature_stats_proto(feature_name, value_count,
+        _make_feature_stats_proto(feature_path, value_count,
                                   weighted_value_count,
-                                  feature_name in categorical_features,
+                                  feature_path in categorical_features,
                                   num_top_values, frequency_threshold,
                                   weighted_frequency_threshold,
                                   num_rank_histogram_buckets))
@@ -195,11 +195,12 @@ class TopKUniquesCombinerStatsGenerator(
       feature_name = column.name
       if feature_name == self._weight_feature:
         continue
+      feature_path = types.FeaturePath([feature_name])
       unweighted_counts = collections.Counter()
       weighted_counts = _WeightedCounter()
       feature_type = stats_util.get_feature_type_from_arrow_type(
-          feature_name, column.type)
-      if not (feature_name in self._categorical_features or
+          feature_path, column.type)
+      if not (feature_path in self._categorical_features or
               feature_type == statistics_pb2.FeatureNameStatistics.STRING):
         continue
 
@@ -220,13 +221,13 @@ class TopKUniquesCombinerStatsGenerator(
           weight_per_value = weight_ndarray[value_parent_indices]
           weighted_counts.weighted_update(values_ndarray, weight_per_value)
 
-      if feature_name not in accumulator:
-        accumulator[feature_name] = _ValueCounts(
+      if feature_path not in accumulator:
+        accumulator[feature_path] = _ValueCounts(
             unweighted_counts=unweighted_counts,
             weighted_counts=weighted_counts)
       else:
-        accumulator[feature_name].unweighted_counts.update(unweighted_counts)
-        accumulator[feature_name].weighted_counts.update(weighted_counts)
+        accumulator[feature_path].unweighted_counts.update(unweighted_counts)
+        accumulator[feature_path].weighted_counts.update(weighted_counts)
     return accumulator
 
   def merge_accumulators(
@@ -234,39 +235,39 @@ class TopKUniquesCombinerStatsGenerator(
   ):
     result = {}
     for accumulator in accumulators:
-      for feature_name, value_counts in accumulator.items():
-        if feature_name not in result:
-          result[feature_name] = value_counts
+      for feature_path, value_counts in six.iteritems(accumulator):
+        if feature_path not in result:
+          result[feature_path] = value_counts
         else:
-          result[feature_name].unweighted_counts.update(
+          result[feature_path].unweighted_counts.update(
               value_counts.unweighted_counts)
-          if result[feature_name].weighted_counts:
-            result[feature_name].weighted_counts.update(
+          if result[feature_path].weighted_counts:
+            result[feature_path].weighted_counts.update(
                 value_counts.weighted_counts)
     return result
 
   def extract_output(self, accumulator
                     ):
-    feature_names_to_value_counts = dict()
-    feature_names_to_weighted_value_counts = dict()
+    feature_paths_to_value_counts = dict()
+    feature_paths_to_weighted_value_counts = dict()
 
-    for feature_name, value_counts in accumulator.items():
+    for feature_path, value_counts in accumulator.items():
       if value_counts.unweighted_counts:
         feature_value_counts = [
             top_k_uniques_stats_generator.FeatureValueCount(key, value)
             for key, value in value_counts.unweighted_counts.items()
         ]
-        feature_names_to_value_counts[feature_name] = feature_value_counts
+        feature_paths_to_value_counts[feature_path] = feature_value_counts
       if value_counts.weighted_counts:
         weighted_feature_value_counts = [
             top_k_uniques_stats_generator.FeatureValueCount(key, value)
             for key, value in value_counts.weighted_counts.items()
         ]
-        feature_names_to_weighted_value_counts[
-            feature_name] = weighted_feature_value_counts
+        feature_paths_to_weighted_value_counts[
+            feature_path] = weighted_feature_value_counts
 
     return _make_dataset_feature_stats_proto_with_multiple_features(
-        feature_names_to_value_counts, feature_names_to_weighted_value_counts,
+        feature_paths_to_value_counts, feature_paths_to_weighted_value_counts,
         self._categorical_features, self._num_top_values,
         self._frequency_threshold, self._weighted_frequency_threshold,
         self._num_rank_histogram_buckets)

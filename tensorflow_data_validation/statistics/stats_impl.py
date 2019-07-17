@@ -303,16 +303,20 @@ def _merge_dataset_feature_stats_protos(
   # FeatureNameStatistics protos per feature.
   for stats_proto in stats_protos:
     for feature_stats_proto in stats_proto.features:
-      if feature_stats_proto.name not in stats_per_feature:
-        stats_per_feature[feature_stats_proto.name] = feature_stats_proto
+      feature_path = types.FeaturePath.from_proto(feature_stats_proto.path)
+      if feature_path not in stats_per_feature:
+        stats_per_feature[feature_path] = feature_stats_proto
       else:
-        stats_per_feature[feature_stats_proto.name].MergeFrom(
-            feature_stats_proto)
+        stats_for_feature = stats_per_feature[feature_path]
+        # MergeFrom would concatenate repeated fields which is not what we want
+        # for path.step.
+        del stats_for_feature.path.step[:]
+        stats_per_feature[feature_path].MergeFrom(feature_stats_proto)
 
   # Create a new DatasetFeatureStatistics proto.
   result = statistics_pb2.DatasetFeatureStatistics()
   num_examples = None
-  for feature_stats_proto in stats_per_feature.values():
+  for feature_stats_proto in six.itervalues(stats_per_feature):
     # Add the merged FeatureNameStatistics proto for the feature
     # into the DatasetFeatureStatistics proto.
     new_feature_stats_proto = result.features.add()
@@ -341,7 +345,7 @@ def _merge_dataset_feature_stats_protos(
 def _update_example_and_missing_count(
     stats):
   """Updates example count of the dataset and missing count for all features."""
-  dummy_feature = stats_util.get_feature_stats(stats, _DUMMY_FEATURE_NAME)
+  dummy_feature = stats_util.get_feature_stats(stats, _DUMMY_FEATURE_PATH)
   num_examples = stats_util.get_custom_stats(dummy_feature, _NUM_EXAMPLES_KEY)
   weighted_num_examples = stats_util.get_custom_stats(
       dummy_feature, _WEIGHTED_NUM_EXAMPLES_KEY)
@@ -355,8 +359,10 @@ def _update_example_and_missing_count(
     assert num_examples >= common_stats.num_non_missing, (
         'Total number of examples: {} is less than number of non missing '
         'examples: {} for feature {}.'.format(
-            num_examples, common_stats.num_non_missing, feature_stats.name))
-    common_stats.num_missing = int(num_examples - common_stats.num_non_missing)
+            num_examples, common_stats.num_non_missing,
+            '.'.join(feature_stats.path.step)))
+    common_stats.num_missing = int(
+        num_examples - common_stats.num_non_missing)
     if weighted_num_examples != 0:
       common_stats.weighted_common_stats.num_missing = (
           weighted_num_examples -
@@ -392,7 +398,7 @@ def _make_dataset_feature_statistics_list_proto(
   return result
 
 
-_DUMMY_FEATURE_NAME = '__TFDV_INTERNAL_FEATURE__'
+_DUMMY_FEATURE_PATH = types.FeaturePath(['__TFDV_INTERNAL_FEATURE__'])
 _NUM_EXAMPLES_KEY = '__NUM_EXAMPLES__'
 _WEIGHTED_NUM_EXAMPLES_KEY = '__WEIGHTED_NUM_EXAMPLES__'
 
@@ -429,7 +435,7 @@ class NumExamplesStatsGenerator(stats_generator.CombinerStatsGenerator):
                     ):
     result = statistics_pb2.DatasetFeatureStatistics()
     dummy_feature = result.features.add()
-    dummy_feature.name = _DUMMY_FEATURE_NAME
+    dummy_feature.path.CopyFrom(_DUMMY_FEATURE_PATH.to_proto())
     dummy_feature.custom_stats.add(name=_NUM_EXAMPLES_KEY, num=accumulator[0])
     dummy_feature.custom_stats.add(name=_WEIGHTED_NUM_EXAMPLES_KEY,
                                    num=accumulator[1])
@@ -692,7 +698,7 @@ def extract_statistics_output(
 
 # Type for the wrapper_accumulator of a CombinerFeatureStatsWrapperGenerator.
 # See documentation below for more details.
-WrapperAccumulator = Dict[Text, List[Any]]
+WrapperAccumulator = Dict[types.FeaturePath, List[Any]]
 
 
 class CombinerFeatureStatsWrapperGenerator(
@@ -701,8 +707,8 @@ class CombinerFeatureStatsWrapperGenerator(
 
   This combiner wraps multiple CombinerFeatureStatsGenerators by generating
   and updating wrapper_accumulators where:
-  wrapper_accumulator[feature_name][feature_generator_index] contains the
-  generator specific accumulator for the pair (feature_name,
+  wrapper_accumulator[feature_path][feature_generator_index] contains the
+  generator specific accumulator for the pair (feature_path,
   feature_generator_index).
   """
 
@@ -729,14 +735,14 @@ class CombinerFeatureStatsWrapperGenerator(
     self._weight_feature = weight_feature
     self._sample_rate = sample_rate
 
-  def _perhaps_initialize_for_feature_name(
+  def _perhaps_initialize_for_feature_path(
       self, wrapper_accumulator,
-      feature_name):
-    """Initializes the feature_name key if it does not exist."""
+      feature_path):
+    """Initializes the feature_path key if it does not exist."""
     # Note: This manual initialization could have been avoided if
     # wrapper_accumulator was a defaultdict, but this breaks pickling.
-    if feature_name not in wrapper_accumulator:
-      wrapper_accumulator[feature_name] = [
+    if feature_path not in wrapper_accumulator:
+      wrapper_accumulator[feature_path] = [
           generator.create_accumulator()
           for generator in self._feature_stats_generators
       ]
@@ -768,10 +774,11 @@ class CombinerFeatureStatsWrapperGenerator(
       feature_name = feature_column.name
       if feature_name == self._weight_feature:
         continue
-      self._perhaps_initialize_for_feature_name(wrapper_accumulator,
-                                                feature_name)
+      feature_path = types.FeaturePath([feature_name])
+      self._perhaps_initialize_for_feature_path(wrapper_accumulator,
+                                                feature_path)
       for index, generator in enumerate(self._feature_stats_generators):
-        wrapper_accumulator[feature_name][index] = generator.add_input(
+        wrapper_accumulator[feature_path][index] = generator.add_input(
             generator.create_accumulator(), feature_column)
     return wrapper_accumulator
 
@@ -790,7 +797,7 @@ class CombinerFeatureStatsWrapperGenerator(
     for wrapper_accumulator in wrapper_accumulators:
       for feature_name, accumulator_for_feature in six.iteritems(
           wrapper_accumulator):
-        self._perhaps_initialize_for_feature_name(result, feature_name)
+        self._perhaps_initialize_for_feature_path(result, feature_name)
         for index, generator in enumerate(self._feature_stats_generators):
           result[feature_name][index] = generator.merge_accumulators(
               [result[feature_name][index], accumulator_for_feature[index]])
@@ -808,10 +815,10 @@ class CombinerFeatureStatsWrapperGenerator(
     """
     result = statistics_pb2.DatasetFeatureStatistics()
 
-    for feature_name, accumulator_for_feature in six.iteritems(
+    for feature_path, accumulator_for_feature in six.iteritems(
         wrapper_accumulator):
       feature_stats = result.features.add()
-      feature_stats.name = feature_name
+      feature_stats.path.CopyFrom(feature_path.to_proto())
       for index, generator in enumerate(self._feature_stats_generators):
         feature_stats.MergeFrom(
             generator.extract_output(accumulator_for_feature[index]))

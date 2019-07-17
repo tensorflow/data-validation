@@ -24,6 +24,7 @@ from absl.testing import parameterized
 import apache_beam as beam
 from apache_beam.testing import util
 import numpy as np
+from tensorflow_data_validation import types
 from tensorflow_data_validation.api import validation_api
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.utils import schema_util
@@ -542,8 +543,9 @@ class ValidationApiTest(absltest.TestCase):
     # Verify the updated schema.
     actual_updated_schema = validation_api.update_schema(schema, statistics)
     expected_updated_schema = schema
-    schema_util.get_domain(expected_updated_schema,
-                           'annotated_enum').value.append('D')
+    schema_util.get_domain(
+        expected_updated_schema,
+        types.FeaturePath(['annotated_enum'])).value.append('D')
     self.assertEqual(actual_updated_schema, expected_updated_schema)
 
     # Verify that there are no anomalies with the updated schema.

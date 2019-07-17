@@ -121,14 +121,18 @@ class TestAssertDatasetFeatureStatsProtoEqual(absltest.TestCase):
       expected = text_format.Parse(
           """
       features {
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           unique: 4
         }
       }
       features {
-        name: 'fb'
+        path {
+          step: 'fb'
+        }
         type: STRING
         string_stats {
           unique: 5
@@ -138,14 +142,18 @@ class TestAssertDatasetFeatureStatsProtoEqual(absltest.TestCase):
       actual = text_format.Parse(
           """
       features {
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           unique: 4
         }
       }
       features {
-        name: 'fb'
+        path {
+          step: 'fb'
+        }
         type: STRING
         string_stats {
           unique: 5
@@ -157,14 +165,18 @@ class TestAssertDatasetFeatureStatsProtoEqual(absltest.TestCase):
       expected = text_format.Parse(
           """
       features {
-        name: 'fb'
+        path {
+          step: 'fb'
+        }
         type: STRING
         string_stats {
           unique: 5
         }
       }
       features {
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           unique: 4
@@ -173,14 +185,18 @@ class TestAssertDatasetFeatureStatsProtoEqual(absltest.TestCase):
       actual = text_format.Parse(
           """
       features {
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           unique: 4
         }
       }
       features {
-        name: 'fb'
+        path {
+          step: 'fb'
+        }
         type: STRING
         string_stats {
           unique: 5
@@ -192,7 +208,9 @@ class TestAssertDatasetFeatureStatsProtoEqual(absltest.TestCase):
       expected = text_format.Parse(
           """
       features {
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           unique: 4
@@ -201,7 +219,9 @@ class TestAssertDatasetFeatureStatsProtoEqual(absltest.TestCase):
       actual = text_format.Parse(
           """
       features {
-        name: 'fb'
+        path {
+          step: 'fb'
+        }
         type: STRING
         string_stats {
           unique: 5
@@ -213,14 +233,18 @@ class TestAssertDatasetFeatureStatsProtoEqual(absltest.TestCase):
       expected = text_format.Parse(
           """
         features {
-          name: 'fa'
+          path {
+            step: 'fa'
+          }
           type: STRING
           string_stats {
             unique: 4
           }
         }
         features {
-          name: 'fb'
+          path {
+            step: 'fb'
+          }
           type: STRING
           string_stats {
             unique: 5
@@ -229,7 +253,9 @@ class TestAssertDatasetFeatureStatsProtoEqual(absltest.TestCase):
       actual = text_format.Parse(
           """
         features {
-          name: 'fa'
+          path {
+            step: 'fa'
+          }
           type: STRING
           string_stats {
             unique: 4
@@ -242,7 +268,9 @@ class TestAssertDatasetFeatureStatsProtoEqual(absltest.TestCase):
           """
       num_examples: 1
       features {
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           unique: 4
@@ -253,7 +281,9 @@ class TestAssertDatasetFeatureStatsProtoEqual(absltest.TestCase):
           """
       num_examples: 2
       features {
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           unique: 4

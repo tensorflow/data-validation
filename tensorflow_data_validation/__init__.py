@@ -41,6 +41,9 @@ from tensorflow_data_validation.statistics.generators.stats_generator import Tra
 # Import stats options.
 from tensorflow_data_validation.statistics.stats_options import StatsOptions
 
+# Import FeaturePath.
+from tensorflow_data_validation.types import FeaturePath
+
 # Import anomalies utilities.
 from tensorflow_data_validation.utils.anomalies_util import load_anomalies_text
 from tensorflow_data_validation.utils.anomalies_util import write_anomalies_text

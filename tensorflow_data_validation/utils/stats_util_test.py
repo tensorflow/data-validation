@@ -22,6 +22,7 @@ import os
 from absl import flags
 from absl.testing import absltest
 import numpy as np
+from tensorflow_data_validation import types
 from tensorflow_data_validation.utils import stats_util
 
 from google.protobuf import text_format
@@ -71,20 +72,22 @@ class StatsUtilTest(absltest.TestCase):
 
   def test_make_dataset_feature_stats_proto(self):
     stats = {
-        'feature_1': {
+        types.FeaturePath(['feature_1']): {
             'Mutual Information': 0.5,
             'Correlation': 0.1
         },
-        'feature_2': {
+        types.FeaturePath(['feature_2']): {
             'Mutual Information': 0.8,
             'Correlation': 0.6
         }
     }
     expected = {
-        'feature_1':
+        types.FeaturePath(['feature_1']):
             text_format.Parse(
                 """
-            name: 'feature_1'
+            path {
+              step: 'feature_1'
+            }
             custom_stats {
               name: 'Correlation'
               num: 0.1
@@ -94,10 +97,12 @@ class StatsUtilTest(absltest.TestCase):
               num: 0.5
             }
            """, statistics_pb2.FeatureNameStatistics()),
-        'feature_2':
+        types.FeaturePath(['feature_2']):
             text_format.Parse(
                 """
-            name: 'feature_2'
+            path {
+              step: 'feature_2'
+            }
             custom_stats {
               name: 'Correlation'
               num: 0.6
@@ -114,7 +119,7 @@ class StatsUtilTest(absltest.TestCase):
       compare.assertProtoEqual(
           self,
           actual_feature_stats,
-          expected[actual_feature_stats.name],
+          expected[types.FeaturePath.from_proto(actual_feature_stats.path)],
           normalize_numbers=True)
 
   def test_get_weight_feature_with_valid_weight_feature(self):

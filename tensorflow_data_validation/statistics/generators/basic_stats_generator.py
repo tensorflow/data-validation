@@ -121,7 +121,7 @@ class _PartialCommonStats(object):
              feature_column,
              feature_type,
              num_values_quantiles_combiner,
-             weight_column = None):
+             weights = None):
     """Update the partial common statistics using the input value."""
     # All the values in this column is null and we cannot deduce the type of
     # the feature. This is not an error as this feature might have some values
@@ -141,37 +141,26 @@ class _PartialCommonStats(object):
     if not feature_column:
       return
 
-    if weight_column and (
-        feature_column.data.num_chunks != weight_column.data.num_chunks):
-      raise ValueError(
-          'Expected the feature column {} and weight column {} to have the '
-          'same number of chunks.'.format(
-              feature_column.name, weight_column.name))
+    feature_array = feature_column.data.chunk(0)
+    num_values = arrow_util.ListLengthsFromListArray(feature_array).to_numpy()
+    none_mask = arrow_util.GetArrayNullBitmapAsByteArray(
+        feature_array).to_numpy().view(np.bool)
 
-    weight_chunks = weight_column.data.iterchunks() if weight_column else []
-    for feature_array, weight_array in six.moves.zip_longest(
-        feature_column.data.iterchunks(), weight_chunks, fillvalue=None):
-      num_values = arrow_util.ListLengthsFromListArray(feature_array).to_numpy()
-      none_mask = arrow_util.GetArrayNullBitmapAsByteArray(
-          feature_array).to_numpy().view(np.bool)
+    num_values_not_none = num_values[~none_mask]
+    self.num_non_missing += len(feature_array) - feature_array.null_count
+    self.max_num_values = max(
+        np.max(num_values_not_none), self.max_num_values)
+    self.min_num_values = min(
+        np.min(num_values_not_none), self.min_num_values)
+    self.total_num_values += np.sum(num_values_not_none)
+    self.num_values_summary = num_values_quantiles_combiner.add_input(
+        self.num_values_summary, [num_values_not_none])
 
-      num_values_not_none = num_values[~none_mask]
-      self.num_non_missing += len(feature_array) - feature_array.null_count
-      self.max_num_values = max(
-          np.max(num_values_not_none), self.max_num_values)
-      self.min_num_values = min(
-          np.min(num_values_not_none), self.min_num_values)
-      self.total_num_values += np.sum(num_values_not_none)
-      self.num_values_summary = num_values_quantiles_combiner.add_input(
-          self.num_values_summary, [num_values_not_none])
-
-      if weight_array:
-        weights = (arrow_util.FlattenListArray(
-            weight_array).to_numpy().astype(np.float32, copy=False))
-        if weights.size != num_values.size:
-          raise ValueError('Weight feature must not be missing.')
-        self.weighted_total_num_values += np.sum(num_values * weights)
-        self.weighted_num_non_missing += np.sum(weights[~none_mask])
+    if weights is not None:
+      if weights.size != num_values.size:
+        raise ValueError('Weight feature must not be missing.')
+      self.weighted_total_num_values += np.sum(num_values * weights)
+      self.weighted_num_non_missing += np.sum(weights[~none_mask])
 
 
 class _PartialNumericStats(object):
@@ -234,7 +223,7 @@ class _PartialNumericStats(object):
       self,
       feature_column,
       values_quantiles_combiner,
-      weight_column = None):
+      weights = None):
     """Update the partial numeric statistics using the input value."""
 
     # np.max / np.min below cannot handle empty arrays. And there's nothing
@@ -242,50 +231,43 @@ class _PartialNumericStats(object):
     if not feature_column:
       return
 
-    weight_chunks = weight_column.data.iterchunks() if weight_column else []
-    for feature_array, weight_array in six.moves.zip_longest(
-        feature_column.data.iterchunks(), weight_chunks, fillvalue=None):
-      flattened_value_array = arrow_util.FlattenListArray(feature_array)
-      # Note: to_numpy will fail if flattened_value_array is empty.
-      if not flattened_value_array:
-        continue
-      values = flattened_value_array.to_numpy()
-      nan_mask = np.isnan(values)
-      self.num_nan += np.sum(nan_mask)
-      non_nan_mask = ~nan_mask
-      values_no_nan = values[non_nan_mask]
-      # We do this check to avoid failing in np.min/max with empty array.
-      if values_no_nan.size == 0:
-        continue
-      # This is to avoid integer overflow when computing sum or sum of squares.
-      values_no_nan_as_double = values_no_nan.astype(np.float64)
-      self.sum += np.sum(values_no_nan_as_double)
-      self.sum_of_squares += np.sum(
-          values_no_nan_as_double* values_no_nan_as_double)
-      # Use np.minimum.reduce(values_no_nan, initial=self.min) once we upgrade
-      # to numpy 1.16
-      self.min = min(self.min, np.min(values_no_nan))
-      self.max = max(self.max, np.max(values_no_nan))
-      self.num_zeros += values_no_nan.size - np.count_nonzero(values_no_nan)
-      self.quantiles_summary = values_quantiles_combiner.add_input(
-          self.quantiles_summary, [values_no_nan, np.ones_like(values_no_nan)])
-
-      if weight_array:
-        example_weights = arrow_util.FlattenListArray(
-            weight_array).to_numpy().astype(np.float32, copy=False)
-
-        if example_weights.size != len(weight_array):
-          raise ValueError('Weight feature must not be missing.')
-        value_parent_indices = arrow_util.GetFlattenedArrayParentIndices(
-            feature_array).to_numpy()
-        weights = example_weights[value_parent_indices]
-        weights_no_nan = weights[non_nan_mask]
-        weighted_values = weights_no_nan * values_no_nan
-        self.weighted_sum += np.sum(weighted_values)
-        self.weighted_sum_of_squares += np.sum(weighted_values * values_no_nan)
-        self.weighted_quantiles_summary = values_quantiles_combiner.add_input(
-            self.weighted_quantiles_summary, [values_no_nan, weights_no_nan])
-        self.weighted_total_num_values += np.sum(weights_no_nan)
+    feature_array = feature_column.data.chunk(0)
+    flattened_value_array = arrow_util.FlattenListArray(
+        feature_column.data.chunk(0))
+    # Note: to_numpy will fail if flattened_value_array is empty.
+    if not flattened_value_array:
+      return
+    values = flattened_value_array.to_numpy()
+    nan_mask = np.isnan(values)
+    self.num_nan += np.sum(nan_mask)
+    non_nan_mask = ~nan_mask
+    values_no_nan = values[non_nan_mask]
+    # We do this check to avoid failing in np.min/max with empty array.
+    if values_no_nan.size == 0:
+      return
+    # This is to avoid integer overflow when computing sum or sum of squares.
+    values_no_nan_as_double = values_no_nan.astype(np.float64)
+    self.sum += np.sum(values_no_nan_as_double)
+    self.sum_of_squares += np.sum(
+        values_no_nan_as_double* values_no_nan_as_double)
+    # Use np.minimum.reduce(values_no_nan, initial=self.min) once we upgrade
+    # to numpy 1.16
+    self.min = min(self.min, np.min(values_no_nan))
+    self.max = max(self.max, np.max(values_no_nan))
+    self.num_zeros += values_no_nan.size - np.count_nonzero(values_no_nan)
+    self.quantiles_summary = values_quantiles_combiner.add_input(
+        self.quantiles_summary, [values_no_nan, np.ones_like(values_no_nan)])
+    if weights is not None:
+      value_parent_indices = arrow_util.GetFlattenedArrayParentIndices(
+          feature_array).to_numpy()
+      flat_weights = weights[value_parent_indices]
+      flat_weights_no_nan = flat_weights[non_nan_mask]
+      weighted_values = flat_weights_no_nan * values_no_nan
+      self.weighted_sum += np.sum(weighted_values)
+      self.weighted_sum_of_squares += np.sum(weighted_values * values_no_nan)
+      self.weighted_quantiles_summary = values_quantiles_combiner.add_input(
+          self.weighted_quantiles_summary, [values_no_nan, flat_weights_no_nan])
+      self.weighted_total_num_values += np.sum(flat_weights_no_nan)
 
 
 class _PartialStringStats(object):
@@ -305,23 +287,23 @@ class _PartialStringStats(object):
   def update(self, feature_column):
     """Update the partial string statistics using the input value."""
     # Iterate through the value array and update the partial stats.
-    for value_array in feature_column.data.iterchunks():
-      flattened_values_array = arrow_util.FlattenListArray(value_array)
-      if pa.types.is_binary(flattened_values_array.type) or pa.types.is_unicode(
-          flattened_values_array.type):
-        # GetBinaryArrayTotalByteSize returns a Python long (to be compatible
-        # with Python3). To make sure we do cheaper integer arithemetics in
-        # Python2, we first convert it to int.
-        self.total_bytes_length += int(arrow_util.GetBinaryArrayTotalByteSize(
-            flattened_values_array))
-      elif flattened_values_array:
-        # We can only do flattened_values_array.to_numpy() when it's not empty.
-        # This could be computed faster by taking log10 of the integer.
-        def _len_after_conv(s):
-          return len(str(s))
-        self.total_bytes_length += np.sum(
-            np.vectorize(_len_after_conv, otypes=[np.int32])(
-                flattened_values_array.to_numpy()))
+    value_array = feature_column.data.chunk(0)
+    flattened_values_array = arrow_util.FlattenListArray(value_array)
+    if pa.types.is_binary(flattened_values_array.type) or pa.types.is_unicode(
+        flattened_values_array.type):
+      # GetBinaryArrayTotalByteSize returns a Python long (to be compatible
+      # with Python3). To make sure we do cheaper integer arithemetics in
+      # Python2, we first convert it to int.
+      self.total_bytes_length += int(arrow_util.GetBinaryArrayTotalByteSize(
+          flattened_values_array))
+    elif flattened_values_array:
+      # We can only do flattened_values_array.to_numpy() when it's not empty.
+      # This could be computed faster by taking log10 of the integer.
+      def _len_after_conv(s):
+        return len(str(s))
+      self.total_bytes_length += np.sum(
+          np.vectorize(_len_after_conv, otypes=[np.int32])(
+              flattened_values_array.to_numpy()))
 
 
 class _PartialBasicStats(object):
@@ -495,7 +477,7 @@ def _make_string_stats_proto(string_stats,
 
 
 def _make_feature_stats_proto(
-    basic_stats, feature_name,
+    basic_stats, feature_path,
     num_values_q_combiner,
     values_q_combiner,
     num_values_histogram_buckets,
@@ -507,7 +489,7 @@ def _make_feature_stats_proto(
 
   Args:
     basic_stats: The partial basic stats associated with a feature.
-    feature_name: The name of the feature.
+    feature_path: The path of the feature.
     num_values_q_combiner: The quantiles combiner used to construct the
         quantiles histogram for the number of values in the feature.
     values_q_combiner: The quantiles combiner used to construct the
@@ -526,7 +508,7 @@ def _make_feature_stats_proto(
   """
   # Create a new FeatureNameStatistics proto.
   result = statistics_pb2.FeatureNameStatistics()
-  result.name = feature_name
+  result.path.CopyFrom(feature_path.to_proto())
   # Set the feature type.
   # If we have a categorical feature, we preserve the type to be the original
   # INT type. Currently we don't set the type if we cannot infer it, which
@@ -587,7 +569,7 @@ def _update_tfdv_telemetry(
       statistics_pb2.FeatureNameStatistics.STRING: _TFDVMetrics()
   }
 
-  for basic_stats in accumulator.values():
+  for basic_stats in six.itervalues(accumulator):
     common_stats = basic_stats.common_stats
     if common_stats.type is None:
       continue
@@ -705,39 +687,44 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
       self, accumulator,
       examples_table):
 
-    weights_column = None
+    weights = None
     if self._weight_feature:
-      weights_column = examples_table.column(self._weight_feature)
+      weights = (arrow_util.FlattenListArray(examples_table.column(
+          self._weight_feature).data.chunk(0)).to_numpy())
+      if len(weights) != len(examples_table):
+        raise ValueError('Expected exactly one weight per example.')
 
     for feature_column in examples_table.itercolumns():
       feature_name = feature_column.name
       # Skip the weight feature.
       if feature_name == self._weight_feature:
         continue
-      is_categorical_feature = feature_name in self._categorical_features
+      feature_path = types.FeaturePath([feature_name])
+      is_categorical_feature = feature_path in self._categorical_features
 
       # If we encounter this feature for the first time, create a
       # new partial basic stats.
-      if feature_name not in accumulator:
-        partial_stats = _PartialBasicStats(self._weight_feature is not None)
+      stats_for_feature = accumulator.get(feature_path)
+      if stats_for_feature is None:
+        stats_for_feature = _PartialBasicStats(self._weight_feature is not None)
         # Store empty summary.
-        partial_stats.common_stats.num_values_summary = (
+        stats_for_feature.common_stats.num_values_summary = (
             self._num_values_quantiles_combiner.create_accumulator())
-        partial_stats.numeric_stats.quantiles_summary = (
+        stats_for_feature.numeric_stats.quantiles_summary = (
             self._values_quantiles_combiner.create_accumulator())
-        accumulator[feature_name] = partial_stats
+        accumulator[feature_path] = stats_for_feature
 
       feature_type = stats_util.get_feature_type_from_arrow_type(
-          feature_name, feature_column.type)
-      accumulator[feature_name].common_stats.update(
+          feature_path, feature_column.type)
+      stats_for_feature.common_stats.update(
           feature_column, feature_type,
-          self._num_values_quantiles_combiner, weights_column)
+          self._num_values_quantiles_combiner, weights)
       if (is_categorical_feature or
           feature_type == statistics_pb2.FeatureNameStatistics.STRING):
-        accumulator[feature_name].string_stats.update(feature_column)
+        stats_for_feature.string_stats.update(feature_column)
       elif feature_type is not None:
-        accumulator[feature_name].numeric_stats.update(
-            feature_column, self._values_quantiles_combiner, weights_column)
+        stats_for_feature.numeric_stats.update(
+            feature_column, self._values_quantiles_combiner, weights)
     return accumulator
 
   # Merge together a list of basic common statistics.
@@ -751,73 +738,75 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
       weighted_values_summary_per_feature = collections.defaultdict(list)
 
     for accumulator in accumulators:
-      for feature_name, basic_stats in accumulator.items():
-        is_categorical = feature_name in self._categorical_features
+      for feature_path, basic_stats in six.iteritems(accumulator):
+        is_categorical = feature_path in self._categorical_features
         current_type = basic_stats.common_stats.type
-        if feature_name not in result:
+        existing_stats = result.get(feature_path)
+        if existing_stats is None:
+          existing_stats = basic_stats
           # TODO(b/129424660): this leads to mutation of accumulators and
           # should be avoided.
           # Beam only allows mutating the first accumulator in the sequence
           # passed to a CombineFn's merge_accumulators. And because this class
           # is not directly used as a CombineFn but wrapped, mutating *any*
           # accumulator is not allowed.
-          result[feature_name] = basic_stats
+          result[feature_path] = basic_stats
         else:
           # Check if the types from the two partial statistics are not
           # compatible. If so, raise an error. We consider types to be
           # compatible if both types are same or one of them is None.
-          left_type = result[feature_name].common_stats.type
-          right_type = basic_stats.common_stats.type
+          left_type = existing_stats.common_stats.type
+          right_type = current_type
           if (left_type is not None and right_type is not None and
               left_type != right_type):
             raise TypeError('Cannot determine the type of feature %s. '
                             'Found values of types %s and %s.' %
-                            (feature_name, left_type, right_type))
+                            (feature_path, left_type, right_type))
 
-          result[feature_name].common_stats += basic_stats.common_stats
+          existing_stats.common_stats += basic_stats.common_stats
 
           if current_type is not None:
             if (is_categorical or
                 current_type == statistics_pb2.FeatureNameStatistics.STRING):
-              result[feature_name].string_stats += basic_stats.string_stats
+              existing_stats.string_stats += basic_stats.string_stats
             else:
-              result[feature_name].numeric_stats += basic_stats.numeric_stats
+              existing_stats.numeric_stats += basic_stats.numeric_stats
 
         # Keep track of num values quantiles summaries per feature.
-        num_values_summary_per_feature[feature_name].append(
+        num_values_summary_per_feature[feature_path].append(
             basic_stats.common_stats.num_values_summary)
 
         if (current_type is not None and
             not is_categorical and
             current_type != statistics_pb2.FeatureNameStatistics.STRING):
           # Keep track of values quantile summaries per feature.
-          values_summary_per_feature[feature_name].append(
+          values_summary_per_feature[feature_path].append(
               basic_stats.numeric_stats.quantiles_summary)
 
           # Keep track of values weighted quantile summaries per feature.
           if self._weight_feature:
-            weighted_values_summary_per_feature[feature_name].append(
+            weighted_values_summary_per_feature[feature_path].append(
                 basic_stats.numeric_stats.weighted_quantiles_summary)
 
     # Merge the summaries per feature.
-    for feature_name, num_values_summaries in\
-        num_values_summary_per_feature.items():
-      result[feature_name].common_stats.num_values_summary = (
+    for feature_path, num_values_summaries in (
+        six.iteritems(num_values_summary_per_feature)):
+      result[feature_path].common_stats.num_values_summary = (
           self._num_values_quantiles_combiner.merge_accumulators(
               num_values_summaries))
 
     # Merge the values quantiles summaries per feature.
-    for feature_name, quantiles_summaries in (
-        values_summary_per_feature.items()):
-      result[feature_name].numeric_stats.quantiles_summary = (
+    for feature_path, quantiles_summaries in (
+        six.iteritems(values_summary_per_feature)):
+      result[feature_path].numeric_stats.quantiles_summary = (
           self._values_quantiles_combiner.merge_accumulators(
               quantiles_summaries))
 
     # Merge the values weighted quantiles summaries per feature.
     if self._weight_feature:
-      for feature_name, weighted_quantiles_summaries in (
-          weighted_values_summary_per_feature.items()):
-        result[feature_name].numeric_stats.weighted_quantiles_summary = (
+      for feature_path, weighted_quantiles_summaries in (
+          six.iteritems(weighted_values_summary_per_feature)):
+        result[feature_path].numeric_stats.weighted_quantiles_summary = (
             self._values_quantiles_combiner.merge_accumulators(
                 weighted_quantiles_summaries))
 
@@ -833,15 +822,15 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
     # Create a new DatasetFeatureStatistics proto.
     result = statistics_pb2.DatasetFeatureStatistics()
 
-    for feature_name, basic_stats in accumulator.items():
+    for feature_path, basic_stats in six.iteritems(accumulator):
       # Construct the FeatureNameStatistics proto from the partial
       # basic stats.
       feature_stats_proto = _make_feature_stats_proto(
-          basic_stats, feature_name,
+          basic_stats, feature_path,
           self._num_values_quantiles_combiner, self._values_quantiles_combiner,
           self._num_values_histogram_buckets, self._num_histogram_buckets,
           self._num_quantiles_histogram_buckets,
-          feature_name in self._categorical_features,
+          feature_path in self._categorical_features,
           self._weight_feature is not None)
       # Copy the constructed FeatureNameStatistics proto into the
       # DatasetFeatureStatistics proto.

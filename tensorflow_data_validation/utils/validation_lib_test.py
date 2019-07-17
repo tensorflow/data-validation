@@ -100,7 +100,9 @@ class ValidationLibTest(absltest.TestCase):
       name: 'annotated_enum_ENUM_TYPE_UNEXPECTED_STRING_VALUES'
       num_examples: 1
       features {
-        name: 'annotated_enum'
+        path: {
+          step: 'annotated_enum'
+        }
         type: STRING
         string_stats {
           common_stats {
@@ -143,7 +145,9 @@ class ValidationLibTest(absltest.TestCase):
       name: 'unknown_feature_SCHEMA_NEW_COLUMN'
       num_examples: 1
       features {
-        name: 'unknown_feature'
+        path: {
+          step: 'unknown_feature'
+        }
         type: STRING
         string_stats {
           common_stats {
@@ -182,7 +186,9 @@ class ValidationLibTest(absltest.TestCase):
         }
       }
       features {
-        name: 'annotated_enum'
+        path: {
+          step: 'annotated_enum'
+        }
         type: STRING
         string_stats {
           common_stats {
@@ -340,7 +346,9 @@ class ValidationLibTest(absltest.TestCase):
       name: 'annotated_enum_ENUM_TYPE_UNEXPECTED_STRING_VALUES'
       num_examples: 1
       features {
-        name: 'annotated_enum'
+        path: {
+          step: 'annotated_enum'
+        }
         type: STRING
         string_stats {
           common_stats {
@@ -379,7 +387,9 @@ class ValidationLibTest(absltest.TestCase):
         }
       }
       features {
-        name: 'other_feature'
+        path: {
+          step: 'other_feature'
+        }
         type: INT
         num_stats {
           common_stats {

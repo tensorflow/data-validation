@@ -27,15 +27,15 @@ from tensorflow_data_validation.statistics.generators import partitioned_stats_g
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
 
-from tensorflow_data_validation.types_compat import Dict, List
+from tensorflow_data_validation.types_compat import Dict, List, Text
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
-MUTUAL_INFORMATION_KEY = "sklearn_mutual_information"
-ADJUSTED_MUTUAL_INFORMATION_KEY = "sklearn_adjusted_mutual_information"
-CATEGORICAL_FEATURE_IMPUTATION_FILL_VALUE = "__missing_category__"
+MUTUAL_INFORMATION_KEY = u"sklearn_mutual_information"
+ADJUSTED_MUTUAL_INFORMATION_KEY = u"sklearn_adjusted_mutual_information"
+CATEGORICAL_FEATURE_IMPUTATION_FILL_VALUE = u"__missing_category__"
 
 
 # TODO(b/117650247): sk-learn MI can't handle NaN, None or multivalent features
@@ -52,7 +52,7 @@ def _remove_unsupported_feature_columns(examples,
   """
   unsupported_features = schema_util.get_multivalent_features(schema)
   for feature_name in unsupported_features:
-    del examples[feature_name]
+    del examples[feature_name.steps()[0]]
 
 
 def _flatten_examples(
@@ -63,13 +63,13 @@ def _flatten_examples(
     examples: An ExampleBatch where all features are univalent.
 
   Returns:
-    A Dict[FeatureName, List] where the key is the feature name and the value is
+    A Dict[FeaturePath, List] where the key is the feature name and the value is
     a 1D python List corresponding to the feature value for each example.
   """
 
   flattened_examples = {}
   for feature_name, feature_values in examples.items():
-    flattened_examples[feature_name] = [
+    flattened_examples[types.FeaturePath([feature_name])] = [
         feature_value[0] if feature_value is not None and
         not any(pd.isnull(feature_value)) else None
         for feature_value in feature_values
@@ -127,12 +127,12 @@ class SkLearnMutualInformation(partitioned_stats_generator.PartitionedStatsFn):
     Raises:
       ValueError: If label_feature contains unsupported data.
     """
-    if self._label_feature not in examples:
+    if self._label_feature.steps()[0] not in examples:
       raise ValueError("Label column does not exist.")
 
     _remove_unsupported_feature_columns(examples, self._schema)
 
-    if self._label_feature not in examples:
+    if self._label_feature.steps()[0] not in examples:
       raise ValueError("Label column contains unsupported data.")
 
     flattened_examples = _flatten_examples(examples)

@@ -115,7 +115,9 @@ GENERATE_STATS_TESTS = [
                     datasets {
                       num_examples: 3
                       features {
-                        name: "b"
+                        path {
+                          step: "b"
+                        }
                         type: STRING
                         string_stats {
                           common_stats {
@@ -199,7 +201,9 @@ GENERATE_STATS_TESTS = [
               datasets {
                 num_examples: 3
                 features {
-                  name: "a"
+                  path {
+                    step: "a"
+                  }
                   type: INT
                   string_stats {
                     common_stats {
@@ -302,7 +306,9 @@ GENERATE_STATS_TESTS = [
             datasets {
               num_examples: 2
               features {
-                name: 'a'
+                path {
+                  step: "a"
+                }
                 type: FLOAT
                 num_stats {
                   common_stats {
@@ -397,7 +403,9 @@ GENERATE_STATS_TESTS = [
                 }
               }
               features {
-                name: 'b'
+                path {
+                  step: "b"
+                }
                 type: STRING
                 string_stats {
                   common_stats {
@@ -495,7 +503,9 @@ GENERATE_STATS_TESTS = [
             datasets {
               num_examples: 3
               features {
-                name: 'a'
+                path {
+                  step: "a"
+                }
                 type: STRING
                 custom_stats {
                   name: "_ValueCounter"
@@ -567,7 +577,9 @@ GENERATE_STATS_TESTS = [
                 }
               }
               features {
-                name: 'b'
+                path {
+                  step: "b"
+                }
                 type: STRING
                 custom_stats {
                   name: "_ValueCounter"
@@ -664,7 +676,9 @@ GENERATE_STATS_TESTS = [
             datasets {
               num_examples: 100
               features {
-                name: "text_feature"
+                path {
+                  step: "text_feature"
+                }
                 type: STRING
                 string_stats {
                   common_stats {
@@ -725,7 +739,9 @@ GENERATE_STATS_TESTS = [
                 }
               }
               features {
-                name: "image_feature"
+                path {
+                  step: "image_feature"
+                }
                 type: STRING
                 string_stats {
                   common_stats {
@@ -829,7 +845,9 @@ GENERATE_STATS_TESTS = [
             datasets {
               num_examples: 100
               features {
-                name: "text_feature"
+                path {
+                  step: "text_feature"
+                }
                 type: STRING
                 string_stats {
                   common_stats {
@@ -882,7 +900,9 @@ GENERATE_STATS_TESTS = [
                 }
               }
               features {
-                name: "image_feature"
+                path {
+                  step: "image_feature"
+                }
                 type: STRING
                 string_stats {
                   common_stats {
@@ -983,7 +1003,9 @@ SLICING_TESTS = [
               name: "All Examples"
               num_examples: 3
               features {
-                name: "c"
+                path {
+                  step: "c"
+                }
                 num_stats {
                   common_stats {
                     num_non_missing: 3
@@ -1038,7 +1060,9 @@ SLICING_TESTS = [
                 }
               }
               features {
-                name: "b"
+                path {
+                  step: "b"
+                }
                 type: STRING
                 string_stats {
                   common_stats {
@@ -1086,7 +1110,9 @@ SLICING_TESTS = [
                 }
               }
               features {
-                name: "a"
+                path {
+                  step: "a"
+                }
                 type: FLOAT
                 num_stats {
                   common_stats {
@@ -1148,7 +1174,9 @@ SLICING_TESTS = [
               name: "b_a"
               num_examples: 2
               features {
-                name: "c"
+                path {
+                  step: "c"
+                }
                 num_stats {
                   common_stats {
                     num_non_missing: 2
@@ -1203,7 +1231,9 @@ SLICING_TESTS = [
                 }
               }
               features {
-                name: "b"
+                path {
+                  step: "b"
+                }
                 type: STRING
                 string_stats {
                   common_stats {
@@ -1251,7 +1281,9 @@ SLICING_TESTS = [
                 }
               }
               features {
-                name: "a"
+                path {
+                  step: "a"
+                }
                 type: FLOAT
                 num_stats {
                   common_stats {
@@ -1313,7 +1345,9 @@ SLICING_TESTS = [
               name: "b_b"
               num_examples: 2
               features {
-                name: "c"
+                path {
+                  step: "c"
+                }
                 num_stats {
                   common_stats {
                     num_non_missing: 2
@@ -1368,7 +1402,9 @@ SLICING_TESTS = [
                 }
               }
               features {
-                name: "b"
+                path {
+                  step: "b"
+                }
                 type: STRING
                 string_stats {
                   common_stats {
@@ -1416,7 +1452,9 @@ SLICING_TESTS = [
                 }
               }
               features {
-                name: "a"
+                path {
+                  step: "a"
+                }
                 type: FLOAT
                 num_stats {
                   common_stats {
@@ -1520,7 +1558,9 @@ class StatsImplTest(parameterized.TestCase):
         datasets {
           num_examples: 2
           features {
-            name: "b"
+                path {
+                  step: "b"
+                }
             type: FLOAT
             num_stats {
               common_stats {
@@ -1544,7 +1584,9 @@ class StatsImplTest(parameterized.TestCase):
           name: "test_slice"
           num_examples: 2
           features {
-            name: "b"
+            path {
+              step: "b"
+            }
             type: FLOAT
             num_stats {
               common_stats {
@@ -1611,14 +1653,14 @@ class StatsImplTest(parameterized.TestCase):
       def expand(self, pcoll):
         stats_proto1 = statistics_pb2.DatasetFeatureStatistics()
         proto1_feat = stats_proto1.features.add()
-        proto1_feat.name = 'a'
+        proto1_feat.path.step[:] = ['a']
         custom_stat1 = proto1_feat.custom_stats.add()
         custom_stat1.name = 'my_stat_a'
         custom_stat1.str = 'my_val_a'
 
         stats_proto2 = statistics_pb2.DatasetFeatureStatistics()
         proto2_feat = stats_proto2.features.add()
-        proto2_feat.name = 'b'
+        proto2_feat.path.step[:] = ['b']
         custom_stat2 = proto2_feat.custom_stats.add()
         custom_stat2.name = 'my_stat_b'
         custom_stat2.str = 'my_val_b'
@@ -1631,7 +1673,9 @@ class StatsImplTest(parameterized.TestCase):
     datasets {
       num_examples: 1
       features {
-        name: 'a'
+        path {
+          step: "a"
+        }
         type: INT
         num_stats {
           common_stats {
@@ -1659,7 +1703,9 @@ class StatsImplTest(parameterized.TestCase):
         }
       }
       features {
-        name: 'b'
+        path {
+          step: "b"
+        }
         type: INT
         num_stats {
           common_stats {
@@ -1738,7 +1784,7 @@ class StatsImplTest(parameterized.TestCase):
           self, accumulator):
         stats_proto = statistics_pb2.DatasetFeatureStatistics()
         proto_feature = stats_proto.features.add()
-        proto_feature.name = 'a'
+        proto_feature.path.step[:] = ['a']
         custom_stat = proto_feature.custom_stats.add()
         custom_stat.name = 'custom_stat'
         custom_stat.str = 'custom_stat_value'
@@ -1755,7 +1801,9 @@ class StatsImplTest(parameterized.TestCase):
         datasets {
           num_examples: 3
           features {
-            name: 'a'
+            path {
+              step: "a"
+            }
             type: STRING
             custom_stats {
               name: 'custom_stat'
@@ -1850,7 +1898,9 @@ class StatsImplTest(parameterized.TestCase):
         """
         num_examples: 7
         features: {
-          name: 'feature1'
+          path {
+            step: "feature1"
+          }
           type: STRING
           string_stats: {
             common_stats: {
@@ -1866,7 +1916,9 @@ class StatsImplTest(parameterized.TestCase):
     proto2 = text_format.Parse(
         """
         features: {
-          name: 'feature1'
+          path {
+            step: "feature1"
+          }
           type: STRING
           string_stats: {
             unique: 3
@@ -1878,7 +1930,9 @@ class StatsImplTest(parameterized.TestCase):
         """
         num_examples: 7
         features: {
-          name: 'feature1'
+          path {
+            step: "feature1"
+          }
           type: STRING
           string_stats: {
             common_stats: {
@@ -1900,7 +1954,9 @@ class StatsImplTest(parameterized.TestCase):
         """
         num_examples: 7
         features: {
-          name: 'feature1'
+          path {
+            step: "feature1"
+          }
           type: STRING
           string_stats: {
             common_stats: {
@@ -1917,7 +1973,9 @@ class StatsImplTest(parameterized.TestCase):
         """
         num_examples: 7
         features: {
-          name: 'feature1'
+          path {
+            step: "feature1"
+          }
           type: STRING
           string_stats: {
             common_stats: {
@@ -1941,7 +1999,9 @@ class StatsImplTest(parameterized.TestCase):
     input_proto = text_format.Parse(
         """
         features: {
-          name: 'feature1'
+          path {
+            step: "feature1"
+          }
           type: STRING
           string_stats {
             common_stats {
@@ -1951,7 +2011,7 @@ class StatsImplTest(parameterized.TestCase):
         }
         """, statistics_pb2.DatasetFeatureStatistics())
     dummy_feature = input_proto.features.add(
-        name=stats_impl._DUMMY_FEATURE_NAME)
+        path=stats_impl._DUMMY_FEATURE_PATH.to_proto())
     dummy_feature.custom_stats.add(name=stats_impl._NUM_EXAMPLES_KEY, num=7)
     dummy_feature.custom_stats.add(name=stats_impl._WEIGHTED_NUM_EXAMPLES_KEY,
                                    num=0)
@@ -1960,7 +2020,9 @@ class StatsImplTest(parameterized.TestCase):
         datasets {
           num_examples: 7
           features: {
-            name: 'feature1'
+            path {
+              step: "feature1"
+            }
             type: STRING
             string_stats {
               common_stats {

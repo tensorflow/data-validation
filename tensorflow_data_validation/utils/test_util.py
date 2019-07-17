@@ -144,12 +144,13 @@ def assert_dataset_feature_stats_proto_equal(
 
   expected_features = {}
   for feature in expected.features:
-    expected_features[feature.name] = feature
+    expected_features[types.FeaturePath.from_proto(feature.path)] = feature
 
   for feature in actual.features:
-    if feature.name not in expected_features:
+    feature_path = types.FeaturePath.from_proto(feature.path)
+    if feature_path not in expected_features:
       raise AssertionError
-    assert_feature_proto_equal(test, feature, expected_features[feature.name])
+    assert_feature_proto_equal(test, feature, expected_features[feature_path])
 
 
 class CombinerStatsGeneratorTest(absltest.TestCase):
@@ -179,12 +180,15 @@ class CombinerStatsGeneratorTest(absltest.TestCase):
     ]
     result = generator.extract_output(
         generator.merge_accumulators(accumulators))
-    self.assertEqual(len(result.features), len(expected_result))  # pylint: disable=g-generic-assert
+    self.assertEqual(  # pylint: disable=g-generic-assert
+        len(result.features), len(expected_result),
+        '{}, {}'.format(result, expected_result))
     for actual_feature_stats in result.features:
       compare.assertProtoEqual(
           self,
           actual_feature_stats,
-          expected_result[actual_feature_stats.name],
+          expected_result[types.FeaturePath.from_proto(
+              actual_feature_stats.path)],
           normalize_numbers=True)
 
     # Run generator to check that add_input() works correctly when adding
@@ -200,7 +204,8 @@ class CombinerStatsGeneratorTest(absltest.TestCase):
       compare.assertProtoEqual(
           self,
           actual_feature_stats,
-          expected_result[actual_feature_stats.name],
+          expected_result[types.FeaturePath.from_proto(
+              actual_feature_stats.path)],
           normalize_numbers=True)
 
 

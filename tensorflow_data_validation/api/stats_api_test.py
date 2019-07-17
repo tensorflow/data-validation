@@ -49,7 +49,9 @@ class StatsAPITest(absltest.TestCase):
     datasets {
       num_examples: 3
       features {
-        name: 'a'
+        path {
+          step: 'a'
+        }
         type: FLOAT
         num_stats {
           common_stats {
@@ -130,7 +132,9 @@ class StatsAPITest(absltest.TestCase):
         }
       }
       features {
-        name: 'c'
+        path {
+          step: 'c'
+        }
         type: INT
         num_stats {
           common_stats {
@@ -208,7 +212,9 @@ class StatsAPITest(absltest.TestCase):
         }
       }
       features {
-        name: "b"
+        path {
+          step: 'b'
+        }
         type: STRING
         string_stats {
           common_stats {
@@ -290,7 +296,9 @@ class StatsAPITest(absltest.TestCase):
     datasets {
       num_examples: 1
       features {
-        name: 'c'
+        path {
+          step: 'c'
+        }
         type: INT
         num_stats {
           common_stats {
@@ -368,7 +376,9 @@ class StatsAPITest(absltest.TestCase):
       datasets{
         num_examples: 3
         features {
-          name: 'a'
+          path {
+            step: 'a'
+          }
           type: FLOAT
           num_stats {
             common_stats {
@@ -389,7 +399,9 @@ class StatsAPITest(absltest.TestCase):
           }
         }
         features {
-          name: 'b'
+          path {
+            step: 'b'
+          }
           type: STRING
           string_stats {
             common_stats {
@@ -410,7 +422,9 @@ class StatsAPITest(absltest.TestCase):
           }
         }
         features {
-          name: 'c'
+          path {
+            step: 'c'
+          }
           type: INT
           num_stats {
             common_stats {

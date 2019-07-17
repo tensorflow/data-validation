@@ -74,12 +74,12 @@ def get_feature_type(
 
 
 def get_feature_type_from_arrow_type(
-    feature_name,
+    feature_path,
     arrow_type):
   """Get feature type from Arrow type.
 
   Args:
-    feature_name: name of the feature.
+    feature_path: path of the feature.
     arrow_type: Arrow DataType.
 
   Returns:
@@ -92,9 +92,9 @@ def get_feature_type_from_arrow_type(
   if pa.types.is_null(arrow_type):
     return None
   if not pa.types.is_list(arrow_type):
-    raise TypeError('Expected feature column to be a List<primitive> or '
+    raise TypeError('Expected feature column to be a List<primitive|struct> or '
                     'null, but feature {} was {}.'
-                    .format(feature_name, arrow_type))
+                    .format(feature_path, arrow_type))
 
   value_type = arrow_type.value_type
   if pa.types.is_integer(value_type):
@@ -105,7 +105,7 @@ def get_feature_type_from_arrow_type(
     return statistics_pb2.FeatureNameStatistics.STRING
 
   raise TypeError('Feature {} has unsupported arrow type: {}'.format(
-      feature_name, arrow_type))
+      feature_path, arrow_type))
 
 
 def make_dataset_feature_stats_proto(
@@ -114,15 +114,15 @@ def make_dataset_feature_stats_proto(
   """Builds DatasetFeatureStatistics proto with custom stats from input dict.
 
   Args:
-    stats_values: A Dict[FeatureName, Dict[str,float]] where the keys are
-    feature names, and values are Dicts with keys denoting name of the custom
+    stats_values: A Dict[FeaturePath, Dict[str,float]] where the keys are
+    feature paths, and values are Dicts with keys denoting name of the custom
     statistic and values denoting the value of the custom statistic
     for the feature.
       Ex. {
-            'feature_1': {
+            FeaturePath(('feature_1',)): {
                 'Mutual Information': 0.5,
                 'Correlation': 0.1 },
-            'feature_2': {
+            FeaturePath(('feature_2',)): {
                 'Mutual Information': 0.8,
                 'Correlation': 0.6 }
           }
@@ -134,11 +134,11 @@ def make_dataset_feature_stats_proto(
   result = statistics_pb2.DatasetFeatureStatistics()
 
   # Sort alphabetically by feature name to have deterministic ordering
-  feature_names = sorted(stats_values.keys())
+  feature_paths = sorted(stats_values.keys())
 
-  for feature_name in feature_names:
-    feature_stats_proto = _make_feature_stats_proto(stats_values[feature_name],
-                                                    feature_name)
+  for feature_path in feature_paths:
+    feature_stats_proto = _make_feature_stats_proto(stats_values[feature_path],
+                                                    feature_path)
     new_feature_stats_proto = result.features.add()
     new_feature_stats_proto.CopyFrom(feature_stats_proto)
 
@@ -147,7 +147,7 @@ def make_dataset_feature_stats_proto(
 
 def _make_feature_stats_proto(
     stats_values,
-    feature_name):
+    feature_path):
   """Creates the FeatureNameStatistics proto for one feature.
 
   Args:
@@ -156,7 +156,7 @@ def _make_feature_stats_proto(
       statistic of that feature. Ex. {
               'Mutual Information': 0.5,
               'Correlation': 0.1 }
-    feature_name: The name of the feature.
+    feature_path: The path of the feature.
 
   Returns:
     A FeatureNameStatistic proto containing the custom statistics for a
@@ -164,7 +164,7 @@ def _make_feature_stats_proto(
   """
 
   result = statistics_pb2.FeatureNameStatistics()
-  result.name = feature_name
+  result.path.CopyFrom(feature_path.to_proto())
 
   # Sort alphabetically by statistic name to have deterministic ordering
   stat_names = sorted(stats_values.keys())
@@ -248,13 +248,13 @@ def load_stats_text(
 
 
 def get_feature_stats(stats,
-                      feature_name
+                      feature_path
                      ):
   """Get feature statistics from the dataset statistics.
 
   Args:
     stats: A DatasetFeatureStatistics protocol buffer.
-    feature_name: The name of the feature whose statistics to obtain from the
+    feature_path: The path of the feature whose statistics to obtain from the
       dataset statistics.
 
   Returns:
@@ -270,11 +270,11 @@ def get_feature_stats(stats,
                     type(stats).__name__)
 
   for feature_stats in stats.features:
-    if feature_stats.name == feature_name:
+    if feature_path == types.FeaturePath.from_proto(feature_stats.path):
       return feature_stats
 
   raise ValueError('Feature %s not found in the dataset statistics.' %
-                   feature_name)
+                   feature_path)
 
 
 def get_custom_stats(

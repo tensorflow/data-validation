@@ -18,6 +18,7 @@ from __future__ import division
 from __future__ import print_function
 
 from absl.testing import absltest
+from tensorflow_data_validation import types
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import top_k_uniques_combiner_stats_generator
 from tensorflow_data_validation.utils import test_util
@@ -45,10 +46,12 @@ class TopKUniquesCombinerStatsGeneratorTest(
     # Note that if two feature values have the same frequency, the one with the
     # lexicographically larger feature value will be higher in the order.
     expected_result = {
-        'fa':
+        types.FeaturePath(['fa']):
             text_format.Parse(
                 """
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           unique: 5
@@ -112,10 +115,12 @@ class TopKUniquesCombinerStatsGeneratorTest(
         ], ['fa', 'w']),
     ]
     expected_result = {
-        'fa':
+        types.FeaturePath(['fa']):
             text_format.Parse(
                 """
-                name: 'fa'
+                path {
+                  step: 'fa'
+                }
                 type: STRING
                 string_stats {
                   unique: 5
@@ -210,10 +215,12 @@ class TopKUniquesCombinerStatsGeneratorTest(
         pa.Table.from_arrays([pa.array([[u'a', u'b', u'c', u'd']])], ['fa']),
     ]
     expected_result = {
-        'fa':
+        types.FeaturePath(['fa']):
             text_format.Parse(
                 """
-                name: 'fa'
+                path {
+                  step: 'fa'
+                }
                 type: STRING
                 string_stats {
                   unique: 5
@@ -275,10 +282,12 @@ class TopKUniquesCombinerStatsGeneratorTest(
         ], ['fa', 'fb']),
     ]
     expected_result = {
-        'fa':
+        types.FeaturePath(['fa']):
             text_format.Parse(
                 """
-                name: 'fa'
+                path {
+                  step: 'fa'
+                }
                 type: STRING
                 string_stats {
                   unique: 5
@@ -319,10 +328,12 @@ class TopKUniquesCombinerStatsGeneratorTest(
                     }
                   }
               }""", statistics_pb2.FeatureNameStatistics()),
-        'fb':
+        types.FeaturePath(['fb']):
             text_format.Parse(
                 """
-                name: 'fb'
+                path {
+                  step: 'fb'
+                }
                 type: STRING
                 string_stats {
                   unique: 3
@@ -400,10 +411,12 @@ class TopKUniquesCombinerStatsGeneratorTest(
         ], ['fa'])
     ]
     expected_result = {
-        'fa':
+        types.FeaturePath(['fa']):
             text_format.Parse(
                 """
-                name: 'fa'
+                path {
+                  step: 'fa'
+                }
                 type: STRING
                 string_stats {
                   unique: 5
@@ -444,10 +457,12 @@ class TopKUniquesCombinerStatsGeneratorTest(
                     }
                   }
               }""", statistics_pb2.FeatureNameStatistics()),
-        'fb':
+        types.FeaturePath(['fb']):
             text_format.Parse(
                 """
-                name: 'fb'
+                path {
+                  step: 'fb'
+                }
                 type: STRING
                 string_stats {
                   unique: 3
@@ -504,10 +519,12 @@ class TopKUniquesCombinerStatsGeneratorTest(
         ], ['fa', 'fb']),
     ]
     expected_result = {
-        'fa':
+        types.FeaturePath(['fa']):
             text_format.Parse(
                 """
-                name: 'fa'
+                path {
+                  step: 'fa'
+                }
                 type: STRING
                 string_stats {
                   unique: 5
@@ -562,10 +579,12 @@ class TopKUniquesCombinerStatsGeneratorTest(
         pa.Table.from_arrays([pa.array([[12, 12, 34, 45]])], ['fa']),
     ]
     expected_result = {
-        'fa':
+        types.FeaturePath(['fa']):
             text_format.Parse(
                 """
-                name: 'fa'
+                path {
+                  step: 'fa'
+                }
                 type: INT
                 string_stats {
                   unique: 4
@@ -635,9 +654,10 @@ class TopKUniquesCombinerStatsGeneratorTest(
         ], ['fa', 'w'])
     ]
     expected_result = {
-        'fa': text_format.Parse(
-            """
-        name: 'fa'
+        types.FeaturePath(['fa']): text_format.Parse("""
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           unique: 5

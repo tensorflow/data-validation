@@ -87,14 +87,15 @@ def _get_partitioned_statistics_summary(
   """Computes meta-statistics over the custom stats in the input dict."""
 
   summary = defaultdict(defaultdict)
-  for feature_name, feature_statistics in statistics.items():
-    for stat_name, stat_values in feature_statistics.items():
-      summary[feature_name]['min_' + stat_name] = np.min(stat_values)
-      summary[feature_name]['max_' + stat_name] = np.max(stat_values)
-      summary[feature_name]['mean_' + stat_name] = np.mean(stat_values)
-      summary[feature_name]['median_' + stat_name] = np.median(stat_values)
-      summary[feature_name]['std_dev_' + stat_name] = np.std(stat_values)
-      summary[feature_name]['num_partitions_' + stat_name] = stat_values.size
+  for feature_path, feature_statistics in six.iteritems(statistics):
+    summary_for_feature = summary[feature_path]
+    for stat_name, stat_values in six.iteritems(feature_statistics):
+      summary_for_feature[u'min_' + stat_name] = np.min(stat_values)
+      summary_for_feature[u'max_' + stat_name] = np.max(stat_values)
+      summary_for_feature[u'mean_' + stat_name] = np.mean(stat_values)
+      summary_for_feature[u'median_' + stat_name] = np.median(stat_values)
+      summary_for_feature[u'std_dev_' + stat_name] = np.std(stat_values)
+      summary_for_feature[u'num_partitions_' + stat_name] = stat_values.size
   return summary
 
 
@@ -104,11 +105,11 @@ def get_valid_statistics(
 ):
   """Filters out statistics that were not computed over all partitions."""
   valid_statistics = defaultdict(defaultdict)
-  for feature_name, feature_statistics in statistics.items():
-    for stat_name, stat_values in feature_statistics.items():
+  for feature_path, feature_statistics in six.iteritems(statistics):
+    for stat_name, stat_values in six.iteritems(feature_statistics):
       # Only keep statistics that appear min_partitions_stat_presence times
       if len(stat_values) >= min_partitions_stat_presence:
-        valid_statistics[feature_name][stat_name] = np.array(stat_values)
+        valid_statistics[feature_path][stat_name] = np.array(stat_values)
   return valid_statistics
 
 
@@ -182,8 +183,9 @@ class PartitionedStatisticsAnalyzer(beam.CombineFn):
     """Adds the input (DatasetFeatureStatistics) into the accumulator."""
 
     for feature in statistic.features:
+      feature_path = types.FeaturePath.from_proto(feature.path)
       for stat in feature.custom_stats:
-        accumulator.statistics[feature.name][stat.name].append(stat.num)
+        accumulator.statistics[feature_path][stat.name].append(stat.num)
     return accumulator
 
   def merge_accumulators(
@@ -193,9 +195,10 @@ class PartitionedStatisticsAnalyzer(beam.CombineFn):
 
     result = _PartitionedStatisticsAnalyzerAccumulator()
     for accumulator in accumulators:
-      for feature_name, feature_statistics in accumulator.statistics.items():
-        for stat_name, stat_values in feature_statistics.items():
-          result.statistics[feature_name][stat_name].extend(stat_values)
+      for feature_path, feature_statistics in six.iteritems(
+          accumulator.statistics):
+        for stat_name, stat_values in six.iteritems(feature_statistics):
+          result.statistics[feature_path][stat_name].extend(stat_values)
     return result
 
   def extract_output(self,
@@ -279,7 +282,7 @@ class NonStreamingCustomStatsGenerator(stats_generator.TransformStatsGenerator):
       min_partitions_stat_presence,
       seed,
       max_examples_per_partition,
-      name = 'NonStreamingCustomStatsGenerator'):
+      name = u'NonStreamingCustomStatsGenerator'):
     """Initializes NonStreamingCustomStatsGenerator.
 
     Args:

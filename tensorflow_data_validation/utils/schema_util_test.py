@@ -21,6 +21,7 @@ import os
 from absl import flags
 from absl.testing import absltest
 from absl.testing import parameterized
+from tensorflow_data_validation import types
 from tensorflow_data_validation.utils import schema_util
 from google.protobuf import text_format
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -32,7 +33,7 @@ SET_DOMAIN_VALID_TESTS = [
     {
         'testcase_name': 'int_domain',
         'input_schema_proto_text': '''feature { name: 'x' }''',
-        'feature_name': 'x',
+        'feature_name_or_path': 'x',
         'domain': schema_pb2.IntDomain(min=1, max=5),
         'output_schema_proto_text': '''
           feature { name: 'x' int_domain { min: 1 max: 5 } }'''
@@ -40,7 +41,7 @@ SET_DOMAIN_VALID_TESTS = [
     {
         'testcase_name': 'float_domain',
         'input_schema_proto_text': '''feature { name: 'x' }''',
-        'feature_name': 'x',
+        'feature_name_or_path': 'x',
         'domain': schema_pb2.FloatDomain(min=1.1, max=5.1),
         'output_schema_proto_text': '''
           feature { name: 'x' float_domain { min: 1.1 max: 5.1 } }'''
@@ -48,7 +49,7 @@ SET_DOMAIN_VALID_TESTS = [
     {
         'testcase_name': 'string_domain',
         'input_schema_proto_text': '''feature { name: 'x' }''',
-        'feature_name': 'x',
+        'feature_name_or_path': 'x',
         'domain': schema_pb2.StringDomain(value=['a', 'b']),
         'output_schema_proto_text': '''
           feature { name: 'x' string_domain { value: 'a' value: 'b' } }'''
@@ -56,7 +57,7 @@ SET_DOMAIN_VALID_TESTS = [
     {
         'testcase_name': 'bool_domain',
         'input_schema_proto_text': '''feature { name: 'x' }''',
-        'feature_name': 'x',
+        'feature_name_or_path': 'x',
         'domain': schema_pb2.BoolDomain(true_value='T', false_value='F'),
         'output_schema_proto_text': '''
           feature { name: 'x' bool_domain { true_value: 'T' false_value: 'F' } }
@@ -67,11 +68,42 @@ SET_DOMAIN_VALID_TESTS = [
         'input_schema_proto_text': '''
           string_domain { name: 'global_domain' value: 'a' value: 'b' }
           feature { name: 'x' }''',
-        'feature_name': 'x',
+        'feature_name_or_path': 'x',
         'domain': 'global_domain',
         'output_schema_proto_text': '''
           string_domain { name: 'global_domain' value: 'a' value: 'b' }
           feature { name: 'x' domain: 'global_domain' }
+        '''
+    },
+    {
+        'testcase_name': 'set_domain_using_path',
+        'input_schema_proto_text': '''
+          feature {
+            name: "feature1"
+            type: STRUCT
+            struct_domain {
+              feature {
+                name: "sub_feature1"
+              }
+            }
+          }
+          ''',
+        'feature_name_or_path': types.FeaturePath(['feature1', 'sub_feature1']),
+        'domain': schema_pb2.BoolDomain(true_value='T', false_value='F'),
+        'output_schema_proto_text': '''
+          feature {
+            name: "feature1"
+            type: STRUCT
+            struct_domain {
+              feature {
+                name: "sub_feature1"
+                bool_domain {
+                  true_value: 'T'
+                  false_value: 'F'
+                }
+              }
+            }
+          }
         '''
     }
 ]
@@ -95,6 +127,23 @@ class SchemaUtilTest(parameterized.TestCase):
     # Check to verify that we are operating on the same feature object.
     self.assertIs(feature2, schema_util.get_feature(schema, 'feature2'))
 
+  def test_get_feature_using_path(self):
+    schema = text_format.Parse(
+        """
+        feature {
+          name: "feature1"
+          type: STRUCT
+          struct_domain {
+            feature {
+              name: "sub_feature1"
+            }
+          }
+        }
+        """, schema_pb2.Schema())
+    sub_feature1 = schema_util.get_feature(
+        schema, types.FeaturePath(['feature1', 'sub_feature1']))
+    self.assertIs(sub_feature1, schema.feature[0].struct_domain.feature[0])
+
   def test_get_feature_not_present(self):
     schema = text_format.Parse(
         """
@@ -106,6 +155,36 @@ class SchemaUtilTest(parameterized.TestCase):
     with self.assertRaisesRegexp(ValueError,
                                  'Feature.*not found in the schema'):
       _ = schema_util.get_feature(schema, 'feature2')
+
+  def test_get_feature_using_path_not_present(self):
+    schema = text_format.Parse(
+        """
+        feature {
+          name: "feature1"
+          type: STRUCT
+          struct_domain {
+            feature {
+              name: "sub_feature1"
+            }
+          }
+        }
+        """, schema_pb2.Schema())
+    with self.assertRaisesRegexp(ValueError,
+                                 'Feature.*not found in the schema'):
+      _ = schema_util.get_feature(
+          schema, types.FeaturePath(['feature1', 'sub_feature2']))
+
+  def test_get_feature_internal_step_not_struct(self):
+    schema = text_format.Parse(
+        """
+        feature {
+          name: "feature1"
+        }
+        """, schema_pb2.Schema())
+    with self.assertRaisesRegexp(ValueError,
+                                 'does not refer to a valid STRUCT feature'):
+      _ = schema_util.get_feature(
+          schema, types.FeaturePath(['feature1', 'sub_feature2']))
 
   def test_get_feature_invalid_schema_input(self):
     with self.assertRaisesRegexp(TypeError, 'should be a Schema proto'):
@@ -203,6 +282,43 @@ class SchemaUtilTest(parameterized.TestCase):
     # Check to verify that we are operating on the same domain object.
     self.assertIs(domain1, schema_util.get_domain(schema, 'feature1'))
 
+  def test_get_domain_using_path(self):
+    schema = text_format.Parse(
+        """
+        feature {
+          name: "feature1"
+          type: STRUCT
+          struct_domain {
+            feature {
+              name: "sub_feature1"
+              bool_domain {
+                name: "domain1"
+              }
+            }
+          }
+        }
+        """, schema_pb2.Schema())
+    domain1 = schema_util.get_domain(
+        schema, types.FeaturePath(['feature1', 'sub_feature1']))
+    self.assertIs(
+        domain1, schema.feature[0].struct_domain.feature[0].bool_domain)
+
+  def test_raise_on_get_struct_domain(self):
+    schema = text_format.Parse(
+        """
+        feature {
+          name: "feature1"
+          type: STRUCT
+          struct_domain {
+            feature {
+              name: "sub_feature1"
+            }
+          }
+        }
+        """, schema_pb2.Schema())
+    with self.assertRaisesRegexp(ValueError, 'has an unsupported domain'):
+      _ = schema_util.get_domain(schema, types.FeaturePath(['feature1']))
+
   def test_get_domain_not_present(self):
     schema = text_format.Parse(
         """
@@ -262,13 +378,33 @@ class SchemaUtilTest(parameterized.TestCase):
         feature {
           name: "fc"
           type: INT
-          bool_domain{
+          bool_domain {
             name: "fc_bool_domain"
+          }
+        }
+        feature {
+          name: "fd"
+          type: STRUCT
+          struct_domain {
+            feature {
+              name: "fd_fa"
+              type: INT
+              int_domain {
+                is_categorical: true
+              }
+            }
+            feature {
+              name: "fd_fb"
+            }
           }
         }
         """, schema_pb2.Schema())
     self.assertEqual(
-        schema_util.get_categorical_numeric_features(schema), ['fa', 'fc'])
+        schema_util.get_categorical_numeric_features(schema), [
+            types.FeaturePath(['fa']),
+            types.FeaturePath(['fc']),
+            types.FeaturePath(['fd', 'fd_fa'])
+        ])
 
   def test_is_categorical_features(self):
     schema = text_format.Parse(
@@ -300,11 +436,11 @@ class SchemaUtilTest(parameterized.TestCase):
     ], expected)
 
   @parameterized.named_parameters(*SET_DOMAIN_VALID_TESTS)
-  def test_set_domain(self, input_schema_proto_text, feature_name, domain,
-                      output_schema_proto_text):
+  def test_set_domain(self, input_schema_proto_text, feature_name_or_path,
+                      domain, output_schema_proto_text):
     actual_schema = schema_pb2.Schema()
     text_format.Merge(input_schema_proto_text, actual_schema)
-    schema_util.set_domain(actual_schema, feature_name, domain)
+    schema_util.set_domain(actual_schema, feature_name_or_path, domain)
     expected_schema = schema_pb2.Schema()
     text_format.Merge(output_schema_proto_text, expected_schema)
     self.assertEqual(actual_schema, expected_schema)
@@ -346,8 +482,26 @@ class SchemaUtilTest(parameterized.TestCase):
           name: "fd"
           type: INT
         }
+        feature {
+          name: "fd"
+          type: STRUCT
+          struct_domain {
+            feature {
+              name: "fd_fa"
+              type: INT
+              int_domain {
+                is_categorical: true
+              }
+            }
+            feature {
+              name: "fd_fb"
+            }
+          }
+        }
         """, schema_pb2.Schema())
-    expected = set(['fa', 'fb'])
+    expected = set([types.FeaturePath(['fa']),
+                    types.FeaturePath(['fb']),
+                    types.FeaturePath(['fd', 'fd_fa'])])
     self.assertEqual(schema_util.get_categorical_features(schema), expected)
 
   def test_get_multivalent_features(self):
@@ -414,8 +568,34 @@ class SchemaUtilTest(parameterized.TestCase):
               min: 0
               max: 2
             }
-          }""", schema_pb2.Schema())
-    expected = set(['fc', 'fe', 'ff', 'fg', 'fh'])
+          }
+          feature {
+            name: "fi"
+            type: STRUCT
+            struct_domain {
+              feature {
+                name: "fi_fa"
+                value_count {
+                  min: 0
+                  max: 1
+                }
+              }
+              feature {
+                name: "fi_fb"
+                value_count {
+                  min: 0
+                  max: 2
+                }
+              }
+            }
+          }
+          """, schema_pb2.Schema())
+    expected = set([types.FeaturePath(['fc']),
+                    types.FeaturePath(['fe']),
+                    types.FeaturePath(['ff']),
+                    types.FeaturePath(['fg']),
+                    types.FeaturePath(['fh']),
+                    types.FeaturePath(['fi', 'fi_fb'])])
     self.assertEqual(schema_util.get_multivalent_features(schema), expected)
 
 

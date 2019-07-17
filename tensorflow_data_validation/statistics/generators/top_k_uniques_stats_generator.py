@@ -26,6 +26,7 @@ import collections
 import logging
 import numbers
 import apache_beam as beam
+import six
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import schema_util
@@ -38,19 +39,23 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 FeatureValueCount = collections.namedtuple('FeatureValueCount',
                                            ['feature_value', 'count'])
 
+# Pickling types.FeaturePath is slow, so we use tuples directly where pickling
+# happens frequently.
+FeaturePathTuple = Tuple[types.FeatureName]
+
 _SlicedFeatureNameAndValueListWithWeight = collections.namedtuple(
     '_SlicedFeatureNameAndValueListWithWeight',
-    ['slice_key', 'feature_name', 'value_list', 'weight'])
+    ['slice_key', 'feature_path_tuple', 'value_list', 'weight'])
 
 _INVALID_STRING = '__BYTES_VALUE__'
 
 
 def _make_feature_stats_proto_with_uniques_stats(
-    feature_name, count,
+    feature_path, count,
     is_categorical):
   """Makes a FeatureNameStatistics proto containing the uniques stats."""
   result = statistics_pb2.FeatureNameStatistics()
-  result.name = feature_name
+  result.path.CopyFrom(feature_path.to_proto())
   # If we have a categorical feature, we preserve the type to be the original
   # INT type.
   result.type = (
@@ -61,20 +66,21 @@ def _make_feature_stats_proto_with_uniques_stats(
 
 
 def _make_dataset_feature_stats_proto_with_uniques_for_single_feature(
-    feature_name_to_value_count,
+    feature_path_to_value_count,
     categorical_features
 ):
   """Makes a DatasetFeatureStatistics proto with uniques stats for a feature."""
-  (slice_key, feature_name), count = feature_name_to_value_count
+  (slice_key, feature_path_tuple), count = feature_path_to_value_count
+  feature_path = types.FeaturePath(feature_path_tuple)
   result = statistics_pb2.DatasetFeatureStatistics()
   result.features.add().CopyFrom(
       _make_feature_stats_proto_with_uniques_stats(
-          feature_name, count, feature_name in categorical_features))
+          feature_path, count, feature_path in categorical_features))
   return slice_key, result.SerializeToString()
 
 
 def make_feature_stats_proto_with_topk_stats(
-    feature_name,
+    feature_path,
     top_k_value_count_list, is_categorical,
     is_weighted_stats, num_top_values,
     frequency_threshold,
@@ -82,7 +88,7 @@ def make_feature_stats_proto_with_topk_stats(
   """Makes a FeatureNameStatistics proto containing the top-k stats.
 
   Args:
-    feature_name: The feature name.
+    feature_path: The path of the feature.
     top_k_value_count_list: A list of FeatureValueCount tuples.
     is_categorical: Whether the feature is categorical.
     is_weighted_stats: Whether top_k_value_count_list incorporates weights.
@@ -104,7 +110,7 @@ def make_feature_stats_proto_with_topk_stats(
       reverse=True)
 
   result = statistics_pb2.FeatureNameStatistics()
-  result.name = feature_name
+  result.path.CopyFrom(feature_path.to_proto())
   # If we have a categorical feature, we preserve the type to be the original
   # INT type.
   result.type = (statistics_pb2.FeatureNameStatistics.INT if is_categorical
@@ -126,7 +132,7 @@ def make_feature_stats_proto_with_topk_stats(
     # string value.
     elif isinstance(value, bytes) and maybe_get_utf8(value) is None:
       logging.warning('Feature "%s" has bytes value "%s" which cannot be '
-                      'decoded as a UTF-8 string.', feature_name, value)
+                      'decoded as a UTF-8 string.', feature_path, value)
       value = _INVALID_STRING
 
     if i < num_top_values:
@@ -143,16 +149,18 @@ def make_feature_stats_proto_with_topk_stats(
 
 
 def _make_dataset_feature_stats_proto_with_topk_for_single_feature(
-    feature_name_to_value_count_list,
+    feature_path_to_value_count_list,
     categorical_features, is_weighted_stats,
     num_top_values, frequency_threshold,
     num_rank_histogram_buckets):
   """Makes a DatasetFeatureStatistics proto with top-k stats for a feature."""
-  (slice_key, feature_name), value_count_list = feature_name_to_value_count_list
+  (slice_key, feature_path_tuple), value_count_list = (
+      feature_path_to_value_count_list)
+  feature_path = types.FeaturePath(feature_path_tuple)
   result = statistics_pb2.DatasetFeatureStatistics()
   result.features.add().CopyFrom(
       make_feature_stats_proto_with_topk_stats(
-          feature_name, value_count_list, feature_name in categorical_features,
+          feature_path, value_count_list, feature_path in categorical_features,
           is_weighted_stats, num_top_values, frequency_threshold,
           num_rank_histogram_buckets))
   return slice_key, result.SerializeToString()
@@ -176,17 +184,18 @@ def _convert_input_to_feature_values_with_weights(
         weight feature.
 
   Yields:
-    A tuple (slice_key, feature_name, feature_value_list, optional weight).
+    A tuple (slice_key, feature_path, feature_value_list, optional weight).
   """
   slice_key, example = sliced_example
   if weight_feature is not None:
     weight = example[weight_feature][0]
 
-  for feature_name, values in example.items():
+  for feature_name, values in six.iteritems(example):
     if feature_name == weight_feature:
       continue
 
-    is_categorical = feature_name in categorical_features
+    feature_path = types.FeaturePath([feature_name])
+    is_categorical = feature_path in categorical_features
     # Check if we have a non-missing feature with at least one value.
     if values is None or values.size == 0:
       continue
@@ -199,7 +208,7 @@ def _convert_input_to_feature_values_with_weights(
 
     yield _SlicedFeatureNameAndValueListWithWeight(
         slice_key,
-        feature_name,
+        feature_path.steps(),
         values.astype(str) if is_categorical else values,
         weight if weight_feature else None)
 
@@ -220,9 +229,9 @@ def _flatten_value_list(
   Yields:
     Tuple (slice_key, feature_name, feature_value)
   """
-  (slice_key, feature_name, value_list, _) = entry
+  (slice_key, feature_path_tuple, value_list, _) = entry
   for value in value_list:
-    yield slice_key, feature_name, value
+    yield slice_key, feature_path_tuple, value
 
 
 def _flatten_weighted_value_list(
@@ -234,14 +243,14 @@ def _flatten_weighted_value_list(
                     (('key', 'x', 'a'), w), (('key', 'x', 'b'), w)
 
   Args:
-    entry: Tuple (slice_key, feature_name, feature_value_list, weight)
+    entry: Tuple (slice_key, feature_path, feature_value_list, weight)
 
   Yields:
-    Tuple ((slice_key, feature_name, feature_value), weight)
+    Tuple ((slice_key, feature_path, feature_value), weight)
   """
-  (slice_key, feature_name, value_list, weight) = entry
+  (slice_key, feature_path_tuple, value_list, weight) = entry
   for value in value_list:
-    yield (slice_key, feature_name, value), weight
+    yield (slice_key, feature_path_tuple, value), weight
 
 
 # Input type check is commented out, as beam python will fail the type check
@@ -282,7 +291,7 @@ class _ComputeTopKUniquesStats(beam.PTransform):
   def expand(self, pcoll):
     """Computes top-k most frequent values and number of uniques."""
     # Convert input example to tuples of form
-    # (slice_key, feature_name, feature_value_list, optional weight)
+    # (slice_key, feature_path, feature_value_list, optional weight)
     # corresponding to each example.
     feature_values_with_weights = (
         pcoll
@@ -291,33 +300,33 @@ class _ComputeTopKUniquesStats(beam.PTransform):
             categorical_features=self._categorical_features,
             weight_feature=self._weight_feature))
 
-    # Lambda to convert from ((slice_key, feature_name, feature_value), count)
-    # to ((slice_key, feature_name), (feature_value, count))
+    # Lambda to convert from ((slice_key, feature_path, feature_value), count)
+    # to ((slice_key, feature_path), (feature_value, count))
     modify_key = (
         lambda x: ((x[0][0], x[0][1]), FeatureValueCount(x[0][2], x[1])))
 
     # Key to order values.
     key_fn = lambda x: (x.count, x.feature_value)
 
-    sliced_feature_name_value_count = (
+    sliced_feature_path_value_count = (
         feature_values_with_weights
-        # Flatten (slice_key, feature_name, feature_value_list, optional weight)
-        # to (slice_key, feature_name, feature_value)
+        # Flatten (slice_key, feature_path, feature_value_list, optional weight)
+        # to (slice_key, feature_path, feature_value)
         | 'TopKUniques_FlattenToSlicedFeatureNameValueTuples' >>
         beam.FlatMap(_flatten_value_list)
         # Compute the frequency of each feature_value per slice. Output is a
-        # PCollection of ((slice_key, feature_name, feature_value), count)
+        # PCollection of ((slice_key, feature_path, feature_value), count)
         | 'TopKUniques_CountSlicedFeatureNameValueTuple' >>
         beam.combiners.Count().PerElement()
-        # Convert from ((slice_key, feature_name, feature_value), count) to
-        # ((slice_key, feature_name), (feature_value, count))
+        # Convert from ((slice_key, feature_path, feature_value), count) to
+        # ((slice_key, feature_path), (feature_value, count))
         | 'TopKUniques_ModifyKeyToSlicedFeatureName' >> beam.Map(modify_key)
     )
 
     result_protos = []
     # Find topk values for each feature.
     topk = (
-        sliced_feature_name_value_count
+        sliced_feature_path_value_count
         # Obtain the top-k most frequent feature value for each feature in a
         # slice.
         | 'TopK_GetTopK' >> beam.combiners.Top.PerKey(
@@ -337,19 +346,19 @@ class _ComputeTopKUniquesStats(beam.PTransform):
     # feature.
     if self._weight_feature is not None:
       weighted_topk = (
-          # Flatten (slice_key, feature_name, feature_value_list, weight) to
-          # ((slice_key, feature_name, feature_value), weight)
+          # Flatten (slice_key, feature_path, feature_value_list, weight) to
+          # ((slice_key, feature_path, feature_value), weight)
           feature_values_with_weights
           | 'TopKWeighted_FlattenToSlicedFeatureNameValueTuples' >>
           beam.FlatMap(_flatten_weighted_value_list)
           # Sum the weights of each feature_value per slice. Output is a
           # PCollection of
-          # ((slice_key, feature_name, feature_value), weighted_count)
+          # ((slice_key, feature_path, feature_value), weighted_count)
           | 'TopKWeighted_CountSlicedFeatureNameValueTuple' >>
           beam.CombinePerKey(sum)
           # Convert from
-          # ((slice_key, feature_name, feature_value), weighted_count) to
-          # ((slice_key, feature_name), (feature_value, weighted_count))
+          # ((slice_key, feature_path, feature_value), weighted_count) to
+          # ((slice_key, feature_path), (feature_value, weighted_count))
           | 'TopKWeighted_ModifyKeyToSlicedFeatureName' >> beam.Map(modify_key)
           # Obtain the top-k most frequent feature value for each feature in a
           # slice.
@@ -366,8 +375,8 @@ class _ComputeTopKUniquesStats(beam.PTransform):
       result_protos.append(weighted_topk)
 
     uniques = (
-        sliced_feature_name_value_count
-        # Drop the values to only have the slice_key and feature_name with
+        sliced_feature_path_value_count
+        # Drop the values to only have the slice_key and feature_path with
         # each repeated the number of unique values times.
         | 'Uniques_DropValues' >> beam.Keys()
         | 'Uniques_CountPerFeatureName' >> beam.combiners.Count().PerElement()

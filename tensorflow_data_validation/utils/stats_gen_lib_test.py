@@ -125,7 +125,9 @@ class StatsGenTest(parameterized.TestCase):
     datasets {
       num_examples: 3
       features {
-        name: 'a'
+        path {
+          step: "a"
+        }
         type: FLOAT
         num_stats {
           common_stats {
@@ -186,7 +188,9 @@ class StatsGenTest(parameterized.TestCase):
         }
       }
       features {
-        name: "b"
+        path {
+          step: "b"
+        }
         type: STRING
         string_stats {
           common_stats {
@@ -270,7 +274,9 @@ class StatsGenTest(parameterized.TestCase):
     datasets {
   num_examples: 8
   features {
-    name: "feature1"
+    path {
+      step: "feature1"
+    }
     type: FLOAT
     num_stats {
       common_stats {
@@ -327,7 +333,9 @@ class StatsGenTest(parameterized.TestCase):
     }
   }
   features {
-    name: "feature2"
+    path {
+      step: "feature2"
+    }
     type: STRING
     string_stats {
       common_stats {
@@ -469,7 +477,9 @@ class StatsGenTest(parameterized.TestCase):
     datasets {
   num_examples: 1
   features {
-    name: "feature1"
+    path {
+      step: "feature1"
+    }
     type: STRING
     string_stats {
       common_stats {
@@ -545,7 +555,9 @@ class StatsGenTest(parameterized.TestCase):
         datasets {
           num_examples: 2
           features {
-            name: "feature1"
+            path {
+              step: "feature1"
+            }
             type: STRING
             string_stats {
               common_stats {
@@ -554,7 +566,9 @@ class StatsGenTest(parameterized.TestCase):
             }
           }
           features {
-            name: "feature2"
+            path {
+              step: "feature2"
+            }
             type: STRING
             string_stats {
               common_stats {

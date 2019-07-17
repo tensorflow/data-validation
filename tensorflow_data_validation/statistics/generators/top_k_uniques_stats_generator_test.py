@@ -20,6 +20,7 @@ from __future__ import print_function
 
 from absl.testing import absltest
 import numpy as np
+from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import top_k_uniques_stats_generator
 from tensorflow_data_validation.utils import test_util
 
@@ -35,7 +36,9 @@ class MakeFeatureStatsProtoWithTopKStatsTest(absltest.TestCase):
   def test_make_feature_stats_proto_with_topk_stats(self):
     expected_result = text_format.Parse(
         """
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           top_values {
@@ -73,13 +76,16 @@ class MakeFeatureStatsProtoWithTopKStatsTest(absltest.TestCase):
     ]
     result = (
         top_k_uniques_stats_generator.make_feature_stats_proto_with_topk_stats(
-            'fa', top_k_value_count_list, False, False, 3, 1, 2))
+            types.FeaturePath(['fa']), top_k_value_count_list, False, False, 3,
+            1, 2))
     compare.assertProtoEqual(self, result, expected_result)
 
   def test_make_feature_stats_proto_with_topk_stats_unsorted_value_counts(self):
     expected_result = text_format.Parse(
         """
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           top_values {
@@ -118,13 +124,16 @@ class MakeFeatureStatsProtoWithTopKStatsTest(absltest.TestCase):
     ]
     result = (
         top_k_uniques_stats_generator.make_feature_stats_proto_with_topk_stats(
-            'fa', top_k_value_count_list, False, False, 3, 1, 2))
+            types.FeaturePath(['fa']), top_k_value_count_list, False, False, 3,
+            1, 2))
     compare.assertProtoEqual(self, result, expected_result)
 
   def test_make_feature_stats_proto_with_topk_stats_categorical_feature(self):
     expected_result = text_format.Parse(
         """
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: INT
         string_stats {
           top_values {
@@ -162,13 +171,16 @@ class MakeFeatureStatsProtoWithTopKStatsTest(absltest.TestCase):
     ]
     result = (
         top_k_uniques_stats_generator.make_feature_stats_proto_with_topk_stats(
-            'fa', top_k_value_count_list, True, False, 3, 1, 2))
+            types.FeaturePath(['fa']), top_k_value_count_list, True, False, 3,
+            1, 2))
     compare.assertProtoEqual(self, result, expected_result)
 
   def test_make_feature_stats_proto_with_topk_stats_weighted(self):
     expected_result = text_format.Parse(
         """
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           weighted_string_stats {
@@ -208,7 +220,8 @@ class MakeFeatureStatsProtoWithTopKStatsTest(absltest.TestCase):
     ]
     result = (
         top_k_uniques_stats_generator.make_feature_stats_proto_with_topk_stats(
-            'fa', top_k_value_count_list, False, True, 3, 1, 2))
+            types.FeaturePath(['fa']), top_k_value_count_list, False, True, 3,
+            1, 2))
     compare.assertProtoEqual(self, result, expected_result)
 
 
@@ -227,7 +240,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         text_format.Parse(
             """
       features {
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           top_values {
@@ -271,7 +286,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         text_format.Parse(
             """
       features {
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           unique: 5
@@ -308,7 +325,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         text_format.Parse(
             """
             features {
-              name: 'fa'
+              path {
+                step: 'fa'
+              }
               type: STRING
               string_stats {
                 top_values {
@@ -352,7 +371,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         text_format.Parse(
             """
             features {
-              name: 'fa'
+              path {
+                step: 'fa'
+              }
               type: STRING
               string_stats {
                 weighted_string_stats {
@@ -398,7 +419,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         text_format.Parse(
             """
       features {
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           unique: 5
@@ -425,7 +448,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         text_format.Parse(
             """
       features {
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           top_values {
@@ -469,7 +494,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         text_format.Parse(
             """
     features {
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           unique: 5
@@ -504,7 +531,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         text_format.Parse(
             """
       features {
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           top_values {
@@ -548,7 +577,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         text_format.Parse(
             """
       features {
-        name: 'fb'
+        path {
+          step: 'fb'
+        }
         type: STRING
         string_stats {
           top_values {
@@ -588,7 +619,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         text_format.Parse(
             """
     features {
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           unique: 5
@@ -597,7 +630,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         text_format.Parse(
             """
     features {
-        name: 'fb'
+        path {
+          step: 'fb'
+        }
         type: STRING
         string_stats {
           unique: 3
@@ -649,7 +684,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         text_format.Parse(
             """
       features {
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           top_values {
@@ -693,7 +730,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         text_format.Parse(
             """
       features {
-        name: 'fb'
+        path {
+          step: 'fb'
+        }
         type: STRING
         string_stats {
           top_values {
@@ -733,7 +772,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         text_format.Parse(
             """
     features {
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           unique: 5
@@ -742,7 +783,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         text_format.Parse(
             """
     features {
-        name: 'fb'
+        path {
+          step: 'fb'
+        }
         type: STRING
         string_stats {
           unique: 3
@@ -774,7 +817,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         text_format.Parse(
             """
       features {
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           top_values {
@@ -810,7 +855,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         text_format.Parse(
             """
     features {
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           unique: 5
@@ -836,7 +883,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         text_format.Parse(
             """
       features {
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: INT
         string_stats {
           top_values {
@@ -872,7 +921,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         text_format.Parse(
             """
     features {
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: INT
         string_stats {
           unique: 4
@@ -909,7 +960,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         text_format.Parse(
             """
       features {
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           top_values {
@@ -939,7 +992,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         text_format.Parse(
             """
       features {
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           weighted_string_stats {
@@ -981,7 +1036,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         text_format.Parse(
             """
       features {
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           unique: 5
@@ -1009,7 +1066,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         text_format.Parse(
             """
       features {
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           top_values {
@@ -1039,7 +1098,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         text_format.Parse(
             """
     features {
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           unique: 2
@@ -1083,7 +1144,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
          text_format.Parse(
              """
       features {
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           top_values {
@@ -1115,7 +1178,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
          text_format.Parse(
              """
       features {
-        name: 'fb'
+        path {
+          step: 'fb'
+        }
         type: STRING
         string_stats {
           top_values {
@@ -1147,7 +1212,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
          text_format.Parse(
              """
       features {
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           unique: 5
@@ -1157,7 +1224,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
          text_format.Parse(
              """
       features {
-        name: 'fb'
+        path {
+          step: 'fb'
+        }
         type: STRING
         string_stats {
           unique: 2
@@ -1167,7 +1236,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
          text_format.Parse(
              """
       features {
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           top_values {
@@ -1199,7 +1270,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
          text_format.Parse(
              """
       features {
-        name: 'fb'
+        path {
+          step: 'fb'
+        }
         type: STRING
         string_stats {
           top_values {
@@ -1231,7 +1304,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
          text_format.Parse(
              """
       features {
-        name: 'fa'
+        path {
+          step: 'fa'
+        }
         type: STRING
         string_stats {
           unique: 5
@@ -1241,7 +1316,9 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
          text_format.Parse(
              """
       features {
-        name: 'fb'
+        path {
+          step: 'fb'
+        }
         type: STRING
         string_stats {
           unique: 2

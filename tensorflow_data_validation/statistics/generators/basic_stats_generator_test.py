@@ -21,6 +21,7 @@ from __future__ import print_function
 
 from absl.testing import absltest
 import numpy as np
+from tensorflow_data_validation import types
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import basic_stats_generator
 from tensorflow_data_validation.utils import test_util
@@ -39,9 +40,11 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     b2 = pa.Table.from_arrays([pa.array([[1.0]])], ['a'])
     batches = [b1, b2]
     expected_result = {
-        'a': text_format.Parse(
+        types.FeaturePath(['a']): text_format.Parse(
             """
-            name: 'a'
+            path {
+              step: 'a'
+            }
             type: FLOAT
             num_stats {
               common_stats {
@@ -156,9 +159,11 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     ], ['a', 'b'])
     batches = [b1, b2]
     expected_result = {
-        'a': text_format.Parse(
+        types.FeaturePath(['a']): text_format.Parse(
             """
-            name: "a"
+            path {
+              step: "a"
+            }
             num_stats {
               common_stats {
                 num_non_missing: 1
@@ -237,9 +242,11 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               }
             }
             """, statistics_pb2.FeatureNameStatistics()),
-        'b': text_format.Parse(
+        types.FeaturePath(['b']): text_format.Parse(
             """
-            name: "b"
+            path {
+              step: 'b'
+            }
             type: FLOAT
             num_stats {
               common_stats {
@@ -338,9 +345,11 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
 
     batches = [b1, b2]
     expected_result = {
-        'a': text_format.Parse(
+        types.FeaturePath(['a']): text_format.Parse(
             """
-            name: 'a'
+            path {
+              step: 'a'
+            }
             type: FLOAT
             num_stats {
               common_stats {
@@ -476,9 +485,11 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               }
             }
             """, statistics_pb2.FeatureNameStatistics()),
-        'b': text_format.Parse(
+        types.FeaturePath(['b']): text_format.Parse(
             """
-            name: 'b'
+            path {
+              step: 'b'
+            }
             type: INT
             num_stats {
               common_stats {
@@ -628,9 +639,11 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
          pa.array([None, ['qwe']])], ['a', 'b'])
     batches = [b1, b2]
     expected_result = {
-        'a': text_format.Parse(
+        types.FeaturePath(['a']): text_format.Parse(
             """
-            name: 'a'
+            path {
+              step: 'a'
+            }
             type: FLOAT
             num_stats {
               common_stats {
@@ -707,9 +720,11 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               }
             }
             """, statistics_pb2.FeatureNameStatistics()),
-        'b': text_format.Parse(
+        types.FeaturePath(['b']): text_format.Parse(
             """
-            name: 'b'
+            path {
+              step: 'b'
+            }
             type: STRING
             string_stats {
               common_stats {
@@ -754,9 +769,11 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     batches = [b1, b2]
 
     expected_result = {
-        'a': text_format.Parse(
+        types.FeaturePath(['a']): text_format.Parse(
             """
-            name: 'a'
+            path {
+              step: 'a'
+            }
             type: FLOAT
             num_stats {
               common_stats {
@@ -858,9 +875,11 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
 
     batches = [b1, b2]
     expected_result = {
-        'a': text_format.Parse(
+        types.FeaturePath(['a']): text_format.Parse(
             """
-            name: 'a'
+            path {
+              step: 'a'
+            }
             type: FLOAT
             num_stats {
               common_stats {
@@ -937,9 +956,11 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               }
             }
             """, statistics_pb2.FeatureNameStatistics()),
-        'b': text_format.Parse(
+        types.FeaturePath(['b']): text_format.Parse(
             """
-            name: 'b'
+            path {
+              step: 'b'
+            }
             type: STRING
             string_stats {
               common_stats {
@@ -970,9 +991,11 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               avg_length: 1.71428571
             }
             """, statistics_pb2.FeatureNameStatistics()),
-        'c': text_format.Parse(
+        types.FeaturePath(['c']): text_format.Parse(
             """
-            name: 'c'
+            path {
+              step: 'c'
+            }
             type: INT
             num_stats {
               common_stats {
@@ -1059,9 +1082,11 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         pa.Table.from_arrays([pa.array([[1, 1, 1, 5, 15], [-1]])], ['c']),
     ]
     expected_result = {
-        'c': text_format.Parse(
+        types.FeaturePath(['c']): text_format.Parse(
             """
-            name: "c"
+            path {
+              step: 'c'
+            }
             string_stats {
               common_stats {
                 num_non_missing: 4
@@ -1111,9 +1136,11 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     batches = [
         pa.Table.from_arrays([pa.array([], type=pa.list_(pa.binary()))], ['a'])]
     expected_result = {
-        'a': text_format.Parse(
+        types.FeaturePath(['a']): text_format.Parse(
             """
-            name: 'a'
+            path {
+              step: 'a'
+            }
             type: STRING
             string_stats {
               common_stats {
@@ -1130,47 +1157,49 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         pa.Table.from_arrays([
             pa.array([[], [], []], type=pa.list_(pa.int64()))], ['a'])]
     expected_result = {
-        'a': text_format.Parse(
+        types.FeaturePath(['a']): text_format.Parse(
             """
-             name: "a"
-             num_stats {
-               common_stats {
-                 num_non_missing: 3
-                 num_values_histogram {
-                   buckets {
-                     sample_count: 0.3
-                   }
-                   buckets {
-                     sample_count: 0.3
-                   }
-                   buckets {
-                     sample_count: 0.3
-                   }
-                   buckets {
-                     sample_count: 0.3
-                   }
-                   buckets {
-                     sample_count: 0.3
-                   }
-                   buckets {
-                     sample_count: 0.3
-                   }
-                   buckets {
-                     sample_count: 0.3
-                   }
-                   buckets {
-                     sample_count: 0.3
-                   }
-                   buckets {
-                     sample_count: 0.3
-                   }
-                   buckets {
-                     sample_count: 0.3
-                   }
-                   type: QUANTILES
-                 }
-               }
-             }""", statistics_pb2.FeatureNameStatistics())}
+            path {
+              step: 'a'
+            }
+            num_stats {
+              common_stats {
+                num_non_missing: 3
+                num_values_histogram {
+                  buckets {
+                    sample_count: 0.3
+                  }
+                  buckets {
+                    sample_count: 0.3
+                  }
+                  buckets {
+                    sample_count: 0.3
+                  }
+                  buckets {
+                    sample_count: 0.3
+                  }
+                  buckets {
+                    sample_count: 0.3
+                  }
+                  buckets {
+                    sample_count: 0.3
+                  }
+                  buckets {
+                    sample_count: 0.3
+                  }
+                  buckets {
+                    sample_count: 0.3
+                  }
+                  buckets {
+                    sample_count: 0.3
+                  }
+                  buckets {
+                    sample_count: 0.3
+                  }
+                  type: QUANTILES
+                }
+              }
+            }""", statistics_pb2.FeatureNameStatistics())}
     generator = basic_stats_generator.BasicStatsGenerator()
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
@@ -1179,9 +1208,11 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                                         type=pa.list_(pa.float32()))], ['a'])
     batches = [b1]
     expected_result = {
-        'a': text_format.Parse(
+        types.FeaturePath(['a']): text_format.Parse(
             """
-            name: 'a'
+            path {
+              step: 'a'
+            }
             type: FLOAT
             num_stats {
               common_stats {

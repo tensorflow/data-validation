@@ -20,9 +20,11 @@ from __future__ import print_function
 
 import apache_beam as beam
 import numpy as np
+import six
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
+from tensorflow_data_validation.types_compat import Callable, Dict, Iterable, List, Optional, Text, Tuple, Union
 
-from tensorflow_data_validation.types_compat import Callable, Dict, List, Optional, Text, Tuple, Union
+from tensorflow_metadata.proto.v0 import path_pb2
 
 # Type of the feature name we support in the input batch.
 FeatureName = Union[bytes, Text]
@@ -66,3 +68,54 @@ BeamFeatureName = beam.typehints.Union[bytes, Text]
 BeamExample = beam.typehints.Dict[BeamFeatureName, beam.typehints
                                   .Optional[np.ndarray]]
 BeamSliceKey = beam.typehints.Optional[beam.typehints.Union[bytes, Text]]
+
+
+@six.python_2_unicode_compatible
+class FeaturePath(object):
+  """Represents the path to a feature in an input example.
+
+  An input example might contain nested structure. FeaturePath is to identify
+  a node in such a structure.
+  """
+
+  __slot__ = ["_steps"]
+
+  def __init__(self, steps):
+    self._steps = tuple(
+        s if isinstance(s, six.text_type) else s.decode("utf-8") for s in steps)
+
+  def to_proto(self):
+    return path_pb2.Path(step=self._steps)
+
+  @staticmethod
+  def from_proto(path_proto):
+    return FeaturePath(path_proto.step)
+
+  def steps(self):
+    return self._steps
+
+  def parent(self):
+    if not self._steps:
+      raise ValueError("Root does not have parent.")
+    return FeaturePath(self._steps[:-1])
+
+  def child(self, child_step):
+    if isinstance(child_step, six.text_type):
+      return FeaturePath(self._steps + (child_step,))
+    return FeaturePath(self._steps + (child_step.decode("utf-8"),))
+
+  def __str__(self):
+    return u".".join(self._steps)
+
+  def __eq__(self, other):
+    return self._steps == other._steps  # pylint: disable=protected-access
+
+  def __lt__(self, other):
+    # lexicographic order.
+    return self._steps < other._steps  # pylint: disable=protected-access
+
+  def __hash__(self):
+    return hash(self._steps)
+
+  def __len__(self):
+    return len(self._steps)

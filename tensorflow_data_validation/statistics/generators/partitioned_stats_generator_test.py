@@ -20,6 +20,7 @@ from __future__ import print_function
 from absl.testing import absltest
 import numpy as np
 from tensorflow_data_validation import constants
+from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import partitioned_stats_generator
 from tensorflow_data_validation.statistics.generators import sklearn_mutual_information
 from tensorflow_data_validation.utils import test_util
@@ -151,7 +152,9 @@ class PartitionedStatisticsAnalyzer(absltest.TestCase):
         text_format.Parse(
             """
       features {
-        name: 'valid_feature'
+        path {
+          step: 'valid_feature'
+        }
         custom_stats {
               name: 'MI'
               num: 0.5
@@ -162,7 +165,9 @@ class PartitionedStatisticsAnalyzer(absltest.TestCase):
             }
       }
       features {
-        name: 'invalid_feature'
+        path {
+          step: 'invalid_feature'
+        }
         custom_stats {
           name: 'MI'
           num: 0.5
@@ -175,7 +180,9 @@ class PartitionedStatisticsAnalyzer(absltest.TestCase):
         text_format.Parse(
             """
       features {
-        name: 'valid_feature'
+        path {
+          step: 'valid_feature'
+        }
         custom_stats {
               name: 'MI'
               num: 1.5
@@ -189,7 +196,9 @@ class PartitionedStatisticsAnalyzer(absltest.TestCase):
     expected = text_format.Parse(
         """
       features {
-        name: 'valid_feature'
+        path {
+          step: 'valid_feature'
+        }
         custom_stats {
               name: 'max_Cov'
               num: 0.7
@@ -300,7 +309,7 @@ def _get_test_stats_with_mi(feature_names):
                   num: 0.0
                 }
         """, statistics_pb2.FeatureNameStatistics())
-    feature_proto.name = feature_name
+    feature_proto.path.step[:] = [feature_name]
     result.features.add().CopyFrom(feature_proto)
   return result
 
@@ -438,7 +447,9 @@ class NonStreamingCustomStatsGeneratorTest(
     expected_result = [_get_test_stats_with_mi(['fa', 'fb', 'fd'])]
     generator = partitioned_stats_generator.NonStreamingCustomStatsGenerator(
         sklearn_mutual_information.SkLearnMutualInformation(
-            label_feature='label_key', schema=self.schema, seed=TEST_SEED),
+            label_feature=types.FeaturePath(['label_key']),
+            schema=self.schema,
+            seed=TEST_SEED),
         num_partitions=2,
         min_partitions_stat_presence=2,
         seed=TEST_SEED,
@@ -461,7 +472,9 @@ class NonStreamingCustomStatsGeneratorTest(
                        ('slice2', _get_test_stats_with_mi(['fa', 'fb', 'fd']))]
     generator = partitioned_stats_generator.NonStreamingCustomStatsGenerator(
         sklearn_mutual_information.SkLearnMutualInformation(
-            label_feature='label_key', schema=self.schema, seed=TEST_SEED),
+            label_feature=types.FeaturePath(['label_key']),
+            schema=self.schema,
+            seed=TEST_SEED),
         num_partitions=2,
         min_partitions_stat_presence=2,
         seed=TEST_SEED,

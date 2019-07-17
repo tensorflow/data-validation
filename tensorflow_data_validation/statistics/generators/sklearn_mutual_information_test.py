@@ -19,6 +19,7 @@ from __future__ import print_function
 
 from absl.testing import absltest
 import numpy as np
+from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import sklearn_mutual_information
 
 from google.protobuf import text_format
@@ -32,10 +33,10 @@ TEST_SEED = 10
 class SkLearnMutualInformationTest(absltest.TestCase):
   """Tests for SkLearnMutualInformationStatsFn."""
 
-  def _assert_mi_output_equal(self, batch, expected, schema, label_key):
+  def _assert_mi_output_equal(self, batch, expected, schema, label_feature):
     """Checks that MI computation is correct."""
     actual = sklearn_mutual_information.SkLearnMutualInformation(
-        label_key, schema, TEST_SEED).compute(batch)
+        label_feature, schema, TEST_SEED).compute(batch)
     compare.assertProtoEqual(self, actual, expected, normalize_numbers=True)
 
   def test_mi_regression_with_float_label_and_numeric_features(self):
@@ -110,7 +111,9 @@ class SkLearnMutualInformationTest(absltest.TestCase):
     expected = text_format.Parse(
         """
         features {
-          name: "perfect_feature"
+          path {
+            step: "perfect_feature"
+          }
           custom_stats {
             name: "sklearn_adjusted_mutual_information"
             num: 1.0096965
@@ -121,7 +124,9 @@ class SkLearnMutualInformationTest(absltest.TestCase):
           }
         }
         features {
-          name: "terrible_feature"
+          path {
+            step: "terrible_feature"
+          }
           custom_stats {
             name: "sklearn_adjusted_mutual_information"
             num: 0.0211485
@@ -131,7 +136,8 @@ class SkLearnMutualInformationTest(absltest.TestCase):
             num: 0.0211485
           }
         }""", statistics_pb2.DatasetFeatureStatistics())
-    self._assert_mi_output_equal(batch, expected, schema, "label_key")
+    self._assert_mi_output_equal(batch, expected, schema,
+                                 types.FeaturePath(["label_key"]))
 
   def test_mi_regression_with_int_label_and_categorical_feature(self):
     batch = {}
@@ -188,7 +194,9 @@ class SkLearnMutualInformationTest(absltest.TestCase):
     expected = text_format.Parse(
         """
         features {
-          name: 'perfect_feature'
+          path {
+            step: "perfect_feature"
+          }
           custom_stats {
             name: 'sklearn_adjusted_mutual_information'
             num: 1.7319986
@@ -198,7 +206,8 @@ class SkLearnMutualInformationTest(absltest.TestCase):
             num: 1.7319986
           }
         }""", statistics_pb2.DatasetFeatureStatistics())
-    self._assert_mi_output_equal(batch, expected, schema, "label_key")
+    self._assert_mi_output_equal(batch, expected, schema,
+                                 types.FeaturePath(["label_key"]))
 
   def test_mi_classif_with_int_label_and_categorical_feature(self):
     batch = {}
@@ -258,7 +267,9 @@ class SkLearnMutualInformationTest(absltest.TestCase):
     expected = text_format.Parse(
         """
         features {
-          name: 'perfect_feature'
+          path {
+            step: "perfect_feature"
+          }
           custom_stats {
             name: 'sklearn_adjusted_mutual_information'
             num: 0.9297553
@@ -268,7 +279,8 @@ class SkLearnMutualInformationTest(absltest.TestCase):
             num: 1.0900597
           }
         }""", statistics_pb2.DatasetFeatureStatistics())
-    self._assert_mi_output_equal(batch, expected, schema, "label_key")
+    self._assert_mi_output_equal(batch, expected, schema,
+                                 types.FeaturePath(["label_key"]))
 
   def test_mi_with_imputed_categorical_feature(self):
     batch = {}
@@ -315,7 +327,9 @@ class SkLearnMutualInformationTest(absltest.TestCase):
     expected = text_format.Parse(
         """
         features {
-          name: 'fa'
+          path {
+            step: "fa"
+          }
           custom_stats {
             name: 'sklearn_adjusted_mutual_information'
             num: 0.4361111
@@ -325,7 +339,8 @@ class SkLearnMutualInformationTest(absltest.TestCase):
             num: 0.4361111
           }
         }""", statistics_pb2.DatasetFeatureStatistics())
-    self._assert_mi_output_equal(batch, expected, schema, "label_key")
+    self._assert_mi_output_equal(batch, expected, schema,
+                                 types.FeaturePath(["label_key"]))
 
   def test_mi_with_imputed_numerical_feature(self):
     batch = {}
@@ -386,7 +401,9 @@ class SkLearnMutualInformationTest(absltest.TestCase):
     expected = text_format.Parse(
         """
         features {
-          name: "fa"
+          path {
+            step: "fa"
+          }
           custom_stats {
             name: "sklearn_adjusted_mutual_information"
             num: 0.3849224
@@ -396,7 +413,8 @@ class SkLearnMutualInformationTest(absltest.TestCase):
             num: 0.4063665
           }
         }""", statistics_pb2.DatasetFeatureStatistics())
-    self._assert_mi_output_equal(batch, expected, schema, "label_key")
+    self._assert_mi_output_equal(batch, expected, schema,
+                                 types.FeaturePath(["label_key"]))
 
   def test_mi_with_invalid_features(self):
     batch = {
@@ -426,7 +444,7 @@ class SkLearnMutualInformationTest(absltest.TestCase):
         """, schema_pb2.Schema())
     with self.assertRaisesRegexp(ValueError, "Found array with 0 sample"):
       sklearn_mutual_information.SkLearnMutualInformation(
-          "label_key", schema, TEST_SEED).compute(batch)
+          types.FeaturePath(["label_key"]), schema, TEST_SEED).compute(batch)
 
   def test_mi_with_missing_label_key(self):
     batch = {
@@ -459,7 +477,7 @@ class SkLearnMutualInformationTest(absltest.TestCase):
     with self.assertRaisesRegexp(ValueError,
                                  "Feature label_key not found in the schema."):
       sklearn_mutual_information.SkLearnMutualInformation(
-          "label_key", schema, TEST_SEED).compute(batch)
+          types.FeaturePath(["label_key"]), schema, TEST_SEED).compute(batch)
 
   def test_mi_with_multivalent_label(self):
     batch = {
@@ -491,7 +509,7 @@ class SkLearnMutualInformationTest(absltest.TestCase):
     with self.assertRaisesRegexp(ValueError,
                                  "Label column contains unsupported data."):
       sklearn_mutual_information.SkLearnMutualInformation(
-          "label_key", schema, TEST_SEED).compute(batch)
+          types.FeaturePath(["label_key"]), schema, TEST_SEED).compute(batch)
 
 
 if __name__ == "__main__":

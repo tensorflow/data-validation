@@ -56,6 +56,23 @@
   (anomaly reason, example) tuples.
 * Rename `anomaly_proto` parameter in anomalies utilities to `anomalies` to
   make it more consistent with proto and schema utilities.
+* `FeatureNameStatistics` produced by `GenerateStatistics` is now identified
+  by its `.path` field instead of the `.name` field. For example:
+
+  ```
+  feature {
+    name: "my_feature"
+  }
+  ```
+  becomes:
+
+  ```
+  feature {
+    path {
+      step: "my_feature"
+    }
+  }
+  ```
 
 ## Deprecations
 
