@@ -25,11 +25,13 @@ from apache_beam.testing import util
 import numpy as np
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
+from tensorflow_data_validation.arrow import decoded_examples_to_arrow
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.statistics.generators import basic_stats_generator
 from tensorflow_data_validation.statistics.generators import stats_generator
+from tensorflow_data_validation.utils import batch_util
 from tensorflow_data_validation.utils import slicing_util
 from tensorflow_data_validation.utils import test_util
 from tensorflow_data_validation.types_compat import List
@@ -1541,12 +1543,12 @@ class StatsImplTest(parameterized.TestCase):
 
   def test_generate_sliced_statistics_impl_without_slice_fns(self):
     examples = [
-        ('test_slice', {
-            'b': np.array([], dtype=np.float32),
-        }),
-        ('test_slice', {
-            'b': np.array([], dtype=np.float32),
-        }),
+        ('test_slice', pa.Table.from_arrays([
+            pa.array([[]], type=pa.list_(pa.float32()))], ['b'])
+        ),
+        ('test_slice', pa.Table.from_arrays([
+            pa.array([[]], type=pa.list_(pa.float32()))], ['b'])
+        ),
     ]
     # No slice functions are specified in options.
     options = stats_options.StatsOptions(
@@ -1606,7 +1608,8 @@ class StatsImplTest(parameterized.TestCase):
         }""", statistics_pb2.DatasetFeatureStatisticsList())
     with beam.Pipeline() as p:
       result = (
-          p | beam.Create(examples)
+          p
+          | beam.Create(examples)
           | stats_impl.GenerateSlicedStatisticsImpl(options=options))
       # GenerateSlicedStatisticsImpl() does not add slice keys to the result
       # because is_slicing_enabled is not set to True (and no slice functions
@@ -1637,7 +1640,7 @@ class StatsImplTest(parameterized.TestCase):
     if schema is not None:
       options.schema = schema
     result = stats_impl.generate_statistics_in_memory(
-        examples, options)
+        decoded_examples_to_arrow.DecodedExamplesToTable(examples), options)
     # generate_statistics_in_memory does not deterministically
     # order multiple features within a DatasetFeatureStatistics proto. So, we
     # cannot use compare.assertProtoEqual (which requires the same ordering of
@@ -1752,14 +1755,14 @@ class StatsImplTest(parameterized.TestCase):
               self, expected_result))
 
   def test_generate_statistics_in_memory_empty_examples(self):
-    examples = []
+    table = pa.Table.from_arrays([])
     expected_result = text_format.Parse(
         """
         datasets {
           num_examples: 0
         }""", statistics_pb2.DatasetFeatureStatisticsList())
 
-    result = stats_impl.generate_statistics_in_memory(examples)
+    result = stats_impl.generate_statistics_in_memory(table)
     compare.assertProtoEqual(
         self, result, expected_result, normalize_numbers=True)
 
@@ -1790,11 +1793,8 @@ class StatsImplTest(parameterized.TestCase):
         custom_stat.str = 'custom_stat_value'
         return stats_proto
 
-    examples = [
-        {'a': np.array([b'xyz', b'qwe'], dtype=np.object)},
-        {'a': np.array([b'qwe'], dtype=np.object)},
-        {'a': np.array([b'qwe'], dtype=np.object)},
-    ]
+    table = pa.Table.from_arrays(
+        [pa.array([[b'xyz', b'qwe'], [b'qwe'], [b'qwe']])], ['a'])
 
     expected_result = text_format.Parse(
         """
@@ -1869,8 +1869,7 @@ class StatsImplTest(parameterized.TestCase):
         num_rank_histogram_buckets=3,
         num_values_histogram_buckets=3,
         enable_semantic_domain_stats=True)
-    result = stats_impl.generate_statistics_in_memory(
-        examples, options)
+    result = stats_impl.generate_statistics_in_memory(table, options)
     compare.assertProtoEqual(
         self, result, expected_result, normalize_numbers=True)
 
@@ -2065,6 +2064,8 @@ class StatsImplTest(parameterized.TestCase):
     p = beam.Pipeline()
     _ = (p
          | 'CreateBatches' >> beam.Create(examples)
+         | 'BatchExamplesToArrowTable' >> beam.ParDo(
+             batch_util.BatchExamplesDoFn(desired_batch_size=1000))
          | 'BasicStatsCombiner' >> beam.CombineGlobally(
              stats_impl._CombinerStatsGeneratorsCombineFn(
                  [basic_stats_generator.BasicStatsGenerator(),

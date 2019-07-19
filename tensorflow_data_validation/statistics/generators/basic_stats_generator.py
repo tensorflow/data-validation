@@ -146,8 +146,13 @@ class _PartialCommonStats(object):
     none_mask = arrow_util.GetArrayNullBitmapAsByteArray(
         feature_array).to_numpy().view(np.bool)
 
-    num_values_not_none = num_values[~none_mask]
     self.num_non_missing += len(feature_array) - feature_array.null_count
+    num_values_not_none = num_values[~none_mask]
+    # We do this check to avoid failing in np.min/max with empty array.
+    if num_values_not_none.size == 0:
+      return
+    # Use np.maximum.reduce(num_values_not_none, initial=self.max_num_values)
+    # once we upgrade to numpy 1.16
     self.max_num_values = max(
         np.max(num_values_not_none), self.max_num_values)
     self.min_num_values = min(

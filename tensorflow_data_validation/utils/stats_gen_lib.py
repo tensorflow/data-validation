@@ -33,6 +33,7 @@ import numpy as np
 import pandas as pd
 from tensorflow_data_validation import types
 from tensorflow_data_validation.api import stats_api
+from tensorflow_data_validation.arrow import decoded_examples_to_arrow
 from tensorflow_data_validation.coders import csv_decoder
 from tensorflow_data_validation.coders import tf_example_decoder
 from tensorflow_data_validation.pyarrow_tf import tensorflow as tf
@@ -283,7 +284,8 @@ def _generate_partial_statistics_from_df(
   if schema.feature:
     stats_options.schema = schema
   return stats_impl.generate_partial_statistics_in_memory(
-      inmemory_dicts, stats_options, stats_generators)
+      decoded_examples_to_arrow.DecodedExamplesToTable(inmemory_dicts),
+      stats_options, stats_generators)
 
 
 def get_csv_header(data_location,

@@ -18,28 +18,31 @@ from __future__ import division
 
 from __future__ import print_function
 
+import sys
 import numpy as np
 import pandas as pd
 from sklearn.feature_selection import mutual_info_classif
 from sklearn.feature_selection import mutual_info_regression
 from tensorflow_data_validation import types
+from tensorflow_data_validation.arrow import arrow_util
+from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import partitioned_stats_generator
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
 
-from tensorflow_data_validation.types_compat import Dict, List, Text
+from tensorflow_data_validation.types_compat import Dict, List, Set, Text
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
-MUTUAL_INFORMATION_KEY = u"sklearn_mutual_information"
-ADJUSTED_MUTUAL_INFORMATION_KEY = u"sklearn_adjusted_mutual_information"
-CATEGORICAL_FEATURE_IMPUTATION_FILL_VALUE = u"__missing_category__"
+MUTUAL_INFORMATION_KEY = "sklearn_mutual_information"
+ADJUSTED_MUTUAL_INFORMATION_KEY = "sklearn_adjusted_mutual_information"
+CATEGORICAL_FEATURE_IMPUTATION_FILL_VALUE = "__missing_category__"
 
 
 # TODO(b/117650247): sk-learn MI can't handle NaN, None or multivalent features
-def _remove_unsupported_feature_columns(examples,
+def _remove_unsupported_feature_columns(examples_table,
                                         schema):
   """Removes feature columns that contain unsupported values.
 
@@ -47,34 +50,73 @@ def _remove_unsupported_feature_columns(examples,
   not supported by sk-learn.
 
   Args:
-    examples: ExampleBatch containing the values of each example per feature.
+    examples_table: Arrow table containing a batch of examples.
     schema: The schema for the data.
-  """
-  unsupported_features = schema_util.get_multivalent_features(schema)
-  for feature_name in unsupported_features:
-    del examples[feature_name.steps()[0]]
-
-
-def _flatten_examples(
-    examples):
-  """Flattens the values in an ExampleBatch to a 1D python list.
-
-  Args:
-    examples: An ExampleBatch where all features are univalent.
 
   Returns:
-    A Dict[FeaturePath, List] where the key is the feature name and the value is
-    a 1D python List corresponding to the feature value for each example.
+    Arrow table.
   """
+  multivalent_features = schema_util.get_multivalent_features(schema)
+  unsupported_columns = set()
+  for f in multivalent_features:
+    unsupported_columns.add(f.steps()[0])
+  return examples_table.drop(unsupported_columns)
 
-  flattened_examples = {}
-  for feature_name, feature_values in examples.items():
-    flattened_examples[types.FeaturePath([feature_name])] = [
-        feature_value[0] if feature_value is not None and
-        not any(pd.isnull(feature_value)) else None
-        for feature_value in feature_values
-    ]
-  return flattened_examples
+
+def _flatten_and_impute(examples_table,
+                        categorical_features
+                       ):
+  """Flattens and imputes the values in the input Arrow table.
+
+  Replaces missing values with CATEGORICAL_FEATURE_IMPUTATION_FILL_VALUE
+  for categorical features and 10*max(feature_values) for numeric features.
+  We impute missing values with an extreme value that is far from observed
+  values so it does not incorrectly impact KNN results. 10*max(feature_values)
+  is used instead of sys.max_float because max_float is large enough to cause
+  unexpected float arithmetic errors.
+
+  Args:
+    examples_table: Arrow table containing a batch of examples where all
+      features are univalent.
+    categorical_features: Set of categorical feature names.
+
+  Returns:
+    A Dict[FeaturePath, np.ndarray] where the key is the feature path and the
+    value is a 1D numpy array corresponding to the feature values.
+  """
+  num_rows = examples_table.num_rows
+  result = {}
+  for feature_column in examples_table.itercolumns():
+    feature_path = types.FeaturePath([feature_column.name])
+    # Assume we have only a single chunk.
+    feature_array = feature_column.data.chunk(0)
+    # to_pandas returns a readonly array. Create a copy as we will be imputing
+    # the NaN values.
+    non_missing_values = np.copy(arrow_util.FlattenListArray(
+        feature_array).to_pandas())
+    non_missing_parent_indices = arrow_util.GetFlattenedArrayParentIndices(
+        feature_array).to_numpy()
+    is_categorical_feature = feature_path in categorical_features
+    result_dtype = non_missing_values.dtype
+    if non_missing_parent_indices.size < num_rows and is_categorical_feature:
+      result_dtype = np.object
+    flattened_array = np.ndarray(shape=num_rows, dtype=result_dtype)
+    num_values = arrow_util.ListLengthsFromListArray(feature_array).to_numpy()
+    missing_parent_indices = np.where(num_values == 0)[0]
+    if feature_path in categorical_features:
+      imputation_fill_value = CATEGORICAL_FEATURE_IMPUTATION_FILL_VALUE
+    else:
+      # Also impute any NaN values.
+      nan_mask = np.isnan(non_missing_values)
+      imputation_fill_value = sys.maxsize
+      if not np.all(nan_mask):
+        imputation_fill_value = non_missing_values[~nan_mask].max() * 10
+      non_missing_values[nan_mask.nonzero()[0]] = imputation_fill_value
+    flattened_array[non_missing_parent_indices] = non_missing_values
+    if missing_parent_indices.any():
+      flattened_array[missing_parent_indices] = imputation_fill_value
+    result[feature_path] = flattened_array
+  return result
 
 
 class SkLearnMutualInformation(partitioned_stats_generator.PartitionedStatsFn):
@@ -104,19 +146,21 @@ class SkLearnMutualInformation(partitioned_stats_generator.PartitionedStatsFn):
     """
     self._label_feature = label_feature
     self._schema = schema
-    self._label_feature_is_categorical = schema_util.is_categorical_feature(
-        schema_util.get_feature(self._schema, self._label_feature))
+    self._categorical_features = schema_util.get_categorical_features(schema)
+    assert schema_util.get_feature(self._schema, self._label_feature)
+    self._label_feature_is_categorical = (self._label_feature in
+                                          self._categorical_features)
     self._seed = seed
 
     # Seed the RNG used for shuffling and for MI computations.
     np.random.seed(seed)
 
-  def compute(self, examples
+  def compute(self, examples_table
              ):
     """Computes MI and AMI between all valid features and labels.
 
     Args:
-      examples: ExampleBatch containing the feature values for each feature.
+      examples_table: Arrow table containing a batch of examples.
 
     Returns:
       DatasetFeatureStatistics proto containing AMI and MI for each valid
@@ -127,56 +171,19 @@ class SkLearnMutualInformation(partitioned_stats_generator.PartitionedStatsFn):
     Raises:
       ValueError: If label_feature contains unsupported data.
     """
-    if self._label_feature.steps()[0] not in examples:
-      raise ValueError("Label column does not exist.")
+    examples_table = _remove_unsupported_feature_columns(examples_table,
+                                                         self._schema)
 
-    _remove_unsupported_feature_columns(examples, self._schema)
-
-    if self._label_feature.steps()[0] not in examples:
+    flattened_examples = _flatten_and_impute(examples_table,
+                                             self._categorical_features)
+    if self._label_feature not in flattened_examples:
       raise ValueError("Label column contains unsupported data.")
-
-    flattened_examples = _flatten_examples(examples)
-    # TODO(b/119414212): Use Ranklab struct feature to handle null values for MI
-    imputed_examples = self._impute(flattened_examples)
-    labels = imputed_examples.pop(self._label_feature)
-    df = pd.DataFrame(imputed_examples)
+    labels = flattened_examples.pop(self._label_feature)
+    df = pd.DataFrame(flattened_examples)
     # Boolean list used to mark features as discrete for sk-learn MI computation
     discrete_feature_mask = self._convert_categorical_features_to_numeric(df)
     return stats_util.make_dataset_feature_stats_proto(
         self._calculate_mi(df, labels, discrete_feature_mask, seed=self._seed))
-
-  def _impute(self, examples
-             ):
-    """Imputes missing feature values.
-
-    Replaces missing values with CATEGORICAL_FEATURE_IMPUTATION_FILL_VALUE
-    for categorical features and 10*max(feature_values) for numeric features.
-    We impute missing values with an extreme value that is far from observed
-    values so it does not incorrectly impact KNN results. 10*max(feature_values)
-    is used instead of sys.max_float because max_float is large enough to cause
-    unexpected float arithmetic errors.
-
-    Args:
-      examples: A dict where the key is the feature name and the values are the
-        feature values.
-
-    Returns:
-      A dict where the key is the feature name and the values are the
-        feature values with missing values imputed.
-    """
-
-    for feature, feature_values in examples.items():
-      if schema_util.is_categorical_feature(
-          schema_util.get_feature(self._schema, feature)):
-        imputation_fill_value = CATEGORICAL_FEATURE_IMPUTATION_FILL_VALUE
-      else:
-        imputation_fill_value = max(
-            value for value in feature_values if value is not None) * 10
-      examples[feature] = [
-          value if value is not None else imputation_fill_value
-          for value in feature_values
-      ]
-    return examples
 
   def _calculate_mi(self, df, labels,
                     discrete_feature_mask,
@@ -260,8 +267,7 @@ class SkLearnMutualInformation(partitioned_stats_generator.PartitionedStatsFn):
     is_categorical_feature = [False for _ in df]
 
     for i, column in enumerate(df):
-      if schema_util.is_categorical_feature(
-          schema_util.get_feature(self._schema, column)):
+      if column in self._categorical_features:
         # Encode categorical columns
         df[column] = np.unique(df[column].values, return_inverse=True)[1]
         is_categorical_feature[i] = True

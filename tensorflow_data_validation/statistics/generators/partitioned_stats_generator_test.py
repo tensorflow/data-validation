@@ -21,6 +21,7 @@ from absl.testing import absltest
 import numpy as np
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
+from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import partitioned_stats_generator
 from tensorflow_data_validation.statistics.generators import sklearn_mutual_information
 from tensorflow_data_validation.utils import test_util
@@ -33,81 +34,11 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 TEST_SEED = 10
 
 
-class FlattenExamplesTest(absltest.TestCase):
-  """Tests for _flatten_examples."""
-
-  def _assert_output_equal(self, batches, expected):
-    actual = partitioned_stats_generator._flatten_examples(batches)
-
-    actual_features = set(actual.keys())
-    expected_features = set(expected.keys())
-
-    self.assertSetEqual(actual_features, expected_features)
-
-    for feature in actual_features:
-      actual_values = actual[feature]
-      expected_values = expected[feature]
-      np.testing.assert_array_equal(actual_values, expected_values)
-
-  def test_custom_stats_combiner_two_features(self):
-    # Input with two batches: first batch has two examples with two features
-    # and second batch has a single example with two features.
-
-    batches = [{
-        'a': [np.array([1.5]), np.array([1.5])],
-        'b': [np.array([2.0]), np.array([3.0])]
-    }, {
-        'a': [np.array([3.0])],
-        'b': [np.array([4.0])]
-    }]
-    expected_result = {
-        'a': [np.array([1.5]), np.array([1.5]), np.array([3.0])],
-        'b': [np.array([2.0]), np.array([3.0]), np.array([4.0])]
-    }
-    self._assert_output_equal(batches, expected_result)
-
-  def test_custom_stats_combiner_stats_generator_missing_feature(self):
-    # Input with two batches: first batch has three examples (one missing)
-    # with one feature and second batch has two examples (one missing) with
-    # one feature.
-    batches = [{
-        'a': [np.array([1.0]), None, np.array([3.0])]
-    }, {
-        'a': [np.array([2.0]), None]
-    }]
-    expected_result = {
-        'a': [np.array([1.0]), None, np.array([3]), np.array([2]), None]
-    }
-    self._assert_output_equal(batches, expected_result)
-
-  def test_custom_stats_combiner_with_empty_batch(self):
-    # Input with two batches: first batch has one example with one feature and
-    # second batch has no examples.
-    batches = [{'a': [np.array([1.0])]}, {}]
-    expected_result = {'a': [np.array([1.0])]}
-    self._assert_output_equal(batches, expected_result)
-
-  def test_custom_stats_combiner_with_missing_feature_name(self):
-    # Input with two batches: first batch has one example with two features and
-    # second batch has one example with one feature.
-    batches = [{
-        'a': [np.array([1.5])],
-        'b': [np.array([3.0])]
-    }, {
-        'a': [np.array([3.0])]
-    }]
-    expected_result = {
-        'a': [np.array([1.5]), np.array([3.0])],
-        'b': [np.array([3.0]), None]
-    }
-    self._assert_output_equal(batches, expected_result)
-
-
 class AssignToPartitionTest(absltest.TestCase):
   """Tests for _asssign_to_partition."""
 
   def test_partitioner(self):
-    """Tests that examples are randomly partitioned.
+    """Tests that batches are randomly partitioned.
 
     Tests an input batch with one univalent feature taking on values in {0,1,2}.
     The input batch has 4500 examples. The partitioner is configured to have 3
@@ -116,20 +47,21 @@ class AssignToPartitionTest(absltest.TestCase):
     """
 
     np.random.seed(TEST_SEED)
-    examples = [{'a': x} for x in np.random.randint(0, 3, (4500, 1))]
-    examples = [(constants.DEFAULT_SLICE_KEY, e) for e in examples]
+    tables = [pa.Table.from_arrays([pa.array([x])], ['a'])
+              for x in np.random.randint(0, 3, (4500, 1))]
+    tables = [(constants.DEFAULT_SLICE_KEY, table) for table in tables]
     num_partitions = 3
 
     # The i,jth value of result represents the number of examples with value j
     # assigned to partition i.
     result = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
 
-    partitioned_examples = [
-        partitioned_stats_generator._assign_to_partition(example,
+    partitioned_tables = [
+        partitioned_stats_generator._assign_to_partition(table,
                                                          num_partitions)
-        for example in examples]
-    for (unused_slice_key, partition_key), example in partitioned_examples:
-      result[partition_key][example['a'][0]] += 1
+        for table in tables]
+    for (unused_slice_key, partition_key), table in partitioned_tables:
+      result[partition_key][table.column('a').to_pylist()[0][0]] += 1
 
     for partition in result:
       for count in partition:
@@ -254,10 +186,10 @@ class PartitionedStatisticsAnalyzer(absltest.TestCase):
             min_partitions_stat_presence=2), expected)
 
 
-def _get_test_stats_with_mi(feature_names):
+def _get_test_stats_with_mi(feature_paths):
   """Get stats proto for MI test."""
   result = statistics_pb2.DatasetFeatureStatistics()
-  for feature_name in feature_names:
+  for feature_path in feature_paths:
     feature_proto = text_format.Parse(
         """
                 custom_stats {
@@ -309,7 +241,7 @@ def _get_test_stats_with_mi(feature_names):
                   num: 0.0
                 }
         """, statistics_pb2.FeatureNameStatistics())
-    feature_proto.path.step[:] = [feature_name]
+    feature_proto.path.CopyFrom(feature_path.to_proto())
     result.features.add().CopyFrom(feature_proto)
   return result
 
@@ -330,70 +262,70 @@ class NonStreamingCustomStatsGeneratorTest(
     # itself are included in sklearn_mutual_information_test.
 
     # fa is categorical, fb is numeric, fc is multivalent and fd has null values
-    self.examples = [
-        {
-            'fa': np.array(['Red']),
-            'fb': np.array([1.0]),
-            'fc': np.array([1, 3, 1]),
-            'fd': np.array([0.4]),
-            'label_key': np.array(['Label'])
-        },
-        {
-            'fa': np.array(['Green']),
-            'fb': np.array([2.2]),
-            'fc': np.array([2, 6]),
-            'fd': np.array([0.4]),
-            'label_key': np.array(['Label'])
-        },
-        {
-            'fa': np.array(['Blue']),
-            'fb': np.array([3.3]),
-            'fc': np.array([4, 6]),
-            'fd': np.array([0.3]),
-            'label_key': np.array(['Label'])
-        },
-        {
-            'fa': np.array(['Green']),
-            'fb': np.array([1.3]),
-            'fc': None,
-            'fd': np.array([0.2]),
-            'label_key': np.array(['Label'])
-        },
-        {
-            'fa': np.array(['Red']),
-            'fb': np.array([1.2]),
-            'fc': np.array([1]),
-            'fd': np.array([0.3]),
-            'label_key': np.array(['Label'])
-        },
-        {
-            'fa': np.array(['Blue']),
-            'fb': np.array([0.5]),
-            'fc': np.array([3, 2]),
-            'fd': np.array([0.4]),
-            'label_key': np.array(['Label'])
-        },
-        {
-            'fa': np.array(['Blue']),
-            'fb': np.array([1.3]),
-            'fc': np.array([1, 4]),
-            'fd': np.array([1.7]),
-            'label_key': np.array(['Label'])
-        },
-        {
-            'fa': np.array(['Green']),
-            'fb': np.array([2.3]),
-            'fc': np.array([0]),
-            'fd': np.array([np.NaN]),
-            'label_key': np.array(['Label'])
-        },
-        {
-            'fa': np.array(['Green']),
-            'fb': np.array([0.3]),
-            'fc': np.array([3]),
-            'fd': np.array([4.4]),
-            'label_key': np.array(['Label'])
-        },
+    self.tables = [
+        pa.Table.from_arrays([
+            pa.array([['Red']]),
+            pa.array([[1.0]]),
+            pa.array([[1, 3, 1]]),
+            pa.array([[0.4]]),
+            pa.array([['Label']]),
+        ], ['fa', 'fb', 'fc', 'fd', 'label_key']),
+        pa.Table.from_arrays([
+            pa.array([['Green']]),
+            pa.array([[2.2]]),
+            pa.array([[2, 6]]),
+            pa.array([[0.4]]),
+            pa.array([['Label']]),
+        ], ['fa', 'fb', 'fc', 'fd', 'label_key']),
+        pa.Table.from_arrays([
+            pa.array([['Blue']]),
+            pa.array([[3.3]]),
+            pa.array([[4, 6]]),
+            pa.array([[0.3]]),
+            pa.array([['Label']]),
+        ], ['fa', 'fb', 'fc', 'fd', 'label_key']),
+        pa.Table.from_arrays([
+            pa.array([['Green']]),
+            pa.array([[1.3]]),
+            pa.array([None]),
+            pa.array([[0.2]]),
+            pa.array([['Label']]),
+        ], ['fa', 'fb', 'fc', 'fd', 'label_key']),
+        pa.Table.from_arrays([
+            pa.array([['Red']]),
+            pa.array([[1.2]]),
+            pa.array([[1]]),
+            pa.array([[0.3]]),
+            pa.array([['Label']]),
+        ], ['fa', 'fb', 'fc', 'fd', 'label_key']),
+        pa.Table.from_arrays([
+            pa.array([['Blue']]),
+            pa.array([[0.5]]),
+            pa.array([[3, 2]]),
+            pa.array([[0.4]]),
+            pa.array([['Label']]),
+        ], ['fa', 'fb', 'fc', 'fd', 'label_key']),
+        pa.Table.from_arrays([
+            pa.array([['Blue']]),
+            pa.array([[1.3]]),
+            pa.array([[1, 4]]),
+            pa.array([[1.7]]),
+            pa.array([['Label']]),
+        ], ['fa', 'fb', 'fc', 'fd', 'label_key']),
+        pa.Table.from_arrays([
+            pa.array([['Green']]),
+            pa.array([[2.3]]),
+            pa.array([[0]]),
+            pa.array([[np.NaN]], type=pa.list_(pa.float64())),
+            pa.array([['Label']]),
+        ], ['fa', 'fb', 'fc', 'fd', 'label_key']),
+        pa.Table.from_arrays([
+            pa.array([['Green']]),
+            pa.array([[0.3]]),
+            pa.array([[3]]),
+            pa.array([[4.4]]),
+            pa.array([['Label']]),
+        ], ['fa', 'fb', 'fc', 'fd', 'label_key']),
     ]
 
     self.schema = text_format.Parse(
@@ -444,7 +376,13 @@ class NonStreamingCustomStatsGeneratorTest(
         }""", schema_pb2.Schema())
 
   def test_sklearn_mi(self):
-    expected_result = [_get_test_stats_with_mi(['fa', 'fb', 'fd'])]
+    expected_result = [
+        _get_test_stats_with_mi([
+            types.FeaturePath(['fa']),
+            types.FeaturePath(['fb']),
+            types.FeaturePath(['fd'])
+        ])
+    ]
     generator = partitioned_stats_generator.NonStreamingCustomStatsGenerator(
         sklearn_mutual_information.SkLearnMutualInformation(
             label_feature=types.FeaturePath(['label_key']),
@@ -454,33 +392,46 @@ class NonStreamingCustomStatsGeneratorTest(
         min_partitions_stat_presence=2,
         seed=TEST_SEED,
         max_examples_per_partition=1000,
+        batch_size=1,
         name='NonStreaming Mutual Information')
     self.assertSlicingAwareTransformOutputEqual(
-        self.examples,
+        self.tables,
         generator,
         expected_result,
         add_default_slice_key_to_input=True,
         add_default_slice_key_to_output=True)
 
   def test_sklearn_mi_with_slicing(self):
-    sliced_examples = []
+    sliced_tables = []
     for slice_key in ['slice1', 'slice2']:
-      for example in self.examples:
-        sliced_examples.append((slice_key, example))
+      for table in self.tables:
+        sliced_tables.append((slice_key, table))
 
-    expected_result = [('slice1', _get_test_stats_with_mi(['fa', 'fb', 'fd'])),
-                       ('slice2', _get_test_stats_with_mi(['fa', 'fb', 'fd']))]
+    expected_result = [
+        ('slice1',
+         _get_test_stats_with_mi([
+             types.FeaturePath(['fa']),
+             types.FeaturePath(['fb']),
+             types.FeaturePath(['fd'])
+         ])),
+        ('slice2',
+         _get_test_stats_with_mi([
+             types.FeaturePath(['fa']),
+             types.FeaturePath(['fb']),
+             types.FeaturePath(['fd'])
+         ])),
+    ]
     generator = partitioned_stats_generator.NonStreamingCustomStatsGenerator(
         sklearn_mutual_information.SkLearnMutualInformation(
             label_feature=types.FeaturePath(['label_key']),
-            schema=self.schema,
-            seed=TEST_SEED),
+            schema=self.schema, seed=TEST_SEED),
         num_partitions=2,
         min_partitions_stat_presence=2,
         seed=TEST_SEED,
         max_examples_per_partition=1000,
+        batch_size=1,
         name='NonStreaming Mutual Information')
-    self.assertSlicingAwareTransformOutputEqual(sliced_examples, generator,
+    self.assertSlicingAwareTransformOutputEqual(sliced_tables, generator,
                                                 expected_result)
 
 

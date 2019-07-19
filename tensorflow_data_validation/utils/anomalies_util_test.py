@@ -21,6 +21,7 @@ import os
 from absl import flags
 from absl.testing import absltest
 from absl.testing import parameterized
+from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.utils import anomalies_util
 
 from google.protobuf import text_format
@@ -496,7 +497,7 @@ class AnomaliesUtilTest(parameterized.TestCase):
   @parameterized.named_parameters(*ANOMALIES_SLICER_TESTS)
   def test_anomalies_slicer(self, input_anomalies_proto_text,
                             expected_slice_keys):
-    example = {}
+    example = pa.Table.from_arrays([])
     anomalies = text_format.Parse(input_anomalies_proto_text,
                                   anomalies_pb2.Anomalies())
     slice_keys = anomalies_util.anomalies_slicer(example, anomalies)

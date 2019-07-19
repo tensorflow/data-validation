@@ -24,20 +24,6 @@ from apache_beam.transforms import window
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import decoded_examples_to_arrow
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
-from tensorflow_data_validation.types_compat import List
-
-
-def merge_single_batch(batch):
-  """Merges batched input examples to proper batch format."""
-  batch_size = len(batch)
-  result = {}
-  for idx, example in enumerate(batch):
-    for feature in example:
-      if feature not in result:
-        # New feature. Initialize the list with None.
-        result[feature] = [None] * batch_size
-      result[feature][idx] = example[feature]
-  return result
 
 
 @beam.typehints.with_input_types(types.Example)

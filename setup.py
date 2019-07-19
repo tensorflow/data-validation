@@ -108,7 +108,7 @@ setup(
         # Note that we don't add a max version for IPython as it introduces a
         # dependency conflict when installed with TFMA (b/124313906).
         'IPython>=5.0',
-        'pandas>=0.18,<1',
+        'pandas>=0.24,<1',
 
         # Dependency for mutual information computation.
         'scikit-learn>=0.18,<0.21',

@@ -11,10 +11,12 @@
 * Add utility method `validate_examples_in_csv`, which identifies anomalous
   examples in CSV files and generates statistics for those anomalous examples.
 * Add fast TF example decoder written in C++.
-* Make BasicStatsGenerator to take arrow table as input. Example batches are
+* Make `BasicStatsGenerator` to take arrow table as input. Example batches are
   converted to Apache Arrow tables internally and we are able to make use of
   vectorized numpy functions. Improved performance of BasicStatsGenerator
   by ~40x.
+* Make `TopKUniquesStatsGenerator` and `TopKUniquesCombinerStatsGenerator` to
+  take arrow table as input.
 * Add `update_schema` API which updates the schema to conform to statistics.
 * Add support for validating changes in the number of examples between the
   current and previous spans of data (using the existing `validate_statistics`
@@ -36,7 +38,6 @@
 * Make semantic domain stats generators to take arrow column as input.
 * Fix error in number of missing examples and total number of examples
   computation.
-* Make TopKUniquesCombinerStatsGenerator to take arrow table as input.
 * Make FeaturesNeeded serializable.
 * Fix memory leak in fast example decoder.
 * Add `semantic_domain_stats_sample_rate` option to compute semantic domain
@@ -47,6 +48,7 @@
 * Depends on `pyarrow>=0.14.0,<0.15.0`.
 * Depends on `scikit-learn>=0.18,<0.21`.
 * Depends on `tensorflow-metadata>=0.14,<0.15`.
+* Depends on `pandas>=0.24,<1`.
 
 ## Breaking Changes
 
@@ -73,6 +75,7 @@
     }
   }
   ```
+* Change `validate_instance` API to accept an Arrow table instead of a Dict.
 
 ## Deprecations
 

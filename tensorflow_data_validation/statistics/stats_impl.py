@@ -29,7 +29,7 @@ from six.moves import zip
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
-from tensorflow_data_validation.arrow import decoded_examples_to_arrow
+from tensorflow_data_validation.arrow import merge
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.statistics.generators import basic_stats_generator
@@ -39,12 +39,19 @@ from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.statistics.generators import time_stats_generator
 from tensorflow_data_validation.statistics.generators import top_k_uniques_combiner_stats_generator
 from tensorflow_data_validation.statistics.generators import top_k_uniques_stats_generator
+from tensorflow_data_validation.utils import batch_util
 from tensorflow_data_validation.utils import slicing_util
 from tensorflow_data_validation.utils import stats_util
 from tensorflow_data_validation.types_compat import Any, Callable, Dict, Iterable, List, Optional, Text, Tuple
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
+
+
+# This needs to be large enough to allow for efficient TF invocations during
+# batch flushing, but shouldn't be too large as it also acts as cap on the
+# maximum memory usage of the computation.
+_DEFAULT_DESIRED_INPUT_BATCH_SIZE = 1000
 
 
 @beam.typehints.with_input_types(types.BeamExample)
@@ -63,6 +70,19 @@ class GenerateStatisticsImpl(beam.PTransform):
     if self._options.feature_whitelist:
       dataset |= ('RemoveNonWhitelistedFeatures' >> beam.Map(
           _filter_features, feature_whitelist=self._options.feature_whitelist))
+
+    desired_batch_size = (
+        self._options.desired_batch_size if self._options.desired_batch_size and
+        self._options.desired_batch_size > 0 else
+        _DEFAULT_DESIRED_INPUT_BATCH_SIZE)
+    # TODO(pachristopher): Debug why beam.BatchElements is expensive than the
+    # custom DoFn and consider using it instead.
+    # Check if we have the default windowing behavior. The BatchExamplesDoFn
+    # is expected to be called under a Global window.
+    assert dataset.windowing.is_default()
+    dataset |= (
+        'BatchExamplesToArrowTable' >> beam.ParDo(batch_util.BatchExamplesDoFn(
+            desired_batch_size=desired_batch_size)))
 
     if self._options.slice_functions:
       # Add default slicing function.
@@ -85,7 +105,7 @@ class GenerateStatisticsImpl(beam.PTransform):
 # statistics over anomalous examples. Specifically, it is used to compute
 # statistics over examples found for each anomaly (i.e., the anomaly type
 # will be the slice key).
-@beam.typehints.with_input_types(types.SlicedExample)
+@beam.typehints.with_input_types(types.SlicedTable)
 @beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatisticsList)
 class GenerateSlicedStatisticsImpl(beam.PTransform):
   """PTransform that applies a set of generators to sliced input examples."""
@@ -447,16 +467,18 @@ class NumExamplesStatsGenerator(stats_generator.CombinerStatsGenerator):
 class _CombinerStatsGeneratorsCombineFnAcc(object):
   """accumulator for _CombinerStatsGeneratorsCombineFn."""
 
-  __slots__ = ['partial_accumulators', 'input_examples']
+  __slots__ = ['partial_accumulators', 'input_tables', 'curr_batch_size']
 
   def __init__(self, partial_accumulators):
     # Partial accumulator states of the underlying CombinerStatsGenerators.
     self.partial_accumulators = partial_accumulators
-    # Input examples to be processed.
-    self.input_examples = []
+    # Input tables to be processed.
+    self.input_tables = []
+    # Current batch size.
+    self.curr_batch_size = 0
 
 
-@beam.typehints.with_input_types(types.Example)
+@beam.typehints.with_input_types(pa.Table)
 @beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatistics)
 class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
   """A beam.CombineFn wrapping a list of CombinerStatsGenerators with batching.
@@ -483,12 +505,6 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
   (https://issues.apache.org/jira/browse/BEAM-3737).
   """
 
-  # This needs to be large enough to allow for efficient TF invocations during
-  # batch flushing, but shouldn't be too large as it also acts as cap on the
-  # maximum memory usage of the computation.
-  # TODO(b/73789023): Ideally we should automatically infer the batch size.
-  _DEFAULT_DESIRED_ADD_INPUT_BATCH_SIZE = 1000
-
   # This needs to be large enough to allow for efficient merging of
   # accumulators in the individual stats generators, but shouldn't be too large
   # as it also acts as cap on the maximum memory usage of the computation.
@@ -507,7 +523,7 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
     if desired_batch_size and desired_batch_size > 0:
       self._desired_batch_size = desired_batch_size
     else:
-      self._desired_batch_size = self._DEFAULT_DESIRED_ADD_INPUT_BATCH_SIZE
+      self._desired_batch_size = _DEFAULT_DESIRED_INPUT_BATCH_SIZE
 
     # Metrics
     self._combine_add_input_batch_size = beam.metrics.Metrics.distribution(
@@ -557,22 +573,25 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
       force: Force computation of stats even if accumulator has less examples
         than the batch size.
     """
-    batch_size = len(accumulator.input_examples)
+    batch_size = accumulator.curr_batch_size
     if (force and batch_size > 0) or batch_size >= self._desired_batch_size:
       self._combine_add_input_batch_size.update(batch_size)
-      arrow_table = decoded_examples_to_arrow.DecodedExamplesToTable(
-          accumulator.input_examples)
-
+      if len(accumulator.input_tables) == 1:
+        arrow_table = accumulator.input_tables[0]
+      else:
+        arrow_table = merge.MergeTables(accumulator.input_tables)
       accumulator.partial_accumulators = self._for_each_generator(
           lambda gen, gen_acc: gen.add_input(gen_acc, arrow_table),
           accumulator.partial_accumulators)
-      del accumulator.input_examples[:]
+      del accumulator.input_tables[:]
+      accumulator.curr_batch_size = 0
 
   def add_input(
       self, accumulator,
-      input_example
+      input_table
       ):
-    accumulator.input_examples.append(input_example)
+    accumulator.input_tables.append(input_table)
+    accumulator.curr_batch_size += input_table.num_rows
     self._maybe_do_batch(accumulator)
     return accumulator
 
@@ -597,7 +616,8 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
       # remaining examples, and extract_output() in the end will flush anyways.
       batched_partial_accumulators = []
       for acc in batched_accumulators:
-        result.input_examples.extend(acc.input_examples)
+        result.input_tables.extend(acc.input_tables)
+        result.curr_batch_size += acc.curr_batch_size
         self._maybe_do_batch(result)
         batched_partial_accumulators.append(acc.partial_accumulators)
 
@@ -632,14 +652,14 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
 
 
 def generate_partial_statistics_in_memory(
-    examples,
+    table,
     options,
     stats_generators
 ):
   """Generates statistics for an in-memory list of examples.
 
   Args:
-    examples: A list of input examples.
+    table: Arrow table.
     options: Options for generating data statistics.
     stats_generators: A list of combiner statistics generators.
 
@@ -648,11 +668,6 @@ def generate_partial_statistics_in_memory(
   """
   result = []
 
-  # DecodedExamplesToTable cannot handle empty input.
-  if not examples:
-    return [gen.create_accumulator() for gen in stats_generators]
-
-  table = decoded_examples_to_arrow.DecodedExamplesToTable(examples)
   if options.feature_whitelist:
     whitelisted_columns = [
         table.column(f) for f in options.feature_whitelist]
@@ -665,13 +680,13 @@ def generate_partial_statistics_in_memory(
 
 
 def generate_statistics_in_memory(
-    examples,
+    table,
     options = stats_options.StatsOptions()
 ):
   """Generates statistics for an in-memory list of examples.
 
   Args:
-    examples: A list of input examples.
+    table: Arrow table.
     options: Options for generating data statistics.
 
   Returns:
@@ -679,7 +694,7 @@ def generate_statistics_in_memory(
   """
   stats_generators = get_generators(options, in_memory=True)  # type: List[stats_generator.CombinerStatsGenerator]
   partial_stats = generate_partial_statistics_in_memory(
-      examples, options, stats_generators)
+      table, options, stats_generators)
   return extract_statistics_output(partial_stats, stats_generators)
 
 

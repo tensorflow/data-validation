@@ -22,63 +22,27 @@ from __future__ import division
 
 from __future__ import print_function
 
-from collections import defaultdict
-from functools import partial
+import collections
+import functools
 import apache_beam as beam
 import numpy as np
-import six
 from tensorflow_data_validation import types
+from tensorflow_data_validation.arrow import merge
+from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import stats_generator
-from tensorflow_data_validation.utils import batch_util
 from tensorflow_data_validation.utils import stats_util
 from tensorflow_data_validation.types_compat import Dict, Iterable, List, Text, Tuple
 
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
-# TODO(b/117270483): Memory concerns when accumulating ExampleBatches in future
-# call to beam.transforms.combiners.ToList.
-
-
-# Returns the number of examples in the batch.
-def _num_examples(batch):
-  return len(six.next(six.itervalues(batch))) if batch else 0
-
-
-# Merges all of the batches in the accumulator into one batch.
-def _flatten_examples(batches):
-  """Flattens the list of ExampleBatches into one ExampleBatch.
-
-  Args:
-    batches: A list of ExampleBatches.
-
-  Returns:
-    A single ExampleBatch.
-  """
-
-  unique_features = set()
-  for batch in batches:
-    unique_features.update(batch.keys())
-
-  num_examples_per_batch = [_num_examples(batch) for batch in batches]
-  result = {}
-  for feature_name in unique_features:
-    feature_values = []
-    for i, batch in enumerate(batches):
-      if feature_name in batch:
-        feature_values.extend(batch[feature_name])
-      else:
-        feature_values.extend([None] * num_examples_per_batch[i])
-    result[feature_name] = feature_values
-  return result
-
 
 # TODO(b/117937992): Seed RNG so MI and partitioner are determenistic in test
-def _assign_to_partition(sliced_example,
+def _assign_to_partition(sliced_table,
                          num_partitions
                         ):
   """Assigns an example to a partition key."""
-  slice_key, example = sliced_example
-  return (slice_key, np.random.randint(num_partitions)), example
+  slice_key, table = sliced_table
+  return (slice_key, np.random.randint(num_partitions)), table
 
 
 def _get_partitioned_statistics_summary(
@@ -86,16 +50,16 @@ def _get_partitioned_statistics_summary(
 ):
   """Computes meta-statistics over the custom stats in the input dict."""
 
-  summary = defaultdict(defaultdict)
-  for feature_path, feature_statistics in six.iteritems(statistics):
+  summary = collections.defaultdict(collections.defaultdict)
+  for feature_path, feature_statistics in statistics.items():
     summary_for_feature = summary[feature_path]
-    for stat_name, stat_values in six.iteritems(feature_statistics):
-      summary_for_feature[u'min_' + stat_name] = np.min(stat_values)
-      summary_for_feature[u'max_' + stat_name] = np.max(stat_values)
-      summary_for_feature[u'mean_' + stat_name] = np.mean(stat_values)
-      summary_for_feature[u'median_' + stat_name] = np.median(stat_values)
-      summary_for_feature[u'std_dev_' + stat_name] = np.std(stat_values)
-      summary_for_feature[u'num_partitions_' + stat_name] = stat_values.size
+    for stat_name, stat_values in feature_statistics.items():
+      summary_for_feature['min_' + stat_name] = np.min(stat_values)
+      summary_for_feature['max_' + stat_name] = np.max(stat_values)
+      summary_for_feature['mean_' + stat_name] = np.mean(stat_values)
+      summary_for_feature['median_' + stat_name] = np.median(stat_values)
+      summary_for_feature['std_dev_' + stat_name] = np.std(stat_values)
+      summary_for_feature['num_partitions_' + stat_name] = stat_values.size
   return summary
 
 
@@ -104,9 +68,9 @@ def get_valid_statistics(
     min_partitions_stat_presence
 ):
   """Filters out statistics that were not computed over all partitions."""
-  valid_statistics = defaultdict(defaultdict)
-  for feature_path, feature_statistics in six.iteritems(statistics):
-    for stat_name, stat_values in six.iteritems(feature_statistics):
+  valid_statistics = collections.defaultdict(collections.defaultdict)
+  for feature_path, feature_statistics in statistics.items():
+    for stat_name, stat_values in feature_statistics.items():
       # Only keep statistics that appear min_partitions_stat_presence times
       if len(stat_values) >= min_partitions_stat_presence:
         valid_statistics[feature_path][stat_name] = np.array(stat_values)
@@ -150,7 +114,8 @@ class _PartitionedStatisticsAnalyzerAccumulator(object):
 
   def __init__(self):
     # A partial is used so that the class is pickleable.
-    self.statistics = defaultdict(partial(defaultdict, list))
+    self.statistics = collections.defaultdict(
+        functools.partial(collections.defaultdict, list))
 
 
 class PartitionedStatisticsAnalyzer(beam.CombineFn):
@@ -183,9 +148,10 @@ class PartitionedStatisticsAnalyzer(beam.CombineFn):
     """Adds the input (DatasetFeatureStatistics) into the accumulator."""
 
     for feature in statistic.features:
-      feature_path = types.FeaturePath.from_proto(feature.path)
       for stat in feature.custom_stats:
-        accumulator.statistics[feature_path][stat.name].append(stat.num)
+        accumulator.statistics[
+            types.FeaturePath.from_proto(feature.path)][stat.name].append(
+                stat.num)
     return accumulator
 
   def merge_accumulators(
@@ -195,9 +161,8 @@ class PartitionedStatisticsAnalyzer(beam.CombineFn):
 
     result = _PartitionedStatisticsAnalyzerAccumulator()
     for accumulator in accumulators:
-      for feature_path, feature_statistics in six.iteritems(
-          accumulator.statistics):
-        for stat_name, stat_values in six.iteritems(feature_statistics):
+      for feature_path, feature_statistics in accumulator.statistics.items():
+        for stat_name, stat_values in feature_statistics.items():
           result.statistics[feature_path][stat_name].extend(stat_values)
     return result
 
@@ -216,9 +181,9 @@ def _process_partition(
     partition,
     stats_fn
 ):
-  """Process examples in a single partition."""
-  (slice_key, _), examples = partition
-  return slice_key, stats_fn.compute(batch_util.merge_single_batch(examples))
+  """Process batches in a single partition."""
+  (slice_key, _), tables = partition
+  return slice_key, stats_fn.compute(merge.MergeTables(tables))
 
 
 # Input type check is commented out, as beam python will fail the type check
@@ -231,7 +196,8 @@ class _GenerateNonStreamingCustomStats(beam.PTransform):
 
   def __init__(self, stats_fn,
                num_partitions, min_partitions_stat_presence,
-               max_examples_per_partition, seed, name):
+               seed, max_examples_per_partition, batch_size,
+               name):
     """Initializes _GenerateNonStreamingCustomStats."""
 
     self._stats_fn = stats_fn
@@ -239,7 +205,8 @@ class _GenerateNonStreamingCustomStats(beam.PTransform):
     self._min_partitions_stat_presence = min_partitions_stat_presence
     self._name = name
     self._seed = seed
-    self._max_examples_per_partition = max_examples_per_partition
+    self._max_batches_per_partition = int(max_examples_per_partition /
+                                          batch_size)
     # Seeds the random number generator used in the partitioner.
     np.random.seed(self._seed)
 
@@ -248,10 +215,10 @@ class _GenerateNonStreamingCustomStats(beam.PTransform):
 
     return (
         pcoll
-        | 'AssignExampleToPartition' >> beam.Map(
+        | 'AssignBatchToPartition' >> beam.Map(
             _assign_to_partition, num_partitions=self._num_partitions)
         | 'GroupPartitionsIntoList' >> beam.CombinePerKey(
-            beam.combiners.SampleCombineFn(self._max_examples_per_partition))
+            beam.combiners.SampleCombineFn(self._max_batches_per_partition))
         | 'ProcessPartition' >> beam.Map(_process_partition,
                                          stats_fn=self._stats_fn)
         | 'ComputeMetaStats' >> beam.CombinePerKey(
@@ -282,7 +249,8 @@ class NonStreamingCustomStatsGenerator(stats_generator.TransformStatsGenerator):
       min_partitions_stat_presence,
       seed,
       max_examples_per_partition,
-      name = u'NonStreamingCustomStatsGenerator'):
+      batch_size = 1000,
+      name = 'NonStreamingCustomStatsGenerator'):
     """Initializes NonStreamingCustomStatsGenerator.
 
     Args:
@@ -295,6 +263,7 @@ class NonStreamingCustomStatsGenerator(stats_generator.TransformStatsGenerator):
         number of examples per partition to limit memory usage in a worker. If
         the number of examples per partition exceeds this value, the examples
         are randomly selected.
+      batch_size: Number of examples per input batch.
       name: An optional unique name associated with the statistics generator.
     """
 
@@ -306,5 +275,6 @@ class NonStreamingCustomStatsGenerator(stats_generator.TransformStatsGenerator):
             min_partitions_stat_presence=min_partitions_stat_presence,
             seed=seed,
             max_examples_per_partition=max_examples_per_partition,
+            batch_size=batch_size,
             name=name
             ))

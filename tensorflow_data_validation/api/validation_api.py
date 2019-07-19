@@ -23,6 +23,7 @@ from __future__ import print_function
 
 import logging
 import apache_beam as beam
+import pyarrow as pa
 from tensorflow_data_validation import types
 from tensorflow_data_validation.pyarrow_tf import tensorflow as tf
 from tensorflow_data_validation.pywrap import pywrap_tensorflow_data_validation
@@ -328,14 +329,13 @@ def validate_instance(
     options,
     environment = None
 ):
-  """Validates a single example against the schema provided in `options`.
+  """Validates a batch of examples against the schema provided in `options`.
 
   If an optional `environment` is specified, the schema is filtered using the
   `environment` and the `instance` is validated against the filtered schema.
 
   Args:
-    instance: A single example in the form of a dict mapping a feature name to a
-      numpy array.
+    instance: A batch of examples in the form of an Arrow table.
     options: `tfdv.StatsOptions` for generating data statistics. This must
       contain a schema.
     environment: An optional string denoting the validation environment. Must be
@@ -360,7 +360,7 @@ def validate_instance(
   if options.schema is None:
     raise ValueError('options must include a schema.')
   feature_statistics_list = (
-      stats_impl.generate_statistics_in_memory([instance], options))
+      stats_impl.generate_statistics_in_memory(instance, options))
   anomalies = validate_statistics(feature_statistics_list, options.schema,
                                   environment)
   if anomalies.anomaly_info:
@@ -370,30 +370,27 @@ def validate_instance(
   return anomalies
 
 
-def _detect_anomalies_in_example(example,
+def _detect_anomalies_in_example(table,
                                  options):
   """Validates the example against the schema provided in `options`."""
-  return (example, validate_instance(example, options))
+  return (table, validate_instance(table, options))
 
 
 @beam.typehints.with_input_types(
-    beam.typehints.Tuple[types.BeamExample, anomalies_pb2.Anomalies])
-@beam.typehints.with_output_types(
-    beam.typehints.Tuple[types.BeamSliceKey, types.BeamExample])
+    beam.typehints.Tuple[pa.Table, anomalies_pb2.Anomalies])
+@beam.typehints.with_output_types(types.SlicedTable)
 class _GenerateAnomalyReasonSliceKeys(beam.DoFn):
   """Yields a slice key for each anomaly reason in the Anomalies proto."""
 
   def process(self, element):
-    example, anomalies_proto = element
-    for slice_key_and_example in slicing_util.generate_slices(
-        example, [anomalies_util.anomalies_slicer],
-        anomalies=anomalies_proto):
-      yield slice_key_and_example
+    table, anomalies_proto = element
+    for slice_key in slicing_util.generate_slices(
+        table, [anomalies_util.anomalies_slicer], anomalies=anomalies_proto):
+      yield slice_key, table
 
 
-@beam.typehints.with_input_types(types.BeamExample)
-@beam.typehints.with_output_types(
-    beam.typehints.Tuple[types.BeamSliceKey, types.BeamExample])
+@beam.typehints.with_input_types(pa.Table)
+@beam.typehints.with_output_types(types.SlicedTable)
 class IdentifyAnomalousExamples(beam.PTransform):
   """API for identifying anomalous examples.
 

@@ -1,4 +1,4 @@
-# Copyright 2018 Google LLC
+# Copyright 2019 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,241 +19,110 @@ from __future__ import division
 from __future__ import print_function
 
 from absl.testing import absltest
-from absl.testing import parameterized
-import numpy as np
+from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.utils import slicing_util
 
-GENERATE_SLICER_WITH_ALL_UNIVALENT_FEATURES_TESTS = [
-    {
-        'testcase_name': 'feature_value_does_not_match',
-        'features': {'age': [99]},
-        'example': {'gender': np.array(['f']),
-                    'age': np.array([5]),
-                    'interests': np.array(['cars']),
-                    'fruits': np.array(['apples'])},
-        'expected_slice_keys': []
-    },
-    {
-        'testcase_name': 'no_such_feature_in_example',
-        'features': {'no_such_feature': None},
-        'example': {'gender': np.array(['f']),
-                    'age': np.array([5]),
-                    'interests': np.array(['cars']),
-                    'fruits': np.array(['apples'])},
-        'expected_slice_keys': []
-    },
-    {
-        'testcase_name': 'feature_without_value',
-        'features': {'age': None},
-        'example': {'gender': np.array(['f']),
-                    'age': np.array([5]),
-                    'interests': np.array(['cars']),
-                    'fruits': np.array(['apples'])},
-        'expected_slice_keys': ['age_5']
-    },
-    {
-        'testcase_name': 'feature_with_value',
-        'features': {'age': [5]},
-        'example': {'gender': np.array(['f']),
-                    'age': np.array([5]),
-                    'interests': np.array(['cars']),
-                    'fruits': np.array(['apples'])},
-        'expected_slice_keys': ['age_5']
-    },
-    {
-        'testcase_name': 'value_type_mismatch',
-        'features': {'age': ['5']},
-        'example': {'gender': np.array(['f']),
-                    'age': np.array([5]),
-                    'interests': np.array(['cars']),
-                    'fruits': np.array(['apples'])},
-        'expected_slice_keys': []
-    },
-    {
-        'testcase_name': 'features_with_and_without_values',
-        'features': {'gender': None, 'age': [5]},
-        'example': {'gender': np.array(['f']),
-                    'age': np.array([5]),
-                    'interests': np.array(['cars']),
-                    'fruits': np.array(['apples'])},
-        'expected_slice_keys': ['age_5_gender_f']
-    },
-    {
-        'testcase_name': 'multiple_features_with_and_without_values',
-        'features': {'interests': None,
-                     'gender': None,
-                     'age': [5],
-                     'fruits': ['apples']},
-        'example': {'gender': np.array(['f']),
-                    'age': np.array([5]),
-                    'interests': np.array(['cars']),
-                    'fruits': np.array(['apples'])},
-        'expected_slice_keys': ['age_5_fruits_apples_gender_f_interests_cars']
-    },
-]
-GENERATE_SLICER_WITH_MULTIVALENT_FEATURES_TESTS = [
-    {
-        'testcase_name': 'feature_without_values',
-        'features': {'fruits': None},
-        'example': {'gender': np.array(['f']),
-                    'age': np.array([5]),
-                    'interests': np.array(['cars', 'dogs']),
-                    'fruits': np.array(['apples', 'apples', 'pears'])},
-        'expected_slice_keys': ['fruits_apples', 'fruits_pears']
-    },
-    {
-        'testcase_name':
-            'multiple_features_without_values',
-        'features': {'fruits': None, 'interests': None},
-        'example': {'gender': np.array(['f']),
-                    'age': np.array([5]),
-                    'interests': np.array(['cars', 'dogs']),
-                    'fruits': np.array(['apples', 'apples', 'pears'])},
-        'expected_slice_keys': [
-            'fruits_apples_interests_cars',
-            'fruits_apples_interests_dogs',
-            'fruits_pears_interests_cars',
-            'fruits_pears_interests_dogs'
-        ]
-    },
-    {
-        'testcase_name': 'feature_with_values',
-        'features': {'interests': ['cars']},
-        'example': {'gender': np.array(['f']),
-                    'age': np.array([5]),
-                    'interests': np.array(['cars', 'dogs']),
-                    'fruits': np.array(['apples', 'apples', 'pears'])},
-        'expected_slice_keys': ['interests_cars']
-    },
-    {
-        'testcase_name': 'multiple_features_with_values',
-        'features': {'interests': ['cars'], 'gender': ['f']},
-        'example': {'gender': np.array(['f']),
-                    'age': np.array([5]),
-                    'interests': np.array(['cars', 'dogs']),
-                    'fruits': np.array(['apples', 'apples', 'pears'])},
-        'expected_slice_keys': [
-            'gender_f_interests_cars'
-        ]
-    },
-    {
-        'testcase_name':
-            'multiple_features_with_and_without_values',
-        'features': {'fruits': None,
-                     'interests': None,
-                     'age': [5],
-                     'gender': ['f']},
-        'example': {'gender': np.array(['f']),
-                    'age': np.array([5]),
-                    'interests': np.array(['cars', 'dogs']),
-                    'fruits': np.array(['apples', 'apples', 'pears'])},
-        'expected_slice_keys': [
-            'age_5_fruits_apples_gender_f_interests_cars',
-            'age_5_fruits_pears_gender_f_interests_cars',
-            'age_5_fruits_apples_gender_f_interests_dogs',
-            'age_5_fruits_pears_gender_f_interests_dogs'
-        ]
-    },
-]
 
+class SlicingUtilTest(absltest.TestCase):
 
-class SlicingUtilTest(parameterized.TestCase):
+  def test_get_feature_value_slicer(self):
+    features = {'a': None, 'b': None}
+    input_table = pa.Table.from_arrays([
+        pa.array([[1], [2, 1], [3], [2, 1, 1], [3]]),
+        pa.array([['dog'], ['cat'], ['wolf'], ['dog', 'wolf'], ['wolf']]),
+    ], ['a', 'b'])
+    expected_result = [
+        (u'a_1_b_dog',
+         pa.Table.from_arrays(
+             [pa.array([[1], [2, 1, 1]]), pa.array([['dog'], ['dog', 'wolf']])],
+             ['a', 'b'])
+        ),
+        (u'a_1_b_cat',
+         pa.Table.from_arrays(
+             [pa.array([[2, 1]]), pa.array([['cat']])], ['a', 'b'])
+        ),
+        (u'a_2_b_cat',
+         pa.Table.from_arrays(
+             [pa.array([[2, 1]]), pa.array([['cat']])], ['a', 'b'])
+        ),
+        (u'a_2_b_dog',
+         pa.Table.from_arrays(
+             [pa.array([[2, 1, 1]]), pa.array([['dog', 'wolf']])], ['a', 'b'])
+        ),
+        (u'a_1_b_wolf',
+         pa.Table.from_arrays(
+             [pa.array([[2, 1, 1]]), pa.array([['dog', 'wolf']])],
+             ['a', 'b'])
+        ),
+        (u'a_2_b_wolf',
+         pa.Table.from_arrays(
+             [pa.array([[2, 1, 1]]), pa.array([['dog', 'wolf']])],
+             ['a', 'b'])
+        ),
+        (u'a_3_b_wolf',
+         pa.Table.from_arrays(
+             [pa.array([[3], [3]]), pa.array([['wolf'], ['wolf']])],
+             ['a', 'b'])
+        ),
+    ]
+    self.assertCountEqual(
+        expected_result,
+        list(slicing_util.get_feature_value_slicer(features)(input_table)))
 
-  def test_get_feature_value_slicer_with_float_feature_value(self):
-    with self.assertRaisesRegexp(NotImplementedError,
-                                 'Only string and int.*as the slice value.'):
-      slicing_util.get_feature_value_slicer({'feature_name': [1.1]})
+  def test_get_feature_value_slicer_single_feature(self):
+    features = {'a': [2]}
+    input_table = pa.Table.from_arrays([
+        pa.array([[1], [2, 1]]),
+        pa.array([['dog'], ['cat']]),
+    ], ['a', 'b'])
+    expected_result = [
+        (u'a_2',
+         pa.Table.from_arrays(
+             [pa.array([[2, 1]]), pa.array([['cat']])], ['a', 'b'])
+        ),
+    ]
+    self.assertCountEqual(
+        expected_result,
+        list(slicing_util.get_feature_value_slicer(features)(input_table)))
 
-  def test_get_feature_value_slicer_with_values_not_in_iterable(self):
-    with self.assertRaisesRegexp(TypeError, 'Feature values must be specified '
-                                 'in an iterable.'):
-      slicing_util.get_feature_value_slicer({'feature_name': 1})
+  def test_get_feature_value_slicer_no_slice(self):
+    features = {'a': [3]}
+    input_table = pa.Table.from_arrays([
+        pa.array([[1], [2, 1]]),
+        pa.array([['dog'], ['cat']]),
+    ], ['a', 'b'])
+    expected_result = []
+    self.assertCountEqual(
+        expected_result,
+        list(slicing_util.get_feature_value_slicer(features)(input_table)))
 
-  @parameterized.named_parameters(
-      *GENERATE_SLICER_WITH_ALL_UNIVALENT_FEATURES_TESTS)
-  def test_get_feature_value_slicer_for_univalent_features(
-      self, features, example, expected_slice_keys):
-    slicer_function = slicing_util.get_feature_value_slicer(features)
-    actual_slice_keys = slicer_function(example)
-    self.assertCountEqual(expected_slice_keys, actual_slice_keys)
+  def test_get_feature_value_slicer_bytes_feature_valid_utf8(self):
+    features = {'b': None}
+    input_table = pa.Table.from_arrays([
+        pa.array([[1], [2, 1]]),
+        pa.array([[b'dog'], [b'cat']]),
+    ], ['a', 'b'])
+    expected_result = [
+        (u'b_dog',
+         pa.Table.from_arrays(
+             [pa.array([[1]]), pa.array([[b'dog']])], ['a', 'b'])
+        ),
+        (u'b_cat',
+         pa.Table.from_arrays(
+             [pa.array([[2, 1]]), pa.array([[b'cat']])], ['a', 'b'])
+        ),
+    ]
+    self.assertCountEqual(
+        expected_result,
+        list(slicing_util.get_feature_value_slicer(features)(input_table)))
 
-  @parameterized.named_parameters(
-      *GENERATE_SLICER_WITH_MULTIVALENT_FEATURES_TESTS)
-  def test_get_feature_value_slicer_for_multivalent_features(
-      self, features, example, expected_slice_keys):
-    slicer_function = slicing_util.get_feature_value_slicer(features)
-    actual_slice_keys = slicer_function(example)
-    self.assertCountEqual(expected_slice_keys, actual_slice_keys)
-
-  def test_get_feature_value_slicer_invalid_utf8_slice_key(self):
-    slicer_function = slicing_util.get_feature_value_slicer({'f1': None})
-    with self.assertRaises(UnicodeDecodeError):
-      _ = slicer_function({'f1': np.array([b'\xff'])})
-
-  def test_generate_slices_without_kwargs(self):
-
-    def slice_function_1(example):
-      if example.get('test_column_1'):
-        return ['test_slice_key_1']
-
-    def slice_function_2(example):
-      if example.get('test_column_2'):
-        return ['test_slice_key_2']
-
-    input_example = {
-        'test_column_1': np.array([1]),
-        'test_column_2': np.array(['a'])
-    }
-
-    expected_result = [('test_slice_key_1', input_example),
-                       ('test_slice_key_2', input_example)]
-    # Each slice function returns a list of one slice key.
-    actual_result = list(
-        slicing_util.generate_slices(input_example,
-                                     [slice_function_1, slice_function_2]))
-    self.assertCountEqual(expected_result, actual_result)
-
-  def test_generate_slices_with_kwargs(self):
-
-    def slice_function_1(example, **kwargs):
-      slice_keys = []
-      test_num = kwargs['test_num']
-      if example.get('test_column_1'):
-        slice_keys.append('test_slice_key_a_' + str(test_num))
-      if example.get('test_column_2'):
-        slice_keys.append('test_slice_key_b_' + str(test_num))
-      return slice_keys
-
-    def slice_function_2(example, **kwargs):  # pylint: disable=unused-argument
-      return []
-
-    input_example = {
-        'test_column_1': np.array([1]),
-        'test_column_2': np.array([2])
-    }
-
-    expected_result = [('test_slice_key_a_1', input_example),
-                       ('test_slice_key_b_1', input_example)]
-    test_kwargs = {'test_num': 1}
-    # slice_function_1 returns a list of multiple slice keys, and
-    # slice_function_2 returns an empty list.
-    actual_result = list(
-        slicing_util.generate_slices(
-            input_example, [slice_function_1, slice_function_2], **test_kwargs))
-    self.assertCountEqual(expected_result, actual_result)
-
-  def test_generate_slices_bad_slice_function(self):
-
-    def bad_slice_function(example):  # pylint: disable=unused-argument
-      return 1 / 0
-
-    input_example = {'test_column': np.array([1])}
-
-    with self.assertRaisesRegexp(
-        ValueError, 'One of the slice_functions '
-        'bad_slice_function raised an exception: '
-        'ZeroDivisionError.*'):
-      list(slicing_util.generate_slices(input_example, [bad_slice_function]))
+  def test_get_feature_value_slicer_non_utf8_slice_key(self):
+    features = {'a': None}
+    input_table = pa.Table.from_arrays([
+        pa.array([[b'\xF0'], ['cat']]),
+    ], ['a'])
+    with self.assertRaisesRegexp(ValueError, 'must be valid UTF-8'):
+      _ = list(slicing_util.get_feature_value_slicer(features)(input_table))
 
 
 if __name__ == '__main__':
