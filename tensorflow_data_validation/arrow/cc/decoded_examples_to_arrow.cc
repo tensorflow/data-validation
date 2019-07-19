@@ -372,11 +372,6 @@ class DecodedExamplesToTableConverter {
 Status DecodedExamplesToTable(PyObject* list_of_decoded_examples,
                               std::shared_ptr<Table>* table) {
   const Py_ssize_t list_size = PyList_Size(list_of_decoded_examples);
-  if (list_size == 0) {
-    // A table must have at list one column, but we can't know what that column
-    // should be given an empty list.
-    return Status::Invalid("Could not convert an empty list to a Table.");
-  }
   DecodedExamplesToTableConverter converter(list_size);
   for (int i = 0; i < list_size; ++i) {
     RETURN_NOT_OK(converter.AddDecodedExample(

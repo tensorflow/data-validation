@@ -33,11 +33,6 @@ _INVALID_INPUT_TEST_CASES = [
         expected_error=TypeError,
         expected_error_regexp="Expected a list"),
     dict(
-        testcase_name="empty_list",
-        test_input=[],
-        expected_error=RuntimeError,
-        expected_error_regexp="Could not convert an empty list"),
-    dict(
         testcase_name="list_of_non_dict",
         test_input=[1, 2],
         expected_error=RuntimeError,
@@ -226,6 +221,11 @@ class DecodedExamplesToArrowTest(parameterized.TestCase):
       self.assertLen(table.column(feature_name).data.chunks, 1)
       self.assertTrue(
           expected_arrow_array.equals(table.column(feature_name).data.chunk(0)))
+
+  def test_conversion_empty_input(self):
+    table = decoded_examples_to_arrow.DecodedExamplesToTable([])
+    self.assertEqual(table.num_columns, 0)
+    self.assertEqual(table.num_rows, 0)
 
   def test_conversion_empty_examples(self):
     input_examples = [{}] * 10
