@@ -232,10 +232,10 @@ def _to_topk_tuples(
         yield (slice_key, feature_path.steps(), value), (count, weight)
     else:
       value_counts = arrow_util.ValueCounts(flattened_values)
-      for value_count in value_counts:
-        value_count = value_count.as_py()
-        yield ((slice_key, feature_path.steps(), value_count['values']),
-               (value_count['counts'], value_count['counts']))
+      values = value_counts.field('values').to_pylist()
+      counts = value_counts.field('counts').to_pylist()
+      for value, count in six.moves.zip(values, counts):
+        yield ((slice_key, feature_path.steps(), value), (count, count))
 
 
 class _ComputeTopKUniquesStats(beam.PTransform):
