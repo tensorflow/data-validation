@@ -66,22 +66,19 @@ _UnixTime = collections.namedtuple(
 # The ending times correspond to 01-Jan-30 00:00:00 UTC.
 _UNIX_TIMES = [
     _UnixTime(
-        format_constant=schema_pb2.TimeDomain.IntegerTimeFormat.UNIX_SECONDS,
+        format_constant=schema_pb2.TimeDomain.UNIX_SECONDS,
         begin=631152000,
         end=1893456000),
     _UnixTime(
-        format_constant=schema_pb2.TimeDomain.IntegerTimeFormat
-        .UNIX_MILLISECONDS,
+        format_constant=schema_pb2.TimeDomain.UNIX_MILLISECONDS,
         begin=631152000000,
         end=1893456000000),
     _UnixTime(
-        format_constant=schema_pb2.TimeDomain.IntegerTimeFormat
-        .UNIX_MICROSECONDS,
+        format_constant=schema_pb2.TimeDomain.UNIX_MICROSECONDS,
         begin=631152000000000,
         end=1893456000000000),
     _UnixTime(
-        format_constant=schema_pb2.TimeDomain.IntegerTimeFormat
-        .UNIX_NANOSECONDS,
+        format_constant=schema_pb2.TimeDomain.UNIX_NANOSECONDS,
         begin=631152000000000000,
         end=1893456000000000000),
 ]
