@@ -235,7 +235,7 @@ def _to_topk_tuples(
       values = value_counts.field('values').to_pylist()
       counts = value_counts.field('counts').to_pylist()
       for value, count in six.moves.zip(values, counts):
-        yield ((slice_key, feature_path.steps(), value), (count, count))
+        yield ((slice_key, feature_path.steps(), value), count)
 
 
 class _ComputeTopKUniquesStats(beam.PTransform):
@@ -284,20 +284,26 @@ class _ComputeTopKUniquesStats(beam.PTransform):
             iter_of_pairs, dtype=[('c', np.int64), ('w', np.float)])
       return arr['c'].sum(), arr['w'].sum()
 
+    if self._weight_feature is not None:
+      sum_fn = _sum_pairwise
+    else:
+      # For non-weighted case, use sum combine fn over integers to allow Beam
+      # to use Cython combiner.
+      sum_fn = sum
     top_k_tuples_combined = (
         pcoll
         | 'ToTopKTuples' >> beam.FlatMap(
             _to_topk_tuples,
             categorical_features=self._categorical_features,
             weight_feature=self._weight_feature)
-        | 'CombineCountsAndWeights' >> beam.CombinePerKey(
-            _sum_pairwise))
-    # (slice_key, feature, v), (c, w)
-    top_k = (
-        top_k_tuples_combined
-        | 'Unweighted_DropWeights' >> beam.Map(lambda x: (x[0], x[1][0]))
-        # (slice_key, feature, v), c
-        | 'Unweighted_Prepare' >>
+        | 'CombineCountsAndWeights' >> beam.CombinePerKey(sum_fn))
+
+    top_k = top_k_tuples_combined
+    if self._weight_feature is not None:
+      top_k |= 'Unweighted_DropWeights' >> beam.Map(lambda x: (x[0], x[1][0]))
+    # (slice_key, feature, v), c
+    top_k |= (
+        'Unweighted_Prepare' >>
         beam.Map(lambda x: ((x[0][0], x[0][1]), (x[0][2], x[1])))
         # (slice_key, feature), (v, c)
         | 'Unweighted_TopK' >> beam.combiners.Top().PerKey(
@@ -319,7 +325,7 @@ class _ComputeTopKUniquesStats(beam.PTransform):
             categorical_features=self._categorical_features))
     result_protos = [top_k, uniques]
 
-    if self._weight_feature:
+    if self._weight_feature is not None:
       weighted_top_k = (
           top_k_tuples_combined
           | 'Weighted_DropCounts' >> beam.Map(lambda x: (x[0], x[1][1]))
