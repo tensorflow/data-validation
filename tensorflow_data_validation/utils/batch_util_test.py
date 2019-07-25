@@ -24,6 +24,7 @@ from apache_beam.testing import util
 import numpy as np
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.utils import batch_util
+from tensorflow_data_validation.utils import test_util
 
 
 class BatchUtilTest(absltest.TestCase):
@@ -58,28 +59,12 @@ class BatchUtilTest(absltest.TestCase):
         pa.Table.from_arrays([pa.array([['d', 'e', 'f']])], ['c']),
     ]
 
-    def _batched_tables_equal_fn(expected_tables):
-      """Makes a matcher function for comparing batched tables."""
-      def _matcher(actual_tables):
-        self.assertLen(actual_tables, len(expected_tables))
-        for i in range(len(expected_tables)):
-          self.assertEqual(actual_tables[i].num_columns,
-                           expected_tables[i].num_columns)
-          for expected_column in expected_tables[i].columns:
-            actual_column = actual_tables[i].column(expected_column.name)
-            self.assertLen(actual_column.data.chunks, 1)
-            self.assertTrue(
-                actual_column.data.chunk(0).equals(
-                    expected_column.data.chunk(0)))
-      return _matcher
-
     with beam.Pipeline() as p:
       result = (p
                 | beam.Create(examples)
-                | beam.ParDo(
-                    batch_util.BatchExamplesDoFn(desired_batch_size=2)))
+                | batch_util.BatchExamplesToArrowTables(desired_batch_size=2))
       util.assert_that(
-          result, _batched_tables_equal_fn(expected_tables))
+          result, test_util.make_arrow_tables_equal_fn(self, expected_tables))
 
 
 if __name__ == '__main__':

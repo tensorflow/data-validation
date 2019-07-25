@@ -31,6 +31,7 @@ from joblib import delayed
 from joblib import Parallel
 import numpy as np
 import pandas as pd
+from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.api import stats_api
 from tensorflow_data_validation.arrow import decoded_examples_to_arrow
@@ -89,6 +90,10 @@ def generate_statistics_from_tfrecord(
   if not tf.gfile.Exists(output_dir_path):
     tf.gfile.MakeDirs(output_dir_path)
 
+  batch_size = (
+      stats_options.desired_batch_size if stats_options.desired_batch_size
+      and stats_options.desired_batch_size > 0 else
+      constants.DEFAULT_DESIRED_INPUT_BATCH_SIZE)
   # PyLint doesn't understand Beam PTransforms.
   # pylint: disable=no-value-for-parameter
   with beam.Pipeline(options=pipeline_options) as p:
@@ -98,7 +103,8 @@ def generate_statistics_from_tfrecord(
         p
         | 'ReadData' >> beam.io.ReadFromTFRecord(
             file_pattern=data_location, compression_type=compression_type)
-        | 'DecodeData' >> tf_example_decoder.DecodeTFExample()
+        | 'DecodeData' >> tf_example_decoder.DecodeTFExample(
+            desired_batch_size=batch_size)
         | 'GenerateStatistics' >> stats_api.GenerateStatistics(stats_options)
         # TODO(b/112014711) Implement a custom sink to write the stats proto.
         | 'WriteStatsOutput' >> beam.io.WriteToTFRecord(
@@ -159,6 +165,10 @@ def generate_statistics_from_csv(
   if not tf.gfile.Exists(output_dir_path):
     tf.gfile.MakeDirs(output_dir_path)
 
+  batch_size = (
+      stats_options.desired_batch_size if stats_options.desired_batch_size
+      and stats_options.desired_batch_size > 0 else
+      constants.DEFAULT_DESIRED_INPUT_BATCH_SIZE)
   # PyLint doesn't understand Beam PTransforms.
   # pylint: disable=no-value-for-parameter
   with beam.Pipeline(options=pipeline_options) as p:
@@ -175,7 +185,8 @@ def generate_statistics_from_csv(
         | 'DecodeData' >> csv_decoder.DecodeCSV(
             column_names=column_names, delimiter=delimiter,
             schema=stats_options.schema,
-            infer_type_from_schema=stats_options.infer_type_from_schema)
+            infer_type_from_schema=stats_options.infer_type_from_schema,
+            desired_batch_size=batch_size)
         | 'GenerateStatistics' >> stats_api.GenerateStatistics(stats_options)
         # TODO(b/112014711) Implement a custom sink to write the stats proto.
         | 'WriteStatsOutput' >> beam.io.WriteToTFRecord(

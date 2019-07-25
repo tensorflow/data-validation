@@ -23,6 +23,7 @@ import apache_beam as beam
 from apache_beam.testing import util
 import numpy as np
 from tensorflow_data_validation import types
+from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.types_compat import Callable, Dict, List, Tuple, Union
 
@@ -326,3 +327,22 @@ class CombinerFeatureStatsGeneratorTest(absltest.TestCase):
     result = generator.extract_output(accumulator)
     compare.assertProtoEqual(
         self, result, expected_result, normalize_numbers=True)
+
+
+def make_arrow_tables_equal_fn(test,
+                               expected_tables):
+  """Makes a matcher function for comparing arrow tables."""
+  def _matcher(actual_tables):
+    """Arrow tables matcher fn."""
+    test.assertLen(actual_tables, len(expected_tables))
+    for i in range(len(expected_tables)):
+      test.assertEqual(actual_tables[i].num_columns,
+                       expected_tables[i].num_columns)
+      for expected_column in expected_tables[i].columns:
+        actual_column = actual_tables[i].column(expected_column.name)
+        test.assertEqual(len(actual_column.data.chunks),
+                         len(expected_column.data.chunks))
+        for j in range(len(expected_column.data.chunks)):
+          test.assertTrue(actual_column.data.chunk(j).equals(
+              expected_column.data.chunk(j)))
+  return _matcher

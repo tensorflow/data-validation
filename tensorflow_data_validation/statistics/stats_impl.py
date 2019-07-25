@@ -39,7 +39,6 @@ from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.statistics.generators import time_stats_generator
 from tensorflow_data_validation.statistics.generators import top_k_uniques_combiner_stats_generator
 from tensorflow_data_validation.statistics.generators import top_k_uniques_stats_generator
-from tensorflow_data_validation.utils import batch_util
 from tensorflow_data_validation.utils import slicing_util
 from tensorflow_data_validation.utils import stats_util
 from tensorflow_data_validation.types_compat import Any, Callable, Dict, Iterable, List, Optional, Text, Tuple
@@ -48,13 +47,7 @@ from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
-# This needs to be large enough to allow for efficient TF invocations during
-# batch flushing, but shouldn't be too large as it also acts as cap on the
-# maximum memory usage of the computation.
-_DEFAULT_DESIRED_INPUT_BATCH_SIZE = 1000
-
-
-@beam.typehints.with_input_types(types.BeamExample)
+@beam.typehints.with_input_types(pa.Table)
 @beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatisticsList)
 class GenerateStatisticsImpl(beam.PTransform):
   """PTransform that applies a set of generators over input examples."""
@@ -70,19 +63,6 @@ class GenerateStatisticsImpl(beam.PTransform):
     if self._options.feature_whitelist:
       dataset |= ('RemoveNonWhitelistedFeatures' >> beam.Map(
           _filter_features, feature_whitelist=self._options.feature_whitelist))
-
-    desired_batch_size = (
-        self._options.desired_batch_size if self._options.desired_batch_size and
-        self._options.desired_batch_size > 0 else
-        _DEFAULT_DESIRED_INPUT_BATCH_SIZE)
-    # TODO(pachristopher): Debug why beam.BatchElements is expensive than the
-    # custom DoFn and consider using it instead.
-    # Check if we have the default windowing behavior. The BatchExamplesDoFn
-    # is expected to be called under a Global window.
-    assert dataset.windowing.is_default()
-    dataset |= (
-        'BatchExamplesToArrowTable' >> beam.ParDo(batch_util.BatchExamplesDoFn(
-            desired_batch_size=desired_batch_size)))
 
     if self._options.slice_functions:
       # Add default slicing function.
@@ -277,22 +257,23 @@ def _get_default_generators(
 
 
 def _filter_features(
-    example,
+    table,
     feature_whitelist):
   """Removes features that are not whitelisted.
 
   Args:
-    example: Input example.
-    feature_whitelist: A list of feature names to whitelist.
+    table: Input Arrow table.
+    feature_whitelist: A set of feature names to whitelist.
 
   Returns:
-    An example containing only the whitelisted features of the input example.
+    An Arrow table containing only the whitelisted features of the input table.
   """
-  return {
-      feature_name: example[feature_name]
-      for feature_name in feature_whitelist
-      if feature_name in example
-  }
+  column_names = set(table.schema.names)
+  columns_to_select = []
+  for feature_name in feature_whitelist:
+    if feature_name in column_names:
+      columns_to_select.append(table.column(feature_name))
+  return pa.Table.from_arrays(columns_to_select)
 
 
 def _add_slice_key(
@@ -523,7 +504,7 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
     if desired_batch_size and desired_batch_size > 0:
       self._desired_batch_size = desired_batch_size
     else:
-      self._desired_batch_size = _DEFAULT_DESIRED_INPUT_BATCH_SIZE
+      self._desired_batch_size = constants.DEFAULT_DESIRED_INPUT_BATCH_SIZE
 
     # Metrics
     self._combine_add_input_batch_size = beam.metrics.Metrics.distribution(

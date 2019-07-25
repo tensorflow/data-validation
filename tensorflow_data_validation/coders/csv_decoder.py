@@ -23,8 +23,11 @@ import csv
 import apache_beam as beam
 import numpy as np
 import six
+from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
+from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.pyarrow_tf import tensorflow as tf
+from tensorflow_data_validation.utils import batch_util
 from tensorflow_data_validation.types_compat import Dict, List, Optional, Text, Union
 
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -41,19 +44,84 @@ ColumnInfo = collections.namedtuple('ColumnInfo', ['name', 'type'])
 # TODO(b/111831548): Add support for a secondary delimiter to parse
 # value lists.
 @beam.typehints.with_input_types(CSVRecord)
-@beam.typehints.with_output_types(types.BeamExample)
+@beam.typehints.with_output_types(pa.Table)
 class DecodeCSV(beam.PTransform):
   """Decodes CSV records into an in-memory dict representation.
 
   Currently we assume each column has only a single value.
   """
 
-  def __init__(self,
-               column_names,
-               delimiter = ',',
-               skip_blank_lines = True,
-               schema = None,
-               infer_type_from_schema = False):
+  def __init__(
+      self,
+      column_names,
+      delimiter = ',',
+      skip_blank_lines = True,
+      schema = None,
+      infer_type_from_schema = False,
+      desired_batch_size = constants.DEFAULT_DESIRED_INPUT_BATCH_SIZE
+  ):
+    """Initializes the CSV decoder.
+
+    Args:
+      column_names: List of feature names. Order must match the order in the CSV
+        file.
+      delimiter: A one-character string used to separate fields.
+      skip_blank_lines: A boolean to indicate whether to skip over blank lines
+        rather than interpreting them as missing values.
+      schema: An optional schema of the input data.
+      infer_type_from_schema: A boolean to indicate whether the feature types
+        should be inferred from the schema. If set to True, an input schema must
+        be provided.
+      desired_batch_size: Batch size. The output Arrow tables will have as many
+        rows as the `desired_batch_size`.
+    """
+    if not isinstance(column_names, list):
+      raise TypeError('column_names is of type %s, should be a list' %
+                      type(column_names).__name__)
+    self._column_names = column_names
+    self._delimiter = delimiter
+    self._skip_blank_lines = skip_blank_lines
+    self._schema = schema
+    self._infer_type_from_schema = infer_type_from_schema
+    self._desired_batch_size = desired_batch_size
+
+  def expand(self, lines):
+    """Decodes the input CSV records into Arrow tables.
+
+    Args:
+      lines: A PCollection of strings representing the lines in the CSV file.
+
+    Returns:
+      A PCollection of Arrow tables.
+    """
+    return (lines
+            | 'DecodeCSVToDict' >> DecodeCSVToDict(
+                column_names=self._column_names,
+                delimiter=self._delimiter,
+                skip_blank_lines=self._skip_blank_lines,
+                schema=self._schema,
+                infer_type_from_schema=self._infer_type_from_schema)
+            | 'BatchExamplesToArrowTables' >>
+            batch_util.BatchExamplesToArrowTables(
+                desired_batch_size=self._desired_batch_size))
+
+
+@beam.typehints.with_input_types(CSVRecord)
+@beam.typehints.with_output_types(types.BeamExample)
+class DecodeCSVToDict(beam.PTransform):
+  """Decodes CSV records into an in-memory dict representation.
+
+  Currently we assume each column has only a single value.
+  """
+
+  def __init__(
+      self,
+      column_names,
+      delimiter = ',',
+      skip_blank_lines = True,
+      schema = None,
+      infer_type_from_schema = False,
+  ):
     """Initializes the CSV decoder.
 
     Args:
@@ -103,10 +171,11 @@ class DecodeCSV(beam.PTransform):
       column_info = beam.pvalue.AsSingleton(column_info)
 
     # Do second pass to generate the in-memory dict representation.
-    return (input_rows | 'CreateInMemoryDict' >> beam.FlatMap(
-        _make_example_dict,
-        skip_blank_lines=self._skip_blank_lines,
-        column_info=column_info))
+    return (input_rows
+            | 'CreateInMemoryDict' >> beam.FlatMap(
+                _make_example_dict,
+                skip_blank_lines=self._skip_blank_lines,
+                column_info=column_info))
 
 
 def _get_feature_types_from_schema(

@@ -25,7 +25,6 @@ import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from tensorflow_data_validation import types
 from tensorflow_data_validation.api import validation_api
-from tensorflow_data_validation.arrow import decoded_examples_to_arrow
 from tensorflow_data_validation.coders import csv_decoder
 from tensorflow_data_validation.coders import tf_example_decoder
 from tensorflow_data_validation.pyarrow_tf import tensorflow as tf
@@ -91,10 +90,8 @@ def validate_examples_in_tfrecord(
     _ = (
         p
         | 'ReadData' >> beam.io.ReadFromTFRecord(file_pattern=data_location)
-        | 'DecodeData' >> tf_example_decoder.DecodeTFExample()
-        | 'DecodeExampleToArrowTable' >> beam.Map(
-            lambda example: decoded_examples_to_arrow.DecodedExamplesToTable(  # pylint: disable=g-long-lambda
-                [example]))
+        | 'DecodeData' >> tf_example_decoder.DecodeTFExample(
+            desired_batch_size=1)
         | 'DetectAnomalies' >>
         validation_api.IdentifyAnomalousExamples(stats_options)
         |
@@ -181,10 +178,8 @@ def validate_examples_in_csv(
         | 'DecodeData' >> csv_decoder.DecodeCSV(
             column_names=column_names, delimiter=delimiter,
             schema=stats_options.schema,
-            infer_type_from_schema=stats_options.infer_type_from_schema)
-        | 'DecodeExampleToArrowTable' >> beam.Map(
-            lambda example: decoded_examples_to_arrow.DecodedExamplesToTable(  # pylint: disable=g-long-lambda
-                [example]))
+            infer_type_from_schema=stats_options.infer_type_from_schema,
+            desired_batch_size=1)
         | 'DetectAnomalies' >>
         validation_api.IdentifyAnomalousExamples(stats_options)
         |

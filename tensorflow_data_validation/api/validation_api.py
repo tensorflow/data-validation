@@ -373,6 +373,8 @@ def validate_instance(
 def _detect_anomalies_in_example(table,
                                  options):
   """Validates the example against the schema provided in `options`."""
+  # Verify that we have a single row.
+  assert table.num_rows == 1
   return (table, validate_instance(table, options))
 
 

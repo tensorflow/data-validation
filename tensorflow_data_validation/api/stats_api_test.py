@@ -24,6 +24,7 @@ import apache_beam as beam
 from apache_beam.testing import util
 import numpy as np
 from tensorflow_data_validation.api import stats_api
+from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.utils import test_util
 
@@ -34,16 +35,24 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 class StatsAPITest(absltest.TestCase):
 
   def test_stats_pipeline(self):
-    # input with three examples.
-    examples = [{'a': np.array([1.0, 2.0]),
-                 'b': np.array(['a', 'b', 'c', 'e'], dtype=np.object),
-                 'c': np.linspace(1, 500, 500, dtype=np.int32)},
-                {'a': np.array([3.0, 4.0, np.NaN, 5.0]),
-                 'b': np.array(['a', 'c', 'd', 'a'], np.object),
-                 'c': np.linspace(501, 1250, 750, dtype=np.int32)},
-                {'a': np.array([1.0]),
-                 'b': np.array(['a', 'b', 'c', 'd'], np.object),
-                 'c': np.linspace(1251, 3000, 1750, dtype=np.int32)}]
+    # input with three tables.
+    tables = [
+        pa.Table.from_arrays([
+            pa.array([[1.0, 2.0]]),
+            pa.array([['a', 'b', 'c', 'e']]),
+            pa.array([np.linspace(1, 500, 500, dtype=np.int32)]),
+        ], ['a', 'b', 'c']),
+        pa.Table.from_arrays([
+            pa.array([[3.0, 4.0, np.NaN, 5.0]]),
+            pa.array([['a', 'c', 'd', 'a']]),
+            pa.array([np.linspace(501, 1250, 750, dtype=np.int32)]),
+        ], ['a', 'b', 'c']),
+        pa.Table.from_arrays([
+            pa.array([[1.0]]),
+            pa.array([['a', 'b', 'c', 'd']]),
+            pa.array([np.linspace(1251, 3000, 1750, dtype=np.int32)]),
+        ], ['a', 'b', 'c'])
+    ]
 
     expected_result = text_format.Parse("""
     datasets {
@@ -286,7 +295,7 @@ class StatsAPITest(absltest.TestCase):
           num_quantiles_histogram_buckets=4,
           epsilon=0.001)
       result = (
-          p | beam.Create(examples) | stats_api.GenerateStatistics(options))
+          p | beam.Create(tables) | stats_api.GenerateStatistics(options))
       util.assert_that(
           result,
           test_util.make_dataset_feature_stats_list_proto_equal_fn(
@@ -359,18 +368,27 @@ class StatsAPITest(absltest.TestCase):
     """, statistics_pb2.DatasetFeatureStatisticsList())
 
   def test_stats_pipeline_with_examples_with_no_values(self):
-    examples = [{'a': np.array([], dtype=np.floating),
-                 'b': np.array([], dtype=np.object),
-                 'c': np.array([], dtype=np.int32),
-                 'w': np.array([2])},
-                {'a': np.array([], dtype=np.floating),
-                 'b': np.array([], dtype=np.object),
-                 'c': np.array([], dtype=np.int32),
-                 'w': np.array([2])},
-                {'a': np.array([], dtype=np.floating),
-                 'b': np.array([], dtype=np.object),
-                 'c': np.array([], dtype=np.int32),
-                 'w': np.array([2])}]
+    tables = [
+        pa.Table.from_arrays([
+            pa.array([[]], type=pa.list_(pa.float32())),
+            pa.array([[]], type=pa.list_(pa.binary())),
+            pa.array([[]], type=pa.list_(pa.int32())),
+            pa.array([[2]]),
+        ], ['a', 'b', 'c', 'w']),
+        pa.Table.from_arrays([
+            pa.array([[]], type=pa.list_(pa.float32())),
+            pa.array([[]], type=pa.list_(pa.binary())),
+            pa.array([[]], type=pa.list_(pa.int32())),
+            pa.array([[2]]),
+        ], ['a', 'b', 'c', 'w']),
+        pa.Table.from_arrays([
+            pa.array([[]], type=pa.list_(pa.float32())),
+            pa.array([[]], type=pa.list_(pa.binary())),
+            pa.array([[]], type=pa.list_(pa.int32())),
+            pa.array([[2]]),
+        ], ['a', 'b', 'c', 'w'])
+    ]
+
     expected_result = text_format.Parse(
         """
       datasets{
@@ -456,7 +474,7 @@ class StatsAPITest(absltest.TestCase):
           num_quantiles_histogram_buckets=1,
           epsilon=0.001)
       result = (
-          p | beam.Create(examples) | stats_api.GenerateStatistics(options))
+          p | beam.Create(tables) | stats_api.GenerateStatistics(options))
       util.assert_that(
           result,
           test_util.make_dataset_feature_stats_list_proto_equal_fn(
@@ -480,30 +498,38 @@ class StatsAPITest(absltest.TestCase):
               self, expected_result))
 
   def test_stats_pipeline_with_sample_count(self):
-    # input with three examples.
-    examples = [{'c': np.linspace(1, 3000, 3000, dtype=np.int32)},
-                {'c': np.linspace(1, 3000, 3000, dtype=np.int32)},
-                {'c': np.linspace(1, 3000, 3000, dtype=np.int32)}]
+    # input with three tables.
+    tables = [
+        pa.Table.from_arrays([
+            pa.array([np.linspace(1, 3000, 3000, dtype=np.int32)])], ['c']),
+        pa.Table.from_arrays([
+            pa.array([np.linspace(1, 3000, 3000, dtype=np.int32)])], ['c']),
+        pa.Table.from_arrays([
+            pa.array([np.linspace(1, 3000, 3000, dtype=np.int32)])], ['c']),
+    ]
 
     with beam.Pipeline() as p:
       options = stats_options.StatsOptions(
-          sample_count=1,
+          sample_count=3000,
           num_top_values=2,
           num_rank_histogram_buckets=2,
           num_values_histogram_buckets=2,
           num_histogram_buckets=2,
           num_quantiles_histogram_buckets=2,
-          epsilon=0.001)
+          epsilon=0.001,
+          desired_batch_size=3000)
       result = (
-          p | beam.Create(examples) | stats_api.GenerateStatistics(options))
+          p | beam.Create(tables) | stats_api.GenerateStatistics(options))
       util.assert_that(
           result,
           test_util.make_dataset_feature_stats_list_proto_equal_fn(
               self, self._sampling_test_expected_result))
 
   def test_stats_pipeline_with_sample_rate(self):
-    # input with three examples.
-    examples = [{'c': np.linspace(1, 3000, 3000, dtype=np.int32)}]
+    tables = [
+        pa.Table.from_arrays([
+            pa.array([np.linspace(1, 3000, 3000, dtype=np.int32)])], ['c']),
+    ]
 
     with beam.Pipeline() as p:
       options = stats_options.StatsOptions(
@@ -515,17 +541,17 @@ class StatsAPITest(absltest.TestCase):
           num_quantiles_histogram_buckets=2,
           epsilon=0.001)
       result = (
-          p | beam.Create(examples) | stats_api.GenerateStatistics(options))
+          p | beam.Create(tables) | stats_api.GenerateStatistics(options))
       util.assert_that(
           result,
           test_util.make_dataset_feature_stats_list_proto_equal_fn(
               self, self._sampling_test_expected_result))
 
   def test_invalid_stats_options(self):
-    examples = [{'a': np.array([1.0, 2.0])}]
+    tables = [pa.Table.from_arrays([])]
     with self.assertRaisesRegexp(TypeError, '.*should be a StatsOptions.'):
       with beam.Pipeline() as p:
-        _ = (p | beam.Create(examples)
+        _ = (p | beam.Create(tables)
              | stats_api.GenerateStatistics(options={}))
 
 

@@ -74,7 +74,9 @@ class StatsOptions(object):
         input and return a list of zero or more slice keys.
       sample_count: An optional number of examples to include in the sample. If
         specified, statistics is computed over the sample. Only one of
-        sample_count or sample_rate can be specified.
+        sample_count or sample_rate can be specified. Note that since TFDV
+        batches input examples, the sample count is only a desired count and we
+        may include more examples in certain cases.
       sample_rate: An optional sampling rate. If specified, statistics is
         computed over the sample. Only one of sample_count or sample_rate can
         be specified.

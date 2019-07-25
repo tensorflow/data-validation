@@ -17,6 +17,8 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
+from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
+
 
 TF_EXAMPLE_DECODER_TESTS = [
     {
@@ -142,13 +144,14 @@ BEAM_TF_EXAMPLE_DECODER_TESTS = [
             }
           }
         ''',
-        'decoded_example': {
-            'int_feature_1': np.array([0], dtype=np.int64),
-            'int_feature_2': np.array([1, 2, 3], dtype=np.int64),
-            'float_feature_1': np.array([4.0], dtype=np.float32),
-            'float_feature_2': np.array([5.0, 6.0], dtype=np.float32),
-            'str_feature_1': np.array([b'female'], dtype=np.object),
-            'str_feature_2': np.array([b'string', b'list'], dtype=np.object),
-        }
+        'decoded_table': pa.Table.from_arrays([
+            pa.array([[0]], pa.list_(pa.int64())),
+            pa.array([[1, 2, 3]], pa.list_(pa.int64())),
+            pa.array([[4.0]], pa.list_(pa.float32())),
+            pa.array([[5.0, 6.0]], pa.list_(pa.float32())),
+            pa.array([[b'female']], pa.list_(pa.binary())),
+            pa.array([[b'string', b'list']], pa.list_(pa.binary()))
+        ], ['int_feature_1', 'int_feature_2', 'float_feature_1',
+            'float_feature_2', 'str_feature_1', 'str_feature_2'])
     },
 ]

@@ -46,7 +46,9 @@ from __future__ import print_function
 
 import random
 import apache_beam as beam
+from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
+from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.types_compat import Generator
@@ -55,7 +57,7 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
 # TODO(b/112146483): Test the Stats API with unicode input.
-@beam.typehints.with_input_types(types.BeamExample)
+@beam.typehints.with_input_types(pa.Table)
 @beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatisticsList)
 class GenerateStatistics(beam.PTransform):
   """API for generating data statistics.
@@ -97,12 +99,19 @@ class GenerateStatistics(beam.PTransform):
     # TODO(b/117229955): Consider providing an option to write the sample
     # to a file.
     if self._options.sample_count is not None:
+      # TODO(pachristopher): Consider moving the sampling logic to decoders.
       # beam.combiners.Sample.FixedSizeGlobally returns a
-      # PCollection[List[types.Example]], which we then flatten to get a
-      # PCollection[types.Example].
+      # PCollection[List[pa.Table]], which we then flatten to get a
+      # PCollection[pa.Table].
+      batch_size = (
+          self._options.desired_batch_size if self._options.desired_batch_size
+          and self._options.desired_batch_size > 0 else
+          constants.DEFAULT_DESIRED_INPUT_BATCH_SIZE)
+      batch_count = (
+          int(self._options.sample_count / batch_size) +
+          (1 if self._options.sample_count % batch_size else 0))
       dataset |= ('SampleExamples(%s)' % self._options.sample_count >>
-                  beam.combiners.Sample.FixedSizeGlobally(
-                      self._options.sample_count)
+                  beam.combiners.Sample.FixedSizeGlobally(batch_count)
                   | 'FlattenExamples' >> beam.FlatMap(lambda lst: lst))
     elif self._options.sample_rate is not None:
       dataset |= ('SampleExamplesAtRate(%s)' % self._options.sample_rate >>

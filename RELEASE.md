@@ -76,6 +76,7 @@
   }
   ```
 * Change `validate_instance` API to accept an Arrow table instead of a Dict.
+* Change `GenerateStatistics` API to accept Arrow tables as input.
 
 ## Deprecations
 

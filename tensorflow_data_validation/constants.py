@@ -24,3 +24,9 @@ DEFAULT_SLICE_KEY = 'All Examples'
 
 # Namespace for all TFDV metrics.
 METRICS_NAMESPACE = 'tfx.DataValidation'
+
+# Default input batch size.
+# This needs to be large enough to allow for efficient TF invocations during
+# batch flushing, but shouldn't be too large as it also acts as cap on the
+# maximum memory usage of the computation.
+DEFAULT_DESIRED_INPUT_BATCH_SIZE = 1000
