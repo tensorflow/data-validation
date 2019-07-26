@@ -41,7 +41,27 @@ The recommended way to install TFDV is using the
 pip install tensorflow-data-validation
 ```
 
-## Installing from source
+## Build with Docker
+
+This is the recommended way to build TFDV under Linux, and is continuously
+tested at Google.
+
+Please first install `docker` and `docker-compose` by following the directions:
+[docker](https://docs.docker.com/install/);
+[docker-compose](https://docs.docker.com/compose/install/).
+
+Then, run the following at the project root:
+
+```bash
+DOCKER_SERVICE=manylinux-python${PY_VERSION}
+sudo docker-compose build ${DOCKER_SERVICE}
+sudo docker-compose run ${DOCKER_SERVICE}
+```
+where `PY_VERSION` is one of `{27, 35, 36, 37}`.
+
+A wheel will be produced under `dist/`.
+
+## Build from source
 
 ### 1. Prerequisites
 

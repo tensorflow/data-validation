@@ -15,8 +15,6 @@
 
 # This script prepares the bazel workspace for build.
 
-PYARROW_REQUIREMENT=$(python -c "fp = open('third_party/pyarrow_version.bzl', 'r'); d = {}; exec(fp.read(), d); fp.close(); print(d['PY_DEP'])")
-
 function write_to_bazelrc() {
   echo "$1" >> .bazelrc
 }
@@ -26,7 +24,7 @@ function write_action_env_to_bazelrc() {
 }
 
 function has_pyarrow() {
-  python -c "import pyarrow" > /dev/null
+  ${PYTHON_BIN_PATH} -c "import pyarrow" > /dev/null
 }
 
 function ensure_pyarrow() {
@@ -38,15 +36,20 @@ function ensure_pyarrow() {
   fi
 }
 
-PYTHON_BIN_PATH="$1"
-if [[ -z "$1" ]]; then
-  PYTHON_BIN_PATH=python
+if [[ -z "${PYTHON_BIN_PATH}" ]]; then
+  if [[ -z "$1" ]]; then
+    PYTHON_BIN_PATH="$(which python)"
+  else
+    PYTHON_BIN_PATH="$1"
+  fi
 fi
+
+PYARROW_REQUIREMENT=$(${PYTHON_BIN_PATH} -c "fp = open('third_party/pyarrow_version.bzl', 'r'); d = {}; exec(fp.read(), d); fp.close(); print(d['PY_DEP'])")
 
 ensure_pyarrow
 
-ARROW_HEADER_DIR=( $(python -c 'import pyarrow as pa; print(pa.get_include().replace("\\", "\\\\"))') )
-ARROW_SHARED_LIBRARY_DIR=( $(python -c 'import pyarrow as pa; print(pa.get_library_dirs()[0].replace("\\", "\\\\"))') )
+ARROW_HEADER_DIR=( $("${PYTHON_BIN_PATH}" -c 'import pyarrow as pa; print(pa.get_include().replace("\\", "\\\\"))') )
+ARROW_SHARED_LIBRARY_DIR=( $("${PYTHON_BIN_PATH}" -c 'import pyarrow as pa; print(pa.get_library_dirs()[0].replace("\\", "\\\\"))') )
 
 echo "Found pyarrow headers at... ${ARROW_HEADER_DIR}"
 echo "Found pyarrow shared libraries at... ${ARROW_SHARED_LIBRARY_DIR}"

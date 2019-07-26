@@ -21,6 +21,7 @@
 * Add support for validating changes in the number of examples between the
   current and previous spans of data (using the existing `validate_statistics`
   function).
+* Support building a manylinux2010 compliant wheel in docker.
 
 ## Bug Fixes and Other Changes
 
