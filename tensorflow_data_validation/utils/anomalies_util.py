@@ -20,7 +20,7 @@ from __future__ import print_function
 
 from tensorflow_data_validation import types
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
-from tensorflow_data_validation.types_compat import List, Set, Text, Tuple
+from typing import List, Set, Text, Tuple
 from google.protobuf import text_format
 # TODO(b/125849585): Update to import from TF directly.
 from tensorflow.python.lib.io import file_io  # pylint: disable=g-direct-tensorflow-import
@@ -31,7 +31,7 @@ MULTIPLE_ERRORS_SHORT_DESCRIPTION = 'Multiple errors'
 
 
 def _make_updated_descriptions(
-    reasons):
+    reasons: List[anomalies_pb2.AnomalyInfo.Reason]) -> Tuple[Text, Text]:
   """Returns descriptions based on the specified reasons."""
   # If we only have one reason, use its descriptions. Alternatively, if the only
   # reasons for the anomaly are of type SCHEMA_NEW_COLUMN, then just use one of
@@ -47,8 +47,8 @@ def _make_updated_descriptions(
 
 
 def remove_anomaly_types(
-    anomalies,
-    types_to_remove):
+    anomalies: anomalies_pb2.Anomalies,
+    types_to_remove: Set['anomalies_pb2.AnomalyInfo.Type']) -> None:
   """Removes the specified types of anomaly reasons from an Anomalies proto.
 
   If all reasons for a given feature's anomalies are removed, the entire feature
@@ -92,8 +92,8 @@ def remove_anomaly_types(
 
 
 def anomalies_slicer(
-    unused_example,
-    anomalies):
+    unused_example: pa.Table,
+    anomalies: anomalies_pb2.Anomalies) -> types.SliceKeysList:
   """Returns slice keys for an example based on the given Anomalies proto.
 
   This slicer will generate a slice key for each anomaly reason in the proto.
@@ -115,8 +115,8 @@ def anomalies_slicer(
   return slice_keys
 
 
-def write_anomalies_text(anomalies,
-                         output_path):
+def write_anomalies_text(anomalies: anomalies_pb2.Anomalies,
+                         output_path: Text) -> None:
   """Writes the Anomalies proto to a file in text format.
 
   Args:
@@ -135,7 +135,7 @@ def write_anomalies_text(anomalies,
   file_io.write_string_to_file(output_path, anomalies_text)
 
 
-def load_anomalies_text(input_path):
+def load_anomalies_text(input_path: Text) -> anomalies_pb2.Anomalies:
   """Loads the Anomalies proto stored in text format in the input path.
 
   Args:

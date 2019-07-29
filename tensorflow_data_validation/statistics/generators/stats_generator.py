@@ -55,7 +55,7 @@ from __future__ import print_function
 
 import apache_beam as beam
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
-from tensorflow_data_validation.types_compat import Iterable, Optional, Text, TypeVar
+from typing import Iterable, Optional, Text, TypeVar
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
@@ -63,8 +63,8 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 class StatsGenerator(object):
   """Generate statistics."""
 
-  def __init__(self, name,
-               schema = None):
+  def __init__(self, name: Text,
+               schema: Optional[schema_pb2.Schema] = None) -> None:
     """Initializes a statistics generator.
 
     Args:
@@ -94,7 +94,7 @@ class CombinerStatsGenerator(StatsGenerator):
   is expected to be defined by its sub-classes.
   """
 
-  def create_accumulator(self):  # pytype: disable=invalid-annotation
+  def create_accumulator(self) -> ACCTYPE:  # pytype: disable=invalid-annotation
     """Returns a fresh, empty accumulator.
 
     Returns:
@@ -103,7 +103,7 @@ class CombinerStatsGenerator(StatsGenerator):
     raise NotImplementedError
 
   def add_input(
-      self, accumulator, input_table):
+      self, accumulator: ACCTYPE, input_table: pa.Table) -> ACCTYPE:
     """Returns result of folding a batch of inputs into accumulator.
 
     Args:
@@ -118,7 +118,7 @@ class CombinerStatsGenerator(StatsGenerator):
     """
     raise NotImplementedError
 
-  def merge_accumulators(self, accumulators):
+  def merge_accumulators(self, accumulators: Iterable[ACCTYPE]) -> ACCTYPE:
     """Merges several accumulators to a single accumulator value.
 
     Note: mutating any element in `accumulators` is not allowed and will result
@@ -133,8 +133,8 @@ class CombinerStatsGenerator(StatsGenerator):
     raise NotImplementedError
 
   def extract_output(
-      self, accumulator
-  ):  # pytype: disable=invalid-annotation
+      self, accumulator: ACCTYPE
+  ) -> statistics_pb2.DatasetFeatureStatistics:  # pytype: disable=invalid-annotation
     """Returns result of converting accumulator into the output value.
 
     Args:
@@ -154,7 +154,7 @@ class CombinerFeatureStatsGenerator(StatsGenerator):
   a beam.CombineFn for the values of a specific feature.
   """
 
-  def create_accumulator(self):  # pytype: disable=invalid-annotation
+  def create_accumulator(self) -> ACCTYPE:  # pytype: disable=invalid-annotation
     """Returns a fresh, empty accumulator.
 
     Returns:
@@ -162,8 +162,8 @@ class CombinerFeatureStatsGenerator(StatsGenerator):
     """
     raise NotImplementedError
 
-  def add_input(self, accumulator, input_column
-               ):
+  def add_input(self, accumulator: ACCTYPE, input_column: pa.Column
+               ) -> ACCTYPE:
     """Returns result of folding a batch of inputs into accumulator.
 
     Args:
@@ -176,7 +176,7 @@ class CombinerFeatureStatsGenerator(StatsGenerator):
     """
     raise NotImplementedError
 
-  def merge_accumulators(self, accumulators):
+  def merge_accumulators(self, accumulators: Iterable[ACCTYPE]) -> ACCTYPE:
     """Merges several accumulators to a single accumulator value.
 
     Args:
@@ -188,7 +188,7 @@ class CombinerFeatureStatsGenerator(StatsGenerator):
     raise NotImplementedError
 
   def extract_output(
-      self, accumulator):  # pytype: disable=invalid-annotation
+      self, accumulator: ACCTYPE) -> statistics_pb2.FeatureNameStatistics:  # pytype: disable=invalid-annotation
     """Returns result of converting accumulator into the output value.
 
     Args:
@@ -210,9 +210,9 @@ class TransformStatsGenerator(StatsGenerator):
   """
 
   def __init__(self,
-               name,
-               ptransform,
-               schema = None):
+               name: Text,
+               ptransform: beam.PTransform,
+               schema: Optional[schema_pb2.Schema] = None) -> None:
     self._ptransform = ptransform
     super(TransformStatsGenerator, self).__init__(name, schema)
 

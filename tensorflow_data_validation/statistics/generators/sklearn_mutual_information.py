@@ -30,7 +30,7 @@ from tensorflow_data_validation.statistics.generators import partitioned_stats_g
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
 
-from tensorflow_data_validation.types_compat import Dict, List, Set, Text
+from typing import Dict, List, Set, Text
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -42,8 +42,8 @@ CATEGORICAL_FEATURE_IMPUTATION_FILL_VALUE = "__missing_category__"
 
 
 # TODO(b/117650247): sk-learn MI can't handle NaN, None or multivalent features
-def _remove_unsupported_feature_columns(examples_table,
-                                        schema):
+def _remove_unsupported_feature_columns(examples_table: pa.Table,
+                                        schema: schema_pb2.Schema) -> pa.Table:
   """Removes feature columns that contain unsupported values.
 
   All feature columns that are multivalent are dropped since they are
@@ -63,9 +63,9 @@ def _remove_unsupported_feature_columns(examples_table,
   return examples_table.drop(unsupported_columns)
 
 
-def _flatten_and_impute(examples_table,
-                        categorical_features
-                       ):
+def _flatten_and_impute(examples_table: pa.Table,
+                        categorical_features: Set[types.FeaturePath]
+                       ) -> Dict[types.FeaturePath, np.ndarray]:
   """Flattens and imputes the values in the input Arrow table.
 
   Replaces missing values with CATEGORICAL_FEATURE_IMPUTATION_FILL_VALUE
@@ -132,8 +132,8 @@ class SkLearnMutualInformation(partitioned_stats_generator.PartitionedStatsFn):
   method will not report statistics for these invalid features.
   """
 
-  def __init__(self, label_feature,
-               schema, seed):
+  def __init__(self, label_feature: types.FeaturePath,
+               schema: schema_pb2.Schema, seed: int):
     """Initializes SkLearnMutualInformation.
 
     Args:
@@ -155,8 +155,8 @@ class SkLearnMutualInformation(partitioned_stats_generator.PartitionedStatsFn):
     # Seed the RNG used for shuffling and for MI computations.
     np.random.seed(seed)
 
-  def compute(self, examples_table
-             ):
+  def compute(self, examples_table: pa.Table
+             ) -> statistics_pb2.DatasetFeatureStatistics:
     """Computes MI and AMI between all valid features and labels.
 
     Args:
@@ -185,9 +185,9 @@ class SkLearnMutualInformation(partitioned_stats_generator.PartitionedStatsFn):
     return stats_util.make_dataset_feature_stats_proto(
         self._calculate_mi(df, labels, discrete_feature_mask, seed=self._seed))
 
-  def _calculate_mi(self, df, labels,
-                    discrete_feature_mask,
-                    seed):
+  def _calculate_mi(self, df: pd.DataFrame, labels: np.ndarray,
+                    discrete_feature_mask: List[bool],
+                    seed: int) -> Dict[types.FeaturePath, Dict[Text, float]]:
     """Calls the sk-learn implementation of MI and stores results in dict.
 
     Args:
@@ -248,7 +248,7 @@ class SkLearnMutualInformation(partitioned_stats_generator.PartitionedStatsFn):
     return result
 
   def _convert_categorical_features_to_numeric(self,
-                                               df):
+                                               df: pd.DataFrame) -> List[bool]:
     """Encodes all categorical features in input dataframe to numeric values.
 
     Categorical features are inferred from the schema. They are transformed

@@ -31,23 +31,23 @@ from tensorflow_data_validation.arrow import merge
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import stats_util
-from tensorflow_data_validation.types_compat import Dict, Iterable, List, Text, Tuple
+from typing import Dict, Iterable, List, Text, Tuple
 
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
 # TODO(b/117937992): Seed RNG so MI and partitioner are determenistic in test
-def _assign_to_partition(sliced_table,
-                         num_partitions
-                        ):
+def _assign_to_partition(sliced_table: types.SlicedTable,
+                         num_partitions: int
+                        ) -> Tuple[Tuple[types.SliceKey, int], pa.Table]:
   """Assigns an example to a partition key."""
   slice_key, table = sliced_table
   return (slice_key, np.random.randint(num_partitions)), table
 
 
 def _get_partitioned_statistics_summary(
-    statistics
-):
+    statistics: Dict[types.FeaturePath, Dict[Text, np.ndarray]]
+) -> Dict[types.FeaturePath, Dict[Text, float]]:
   """Computes meta-statistics over the custom stats in the input dict."""
 
   summary = collections.defaultdict(collections.defaultdict)
@@ -64,9 +64,9 @@ def _get_partitioned_statistics_summary(
 
 
 def get_valid_statistics(
-    statistics,
-    min_partitions_stat_presence
-):
+    statistics: Dict[types.FeaturePath, Dict[Text, np.ndarray]],
+    min_partitions_stat_presence: int
+) -> Dict[types.FeaturePath, Dict[Text, np.ndarray]]:
   """Filters out statistics that were not computed over all partitions."""
   valid_statistics = collections.defaultdict(collections.defaultdict)
   for feature_path, feature_statistics in statistics.items():
@@ -92,8 +92,8 @@ class PartitionedStatsFn(object):
   a statistic value for any invalid features.
   """
 
-  def compute(self, examples
-             ):
+  def compute(self, examples: types.ExampleBatch
+             ) -> statistics_pb2.DatasetFeatureStatistics:
     """Computes custom statistics over the batch of examples.
 
     Args:
@@ -130,21 +130,21 @@ class PartitionedStatisticsAnalyzer(beam.CombineFn):
   threshold.
   """
 
-  def __init__(self, min_partitions_stat_presence):
+  def __init__(self, min_partitions_stat_presence: int):
     """Initializes the analyzer."""
 
     # Meta-stats are only computed if a stat is found in at least
     # min_partitions_stat_presence number of partitions.
     self._min_partitions_stat_presence = min_partitions_stat_presence
 
-  def create_accumulator(self):
+  def create_accumulator(self) -> _PartitionedStatisticsAnalyzerAccumulator:
     """Creates an accumulator, which stores partial state of meta-statistics."""
 
     return _PartitionedStatisticsAnalyzerAccumulator()
 
-  def add_input(self, accumulator,
-                statistic
-               ):
+  def add_input(self, accumulator: _PartitionedStatisticsAnalyzerAccumulator,
+                statistic: statistics_pb2.DatasetFeatureStatistics
+               ) -> _PartitionedStatisticsAnalyzerAccumulator:
     """Adds the input (DatasetFeatureStatistics) into the accumulator."""
 
     for feature in statistic.features:
@@ -155,8 +155,8 @@ class PartitionedStatisticsAnalyzer(beam.CombineFn):
     return accumulator
 
   def merge_accumulators(
-      self, accumulators
-  ):
+      self, accumulators: Iterable[_PartitionedStatisticsAnalyzerAccumulator]
+  ) -> _PartitionedStatisticsAnalyzerAccumulator:
     """Merges together a list of PartitionedStatisticsAnalyzerAccumulators."""
 
     result = _PartitionedStatisticsAnalyzerAccumulator()
@@ -167,8 +167,8 @@ class PartitionedStatisticsAnalyzer(beam.CombineFn):
     return result
 
   def extract_output(self,
-                     accumulator
-                    ):
+                     accumulator: _PartitionedStatisticsAnalyzerAccumulator
+                    ) -> statistics_pb2.DatasetFeatureStatistics:
     """Returns meta-statistics as a DatasetFeatureStatistics proto."""
 
     valid_stats_summary = _get_partitioned_statistics_summary(
@@ -178,9 +178,9 @@ class PartitionedStatisticsAnalyzer(beam.CombineFn):
 
 
 def _process_partition(
-    partition,
-    stats_fn
-):
+    partition: Tuple[Tuple[types.SliceKey, int], List[pa.Table]],
+    stats_fn: PartitionedStatsFn
+) -> Tuple[types.SliceKey, statistics_pb2.DatasetFeatureStatistics]:
   """Process batches in a single partition."""
   (slice_key, _), tables = partition
   return slice_key, stats_fn.compute(merge.MergeTables(tables))
@@ -194,10 +194,10 @@ def _process_partition(
 class _GenerateNonStreamingCustomStats(beam.PTransform):
   """A beam.PTransform that implements NonStreamingCustomStatsGenerator."""
 
-  def __init__(self, stats_fn,
-               num_partitions, min_partitions_stat_presence,
-               seed, max_examples_per_partition, batch_size,
-               name):
+  def __init__(self, stats_fn: PartitionedStatsFn,
+               num_partitions: int, min_partitions_stat_presence: int,
+               seed: int, max_examples_per_partition: int, batch_size: int,
+               name: Text) -> None:
     """Initializes _GenerateNonStreamingCustomStats."""
 
     self._stats_fn = stats_fn
@@ -210,7 +210,7 @@ class _GenerateNonStreamingCustomStats(beam.PTransform):
     # Seeds the random number generator used in the partitioner.
     np.random.seed(self._seed)
 
-  def expand(self, pcoll):
+  def expand(self, pcoll: beam.pvalue.PCollection) -> beam.pvalue.PCollection:
     """Estimates the user defined statistic."""
 
     return (
@@ -244,13 +244,13 @@ class NonStreamingCustomStatsGenerator(stats_generator.TransformStatsGenerator):
 
   def __init__(
       self,
-      stats_fn,
-      num_partitions,
-      min_partitions_stat_presence,
-      seed,
-      max_examples_per_partition,
-      batch_size = 1000,
-      name = 'NonStreamingCustomStatsGenerator'):
+      stats_fn: PartitionedStatsFn,
+      num_partitions: int,
+      min_partitions_stat_presence: int,
+      seed: int,
+      max_examples_per_partition: int,
+      batch_size: int = 1000,
+      name: Text = 'NonStreamingCustomStatsGenerator') -> None:
     """Initializes NonStreamingCustomStatsGenerator.
 
     Args:

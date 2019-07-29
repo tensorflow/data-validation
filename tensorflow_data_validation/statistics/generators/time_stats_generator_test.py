@@ -352,7 +352,7 @@ class TimeStatsGeneratorTest(test_util.CombinerFeatureStatsGeneratorTest):
     ]
     generator = time_stats_generator.TimeStatsGenerator(
         match_ratio=0.1, values_threshold=1)
-    assert schema_pb2.TimeDomain.IntegerTimeFormat.UNIX_SECONDS == 1
+    assert schema_pb2.TimeDomain.UNIX_SECONDS == 1
     self.assertCombinerOutputEqual(
         input_batches, generator,
         statistics_pb2.FeatureNameStatistics(custom_stats=[

@@ -28,7 +28,7 @@ from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.arrow import merge
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.utils import stats_util
-from tensorflow_data_validation.types_compat import Any, Dict, Iterable, Optional, Text, Union
+from typing import Any, Dict, Iterable, Optional, Text, Union
 
 _ValueType = Iterable[Union[Text, int]]
 
@@ -36,15 +36,15 @@ _PARENT_INDEX_COLUMN = '__TFDV_INTERNAL_PARENT_INDEX__'
 _SLICE_KEY_COLUMN = '__TFDV_INTERNAL_SLICE_KEY__'
 
 
-def default_slicer(table
-                  ):
+def default_slicer(table: pa.Table
+                  ) -> Iterable[types.SlicedTable]:
   """Default slicing function that adds the default slice key to the input."""
   yield (constants.DEFAULT_SLICE_KEY, table)
 
 
 def get_feature_value_slicer(
-    features
-):
+    features: Dict[types.FeatureName, Optional[_ValueType]]
+) -> types.SliceFunction:
   """Returns a function that generates sliced tables for a given table.
 
   The returned function returns sliced tables based on the combination of all
@@ -171,7 +171,7 @@ def get_feature_value_slicer(
   return feature_value_slicer
 
 
-def _to_slice_key(feature_value):
+def _to_slice_key(feature_value: Any):
   """Decode slice key as UTF-8."""
   # For bytes features we try decoding it as utf-8 (and throw an error if
   # fails). This is because in stats proto the slice name (dataset name) is a
@@ -186,8 +186,8 @@ def _to_slice_key(feature_value):
 
 
 def generate_slices(
-    table, slice_functions,
-    **kwargs):
+    table: pa.Table, slice_functions: Iterable[types.SliceFunction],
+    **kwargs) -> Iterable[types.SlicedTable]:
   """Generates sliced tables based on provided slice functions.
 
   Args:

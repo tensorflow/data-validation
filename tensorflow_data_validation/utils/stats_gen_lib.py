@@ -41,19 +41,19 @@ from tensorflow_data_validation.pyarrow_tf import tensorflow as tf
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options as options
 from tensorflow_data_validation.statistics.generators import stats_generator
-from tensorflow_data_validation.types_compat import Any, List, Optional, Text
+from typing import Any, List, Optional, Text
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
 def generate_statistics_from_tfrecord(
-    data_location,
-    output_path = None,
-    stats_options = options.StatsOptions(),
-    pipeline_options = None,
-    compression_type = CompressionTypes.AUTO,
-):
+    data_location: Text,
+    output_path: Optional[bytes] = None,
+    stats_options: options.StatsOptions = options.StatsOptions(),
+    pipeline_options: Optional[PipelineOptions] = None,
+    compression_type: Text = CompressionTypes.AUTO,
+) -> statistics_pb2.DatasetFeatureStatisticsList:
   """Compute data statistics from TFRecord files containing TFExamples.
 
   Runs a Beam pipeline to compute the data statistics and return the result
@@ -116,14 +116,14 @@ def generate_statistics_from_tfrecord(
 
 
 def generate_statistics_from_csv(
-    data_location,
-    column_names = None,
-    delimiter = ',',
-    output_path = None,
-    stats_options = options.StatsOptions(),
-    pipeline_options = None,
-    compression_type = CompressionTypes.AUTO,
-):
+    data_location: Text,
+    column_names: Optional[List[types.FeatureName]] = None,
+    delimiter: Text = ',',
+    output_path: Optional[bytes] = None,
+    stats_options: options.StatsOptions = options.StatsOptions(),
+    pipeline_options: Optional[PipelineOptions] = None,
+    compression_type: Text = CompressionTypes.AUTO,
+) -> statistics_pb2.DatasetFeatureStatisticsList:
   """Compute data statistics from CSV files.
 
   Runs a Beam pipeline to compute the data statistics and return the result
@@ -198,10 +198,10 @@ def generate_statistics_from_csv(
 
 
 def generate_statistics_from_dataframe(
-    dataframe,
-    stats_options = options.StatsOptions(),
-    n_jobs = 1
-):
+    dataframe: pd.DataFrame,
+    stats_options: options.StatsOptions = options.StatsOptions(),
+    n_jobs: int = 1
+) -> statistics_pb2.DatasetFeatureStatisticsList:
   """Compute data statistics for the input pandas DataFrame.
 
   This is a utility method for users with in-memory data represented
@@ -248,10 +248,10 @@ def generate_statistics_from_dataframe(
 
 
 def _generate_partial_statistics_from_df(
-    dataframe,
-    stats_options,
-    stats_generators
-):
+    dataframe: pd.DataFrame,
+    stats_options: options.StatsOptions,
+    stats_generators: List[stats_generator.CombinerStatsGenerator]
+) -> List[Any]:
   """Generate accumulators containing partial stats."""
   inmemory_dicts = [{} for _ in range(len(dataframe))]
   isnull = pd.isnull
@@ -299,8 +299,8 @@ def _generate_partial_statistics_from_df(
       stats_options, stats_generators)
 
 
-def get_csv_header(data_location,
-                   delimiter):
+def get_csv_header(data_location: Text,
+                   delimiter: Text) -> List[types.FeatureName]:
   """Gets the CSV header from the input files.
 
   This function assumes that the header is present as the first line in all
@@ -345,7 +345,7 @@ def get_csv_header(data_location,
 
 
 def load_statistics(
-    input_path):
+    input_path: Text) -> statistics_pb2.DatasetFeatureStatisticsList:
   """Loads data statistics proto from file.
 
   Args:

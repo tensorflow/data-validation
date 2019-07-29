@@ -43,7 +43,7 @@ from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.pyarrow_tf import tensorflow as tf
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import stats_util
-from tensorflow_data_validation.types_compat import List, Iterable, Text
+from typing import List, Iterable, Text
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 _DOMAIN_INFO = 'domain_info'
@@ -61,7 +61,7 @@ class ImageDecoderInterface(six.with_metaclass(abc.ABCMeta)):
   """Interface for extracting image formats and sizes."""
 
   @abc.abstractmethod
-  def get_formats(self, values):
+  def get_formats(self, values: np.ndarray) -> np.ndarray:
     """Returns the image format name for each value if it represents an image.
 
     Args:
@@ -75,7 +75,7 @@ class ImageDecoderInterface(six.with_metaclass(abc.ABCMeta)):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def get_sizes(self, values):
+  def get_sizes(self, values: np.ndarray) -> np.ndarray:
     """Returns the image size for each value if it represents an image.
 
     Args:
@@ -135,7 +135,7 @@ class TfImageDecoder(ImageDecoderInterface):
     self._lazy_get_sizes_callable = self._session.make_callable(
         fetches=self._image_shapes, feed_list=[self._batch_image_input])
 
-  def get_formats(self, values):
+  def get_formats(self, values: List[np.object]) -> np.ndarray:
     """Returns the image format name for each value if it represents an image.
 
     Args:
@@ -148,7 +148,7 @@ class TfImageDecoder(ImageDecoderInterface):
     get_format = functools.partial(imghdr.what, None)
     return np.vectorize(get_format, otypes=[np.object])(values)
 
-  def get_sizes(self, values):
+  def get_sizes(self, values: np.ndarray) -> np.ndarray:
     """Returns the image size for each value if it represents an image.
 
     Args:
@@ -186,7 +186,7 @@ class _PartialImageStats(object):
     self.counter_by_format = collections.Counter()
     self.invalidate = False
 
-  def __iadd__(self, other):
+  def __iadd__(self, other: '_PartialImageStats') -> '_PartialImageStats':
     """Merge two partial image stats."""
     self.total_num_values += other.total_num_values
     self.max_width = max(self.max_width, other.max_width)
@@ -200,11 +200,11 @@ class ImageStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
   """Computes the statistics for features of image format."""
 
   def __init__(self,
-               image_decoder = None,
-               name = 'ImageStatsGenerator',
-               is_image_ratio_threshold = _IS_IMAGE_RATIO,
-               values_threshold = _VALUES_THRESHOLD,
-               enable_size_stats = False):
+               image_decoder: ImageDecoderInterface = None,
+               name: Text = 'ImageStatsGenerator',
+               is_image_ratio_threshold: float = _IS_IMAGE_RATIO,
+               values_threshold: int = _VALUES_THRESHOLD,
+               enable_size_stats: bool = False):
     """Initializes an image statistics generator.
 
     Args:
@@ -228,7 +228,7 @@ class ImageStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     self._values_threshold = values_threshold
     self._enable_size_stats = enable_size_stats
 
-  def create_accumulator(self):
+  def create_accumulator(self) -> _PartialImageStats:
     """Return a fresh, empty accumulator.
 
     Returns:
@@ -236,8 +236,8 @@ class ImageStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     """
     return _PartialImageStats()
 
-  def add_input(self, accumulator,
-                input_column):
+  def add_input(self, accumulator: _PartialImageStats,
+                input_column: pa.Column) -> _PartialImageStats:
     """Return result of folding a batch of inputs into accumulator.
 
     Args:
@@ -287,7 +287,7 @@ class ImageStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     return accumulator
 
   def merge_accumulators(
-      self, accumulators):
+      self, accumulators: Iterable[_PartialImageStats]) -> _PartialImageStats:
     """Merges several accumulators to a single accumulator value.
 
     Args:
@@ -301,8 +301,8 @@ class ImageStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
       result += accumulator
     return result
 
-  def extract_output(self, accumulator
-                    ):
+  def extract_output(self, accumulator: _PartialImageStats
+                    ) -> statistics_pb2.FeatureNameStatistics:
     """Return result of converting accumulator into the output value.
 
     Args:

@@ -57,7 +57,7 @@ from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import quantiles_util
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
-from tensorflow_data_validation.types_compat import Any, Dict, Iterable, Optional, Text
+from typing import Any, Dict, Iterable, Optional, Text
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -70,7 +70,7 @@ class _PartialCommonStats(object):
                'total_num_values', 'type', 'num_values_summary', 'has_weights',
                'weighted_num_non_missing', 'weighted_total_num_values']
 
-  def __init__(self, has_weights):
+  def __init__(self, has_weights: bool):
     # The number of examples with at least one value for this feature.
     self.num_non_missing = 0
     # The minimum number of values in a single example for this feature.
@@ -94,7 +94,7 @@ class _PartialCommonStats(object):
       # The sum of weights of all the values for this feature.
       self.weighted_total_num_values = 0
 
-  def __iadd__(self, other):
+  def __iadd__(self, other: '_PartialCommonStats') -> '_PartialCommonStats':
     """Merge two partial common statistics and return the merged statistics."""
     self.num_non_missing += other.num_non_missing
     self.min_num_values = min(self.min_num_values, other.min_num_values)
@@ -118,10 +118,10 @@ class _PartialCommonStats(object):
     return self
 
   def update(self,
-             feature_column,
-             feature_type,
-             num_values_quantiles_combiner,
-             weights = None):
+             feature_column: pa.Column,
+             feature_type: types.FeatureNameStatisticsType,
+             num_values_quantiles_combiner: Any,
+             weights: Optional[np.ndarray] = None) -> None:
     """Update the partial common statistics using the input value."""
     # All the values in this column is null and we cannot deduce the type of
     # the feature. This is not an error as this feature might have some values
@@ -176,7 +176,7 @@ class _PartialNumericStats(object):
                'weighted_sum_of_squares', 'weighted_total_num_values',
                'weighted_quantiles_summary']
 
-  def __init__(self, has_weights):
+  def __init__(self, has_weights: bool):
     # Explicitly make the sum and the sum of squares to be float in order to
     # avoid numpy overflow warnings.
     # The sum of all the values for this feature.
@@ -208,7 +208,7 @@ class _PartialNumericStats(object):
       # Summary of the weighted quantiles for the values in this feature.
       self.weighted_quantiles_summary = ''
 
-  def __iadd__(self, other):
+  def __iadd__(self, other: '_PartialNumericStats') -> '_PartialNumericStats':
     """Merge two partial numeric statistics and return the merged statistics."""
     self.sum += other.sum
     self.sum_of_squares += other.sum_of_squares
@@ -226,9 +226,9 @@ class _PartialNumericStats(object):
 
   def update(
       self,
-      feature_column,
-      values_quantiles_combiner,
-      weights = None):
+      feature_column: pa.Column,
+      values_quantiles_combiner: Any,
+      weights: Optional[np.ndarray] = None) -> None:
     """Update the partial numeric statistics using the input value."""
 
     # np.max / np.min below cannot handle empty arrays. And there's nothing
@@ -284,12 +284,12 @@ class _PartialStringStats(object):
     # The total length of all the values for this feature.
     self.total_bytes_length = 0
 
-  def __iadd__(self, other):
+  def __iadd__(self, other: '_PartialStringStats') -> '_PartialStringStats':
     """Merge two partial string statistics and return the merged statistics."""
     self.total_bytes_length += other.total_bytes_length
     return self
 
-  def update(self, feature_column):
+  def update(self, feature_column: pa.Column) -> None:
     """Update the partial string statistics using the input value."""
     # Iterate through the value array and update the partial stats.
     value_array = feature_column.data.chunk(0)
@@ -316,18 +316,18 @@ class _PartialBasicStats(object):
 
   __slots__ = ['common_stats', 'numeric_stats', 'string_stats']
 
-  def __init__(self, has_weights):
+  def __init__(self, has_weights: bool):
     self.common_stats = _PartialCommonStats(has_weights=has_weights)
     self.numeric_stats = _PartialNumericStats(has_weights=has_weights)
     self.string_stats = _PartialStringStats()
 
 
 def _make_common_stats_proto(
-    common_stats,
-    q_combiner,
-    num_values_histogram_buckets,
-    has_weights
-):
+    common_stats: _PartialCommonStats,
+    q_combiner: quantiles_util.QuantilesCombiner,
+    num_values_histogram_buckets: int,
+    has_weights: bool
+) -> statistics_pb2.CommonStatistics:
   """Convert the partial common stats into a CommonStatistics proto."""
   result = statistics_pb2.CommonStatistics()
   result.num_non_missing = common_stats.num_non_missing
@@ -368,13 +368,13 @@ def _make_common_stats_proto(
 
 
 def _make_numeric_stats_proto(
-    numeric_stats,
-    total_num_values,
-    quantiles_combiner,
-    num_histogram_buckets,
-    num_quantiles_histogram_buckets,
-    has_weights
-    ):
+    numeric_stats: _PartialNumericStats,
+    total_num_values: int,
+    quantiles_combiner: quantiles_util.QuantilesCombiner,
+    num_histogram_buckets: int,
+    num_quantiles_histogram_buckets: int,
+    has_weights: bool
+    ) -> statistics_pb2.NumericStatistics:
   """Convert the partial numeric statistics into NumericStatistics proto."""
   result = statistics_pb2.NumericStatistics()
 
@@ -471,9 +471,9 @@ def _make_numeric_stats_proto(
   return result
 
 
-def _make_string_stats_proto(string_stats,
-                             total_num_values
-                            ):
+def _make_string_stats_proto(string_stats: _PartialStringStats,
+                             total_num_values: int
+                            ) -> statistics_pb2.StringStatistics:
   """Convert the partial string statistics into StringStatistics proto."""
   result = statistics_pb2.StringStatistics()
   if total_num_values > 0:
@@ -482,14 +482,14 @@ def _make_string_stats_proto(string_stats,
 
 
 def _make_feature_stats_proto(
-    basic_stats, feature_path,
-    num_values_q_combiner,
-    values_q_combiner,
-    num_values_histogram_buckets,
-    num_histogram_buckets,
-    num_quantiles_histogram_buckets,
-    is_categorical, has_weights
-):
+    basic_stats: _PartialBasicStats, feature_path: types.FeaturePath,
+    num_values_q_combiner: quantiles_util.QuantilesCombiner,
+    values_q_combiner: quantiles_util.QuantilesCombiner,
+    num_values_histogram_buckets: int,
+    num_histogram_buckets: int,
+    num_quantiles_histogram_buckets: int,
+    is_categorical: bool, has_weights: bool
+) -> statistics_pb2.FeatureNameStatistics:
   """Convert the partial basic stats into a FeatureNameStatistics proto.
 
   Args:
@@ -565,7 +565,7 @@ _TFDVMetrics.__new__.__defaults__ = (0, sys.maxsize, 0, 0)
 
 
 def _update_tfdv_telemetry(
-    accumulator):
+    accumulator: Dict[types.FeaturePath, _PartialBasicStats]) -> None:
   """Update TFDV Beam metrics."""
   # Aggregate type specific metrics.
   metrics = {
@@ -636,13 +636,13 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
 
   def __init__(
       self,  # pylint: disable=useless-super-delegation
-      name = 'BasicStatsGenerator',
-      schema = None,
-      weight_feature = None,
-      num_values_histogram_buckets = 10,
-      num_histogram_buckets = 10,
-      num_quantiles_histogram_buckets = 10,
-      epsilon = 0.01):
+      name: Text = 'BasicStatsGenerator',
+      schema: Optional[schema_pb2.Schema] = None,
+      weight_feature: Optional[types.FeatureName] = None,
+      num_values_histogram_buckets: Optional[int] = 10,
+      num_histogram_buckets: Optional[int] = 10,
+      num_quantiles_histogram_buckets: Optional[int] = 10,
+      epsilon: Optional[float] = 0.01) -> None:
     """Initializes basic statistics generator.
 
     Args:
@@ -683,14 +683,14 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
 
   # Create an accumulator, which maps feature name to the partial stats
   # associated with the feature.
-  def create_accumulator(self):
+  def create_accumulator(self) -> Dict[types.FeaturePath, _PartialBasicStats]:
     return {}
 
   # Incorporates the input (a Python dict whose keys are feature names and
   # values are lists representing a batch of examples) into the accumulator.
   def add_input(
-      self, accumulator,
-      examples_table):
+      self, accumulator: Dict[types.FeaturePath, _PartialBasicStats],
+      examples_table: pa.Table) -> Dict[types.FeaturePath, _PartialBasicStats]:
 
     weights = None
     if self._weight_feature:
@@ -734,8 +734,8 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
 
   # Merge together a list of basic common statistics.
   def merge_accumulators(
-      self, accumulators
-  ):
+      self, accumulators: Iterable[Dict[types.FeaturePath, _PartialBasicStats]]
+  ) -> Dict[types.FeaturePath, _PartialBasicStats]:
     result = {}
     num_values_summary_per_feature = collections.defaultdict(list)
     values_summary_per_feature = collections.defaultdict(list)
@@ -819,8 +819,8 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
 
   # Return final stats as a DatasetFeatureStatistics proto.
   def extract_output(self,
-                     accumulator
-                    ):
+                     accumulator: Dict[types.FeaturePath, _PartialBasicStats]
+                    ) -> statistics_pb2.DatasetFeatureStatistics:
     # Update TFDV telemetry.
     _update_tfdv_telemetry(accumulator)
 

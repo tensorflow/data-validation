@@ -47,7 +47,7 @@ from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import stats_util
-from tensorflow_data_validation.types_compat import Generator, Iterable, Pattern, Text, Tuple
+from typing import Iterable, Pattern, Text, Tuple
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -139,7 +139,7 @@ _TIME_ONLY_FORMATS = [
 ]
 
 
-def _convert_strptime_to_regex(strptime_str):
+def _convert_strptime_to_regex(strptime_str: Text) -> Text:
   """Converts a string that includes strptime directives to a regex.
 
   Args:
@@ -157,7 +157,7 @@ def _convert_strptime_to_regex(strptime_str):
   return re.sub(all_directives_re, _get_replacement_regex, strptime_str)
 
 
-def _build_all_formats():
+def _build_all_formats() -> Iterable[Text]:
   """Yields all valid date, time, and combination formats.
 
   The valid formats are defined by _DATE_ONLY_FORMATS, _TIME_ONLY_FORMATS, and
@@ -180,8 +180,8 @@ def _build_all_formats():
 
 
 def _build_all_formats_regexes(
-    strptime_formats
-):
+    strptime_formats: Iterable[Text]
+) -> Iterable[Tuple[Text, Pattern[Text]]]:
   """Yields compiled regexes corresponding to the input formats.
 
   Args:
@@ -204,8 +204,8 @@ class _PartialTimeStats(object):
   """Partial feature stats for dates/times."""
 
   def __init__(self,
-               considered = 0,
-               invalidated = False):
+               considered: int = 0,
+               invalidated: bool = False) -> None:
     # The total number of values considered for classification.
     self.considered = considered
     # True only if this feature should never be considered, e.g., some
@@ -215,15 +215,15 @@ class _PartialTimeStats(object):
     # on that format.
     self.matching_formats = collections.Counter()
 
-  def __add__(self, other):
+  def __add__(self, other: '_PartialTimeStats') -> '_PartialTimeStats':
     """Merges two partial stats."""
     self.considered += other.considered
     self.invalidated |= other.invalidated
     self.matching_formats.update(other.matching_formats)
     return self
 
-  def update(self, values,
-             value_type):
+  def update(self, values: np.ndarray,
+             value_type: types.FeatureNameStatisticsType) -> None:
     """Updates the partial Time statistics using the values.
 
     Args:
@@ -262,9 +262,9 @@ class TimeStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
   """
 
   def __init__(self,
-               name = 'TimeStatsGenerator',
-               match_ratio = _MATCH_RATIO,
-               values_threshold = _VALUES_THRESHOLD):
+               name: Text = 'TimeStatsGenerator',
+               match_ratio: float = _MATCH_RATIO,
+               values_threshold: int = _VALUES_THRESHOLD) -> None:
     """Initializes a TimeStatsGenerator.
 
     Args:
@@ -289,7 +289,7 @@ class TimeStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     self._match_ratio = match_ratio
     self._values_threshold = values_threshold
 
-  def create_accumulator(self):
+  def create_accumulator(self) -> _PartialTimeStats:
     """Returns a fresh, empty accumulator.
 
     Returns:
@@ -297,8 +297,8 @@ class TimeStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     """
     return _PartialTimeStats()
 
-  def add_input(self, accumulator,
-                input_column):
+  def add_input(self, accumulator: _PartialTimeStats,
+                input_column: pa.Column) -> _PartialTimeStats:
     """Returns result of folding a batch of inputs into the current accumulator.
 
     Args:
@@ -339,7 +339,7 @@ class TimeStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     return accumulator
 
   def merge_accumulators(
-      self, accumulators):
+      self, accumulators: Iterable[_PartialTimeStats]) -> _PartialTimeStats:
     """Merges several accumulators to a single accumulator value.
 
     Args:
@@ -350,8 +350,8 @@ class TimeStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     """
     return sum(accumulators, _PartialTimeStats())
 
-  def extract_output(self, accumulator
-                    ):
+  def extract_output(self, accumulator: _PartialTimeStats
+                    ) -> statistics_pb2.FeatureNameStatistics:
     """Returns the result of converting accumulator into the output value.
 
     This method will add the time_domain custom stat to the proto if the match

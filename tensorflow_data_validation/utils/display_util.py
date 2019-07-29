@@ -25,17 +25,17 @@ from IPython.display import display
 from IPython.display import HTML
 import pandas as pd
 from tensorflow_data_validation import types
-from tensorflow_data_validation.types_compat import Optional, Text
+from typing import Optional, Text
 from tensorflow_metadata.proto.v0 import anomalies_pb2
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
-def _add_quotes(input_str):
+def _add_quotes(input_str: types.FeatureName) -> types.FeatureName:
   return "'" + input_str.replace("'", "\\'") + "'"
 
 
-def display_schema(schema):
+def display_schema(schema: schema_pb2.Schema) -> None:
   """Displays the input schema.
 
   Args:
@@ -131,7 +131,7 @@ def display_schema(schema):
     display(domains)
 
 
-def display_anomalies(anomalies):
+def display_anomalies(anomalies: anomalies_pb2.Anomalies) -> None:
   """Displays the input anomalies.
 
   Args:
@@ -162,11 +162,12 @@ def display_anomalies(anomalies):
 
 
 def get_statistics_html(
-    lhs_statistics,
-    rhs_statistics = None,
-    lhs_name = 'lhs_statistics',
-    rhs_name = 'rhs_statistics'
-):
+    lhs_statistics: statistics_pb2.DatasetFeatureStatisticsList,
+    rhs_statistics: Optional[
+        statistics_pb2.DatasetFeatureStatisticsList] = None,
+    lhs_name: Text = 'lhs_statistics',
+    rhs_name: Text = 'rhs_statistics'
+) -> Text:
   """Build the HTML for visualizing the input statistics using Facets.
 
   Args:
@@ -251,10 +252,11 @@ def get_statistics_html(
 
 
 def visualize_statistics(
-    lhs_statistics,
-    rhs_statistics = None,
-    lhs_name = 'lhs_statistics',
-    rhs_name = 'rhs_statistics'):
+    lhs_statistics: statistics_pb2.DatasetFeatureStatisticsList,
+    rhs_statistics: Optional[
+        statistics_pb2.DatasetFeatureStatisticsList] = None,
+    lhs_name: Text = 'lhs_statistics',
+    rhs_name: Text = 'rhs_statistics') -> None:
   """Visualize the input statistics using Facets.
 
   Args:

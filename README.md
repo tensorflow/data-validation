@@ -46,9 +46,32 @@ pip install tensorflow-data-validation
 This is the recommended way to build TFDV under Linux, and is continuously
 tested at Google.
 
+### 1. Install Docker
+
 Please first install `docker` and `docker-compose` by following the directions:
 [docker](https://docs.docker.com/install/);
 [docker-compose](https://docs.docker.com/compose/install/).
+
+### 2. Clone the TFDV repository
+
+```shell
+git clone https://github.com/tensorflow/data-validation
+cd data-validation
+```
+
+Note that these instructions will install the latest master branch of TensorFlow
+Data Validation. If you want to install a specific branch (such as a release
+branch), pass `-b <branchname>` to the `git clone` command.
+
+When building on Python 2, make sure to strip the Python types in the source
+code using the following commands:
+
+```shell
+pip install strip-hints
+python tensorflow_data_validation/tools/strip_type_hints.py tensorflow_data_validation/
+```
+
+### 3. Build the pip package
 
 Then, run the following at the project root:
 
@@ -60,6 +83,12 @@ sudo docker-compose run ${DOCKER_SERVICE}
 where `PY_VERSION` is one of `{27, 35, 36, 37}`.
 
 A wheel will be produced under `dist/`.
+
+### 4. Install the pip package
+
+```shell
+pip install dist/*.whl
+```
 
 ## Build from source
 
@@ -100,6 +129,14 @@ cd data-validation
 Note that these instructions will install the latest master branch of TensorFlow
 Data Validation. If you want to install a specific branch (such as a release branch),
 pass `-b <branchname>` to the `git clone` command.
+
+When building on Python 2, make sure to strip the Python types in the source
+code using the following commands:
+
+```shell
+pip install strip-hints
+python tensorflow_data_validation/tools/strip_type_hints.py tensorflow_data_validation/
+```
 
 ### 3. Build the pip package
 

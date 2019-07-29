@@ -35,7 +35,7 @@ from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import stats_util
-from tensorflow_data_validation.types_compat import Iterable, Text
+from typing import Iterable, Text
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 # AverageWordHeuristicNLClassifier default initialization values
@@ -56,8 +56,8 @@ _NL_MATCH_RATIO = 'natural_language_match_rate'
 class _PartialNLStats(object):
   """Partial feature stats for natural language."""
 
-  def __init__(self, matched = 0, considered = 0,
-               invalidate=False):
+  def __init__(self, matched: int = 0, considered: int = 0,
+               invalidate=False) -> None:
     # The total number of values matching natural language heuristic.
     self.matched = matched
     # The total number of values considered for classification.
@@ -66,7 +66,7 @@ class _PartialNLStats(object):
     # value_lists have inconsistent types.
     self.invalidate = invalidate
 
-  def __iadd__(self, other):
+  def __iadd__(self, other: '_PartialNLStats') -> '_PartialNLStats':
     """Merge two partial natual language stats."""
     self.matched += other.matched
     self.considered += other.considered
@@ -78,7 +78,7 @@ class NLClassifierInterface(six.with_metaclass(abc.ABCMeta)):
   """Interface for an NL classifier."""
 
   @abc.abstractmethod
-  def classify(self, value):
+  def classify(self, value: Text) -> bool:
     """Should return True iff value is classified as NL."""
     raise NotImplementedError()
 
@@ -96,16 +96,16 @@ class AverageWordHeuristicNLClassifier(NLClassifierInterface):
   """
 
   def __init__(self,
-               avg_word_length_min = _AVG_WORD_LENGTH_MIN,
-               avg_word_length_max = _AVG_WORD_LENGTH_MAX,
-               min_words_per_value = _MIN_WORDS_PER_VALUE,
-               crop_at_length = _CROP_AT_LENGTH):
+               avg_word_length_min: float = _AVG_WORD_LENGTH_MIN,
+               avg_word_length_max: float = _AVG_WORD_LENGTH_MAX,
+               min_words_per_value: int = _MIN_WORDS_PER_VALUE,
+               crop_at_length: int = _CROP_AT_LENGTH) -> None:
     self._avg_word_length_min = avg_word_length_min
     self._avg_word_length_max = avg_word_length_max
     self._min_words_per_value = min_words_per_value
     self._crop_at_length = crop_at_length
 
-  def classify(self, value):
+  def classify(self, value: Text) -> bool:
     words = value[0:self._crop_at_length].split()
     if not words:
       return False
@@ -130,9 +130,9 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
   """
 
   def __init__(self,
-               classifier = None,
-               match_ratio = _MATCH_RATIO,
-               values_threshold = _VALUES_THRESHOLD):
+               classifier: NLClassifierInterface = None,
+               match_ratio: float = _MATCH_RATIO,
+               values_threshold: int = _VALUES_THRESHOLD) -> None:
     """Initializes a NLStatsGenerator.
 
     Args:
@@ -157,7 +157,7 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     self._values_threshold = values_threshold
     self._match_ratio = match_ratio
 
-  def create_accumulator(self):
+  def create_accumulator(self) -> _PartialNLStats:
     """Return a fresh, empty accumulator.
 
     Returns:
@@ -165,8 +165,8 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     """
     return _PartialNLStats()
 
-  def add_input(self, accumulator,
-                input_column):
+  def add_input(self, accumulator: _PartialNLStats,
+                input_column: pa.Column) -> _PartialNLStats:
     """Return result of folding a batch of inputs into accumulator.
 
     Args:
@@ -205,7 +205,7 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     return accumulator
 
   def merge_accumulators(
-      self, accumulators):
+      self, accumulators: Iterable[_PartialNLStats]) -> _PartialNLStats:
     """Merges several accumulators to a single accumulator value.
 
     Args:
@@ -219,8 +219,8 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
       result += accumulator
     return result
 
-  def extract_output(self, accumulator
-                    ):
+  def extract_output(self, accumulator: _PartialNLStats
+                    ) -> statistics_pb2.FeatureNameStatistics:
     """Return result of converting accumulator into the output value.
 
     Args:

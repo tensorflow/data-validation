@@ -31,7 +31,7 @@ from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.utils import anomalies_util
 from tensorflow_data_validation.utils import slicing_util
-from tensorflow_data_validation.types_compat import Optional
+from typing import Optional
 from tensorflow_metadata.proto.v0 import anomalies_pb2
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -51,10 +51,10 @@ _GLOBAL_ONLY_ANOMALY_TYPES = set([
 ])
 
 
-def infer_schema(statistics,
-                 infer_feature_shape = True,
-                 max_string_domain_size = 100
-                ):
+def infer_schema(statistics: statistics_pb2.DatasetFeatureStatisticsList,
+                 infer_feature_shape: Optional[bool] = True,
+                 max_string_domain_size: Optional[int] = 100
+                ) -> schema_pb2.Schema:
   """Infers schema from the input statistics.
 
   Args:
@@ -103,13 +103,13 @@ def infer_schema(statistics,
 
 
 # Note that this flag is legacy code.
-def _may_be_set_legacy_flag(schema):
+def _may_be_set_legacy_flag(schema: schema_pb2.Schema):
   """Sets legacy flag to False if it exists."""
   if getattr(schema, 'generate_legacy_feature_spec', None) is not None:
     schema.generate_legacy_feature_spec = False
 
 
-def _infer_shape(schema):
+def _infer_shape(schema: schema_pb2.Schema):
   """Infers shapes of the features."""
   for feature in schema.feature:
     # Currently we infer shape only for required features.
@@ -119,11 +119,11 @@ def _infer_shape(schema):
 
 
 # TODO(pachristopher): Add support for updating only a subset of features.
-def update_schema(schema,
-                  statistics,
-                  infer_feature_shape = True,
-                  max_string_domain_size = 100
-                 ):
+def update_schema(schema: schema_pb2.Schema,
+                  statistics: statistics_pb2.DatasetFeatureStatisticsList,
+                  infer_feature_shape: Optional[bool] = True,
+                  max_string_domain_size: Optional[int] = 100
+                 ) -> schema_pb2.Schema:
   """Updates input schema to conform to the input statistics.
 
   Args:
@@ -173,12 +173,14 @@ def update_schema(schema,
 
 
 def validate_statistics(
-    statistics,
-    schema,
-    environment = None,
-    previous_statistics = None,
-    serving_statistics = None,
-):
+    statistics: statistics_pb2.DatasetFeatureStatisticsList,
+    schema: schema_pb2.Schema,
+    environment: Optional[str] = None,
+    previous_statistics: Optional[
+        statistics_pb2.DatasetFeatureStatisticsList] = None,
+    serving_statistics: Optional[
+        statistics_pb2.DatasetFeatureStatisticsList] = None,
+) -> anomalies_pb2.Anomalies:
   """Validates the input statistics against the provided input schema.
 
   This method validates the `statistics` against the `schema`. If an optional
@@ -307,7 +309,7 @@ def validate_statistics(
   return result
 
 
-def _check_for_unsupported_schema_fields(schema):
+def _check_for_unsupported_schema_fields(schema: schema_pb2.Schema):
   """Logs warnings when we encounter unsupported fields in the schema."""
   if schema.sparse_feature:
     logging.warning('The input schema has sparse features which'
@@ -315,8 +317,8 @@ def _check_for_unsupported_schema_fields(schema):
 
 
 def _check_for_unsupported_stats_fields(
-    stats,
-    stats_type):
+    stats: statistics_pb2.DatasetFeatureStatistics,
+    stats_type: str):
   """Logs warnings when we encounter unsupported fields in the statistics."""
   for feature in stats.features:
     if feature.HasField('struct_stats'):
@@ -325,10 +327,10 @@ def _check_for_unsupported_stats_fields(
 
 
 def validate_instance(
-    instance,
-    options,
-    environment = None
-):
+    instance: pa.Table,
+    options: stats_options.StatsOptions,
+    environment: Optional[str] = None
+) -> anomalies_pb2.Anomalies:
   """Validates a batch of examples against the schema provided in `options`.
 
   If an optional `environment` is specified, the schema is filtered using the
@@ -370,8 +372,8 @@ def validate_instance(
   return anomalies
 
 
-def _detect_anomalies_in_example(table,
-                                 options):
+def _detect_anomalies_in_example(table: pa.Table,
+                                 options: stats_options.StatsOptions):
   """Validates the example against the schema provided in `options`."""
   # Verify that we have a single row.
   assert table.num_rows == 1
@@ -380,7 +382,7 @@ def _detect_anomalies_in_example(table,
 
 @beam.typehints.with_input_types(
     beam.typehints.Tuple[pa.Table, anomalies_pb2.Anomalies])
-@beam.typehints.with_output_types(types.SlicedTable)
+@beam.typehints.with_output_types(types.BeamSlicedTable)
 class _GenerateAnomalyReasonSliceKeys(beam.DoFn):
   """Yields a slice key for each anomaly reason in the Anomalies proto."""
 
@@ -392,7 +394,7 @@ class _GenerateAnomalyReasonSliceKeys(beam.DoFn):
 
 
 @beam.typehints.with_input_types(pa.Table)
-@beam.typehints.with_output_types(types.SlicedTable)
+@beam.typehints.with_output_types(types.BeamSlicedTable)
 class IdentifyAnomalousExamples(beam.PTransform):
   """API for identifying anomalous examples.
 
@@ -402,7 +404,7 @@ class IdentifyAnomalousExamples(beam.PTransform):
 
   def __init__(
       self,
-      options):
+      options: stats_options.StatsOptions):
     """Initializes pipeline that identifies anomalous examples.
 
     Args:
@@ -413,18 +415,18 @@ class IdentifyAnomalousExamples(beam.PTransform):
     self.options = options
 
   @property
-  def options(self):
+  def options(self) -> stats_options.StatsOptions:
     return self._options
 
   @options.setter
-  def options(self, options):
+  def options(self, options) -> None:
     if not isinstance(options, stats_options.StatsOptions):
       raise ValueError('options must be a `StatsOptions` object.')
     if options.schema is None:
       raise ValueError('options must include a schema.')
     self._options = options
 
-  def expand(self, dataset):
+  def expand(self, dataset: beam.pvalue.PCollection) -> beam.pvalue.PCollection:
     return (
         dataset
         | 'DetectAnomaliesInExamples' >> beam.Map(

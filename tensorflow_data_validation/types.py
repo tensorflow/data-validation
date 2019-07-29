@@ -22,9 +22,13 @@ import apache_beam as beam
 import numpy as np
 import six
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
-from tensorflow_data_validation.types_compat import Callable, Dict, Iterable, List, Optional, Text, Tuple, Union
+from typing import Callable, Dict, Iterable, List, Optional, Text, Tuple, Union
 
 from tensorflow_metadata.proto.v0 import path_pb2
+
+# Type for representing a CSV record and a field value.
+CSVRecord = Union[bytes, Text]
+CSVCell = Union[bytes, Text]
 
 # Type of the feature name we support in the input batch.
 FeatureName = Union[bytes, Text]
@@ -68,6 +72,9 @@ BeamFeatureName = beam.typehints.Union[bytes, Text]
 BeamExample = beam.typehints.Dict[BeamFeatureName, beam.typehints
                                   .Optional[np.ndarray]]
 BeamSliceKey = beam.typehints.Optional[beam.typehints.Union[bytes, Text]]
+BeamSlicedTable = beam.typehints.Tuple[BeamSliceKey, pa.Table]
+BeamCSVRecord = beam.typehints.Union[bytes, Text]
+BeamCSVCell = beam.typehints.Union[bytes, Text]
 
 
 @six.python_2_unicode_compatible
@@ -80,42 +87,42 @@ class FeaturePath(object):
 
   __slot__ = ["_steps"]
 
-  def __init__(self, steps):
+  def __init__(self, steps: Iterable[FeatureName]):
     self._steps = tuple(
         s if isinstance(s, six.text_type) else s.decode("utf-8") for s in steps)
 
-  def to_proto(self):
+  def to_proto(self) -> path_pb2.Path:
     return path_pb2.Path(step=self._steps)
 
   @staticmethod
-  def from_proto(path_proto):
+  def from_proto(path_proto: path_pb2.Path):
     return FeaturePath(path_proto.step)
 
-  def steps(self):
+  def steps(self) -> Tuple[FeatureName]:
     return self._steps
 
-  def parent(self):
+  def parent(self) -> "FeaturePath":
     if not self._steps:
       raise ValueError("Root does not have parent.")
     return FeaturePath(self._steps[:-1])
 
-  def child(self, child_step):
+  def child(self, child_step: FeatureName) -> "FeaturePath":
     if isinstance(child_step, six.text_type):
       return FeaturePath(self._steps + (child_step,))
     return FeaturePath(self._steps + (child_step.decode("utf-8"),))
 
-  def __str__(self):
+  def __str__(self) -> Text:
     return u".".join(self._steps)
 
-  def __eq__(self, other):
+  def __eq__(self, other) -> bool:
     return self._steps == other._steps  # pylint: disable=protected-access
 
-  def __lt__(self, other):
+  def __lt__(self, other) -> bool:
     # lexicographic order.
     return self._steps < other._steps  # pylint: disable=protected-access
 
-  def __hash__(self):
+  def __hash__(self) -> int:
     return hash(self._steps)
 
-  def __len__(self):
+  def __len__(self) -> int:
     return len(self._steps)

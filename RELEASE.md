@@ -46,6 +46,7 @@
 * Increment refcount of None in fast example decoder.
 * Add `compression_type` option to `generate_statistics_from_*` methods.
 * Add link to SysML paper describing some technical details behind TFDV.
+* Add Python types to the source code.
 * Depends on `pyarrow>=0.14.0,<0.15.0`.
 * Depends on `scikit-learn>=0.18,<0.21`.
 * Depends on `tensorflow-metadata>=0.14,<0.15`.

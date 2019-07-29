@@ -33,7 +33,7 @@ from tensorflow_data_validation.statistics.generators import basic_stats_generat
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import slicing_util
 from tensorflow_data_validation.utils import test_util
-from tensorflow_data_validation.types_compat import List
+from typing import List
 
 from google.protobuf import text_format
 from tensorflow.python.util.protobuf import compare
@@ -49,14 +49,14 @@ class _BaseCounter(stats_generator.CombinerFeatureStatsGenerator):
   def __init__(self):
     super(_BaseCounter, self).__init__(type(self).__name__)
 
-  def create_accumulator(self):
+  def create_accumulator(self) -> int:
     return 0
 
-  def merge_accumulators(self, accumulators):
+  def merge_accumulators(self, accumulators: List[int]) -> int:
     return sum(accumulators)
 
   def extract_output(self,
-                     accumulator):
+                     accumulator: int) -> statistics_pb2.FeatureNameStatistics:
     result = statistics_pb2.FeatureNameStatistics()
     result.custom_stats.add(name=type(self).__name__, num=accumulator)
     return result
@@ -65,7 +65,7 @@ class _BaseCounter(stats_generator.CombinerFeatureStatsGenerator):
 class _ValueCounter(_BaseCounter):
   """A _BaseCounter that counts number of values."""
 
-  def add_input(self, accumulator, input_column):
+  def add_input(self, accumulator: int, input_column: pa.Column) -> int:
     for feature_array in input_column.data.iterchunks():
       num_values = arrow_util.ListLengthsFromListArray(feature_array).to_numpy()
       none_mask = arrow_util.GetArrayNullBitmapAsByteArray(
@@ -77,7 +77,7 @@ class _ValueCounter(_BaseCounter):
 class _ExampleCounter(_BaseCounter):
   """A _BaseCounter that counts number of examples with feature set."""
 
-  def add_input(self, accumulator, input_column):
+  def add_input(self, accumulator: int, input_column: pa.Column) -> int:
     for feature_array in input_column.data.iterchunks():
       accumulator += len(feature_array) - feature_array.null_count
     return accumulator
@@ -1770,18 +1770,18 @@ class StatsImplTest(parameterized.TestCase):
     # custom stat.
     class CustomCombinerStatsGenerator(stats_generator.CombinerStatsGenerator):
 
-      def create_accumulator(self):
+      def create_accumulator(self) -> int:
         return 0
 
-      def add_input(self, accumulator,
-                    input_batch):
+      def add_input(self, accumulator: int,
+                    input_batch: types.ExampleBatch) -> int:
         return 0
 
-      def merge_accumulators(self, accumulators):
+      def merge_accumulators(self, accumulators: List[int]) -> int:
         return 0
 
       def extract_output(
-          self, accumulator):
+          self, accumulator: int) -> statistics_pb2.DatasetFeatureStatistics:
         stats_proto = statistics_pb2.DatasetFeatureStatistics()
         proto_feature = stats_proto.features.add()
         proto_feature.path.step[:] = ['a']

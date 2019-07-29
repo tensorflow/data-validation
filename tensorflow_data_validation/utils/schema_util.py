@@ -21,15 +21,15 @@ from __future__ import print_function
 import logging
 import six
 from tensorflow_data_validation import types
-from tensorflow_data_validation.types_compat import Iterable, List, Optional, Set, Tuple, Union
+from typing import Iterable, List, Optional, Set, Tuple, Union
 from google.protobuf import text_format
 from tensorflow.python.lib.io import file_io
 from tensorflow_metadata.proto.v0 import schema_pb2
 
 
-def get_feature(schema,
-                feature_path
-               ):
+def get_feature(schema: schema_pb2.Schema,
+                feature_path: Union[types.FeatureName, types.FeaturePath]
+               ) -> schema_pb2.Feature:
   """Get a feature from the schema.
 
   Args:
@@ -75,9 +75,9 @@ FEATURE_DOMAIN = Union[schema_pb2.IntDomain, schema_pb2.FloatDomain,
                        schema_pb2.StringDomain, schema_pb2.BoolDomain]
 
 
-def get_domain(schema,
-               feature_path
-              ):
+def get_domain(schema: schema_pb2.Schema,
+               feature_path: Union[types.FeatureName, types.FeaturePath]
+              ) -> FEATURE_DOMAIN:
   """Get the domain associated with the input feature from the schema.
 
   Args:
@@ -123,8 +123,8 @@ def get_domain(schema,
                    (feature_path, domain_info))
 
 
-def set_domain(schema, feature_path,
-               domain):
+def set_domain(schema: schema_pb2.Schema, feature_path: types.FeaturePath,
+               domain: Union[FEATURE_DOMAIN, bytes]) -> None:
   """Sets the domain for the input feature in the schema.
 
   If the input feature already has a domain, it is overwritten with the newly
@@ -191,7 +191,7 @@ def set_domain(schema, feature_path,
     feature.domain = domain
 
 
-def write_schema_text(schema, output_path):
+def write_schema_text(schema: schema_pb2.Schema, output_path: bytes) -> None:
   """Writes input schema to a file in text format.
 
   Args:
@@ -209,7 +209,7 @@ def write_schema_text(schema, output_path):
   file_io.write_string_to_file(output_path, schema_text)
 
 
-def load_schema_text(input_path):
+def load_schema_text(input_path: bytes) -> schema_pb2.Schema:
   """Loads the schema stored in text format in the input path.
 
   Args:
@@ -224,7 +224,7 @@ def load_schema_text(input_path):
   return schema
 
 
-def is_categorical_feature(feature):
+def is_categorical_feature(feature: schema_pb2.Feature):
   """Checks if the input feature is categorical."""
   if feature.type == schema_pb2.BYTES:
     return True
@@ -237,7 +237,7 @@ def is_categorical_feature(feature):
 
 
 def get_categorical_numeric_features(
-    schema):
+    schema: schema_pb2.Schema) -> List[types.FeaturePath]:
   """Get the list of numeric features that should be treated as categorical.
 
   Args:
@@ -253,8 +253,8 @@ def get_categorical_numeric_features(
   return categorical_features
 
 
-def get_categorical_features(schema
-                            ):
+def get_categorical_features(schema: schema_pb2.Schema
+                            ) -> Set[types.FeaturePath]:
   """Gets the set containing the names of all categorical features.
 
   Args:
@@ -269,8 +269,8 @@ def get_categorical_features(schema
   }
 
 
-def get_multivalent_features(schema
-                            ):
+def get_multivalent_features(schema: schema_pb2.Schema
+                            ) -> Set[types.FeaturePath]:
   """Gets the set containing the names of all multivalent features.
 
   Args:
@@ -292,9 +292,9 @@ def get_multivalent_features(schema
   }
 
 
-def _look_up_feature(feature_name,
-                     container
-                    ):
+def _look_up_feature(feature_name: types.FeatureName,
+                     container: Iterable[schema_pb2.Feature]
+                    ) -> Optional[schema_pb2.Feature]:
   for f in container:
     if f.name == feature_name:
       return f
@@ -302,13 +302,13 @@ def _look_up_feature(feature_name,
 
 
 def _get_all_leaf_features(
-    schema
-):
+    schema: schema_pb2.Schema
+) -> List[Tuple[types.FeaturePath, schema_pb2.Feature]]:
   """Returns all leaf features in a schema."""
   def _recursion_helper(
-      parent_path,
-      feature_container,
-      result):
+      parent_path: types.FeaturePath,
+      feature_container: Iterable[schema_pb2.Feature],
+      result: List[Tuple[types.FeaturePath, schema_pb2.Feature]]):
     for f in feature_container:
       feature_path = parent_path.child(f.name)
       if f.type != schema_pb2.STRUCT:

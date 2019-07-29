@@ -21,7 +21,7 @@ from __future__ import print_function
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import natural_language_stats_generator as nlsg
 from tensorflow_data_validation.utils import test_util
-from tensorflow_data_validation.types_compat import Text
+from typing import Text
 
 import unittest
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -29,7 +29,7 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 
 class _FakeHeuristic(nlsg.NLClassifierInterface):
 
-  def classify(self, single_value):
+  def classify(self, single_value: Text) -> bool:
     return single_value == 'MATCH'
 
 

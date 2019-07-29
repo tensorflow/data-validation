@@ -22,16 +22,16 @@ from __future__ import print_function
 from absl.testing import absltest
 import numpy as np
 from tensorflow_data_validation.utils import quantiles_util
-from tensorflow_data_validation.types_compat import List, Tuple
+from typing import List, Tuple
 
 from google.protobuf import text_format
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
-def _run_quantiles_combiner_test(test,
-                                 q_combiner,
-                                 batches,
-                                 expected_result):
+def _run_quantiles_combiner_test(test: absltest.TestCase,
+                                 q_combiner: quantiles_util.QuantilesCombiner,
+                                 batches: List[List[np.ndarray]],
+                                 expected_result: np.ndarray):
   """Tests quantiles combiner."""
   summaries = [q_combiner.add_input(q_combiner.create_accumulator(),
                                     batch) for batch in batches]
@@ -42,9 +42,9 @@ def _run_quantiles_combiner_test(test,
     test.assertAlmostEqual(result[i], expected_result[i])
 
 
-def _assert_buckets_almost_equal(test,
-                                 a,
-                                 b):
+def _assert_buckets_almost_equal(test: absltest.TestCase,
+                                 a: List[Tuple[float, float, float]],
+                                 b: List[Tuple[float, float, float]]):
   """Check if the histogram buckets are almost equal."""
   test.assertEqual(len(a), len(b))
   for i in range(len(a)):

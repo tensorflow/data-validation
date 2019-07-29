@@ -31,19 +31,19 @@ from tensorflow_data_validation.pyarrow_tf import tensorflow as tf
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options as options
 from tensorflow_data_validation.utils import stats_gen_lib
-from tensorflow_data_validation.types_compat import List, Optional, Text
+from typing import List, Optional, Text
 
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
 def validate_examples_in_tfrecord(
-    data_location,
-    stats_options,
-    output_path = None,
+    data_location: Text,
+    stats_options: options.StatsOptions,
+    output_path: Optional[Text] = None,
     # TODO(b/131719250): Add option to output a sample of anomalous examples for
     # each anomaly reason.
-    pipeline_options = None,
-):
+    pipeline_options: Optional[PipelineOptions] = None,
+) -> statistics_pb2.DatasetFeatureStatisticsList:
   """Validates TFExamples in TFRecord files.
 
   Runs a Beam pipeline to detect anomalies on a per-example basis. If this
@@ -108,15 +108,15 @@ def validate_examples_in_tfrecord(
 
 
 def validate_examples_in_csv(
-    data_location,
-    stats_options,
-    column_names = None,
-    delimiter = ',',
-    output_path = None,
+    data_location: Text,
+    stats_options: options.StatsOptions,
+    column_names: Optional[List[types.FeatureName]] = None,
+    delimiter: Text = ',',
+    output_path: Optional[Text] = None,
     # TODO(b/131719250): Add option to output a sample of anomalous examples for
     # each anomaly reason.
-    pipeline_options = None,
-):
+    pipeline_options: Optional[PipelineOptions] = None,
+) -> statistics_pb2.DatasetFeatureStatisticsList:
   """Validates examples in csv files.
 
   Runs a Beam pipeline to detect anomalies on a per-example basis. If this

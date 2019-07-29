@@ -25,7 +25,7 @@ import collections
 import numpy as np
 import six
 from tensorflow_transform import analyzers
-from tensorflow_data_validation.types_compat import List, Optional, Union
+from typing import List, Optional, Union
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
@@ -35,8 +35,8 @@ class QuantilesCombiner(object):
   This class wraps tf.transform's QuantilesCombiner.
   """
 
-  def __init__(self, num_quantiles, epsilon,
-               has_weights = False):
+  def __init__(self, num_quantiles: int, epsilon: float,
+               has_weights: bool = False):
     self._num_quantiles = num_quantiles
     self._epsilon = epsilon
     self._has_weights = has_weights
@@ -51,17 +51,17 @@ class QuantilesCombiner(object):
     return QuantilesCombiner, (self._num_quantiles, self._epsilon,
                                self._has_weights)
 
-  def create_accumulator(self):  # pylint: disable=g-ambiguous-str-annotation
+  def create_accumulator(self) -> Optional[str]:  # pylint: disable=g-ambiguous-str-annotation
     return self._quantiles_spec.create_accumulator()
 
-  def add_input(self, summary,
-                input_batch):
+  def add_input(self, summary: str,
+                input_batch: List[List[Union[int, float]]]) -> str:
     return self._quantiles_spec.add_input(summary, input_batch)
 
-  def merge_accumulators(self, summaries):  # pylint: disable=g-ambiguous-str-annotation
+  def merge_accumulators(self, summaries: List[str]) -> Optional[str]:  # pylint: disable=g-ambiguous-str-annotation
     return self._quantiles_spec.merge_accumulators(summaries)
 
-  def extract_output(self, summary):
+  def extract_output(self, summary: str) -> np.ndarray:
     quantiles = self._quantiles_spec.extract_output(summary)
     # The output of the combiner spec is a list containing a
     # single numpy array which contains the quantile boundaries.
@@ -69,7 +69,7 @@ class QuantilesCombiner(object):
     return quantiles[0]
 
 
-def find_median(quantiles):
+def find_median(quantiles: np.ndarray) -> float:
   """Find median from the quantile boundaries.
 
   Args:
@@ -93,12 +93,12 @@ def find_median(quantiles):
     return quantiles[median_index]
 
 
-def generate_quantiles_histogram(quantiles,
-                                 min_val,
-                                 max_val,
-                                 total_count,
-                                 num_buckets
-                                ):
+def generate_quantiles_histogram(quantiles: np.ndarray,
+                                 min_val: float,
+                                 max_val: float,
+                                 total_count: float,
+                                 num_buckets: int
+                                ) -> statistics_pb2.Histogram:
   """Generate quantiles histrogram from the quantile boundaries.
 
   Args:
@@ -172,12 +172,12 @@ Bucket = collections.namedtuple(
     'Bucket', ['low_value', 'high_value', 'sample_count'])
 
 
-def generate_equi_width_histogram(quantiles,
-                                  min_val,
-                                  max_val,
-                                  total_count,
-                                  num_buckets
-                                 ):
+def generate_equi_width_histogram(quantiles: np.ndarray,
+                                  min_val: float,
+                                  max_val: float,
+                                  total_count: float,
+                                  num_buckets: int
+                                 ) -> statistics_pb2.Histogram:
   """Generate equi-width histrogram from the quantile boundaries.
 
   Currently we construct the equi-width histogram by using the quantiles.
@@ -212,11 +212,11 @@ def generate_equi_width_histogram(quantiles,
   return result
 
 
-def generate_equi_width_buckets(quantiles,
-                                min_val,
-                                max_val,
-                                total_count,
-                                num_buckets):
+def generate_equi_width_buckets(quantiles: List[float],
+                                min_val: float,
+                                max_val: float,
+                                total_count: float,
+                                num_buckets: int) -> List[Bucket]:
   """Generate buckets for equi-width histogram.
 
   Args:

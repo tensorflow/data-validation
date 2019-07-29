@@ -36,7 +36,7 @@ class TFExampleDecoder(object):
   """A decoder for decoding TF examples into tf data validation datasets.
   """
 
-  def decode(self, serialized_example_proto):
+  def decode(self, serialized_example_proto: bytes) -> types.Example:
     """Decodes serialized tf.Example to tf data validation input dict."""
     return DecodeExample(serialized_example_proto)
 
@@ -45,9 +45,9 @@ class TFExampleDecoder(object):
 @beam.typehints.with_input_types(bytes)
 @beam.typehints.with_output_types(pa.Table)
 def DecodeTFExample(
-    examples,
-    desired_batch_size = constants.DEFAULT_DESIRED_INPUT_BATCH_SIZE
-):  # pylint: disable=invalid-name
+    examples: beam.pvalue.PCollection,
+    desired_batch_size: int = constants.DEFAULT_DESIRED_INPUT_BATCH_SIZE
+) -> beam.pvalue.PCollection:  # pylint: disable=invalid-name
   """Decodes serialized TF examples into an Arrow table.
 
   Args:

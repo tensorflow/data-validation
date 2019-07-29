@@ -21,7 +21,7 @@ from __future__ import print_function
 import numpy as np
 from tensorflow_data_validation import types
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
-from tensorflow_data_validation.types_compat import Dict, List, Optional, Text, Union
+from typing import Dict, List, Optional, Text, Union
 from google.protobuf import text_format
 # TODO(b/125849585): Update to import from TF directly.
 from tensorflow.python.lib.io import file_io  # pylint: disable=g-direct-tensorflow-import
@@ -45,7 +45,7 @@ DOMAIN_INFO = 'domain_info'
 # LINT.ThenChange(../anomalies/custom_domain_util.cc)
 
 
-def maybe_get_utf8(value):
+def maybe_get_utf8(value: bytes) -> Optional[Text]:
   """Returns the value decoded as utf-8, or None if it cannot be decoded.
 
   Args:
@@ -61,7 +61,7 @@ def maybe_get_utf8(value):
 
 
 def get_feature_type(
-    dtype):
+    dtype: np.dtype) -> Optional[types.FeatureNameStatisticsType]:
   """Get feature type from numpy dtype.
 
   Args:
@@ -74,8 +74,8 @@ def get_feature_type(
 
 
 def get_feature_type_from_arrow_type(
-    feature_path,
-    arrow_type):
+    feature_path: types.FeaturePath,
+    arrow_type: pa.DataType) -> Optional[types.FeatureNameStatisticsType]:
   """Get feature type from Arrow type.
 
   Args:
@@ -109,8 +109,8 @@ def get_feature_type_from_arrow_type(
 
 
 def make_dataset_feature_stats_proto(
-    stats_values
-):
+    stats_values: Dict[types.FeaturePath, Dict[Text, float]]
+) -> statistics_pb2.DatasetFeatureStatistics:
   """Builds DatasetFeatureStatistics proto with custom stats from input dict.
 
   Args:
@@ -146,8 +146,8 @@ def make_dataset_feature_stats_proto(
 
 
 def _make_feature_stats_proto(
-    stats_values,
-    feature_path):
+    stats_values: Dict[Text, float],
+    feature_path: types.FeaturePath) -> statistics_pb2.FeatureNameStatistics:
   """Creates the FeatureNameStatistics proto for one feature.
 
   Args:
@@ -173,8 +173,8 @@ def _make_feature_stats_proto(
   return result
 
 
-def get_weight_feature(input_batch,
-                       weight_feature):
+def get_weight_feature(input_batch: types.ExampleBatch,
+                       weight_feature: types.FeatureName) -> List[np.ndarray]:
   """Gets the weight feature from the input batch.
 
   Args:
@@ -210,8 +210,8 @@ def get_weight_feature(input_batch,
   return weights  # pytype: disable=bad-return-type
 
 
-def write_stats_text(stats,
-                     output_path):
+def write_stats_text(stats: statistics_pb2.DatasetFeatureStatisticsList,
+                     output_path: bytes) -> None:
   """Writes a DatasetFeatureStatisticsList proto to a file in text format.
 
   Args:
@@ -231,7 +231,7 @@ def write_stats_text(stats,
 
 
 def load_stats_text(
-    input_path):
+    input_path: bytes) -> statistics_pb2.DatasetFeatureStatisticsList:
   """Loads the specified DatasetFeatureStatisticsList proto stored in text format.
 
   Args:
@@ -247,9 +247,9 @@ def load_stats_text(
   return stats_proto
 
 
-def get_feature_stats(stats,
-                      feature_path
-                     ):
+def get_feature_stats(stats: statistics_pb2.DatasetFeatureStatistics,
+                      feature_path: types.FeaturePath
+                     ) -> statistics_pb2.FeatureNameStatistics:
   """Get feature statistics from the dataset statistics.
 
   Args:
@@ -278,9 +278,9 @@ def get_feature_stats(stats,
 
 
 def get_custom_stats(
-    feature_stats,
-    custom_stats_name
-):
+    feature_stats: statistics_pb2.FeatureNameStatistics,
+    custom_stats_name: Text
+) -> Union[float, Text, statistics_pb2.Histogram, statistics_pb2.RankHistogram]:
   """Get custom statistics from the feature statistics.
 
   Args:

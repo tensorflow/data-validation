@@ -25,15 +25,15 @@ import numpy as np
 from tensorflow_data_validation import types
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import stats_generator
-from tensorflow_data_validation.types_compat import Callable, Dict, List, Tuple, Union
+from typing import Callable, Dict, List, Tuple, Union
 
 from tensorflow.python.util.protobuf import compare
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
 def make_example_dict_equal_fn(
-    test,
-    expected):
+    test: absltest.TestCase,
+    expected: List[types.Example]) -> Callable[[List[types.Example]], None]:
   """Makes a matcher function for comparing the example dict.
 
   Args:
@@ -65,9 +65,9 @@ def make_example_dict_equal_fn(
 
 
 def make_dataset_feature_stats_list_proto_equal_fn(
-    test,
-    expected_result
-):
+    test: absltest.TestCase,
+    expected_result: statistics_pb2.DatasetFeatureStatisticsList
+) -> Callable[[List[statistics_pb2.DatasetFeatureStatisticsList]], None]:
   """Makes a matcher function for comparing DatasetFeatureStatisticsList proto.
 
   Args:
@@ -78,7 +78,7 @@ def make_dataset_feature_stats_list_proto_equal_fn(
     A matcher function for comparing DatasetFeatureStatisticsList proto.
   """
 
-  def _matcher(actual):
+  def _matcher(actual: List[statistics_pb2.DatasetFeatureStatisticsList]):
     """Matcher function for comparing DatasetFeatureStatisticsList proto."""
     try:
       test.assertEqual(len(actual), 1)
@@ -99,8 +99,8 @@ def make_dataset_feature_stats_list_proto_equal_fn(
 
 
 def assert_feature_proto_equal(
-    test, actual,
-    expected):
+    test: absltest.TestCase, actual: statistics_pb2.FeatureNameStatistics,
+    expected: statistics_pb2.FeatureNameStatistics) -> None:
   """Ensures feature protos are equal.
 
   Args:
@@ -127,8 +127,8 @@ def assert_feature_proto_equal(
 
 
 def assert_dataset_feature_stats_proto_equal(
-    test, actual,
-    expected):
+    test: absltest.TestCase, actual: statistics_pb2.DatasetFeatureStatistics,
+    expected: statistics_pb2.DatasetFeatureStatistics) -> None:
   """Compares DatasetFeatureStatistics protos.
 
   This function can be used to test whether two DatasetFeatureStatistics protos
@@ -160,9 +160,10 @@ class CombinerStatsGeneratorTest(absltest.TestCase):
   # Runs the provided combiner statistics generator and tests if the output
   # matches the expected result.
   def assertCombinerOutputEqual(
-      self, batches,
-      generator,
-      expected_result):
+      self, batches: List[types.ExampleBatch],
+      generator: stats_generator.CombinerStatsGenerator,
+      expected_result: Dict[types.FeaturePath, statistics_pb2
+                            .FeatureNameStatistics]) -> None:
     """Tests a combiner statistics generator.
 
     This runs the generator twice to cover different behavior. There must be at
@@ -220,13 +221,13 @@ class _DatasetFeatureStatisticsComparatorWrapper(object):
   # used in assertCountEqual().
   __hash__ = None
 
-  def __init__(self, wrapped):
+  def __init__(self, wrapped: statistics_pb2.DatasetFeatureStatistics):
     self._wrapped = wrapped
     self._normalized = statistics_pb2.DatasetFeatureStatistics()
     self._normalized.MergeFrom(wrapped)
     compare.NormalizeNumberFields(self._normalized)
 
-  def __eq__(self, other):
+  def __eq__(self, other: '_DatasetFeatureStatisticsComparatorWrapper'):
     return compare.ProtoEq(self._normalized, other._normalized)  # pylint: disable=protected-access
 
   def __repr__(self):
@@ -243,12 +244,14 @@ class TransformStatsGeneratorTest(absltest.TestCase):
   # Runs the provided slicing aware transform statistics generator and tests
   # if the output matches the expected result.
   def assertSlicingAwareTransformOutputEqual(
-      self, examples,
-      generator,
-      expected_results,
-      add_default_slice_key_to_input = False,
-      add_default_slice_key_to_output = False,
-  ):
+      self, examples: List[Union[types.SlicedExample, types.Example]],
+      generator: stats_generator.TransformStatsGenerator,
+      expected_results: List[Union[
+          statistics_pb2.DatasetFeatureStatistics,
+          Tuple[types.SliceKey, statistics_pb2.DatasetFeatureStatistics]]],
+      add_default_slice_key_to_input: bool = False,
+      add_default_slice_key_to_output: bool = False,
+  ) -> None:
     """Tests a slicing aware transform statistics generator.
 
     Args:
@@ -262,11 +265,13 @@ class TransformStatsGeneratorTest(absltest.TestCase):
     """
 
     def _make_result_matcher(
-        test,
-        expected_results):
+        test: absltest.TestCase,
+        expected_results: List[
+            Tuple[types.SliceKey, statistics_pb2.DatasetFeatureStatistics]]):
       """Makes matcher for a list of DatasetFeatureStatistics protos."""
 
-      def _equal(actual_results):
+      def _equal(actual_results: List[
+          Tuple[types.SliceKey, statistics_pb2.DatasetFeatureStatistics]]):
         """Matcher for comparing a list of DatasetFeatureStatistics protos."""
         test.assertCountEqual(
             [(k, _DatasetFeatureStatisticsComparatorWrapper(v))
@@ -293,9 +298,9 @@ class CombinerFeatureStatsGeneratorTest(absltest.TestCase):
   # Runs the provided combiner feature statistics generator and tests if the
   # output matches the expected result.
   def assertCombinerOutputEqual(
-      self, input_batches,
-      generator,
-      expected_result):
+      self, input_batches: List[types.ValueBatch],
+      generator: stats_generator.CombinerFeatureStatsGenerator,
+      expected_result: statistics_pb2.FeatureNameStatistics) -> None:
     """Tests a feature combiner statistics generator.
 
     This runs the generator twice to cover different behavior. There must be at
@@ -329,8 +334,8 @@ class CombinerFeatureStatsGeneratorTest(absltest.TestCase):
         self, result, expected_result, normalize_numbers=True)
 
 
-def make_arrow_tables_equal_fn(test,
-                               expected_tables):
+def make_arrow_tables_equal_fn(test: absltest.TestCase,
+                               expected_tables: List[pa.Table]):
   """Makes a matcher function for comparing arrow tables."""
   def _matcher(actual_tables):
     """Arrow tables matcher fn."""

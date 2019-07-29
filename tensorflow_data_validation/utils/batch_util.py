@@ -27,14 +27,14 @@ from tensorflow_data_validation.arrow import decoded_examples_to_arrow
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 
 
-@beam.typehints.with_input_types(types.Example)
+@beam.typehints.with_input_types(types.BeamExample)
 @beam.typehints.with_output_types(pa.Table)
 class _BatchExamplesDoFn(beam.DoFn):
   """A DoFn which batches input example dicts into an arrow table."""
 
   def __init__(
       self,
-      desired_batch_size = constants.DEFAULT_DESIRED_INPUT_BATCH_SIZE):
+      desired_batch_size: int = constants.DEFAULT_DESIRED_INPUT_BATCH_SIZE):
     self._desired_batch_size = desired_batch_size
     self._buffer = []
 
@@ -48,19 +48,19 @@ class _BatchExamplesDoFn(beam.DoFn):
     if self._buffer:
       yield window.GlobalWindows.windowed_value(self._flush_buffer())
 
-  def process(self, example):
+  def process(self, example: types.Example):
     self._buffer.append(example)
     if len(self._buffer) >= self._desired_batch_size:
       yield self._flush_buffer()
 
 
 @beam.ptransform_fn
-@beam.typehints.with_input_types(types.Example)
+@beam.typehints.with_input_types(types.BeamExample)
 @beam.typehints.with_output_types(pa.Table)
 def BatchExamplesToArrowTables(
-    examples,
-    desired_batch_size = constants.DEFAULT_DESIRED_INPUT_BATCH_SIZE
-):  # pylint: disable=invalid-name
+    examples: beam.pvalue.PCollection,
+    desired_batch_size: int = constants.DEFAULT_DESIRED_INPUT_BATCH_SIZE
+) -> beam.pvalue.PCollection:  # pylint: disable=invalid-name
   """Batches example dicts into Arrow tables.
 
   Args:

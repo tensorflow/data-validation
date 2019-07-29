@@ -14,7 +14,7 @@
 """Types for backwards compatibility with versions that don't support typing."""
 
 # Note:
-# 1. Before open source, "from tensorflow_data_validation.types_compat import" will be replaced by
+# 1. Before open source, "from typing import" will be replaced by
 #    "from tensorflow_data_validation.types_compat import" via copybara.
 # 2. During development:
 # (a) Any types import from typing directly should be defined within this file.

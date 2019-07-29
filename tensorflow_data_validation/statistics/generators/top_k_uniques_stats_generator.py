@@ -34,7 +34,7 @@ from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils.stats_util import maybe_get_utf8
-from tensorflow_data_validation.types_compat import Any, Iterable, Iterator, FrozenSet, List, Optional, Set, Text, Tuple, Union
+from typing import Any, Iterable, Iterator, FrozenSet, List, Optional, Set, Text, Tuple, Union
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
@@ -49,8 +49,8 @@ _INVALID_STRING = '__BYTES_VALUE__'
 
 
 def _make_feature_stats_proto_with_uniques_stats(
-    feature_path, count,
-    is_categorical):
+    feature_path: types.FeaturePath, count: int,
+    is_categorical: bool) -> statistics_pb2.FeatureNameStatistics:
   """Makes a FeatureNameStatistics proto containing the uniques stats."""
   result = statistics_pb2.FeatureNameStatistics()
   result.path.CopyFrom(feature_path.to_proto())
@@ -64,9 +64,10 @@ def _make_feature_stats_proto_with_uniques_stats(
 
 
 def _make_dataset_feature_stats_proto_with_uniques_for_single_feature(
-    feature_path_to_value_count,
-    categorical_features
-):
+    feature_path_to_value_count: Tuple[Tuple[types.SliceKey,
+                                             FeaturePathTuple], int],
+    categorical_features: Set[types.FeaturePath]
+) -> Tuple[types.SliceKey, bytes]:
   """Makes a DatasetFeatureStatistics proto with uniques stats for a feature."""
   (slice_key, feature_path_tuple), count = feature_path_to_value_count
   feature_path = types.FeaturePath(feature_path_tuple)
@@ -78,11 +79,11 @@ def _make_dataset_feature_stats_proto_with_uniques_for_single_feature(
 
 
 def make_feature_stats_proto_with_topk_stats(
-    feature_path,
-    top_k_value_count_list, is_categorical,
-    is_weighted_stats, num_top_values,
-    frequency_threshold,
-    num_rank_histogram_buckets):
+    feature_path: types.FeaturePath,
+    top_k_value_count_list: List[FeatureValueCount], is_categorical: bool,
+    is_weighted_stats: bool, num_top_values: int,
+    frequency_threshold: Union[float, int],
+    num_rank_histogram_buckets: int) -> statistics_pb2.FeatureNameStatistics:
   """Makes a FeatureNameStatistics proto containing the top-k stats.
 
   Args:
@@ -148,10 +149,11 @@ def make_feature_stats_proto_with_topk_stats(
 
 
 def _make_dataset_feature_stats_proto_with_topk_for_single_feature(
-    feature_path_to_value_count_list,
-    categorical_features, is_weighted_stats,
-    num_top_values, frequency_threshold,
-    num_rank_histogram_buckets):
+    feature_path_to_value_count_list: Tuple[
+        Tuple[types.SliceKey, FeaturePathTuple], List[FeatureValueCount]],
+    categorical_features: Set[types.FeaturePath], is_weighted_stats: bool,
+    num_top_values: int, frequency_threshold: float,
+    num_rank_histogram_buckets: int) -> Tuple[types.SliceKey, bytes]:
   """Makes a DatasetFeatureStatistics proto with top-k stats for a feature."""
   (slice_key, feature_path_tuple), value_count_list = (
       feature_path_to_value_count_list)
@@ -165,8 +167,8 @@ def _make_dataset_feature_stats_proto_with_topk_for_single_feature(
   return slice_key, result.SerializeToString()
 
 
-def _weighted_unique(values, weights
-                    ):
+def _weighted_unique(values: np.ndarray, weights: np.ndarray
+                    ) -> Iterator[Tuple[Any, int, Union[int, float]]]:
   """Computes weighted uniques.
 
   Args:
@@ -192,10 +194,12 @@ def _weighted_unique(values, weights
 
 
 def _to_topk_tuples(
-    sliced_table,
-    categorical_features,
-    weight_feature = None
-):
+    sliced_table: Tuple[Text, pa.Table],
+    categorical_features: FrozenSet[types.FeaturePath],
+    weight_feature: Optional[Text] = None
+) -> Iterable[
+    Tuple[Tuple[Text, FeaturePathTuple, Any],
+          Union[int, Tuple[int, Union[int, float]]]]]:
   """Generates tuples for computing top-k and uniques from input tables."""
   slice_key, table = sliced_table
   weight_column = table.column(weight_feature) if weight_feature else None
@@ -241,10 +245,10 @@ def _to_topk_tuples(
 class _ComputeTopKUniquesStats(beam.PTransform):
   """A ptransform that computes top-k and uniques for string features."""
 
-  def __init__(self, schema,
-               weight_feature, num_top_values,
-               frequency_threshold, weighted_frequency_threshold,
-               num_rank_histogram_buckets):
+  def __init__(self, schema: schema_pb2.Schema,
+               weight_feature: types.FeatureName, num_top_values: int,
+               frequency_threshold: int, weighted_frequency_threshold: float,
+               num_rank_histogram_buckets: int):
     """Initializes _ComputeTopKUniquesStats.
 
     Args:
@@ -268,11 +272,11 @@ class _ComputeTopKUniquesStats(beam.PTransform):
     self._weighted_frequency_threshold = weighted_frequency_threshold
     self._num_rank_histogram_buckets = num_rank_histogram_buckets
 
-  def expand(self, pcoll):
+  def expand(self, pcoll: beam.pvalue.PCollection) -> beam.pvalue.PCollection:
 
     def _sum_pairwise(
-        iter_of_pairs
-    ):
+        iter_of_pairs: Iterator[Tuple[Union[int, float], Union[int, float]]]
+    ) -> Tuple[Union[int, float], Union[int, float]]:
       """Computes sum of counts and weights."""
       # We take advantage of the fact that constructing a np array from a list
       # is much faster as the length is known beforehand.
@@ -360,13 +364,13 @@ class TopKUniquesStatsGenerator(stats_generator.TransformStatsGenerator):
   """A transform statistics generator that computes top-k and uniques."""
 
   def __init__(self,
-               name = 'TopKUniquesStatsGenerator',
-               schema = None,
-               weight_feature = None,
-               num_top_values = 2,
-               frequency_threshold = 1,
-               weighted_frequency_threshold = 1.0,
-               num_rank_histogram_buckets = 1000):
+               name: Text = 'TopKUniquesStatsGenerator',
+               schema: Optional[schema_pb2.Schema] = None,
+               weight_feature: Optional[types.FeatureName] = None,
+               num_top_values: int = 2,
+               frequency_threshold: int = 1,
+               weighted_frequency_threshold: float = 1.0,
+               num_rank_histogram_buckets: int = 1000) -> None:
     """Initializes top-k and uniques stats generator.
 
     Args:

@@ -28,14 +28,10 @@ from tensorflow_data_validation import types
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.pyarrow_tf import tensorflow as tf
 from tensorflow_data_validation.utils import batch_util
-from tensorflow_data_validation.types_compat import Dict, List, Optional, Text, Union
+from typing import Dict, List, Optional, Text
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
-
-# Type for representing a CSV record and a field value.
-CSVRecord = Union[bytes, Text]
-CSVCell = Union[bytes, Text]
 
 # Named tuple with column name and its type.
 ColumnInfo = collections.namedtuple('ColumnInfo', ['name', 'type'])
@@ -43,7 +39,7 @@ ColumnInfo = collections.namedtuple('ColumnInfo', ['name', 'type'])
 
 # TODO(b/111831548): Add support for a secondary delimiter to parse
 # value lists.
-@beam.typehints.with_input_types(CSVRecord)
+@beam.typehints.with_input_types(types.BeamCSVRecord)
 @beam.typehints.with_output_types(pa.Table)
 class DecodeCSV(beam.PTransform):
   """Decodes CSV records into an in-memory dict representation.
@@ -53,12 +49,12 @@ class DecodeCSV(beam.PTransform):
 
   def __init__(
       self,
-      column_names,
-      delimiter = ',',
-      skip_blank_lines = True,
-      schema = None,
-      infer_type_from_schema = False,
-      desired_batch_size = constants.DEFAULT_DESIRED_INPUT_BATCH_SIZE
+      column_names: List[types.FeatureName],
+      delimiter: Text = ',',
+      skip_blank_lines: bool = True,
+      schema: Optional[schema_pb2.Schema] = None,
+      infer_type_from_schema: bool = False,
+      desired_batch_size: int = constants.DEFAULT_DESIRED_INPUT_BATCH_SIZE
   ):
     """Initializes the CSV decoder.
 
@@ -85,7 +81,7 @@ class DecodeCSV(beam.PTransform):
     self._infer_type_from_schema = infer_type_from_schema
     self._desired_batch_size = desired_batch_size
 
-  def expand(self, lines):
+  def expand(self, lines: beam.pvalue.PCollection):
     """Decodes the input CSV records into Arrow tables.
 
     Args:
@@ -106,7 +102,7 @@ class DecodeCSV(beam.PTransform):
                 desired_batch_size=self._desired_batch_size))
 
 
-@beam.typehints.with_input_types(CSVRecord)
+@beam.typehints.with_input_types(types.BeamCSVRecord)
 @beam.typehints.with_output_types(types.BeamExample)
 class DecodeCSVToDict(beam.PTransform):
   """Decodes CSV records into an in-memory dict representation.
@@ -116,11 +112,11 @@ class DecodeCSVToDict(beam.PTransform):
 
   def __init__(
       self,
-      column_names,
-      delimiter = ',',
-      skip_blank_lines = True,
-      schema = None,
-      infer_type_from_schema = False,
+      column_names: List[types.FeatureName],
+      delimiter: Text = ',',
+      skip_blank_lines: bool = True,
+      schema: Optional[schema_pb2.Schema] = None,
+      infer_type_from_schema: bool = False,
   ):
     """Initializes the CSV decoder.
 
@@ -144,7 +140,7 @@ class DecodeCSVToDict(beam.PTransform):
     self._schema = schema
     self._infer_type_from_schema = infer_type_from_schema
 
-  def expand(self, lines):
+  def expand(self, lines: beam.pvalue.PCollection):
     """Decodes the input CSV records into an in-memory dict representation.
 
     Args:
@@ -179,8 +175,8 @@ class DecodeCSVToDict(beam.PTransform):
 
 
 def _get_feature_types_from_schema(
-    schema,
-    column_names):
+    schema: schema_pb2.Schema,
+    column_names: List[types.FeatureName]) -> List[ColumnInfo]:
   """Get statistics feature types from the input schema."""
   schema_type_to_stats_type = {
       schema_pb2.INT: statistics_pb2.FeatureNameStatistics.INT,
@@ -206,7 +202,7 @@ class _LineGenerator(object):
   def __init__(self):
     self._lines = []
 
-  def push_line(self, line):
+  def push_line(self, line: types.CSVRecord):
     # This API currently supports only one line at a time.
     assert not self._lines
     self._lines.append(line)
@@ -214,7 +210,7 @@ class _LineGenerator(object):
   def __iter__(self):
     return self
 
-  def __next__(self):
+  def __next__(self) -> types.CSVRecord:
     """Gets the next line to process."""
     # This API currently supports only one line at a time.
     num_lines = len(self._lines)
@@ -236,12 +232,12 @@ class CSVParser(object):
   class _ReaderWrapper(object):
     """A wrapper for csv.reader to make it picklable."""
 
-    def __init__(self, delimiter):
+    def __init__(self, delimiter: str):
       self._state = (delimiter)
       self._line_generator = _LineGenerator()
       self._reader = csv.reader(self._line_generator, delimiter=delimiter)
 
-    def read_record(self, csv_string):
+    def read_record(self, csv_string: types.CSVRecord) -> List[bytes]:
       """Reads out bytes for PY2 and Unicode for PY3."""
       if six.PY2:
         # TODO(caveness): Test performance impact of removing nested dots
@@ -259,7 +255,7 @@ class CSVParser(object):
     def __setstate__(self, state):
       self.__init__(*state)
 
-  def __init__(self, delimiter):
+  def __init__(self, delimiter: str) -> None:
     """Initializes CSVParser.
 
     Args:
@@ -271,13 +267,13 @@ class CSVParser(object):
   def __reduce__(self):
     return CSVParser, (self._delimiter,)
 
-  def parse(self, csv_string):
+  def parse(self, csv_string: types.CSVRecord) -> List[types.CSVCell]:
     """Parse a CSV record into a list of strings."""
     return self._reader.read_record(csv_string)
 
 
-def _make_example_dict(row, skip_blank_lines,
-                       column_info):
+def _make_example_dict(row: List[types.CSVCell], skip_blank_lines: bool,
+                       column_info: List[ColumnInfo]) -> List[types.Example]:
   """Create the in-memory representation from the CSV record.
 
   Args:
@@ -313,7 +309,7 @@ _INT64_MIN = np.iinfo(np.int64).min
 _INT64_MAX = np.iinfo(np.int64).max
 
 
-def _infer_value_type(value):
+def _infer_value_type(value: types.CSVCell) -> types.FeatureNameStatisticsType:
   """Infer feature type from the input value."""
   # If the value is an empty string, we can set the feature type to be
   # either FLOAT or STRING. We conservatively set it to be FLOAT.
@@ -337,27 +333,27 @@ def _infer_value_type(value):
     return statistics_pb2.FeatureNameStatistics.FLOAT
 
 
-@beam.typehints.with_input_types(List[CSVCell])
+@beam.typehints.with_input_types(beam.typehints.List[types.BeamCSVCell])
 @beam.typehints.with_output_types(beam.typehints.List[ColumnInfo])
 class _FeatureTypeInferrer(beam.CombineFn):
   """Class to infer feature types as a beam.CombineFn."""
 
-  def __init__(self, column_names,
-               skip_blank_lines):
+  def __init__(self, column_names: List[types.FeatureName],
+               skip_blank_lines: bool) -> None:
     """Initializes a feature type inferrer combiner."""
     self._column_names = column_names
     self._skip_blank_lines = skip_blank_lines
 
   def create_accumulator(
-      self):  # pytype: disable=invalid-annotation
+      self) -> Dict[types.FeatureName, types.FeatureNameStatisticsType]:  # pytype: disable=invalid-annotation
     """Creates an empty accumulator to keep track of the feature types."""
     return {}
 
   def add_input(
       self,
-      accumulator,
-      input_row
-  ):
+      accumulator: Dict[types.FeatureName, types.FeatureNameStatisticsType],
+      input_row: List[types.CSVCell]
+  ) -> Dict[types.FeatureName, types.FeatureNameStatisticsType]:
     """Updates the feature types in the accumulator using the input row.
 
     Args:
@@ -396,8 +392,9 @@ class _FeatureTypeInferrer(beam.CombineFn):
     return accumulator
 
   def merge_accumulators(
-      self, accumulators
-  ):
+      self, accumulators: List[
+          Dict[types.FeatureName, types.FeatureNameStatisticsType]]
+  ) -> Dict[types.FeatureName, types.FeatureNameStatisticsType]:
     """Merge the feature types inferred from the different partitions.
 
     Args:
@@ -419,8 +416,8 @@ class _FeatureTypeInferrer(beam.CombineFn):
 
   def extract_output(
       self,
-      accumulator
-  ):
+      accumulator: Dict[types.FeatureName, types.FeatureNameStatisticsType]
+  ) -> List[ColumnInfo]:
     """Return a list of tuples containing the column info."""
     return [
         ColumnInfo(col_name, accumulator.get(col_name, None))

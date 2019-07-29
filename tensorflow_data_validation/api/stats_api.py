@@ -51,7 +51,7 @@ from tensorflow_data_validation import types
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options
-from tensorflow_data_validation.types_compat import Generator
+from typing import Generator
 
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
@@ -79,8 +79,8 @@ class GenerateStatistics(beam.PTransform):
 
   def __init__(
       self,
-      options = stats_options.StatsOptions()
-  ):
+      options: stats_options.StatsOptions = stats_options.StatsOptions()
+  ) -> None:
     """Initializes the transform.
 
     Args:
@@ -94,7 +94,7 @@ class GenerateStatistics(beam.PTransform):
                       type(options).__name__)
     self._options = options
 
-  def expand(self, dataset):
+  def expand(self, dataset: beam.pvalue.PCollection) -> beam.pvalue.PCollection:
     # Sample input data if sample_count option is provided.
     # TODO(b/117229955): Consider providing an option to write the sample
     # to a file.
@@ -122,8 +122,8 @@ class GenerateStatistics(beam.PTransform):
             stats_impl.GenerateStatisticsImpl(self._options))
 
 
-def _sample_at_rate(example, sample_rate
-                   ):
+def _sample_at_rate(example: types.Example, sample_rate: float
+                   ) -> Generator[types.Example, None, None]:
   """Sample examples at input sampling rate."""
   # TODO(pachristopher): Revisit this to decide if we need to fix a seed
   # or add an optional seed argument.

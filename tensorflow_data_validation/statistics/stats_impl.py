@@ -41,7 +41,7 @@ from tensorflow_data_validation.statistics.generators import top_k_uniques_combi
 from tensorflow_data_validation.statistics.generators import top_k_uniques_stats_generator
 from tensorflow_data_validation.utils import slicing_util
 from tensorflow_data_validation.utils import stats_util
-from tensorflow_data_validation.types_compat import Any, Callable, Dict, Iterable, List, Optional, Text, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Text, Tuple
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -54,11 +54,11 @@ class GenerateStatisticsImpl(beam.PTransform):
 
   def __init__(
       self,
-      options = stats_options.StatsOptions()
-      ):
+      options: stats_options.StatsOptions = stats_options.StatsOptions()
+      ) -> None:
     self._options = options
 
-  def expand(self, dataset):
+  def expand(self, dataset: beam.pvalue.PCollection) -> beam.pvalue.PCollection:
     # If a set of whitelist features are provided, keep only those features.
     if self._options.feature_whitelist:
       dataset |= ('RemoveNonWhitelistedFeatures' >> beam.Map(
@@ -85,16 +85,16 @@ class GenerateStatisticsImpl(beam.PTransform):
 # statistics over anomalous examples. Specifically, it is used to compute
 # statistics over examples found for each anomaly (i.e., the anomaly type
 # will be the slice key).
-@beam.typehints.with_input_types(types.SlicedTable)
+@beam.typehints.with_input_types(types.BeamSlicedTable)
 @beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatisticsList)
 class GenerateSlicedStatisticsImpl(beam.PTransform):
   """PTransform that applies a set of generators to sliced input examples."""
 
   def __init__(
       self,
-      options = stats_options.StatsOptions(),
-      is_slicing_enabled = False,
-      ):
+      options: stats_options.StatsOptions = stats_options.StatsOptions(),
+      is_slicing_enabled: bool = False,
+      ) -> None:
     """Initializes GenerateSlicedStatisticsImpl.
 
     Args:
@@ -108,7 +108,7 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
     self._is_slicing_enabled = (
         is_slicing_enabled or self._options.slice_functions)
 
-  def expand(self, dataset):
+  def expand(self, dataset: beam.pvalue.PCollection) -> beam.pvalue.PCollection:
     # Handles generators by their type:
     #   - CombinerStatsGenerators will be wrapped in a single CombinePerKey by
     #     _CombinerStatsGeneratorsCombineFn.
@@ -154,9 +154,9 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
             beam.Map(_make_dataset_feature_statistics_list_proto))
 
 
-def get_generators(options,
-                   in_memory = False
-                  ):
+def get_generators(options: stats_options.StatsOptions,
+                   in_memory: bool = False
+                  ) -> List[stats_generator.StatsGenerator]:
   """Initializes the list of stats generators, including custom generators.
 
   Args:
@@ -210,8 +210,8 @@ def get_generators(options,
 
 
 def _get_default_generators(
-    options, in_memory = False
-):
+    options: stats_options.StatsOptions, in_memory: bool = False
+) -> List[stats_generator.StatsGenerator]:
   """Initializes default list of stats generators.
 
   Args:
@@ -257,8 +257,8 @@ def _get_default_generators(
 
 
 def _filter_features(
-    table,
-    feature_whitelist):
+    table: pa.Table,
+    feature_whitelist: List[types.FeatureName]) -> pa.Table:
   """Removes features that are not whitelisted.
 
   Args:
@@ -277,9 +277,10 @@ def _filter_features(
 
 
 def _add_slice_key(
-    stats_proto_per_slice,
-    is_slicing_enabled
-):
+    stats_proto_per_slice: Tuple[types.SliceKey,
+                                 statistics_pb2.DatasetFeatureStatistics],
+    is_slicing_enabled: bool
+) -> statistics_pb2.DatasetFeatureStatistics:
   """Add slice key to stats proto."""
   result = statistics_pb2.DatasetFeatureStatistics()
   result.CopyFrom(stats_proto_per_slice[1])
@@ -289,8 +290,8 @@ def _add_slice_key(
 
 
 def _merge_dataset_feature_stats_protos(
-    stats_protos
-):
+    stats_protos: Iterable[statistics_pb2.DatasetFeatureStatistics]
+) -> statistics_pb2.DatasetFeatureStatistics:
   """Merges together a list of DatasetFeatureStatistics protos.
 
   Args:
@@ -344,7 +345,7 @@ def _merge_dataset_feature_stats_protos(
 
 
 def _update_example_and_missing_count(
-    stats):
+    stats: statistics_pb2.DatasetFeatureStatistics) -> None:
   """Updates example count of the dataset and missing count for all features."""
   dummy_feature = stats_util.get_feature_stats(stats, _DUMMY_FEATURE_PATH)
   num_examples = stats_util.get_custom_stats(dummy_feature, _NUM_EXAMPLES_KEY)
@@ -372,8 +373,8 @@ def _update_example_and_missing_count(
 
 
 def _make_dataset_feature_statistics_list_proto(
-    stats_protos
-):
+    stats_protos: List[statistics_pb2.DatasetFeatureStatistics]
+) -> statistics_pb2.DatasetFeatureStatisticsList:
   """Constructs a DatasetFeatureStatisticsList proto.
 
   Args:
@@ -408,14 +409,14 @@ class NumExamplesStatsGenerator(stats_generator.CombinerStatsGenerator):
   """Computes total number of examples."""
 
   def __init__(self,
-               weight_feature = None):
+               weight_feature: Optional[types.FeatureName] = None) -> None:
     self._weight_feature = weight_feature
 
-  def create_accumulator(self):
+  def create_accumulator(self) -> List[float]:
     return [0, 0]  # [num_examples, weighted_num_examples]
 
-  def add_input(self, accumulator,
-                examples_table):
+  def add_input(self, accumulator: List[float],
+                examples_table: pa.Table) -> List[float]:
     accumulator[0] += examples_table.num_rows
     if self._weight_feature:
       weights_column = examples_table.column(self._weight_feature)
@@ -424,16 +425,16 @@ class NumExamplesStatsGenerator(stats_generator.CombinerStatsGenerator):
             arrow_util.FlattenListArray(weight_array).to_numpy())
     return accumulator
 
-  def merge_accumulators(self, accumulators
-                        ):
+  def merge_accumulators(self, accumulators: Iterable[List[float]]
+                        ) -> List[float]:
     result = self.create_accumulator()
     for acc in accumulators:
       result[0] += acc[0]
       result[1] += acc[1]
     return result
 
-  def extract_output(self, accumulator
-                    ):
+  def extract_output(self, accumulator: List[float]
+                    ) -> statistics_pb2.DatasetFeatureStatistics:
     result = statistics_pb2.DatasetFeatureStatistics()
     dummy_feature = result.features.add()
     dummy_feature.path.CopyFrom(_DUMMY_FEATURE_PATH.to_proto())
@@ -450,7 +451,7 @@ class _CombinerStatsGeneratorsCombineFnAcc(object):
 
   __slots__ = ['partial_accumulators', 'input_tables', 'curr_batch_size']
 
-  def __init__(self, partial_accumulators):
+  def __init__(self, partial_accumulators: List[Any]):
     # Partial accumulator states of the underlying CombinerStatsGenerators.
     self.partial_accumulators = partial_accumulators
     # Input tables to be processed.
@@ -494,8 +495,8 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
 
   def __init__(
       self,
-      generators,
-      desired_batch_size = None):
+      generators: List[stats_generator.CombinerStatsGenerator],
+      desired_batch_size: Optional[int] = None) -> None:
     self._generators = generators
 
     # We really want the batch size to be adaptive like it is in
@@ -519,8 +520,8 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
         constants.METRICS_NAMESPACE, 'num_compacts')
 
   def _for_each_generator(self,
-                          func,
-                          *args):
+                          func: Callable[..., Any],
+                          *args: Iterable[Any]) -> List[Any]:
     """Apply `func` for each wrapped generators.
 
     Args:
@@ -536,14 +537,14 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
         self._generators, zip(*args))]
 
   def create_accumulator(self
-                        ):  # pytype: disable=invalid-annotation
+                        ) -> _CombinerStatsGeneratorsCombineFnAcc:  # pytype: disable=invalid-annotation
     return _CombinerStatsGeneratorsCombineFnAcc(
         [g.create_accumulator() for g in self._generators])
 
   def _maybe_do_batch(
       self,
-      accumulator,
-      force = False):
+      accumulator: _CombinerStatsGeneratorsCombineFnAcc,
+      force: bool = False) -> None:
     """Maybe updates accumulator in place.
 
     Checks if accumulator has enough examples for a batch, and if so, does the
@@ -568,9 +569,9 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
       accumulator.curr_batch_size = 0
 
   def add_input(
-      self, accumulator,
-      input_table
-      ):
+      self, accumulator: _CombinerStatsGeneratorsCombineFnAcc,
+      input_table: pa.Table
+      ) -> _CombinerStatsGeneratorsCombineFnAcc:
     accumulator.input_tables.append(input_table)
     accumulator.curr_batch_size += input_table.num_rows
     self._maybe_do_batch(accumulator)
@@ -578,8 +579,8 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
 
   def merge_accumulators(
       self,
-      accumulators
-      ):
+      accumulators: Iterable[_CombinerStatsGeneratorsCombineFnAcc]
+      ) -> _CombinerStatsGeneratorsCombineFnAcc:
     result = self.create_accumulator()
     # Make sure accumulators is an iterator (so it remembers its position).
     accumulators = iter(accumulators)
@@ -615,16 +616,16 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
   # TODO(pachristopher): Consider adding CombinerStatsGenerator.compact method.
   def compact(
       self,
-      accumulator
-      ):
+      accumulator: _CombinerStatsGeneratorsCombineFnAcc
+      ) -> _CombinerStatsGeneratorsCombineFnAcc:
     self._maybe_do_batch(accumulator, force=True)
     self._num_compacts.inc(1)
     return accumulator
 
   def extract_output(
       self,
-      accumulator
-  ):  # pytype: disable=invalid-annotation
+      accumulator: _CombinerStatsGeneratorsCombineFnAcc
+  ) -> statistics_pb2.DatasetFeatureStatistics:  # pytype: disable=invalid-annotation
     # Make sure we have processed all the examples.
     self._maybe_do_batch(accumulator, force=True)
     return _merge_dataset_feature_stats_protos(
@@ -633,10 +634,10 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
 
 
 def generate_partial_statistics_in_memory(
-    table,
-    options,
-    stats_generators
-):
+    table: pa.Table,
+    options: stats_options.StatsOptions,
+    stats_generators: List[stats_generator.CombinerStatsGenerator]
+) -> List[Any]:
   """Generates statistics for an in-memory list of examples.
 
   Args:
@@ -661,9 +662,9 @@ def generate_partial_statistics_in_memory(
 
 
 def generate_statistics_in_memory(
-    table,
-    options = stats_options.StatsOptions()
-):
+    table: pa.Table,
+    options: stats_options.StatsOptions = stats_options.StatsOptions()
+) -> statistics_pb2.DatasetFeatureStatisticsList:
   """Generates statistics for an in-memory list of examples.
 
   Args:
@@ -680,9 +681,9 @@ def generate_statistics_in_memory(
 
 
 def extract_statistics_output(
-    partial_stats,
-    stats_generators
-):
+    partial_stats: List[Any],
+    stats_generators: List[stats_generator.CombinerStatsGenerator]
+) -> statistics_pb2.DatasetFeatureStatisticsList:
   """Extracts final stats output from the accumulators holding partial stats."""
   outputs = [
       gen.extract_output(stats)
@@ -709,11 +710,12 @@ class CombinerFeatureStatsWrapperGenerator(
   """
 
   def __init__(self,
-               feature_stats_generators,
-               name = 'CombinerFeatureStatsWrapperGenerator',
-               schema = None,
-               weight_feature = None,
-               sample_rate = None):
+               feature_stats_generators: List[
+                   stats_generator.CombinerFeatureStatsGenerator],
+               name: Text = 'CombinerFeatureStatsWrapperGenerator',
+               schema: Optional[schema_pb2.Schema] = None,
+               weight_feature: Optional[types.FeatureName] = None,
+               sample_rate: Optional[float] = None) -> None:
     """Initializes a CombinerFeatureStatsWrapperGenerator.
 
     Args:
@@ -732,8 +734,8 @@ class CombinerFeatureStatsWrapperGenerator(
     self._sample_rate = sample_rate
 
   def _perhaps_initialize_for_feature_path(
-      self, wrapper_accumulator,
-      feature_path):
+      self, wrapper_accumulator: WrapperAccumulator,
+      feature_path: types.FeaturePath) -> None:
     """Initializes the feature_path key if it does not exist."""
     # Note: This manual initialization could have been avoided if
     # wrapper_accumulator was a defaultdict, but this breaks pickling.
@@ -743,7 +745,7 @@ class CombinerFeatureStatsWrapperGenerator(
           for generator in self._feature_stats_generators
       ]
 
-  def create_accumulator(self):
+  def create_accumulator(self) -> WrapperAccumulator:
     """Returns a fresh, empty wrapper_accumulator.
 
     Returns:
@@ -751,8 +753,8 @@ class CombinerFeatureStatsWrapperGenerator(
     """
     return {}
 
-  def add_input(self, wrapper_accumulator,
-                input_table):
+  def add_input(self, wrapper_accumulator: WrapperAccumulator,
+                input_table: pa.Table) -> WrapperAccumulator:
     """Returns result of folding a batch of inputs into wrapper_accumulator.
 
     Args:
@@ -780,7 +782,7 @@ class CombinerFeatureStatsWrapperGenerator(
 
   def merge_accumulators(
       self,
-      wrapper_accumulators):
+      wrapper_accumulators: Iterable[WrapperAccumulator]) -> WrapperAccumulator:
     """Merges several wrapper_accumulators to a single one.
 
     Args:
@@ -799,8 +801,8 @@ class CombinerFeatureStatsWrapperGenerator(
               [result[feature_name][index], accumulator_for_feature[index]])
     return result
 
-  def extract_output(self, wrapper_accumulator
-                    ):
+  def extract_output(self, wrapper_accumulator: WrapperAccumulator
+                    ) -> statistics_pb2.DatasetFeatureStatistics:
     """Returns result of converting wrapper_accumulator into the output value.
 
     Args:

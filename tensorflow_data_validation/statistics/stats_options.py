@@ -22,7 +22,7 @@ from __future__ import print_function
 import types as python_types
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
-from tensorflow_data_validation.types_compat import List, Optional
+from typing import List, Optional
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 
@@ -38,25 +38,25 @@ class StatsOptions(object):
 
   def __init__(
       self,
-      generators = None,
-      feature_whitelist = None,
-      schema = None,
-      weight_feature = None,
-      slice_functions = None,
-      sample_count = None,
-      sample_rate = None,
-      num_top_values = 20,
-      frequency_threshold = 1,
-      weighted_frequency_threshold = 1.0,
-      num_rank_histogram_buckets = 1000,
-      num_values_histogram_buckets = 10,
-      num_histogram_buckets = 10,
-      num_quantiles_histogram_buckets = 10,
-      epsilon = 0.01,
-      infer_type_from_schema = False,
-      desired_batch_size = None,
-      enable_semantic_domain_stats = False,
-      semantic_domain_stats_sample_rate = None):
+      generators: Optional[List[stats_generator.StatsGenerator]] = None,
+      feature_whitelist: Optional[List[types.FeatureName]] = None,
+      schema: Optional[schema_pb2.Schema] = None,
+      weight_feature: Optional[types.FeatureName] = None,
+      slice_functions: Optional[List[types.SliceFunction]] = None,
+      sample_count: Optional[int] = None,
+      sample_rate: Optional[float] = None,
+      num_top_values: int = 20,
+      frequency_threshold: int = 1,
+      weighted_frequency_threshold: float = 1.0,
+      num_rank_histogram_buckets: int = 1000,
+      num_values_histogram_buckets: int = 10,
+      num_histogram_buckets: int = 10,
+      num_quantiles_histogram_buckets: int = 10,
+      epsilon: float = 0.01,
+      infer_type_from_schema: bool = False,
+      desired_batch_size: Optional[int] = None,
+      enable_semantic_domain_stats: bool = False,
+      semantic_domain_stats_sample_rate: Optional[float] = None):
     """Initializes statistics options.
 
     Args:
@@ -133,12 +133,12 @@ class StatsOptions(object):
     self.semantic_domain_stats_sample_rate = semantic_domain_stats_sample_rate
 
   @property
-  def generators(self):
+  def generators(self) -> Optional[List[stats_generator.StatsGenerator]]:
     return self._generators
 
   @generators.setter
   def generators(
-      self, generators):
+      self, generators: Optional[List[stats_generator.StatsGenerator]]) -> None:
     if generators is not None:
       if not isinstance(generators, list):
         raise TypeError('generators is of type %s, should be a list.' %
@@ -157,12 +157,12 @@ class StatsOptions(object):
     self._generators = generators
 
   @property
-  def feature_whitelist(self):
+  def feature_whitelist(self) -> Optional[List[types.FeatureName]]:
     return self._feature_whitelist
 
   @feature_whitelist.setter
   def feature_whitelist(
-      self, feature_whitelist):
+      self, feature_whitelist: Optional[List[types.FeatureName]]) -> None:
     if feature_whitelist is not None and not isinstance(feature_whitelist,
                                                         list):
       raise TypeError('feature_whitelist is of type %s, should be a list.' %
@@ -170,23 +170,23 @@ class StatsOptions(object):
     self._feature_whitelist = feature_whitelist
 
   @property
-  def schema(self):
+  def schema(self) -> Optional[schema_pb2.Schema]:
     return self._schema
 
   @schema.setter
-  def schema(self, schema):
+  def schema(self, schema: Optional[schema_pb2.Schema]) -> None:
     if schema is not None and not isinstance(schema, schema_pb2.Schema):
       raise TypeError('schema is of type %s, should be a Schema proto.' %
                       type(schema).__name__)
     self._schema = schema
 
   @property
-  def slice_functions(self):
+  def slice_functions(self) -> Optional[List[types.SliceFunction]]:
     return self._slice_functions
 
   @slice_functions.setter
   def slice_functions(
-      self, slice_functions):
+      self, slice_functions: Optional[List[types.SliceFunction]]) -> None:
     if slice_functions is not None:
       if not isinstance(slice_functions, list):
         raise TypeError('slice_functions is of type %s, should be a list.' %
@@ -197,11 +197,11 @@ class StatsOptions(object):
     self._slice_functions = slice_functions
 
   @property
-  def sample_count(self):
+  def sample_count(self) -> Optional[int]:
     return self._sample_count
 
   @sample_count.setter
-  def sample_count(self, sample_count):
+  def sample_count(self, sample_count: Optional[int]) -> None:
     if sample_count is not None:
       if hasattr(self, 'sample_rate') and self.sample_rate is not None:
         raise ValueError('Only one of sample_count or sample_rate can be '
@@ -211,11 +211,11 @@ class StatsOptions(object):
     self._sample_count = sample_count
 
   @property
-  def sample_rate(self):
+  def sample_rate(self) -> Optional[float]:
     return self._sample_rate
 
   @sample_rate.setter
-  def sample_rate(self, sample_rate):
+  def sample_rate(self, sample_rate: Optional[float]):
     if sample_rate is not None:
       if hasattr(self, 'sample_count') and self.sample_count is not None:
         raise ValueError('Only one of sample_count or sample_rate can be '
@@ -225,12 +225,12 @@ class StatsOptions(object):
     self._sample_rate = sample_rate
 
   @property
-  def num_values_histogram_buckets(self):
+  def num_values_histogram_buckets(self) -> int:
     return self._num_values_histogram_buckets
 
   @num_values_histogram_buckets.setter
   def num_values_histogram_buckets(self,
-                                   num_values_histogram_buckets):
+                                   num_values_histogram_buckets: int) -> None:
     # TODO(b/120164508): Disallow num_values_histogram_buckets = 1 because it
     # causes the underlying quantile op to fail. If the quantile op is modified
     # to support num_quantiles = 1, then allow num_values_histogram_buckets = 1.
@@ -240,46 +240,46 @@ class StatsOptions(object):
     self._num_values_histogram_buckets = num_values_histogram_buckets
 
   @property
-  def num_histogram_buckets(self):
+  def num_histogram_buckets(self) -> int:
     return self._num_histogram_buckets
 
   @num_histogram_buckets.setter
-  def num_histogram_buckets(self, num_histogram_buckets):
+  def num_histogram_buckets(self, num_histogram_buckets: int) -> None:
     if num_histogram_buckets < 1:
       raise ValueError(
           'Invalid num_histogram_buckets %d' % num_histogram_buckets)
     self._num_histogram_buckets = num_histogram_buckets
 
   @property
-  def num_quantiles_histogram_buckets(self):
+  def num_quantiles_histogram_buckets(self) -> int:
     return self._num_quantiles_histogram_buckets
 
   @num_quantiles_histogram_buckets.setter
   def num_quantiles_histogram_buckets(
-      self, num_quantiles_histogram_buckets):
+      self, num_quantiles_histogram_buckets: int) -> None:
     if num_quantiles_histogram_buckets < 1:
       raise ValueError('Invalid num_quantiles_histogram_buckets %d' %
                        num_quantiles_histogram_buckets)
     self._num_quantiles_histogram_buckets = num_quantiles_histogram_buckets
 
   @property
-  def desired_batch_size(self):
+  def desired_batch_size(self) -> Optional[int]:
     return self._desired_batch_size
 
   @desired_batch_size.setter
-  def desired_batch_size(self, desired_batch_size):
+  def desired_batch_size(self, desired_batch_size: Optional[int]) -> None:
     if desired_batch_size is not None and desired_batch_size < 1:
       raise ValueError('Invalid desired_batch_size %d' %
                        desired_batch_size)
     self._desired_batch_size = desired_batch_size
 
   @property
-  def semantic_domain_stats_sample_rate(self):
+  def semantic_domain_stats_sample_rate(self) -> Optional[float]:
     return self._semantic_domain_stats_sample_rate
 
   @semantic_domain_stats_sample_rate.setter
   def semantic_domain_stats_sample_rate(
-      self, semantic_domain_stats_sample_rate):
+      self, semantic_domain_stats_sample_rate: Optional[float]):
     if semantic_domain_stats_sample_rate is not None:
       if not 0 < semantic_domain_stats_sample_rate <= 1:
         raise ValueError('Invalid semantic_domain_stats_sample_rate %f'
