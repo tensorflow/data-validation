@@ -78,7 +78,7 @@ std::vector<Description> UpdateNumExamplesComparatorDirect(
         static_cast<double>(num_examples) / control_num_examples;
   }
 
-  // TODO(b/132102563): Check for possible case of ratio == 1.0 but num_examples
+  // TODO(b/138589350): Check for possible case of ratio == 1.0 but num_examples
   // != control_num_examples.
   if (comparator->has_max_fraction_threshold()) {
     double max_threshold = comparator->max_fraction_threshold();

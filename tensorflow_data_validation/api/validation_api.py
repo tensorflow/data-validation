@@ -290,7 +290,7 @@ def validate_statistics(
   serialized_serving_stats = (
       serving_statistics.datasets[0].SerializeToString()
       if serving_statistics is not None else '')
-  # TODO(b/132102563): Update API to support validation against previous version
+  # TODO(b/138589321): Update API to support validation against previous version
   # stats.
   serialized_previous_version_stats = ''
 
