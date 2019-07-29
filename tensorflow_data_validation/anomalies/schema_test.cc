@@ -543,6 +543,13 @@ TEST(SchemaTest, UpdateFeatureWithSemanticType) {
           image_domain: {}
         }
         feature {
+          name: "time_feature"
+          presence: { min_count: 1 }
+          value_count: { min: 1 }
+          type: BYTES
+          time_domain: { string_format: "%Y/%m/%d" }
+        }
+        feature {
           name: "string_feature"
           presence: { min_count: 1 }
           value_count: { min: 1 }
@@ -572,6 +579,14 @@ TEST(SchemaTest, UpdateFeatureWithSemanticType) {
     }
     features {
       name: "image_feature"
+      type: STRING
+      custom_stats: { name: "domain_info" str: "url_domain {}" }
+      bytes_stats: {
+        common_stats: { min_num_values: 1 max_num_values: 1 num_non_missing: 1 }
+      }
+    }
+    features {
+      name: "time_feature"
       type: STRING
       custom_stats: { name: "domain_info" str: "url_domain {}" }
       bytes_stats: {
@@ -616,6 +631,13 @@ TEST(SchemaTest, UpdateFeatureWithSemanticType) {
                               image_domain: {}
                             }
                             feature {
+                              name: "time_feature"
+                              presence: { min_count: 1 }
+                              value_count: { min: 1 }
+                              type: BYTES
+                              time_domain: { string_format: "%Y/%m/%d" }
+                            }
+                            feature {
                               name: "string_feature"
                               presence: { min_count: 1 }
                               value_count: { min: 1 }
@@ -629,7 +651,7 @@ TEST(SchemaTest, UpdateFeatureWithSemanticType) {
                               type: BYTES
                               url_domain: {}
                             }
-                            )"));
+                          )"));
 }
 
 TEST(SchemaTest, UpdateColumnsWithEnvironments) {

@@ -96,8 +96,8 @@ std::set<tensorflow::metadata::v0::FeatureType> AllowedFeatureTypes(
     case Feature::kUrlDomain:
       return {tensorflow::metadata::v0::BYTES};
     case Feature::kTimeDomain:
-      // Consider also supporting time as bytes and / or floats.
-      return {tensorflow::metadata::v0::INT};
+      // Consider also supporting time as floats.
+      return {tensorflow::metadata::v0::INT, tensorflow::metadata::v0::BYTES};
     case Feature::DOMAIN_INFO_NOT_SET:
       ABSL_FALLTHROUGH_INTENDED;
     default:
