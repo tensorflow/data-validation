@@ -794,9 +794,10 @@ TEST(SchemaTest, UpdateColumnsWithNewEnvironmentDescription) {
   std::vector<Description> descriptions;
   tensorflow::metadata::v0::AnomalyInfo::Severity severity;
 
-  TF_ASSERT_OK(schema.Update(Schema::Updater(FeatureStatisticsToProtoConfig()),
-                             *dataset_stats_view.GetByPath(Path({"feature"})),
-                             &descriptions, &severity));
+  TF_ASSERT_OK(
+      schema.UpdateFeature(Schema::Updater(FeatureStatisticsToProtoConfig()),
+                           *dataset_stats_view.GetByPath(Path({"feature"})),
+                           &descriptions, &severity));
   ASSERT_EQ(descriptions.size(), 1);
   EXPECT_EQ(descriptions[0].type,
             tensorflow::metadata::v0::AnomalyInfo::SCHEMA_NEW_COLUMN);
@@ -979,9 +980,9 @@ TEST(SchemaTest, FindDrift) {
         })");
   std::vector<Description> descriptions;
   tensorflow::metadata::v0::AnomalyInfo::Severity severity;
-  TF_ASSERT_OK(schema.Update(Schema::Updater(FeatureStatisticsToProtoConfig()),
-                             *training_view->GetByPath(Path({"foo"})),
-                             &descriptions, &severity));
+  TF_ASSERT_OK(schema.UpdateFeature(
+      Schema::Updater(FeatureStatisticsToProtoConfig()),
+      *training_view->GetByPath(Path({"foo"})), &descriptions, &severity));
 
   EXPECT_THAT(schema.GetSchema(), EqualsProto(expected_schema));
   // We're not particular about the description, just that there be one.
@@ -1756,9 +1757,9 @@ TEST(SchemaTest, UpdateStruct) {
   DatasetStatsView view(stats);
   std::vector<Description> descriptions;
   metadata::v0::AnomalyInfo::Severity severity;
-  TF_ASSERT_OK(schema.Update(Schema::Updater(FeatureStatisticsToProtoConfig()),
-                             *view.GetByPath(Path({"struct"})), &descriptions,
-                             &severity));
+  TF_ASSERT_OK(schema.UpdateFeature(
+      Schema::Updater(FeatureStatisticsToProtoConfig()),
+      *view.GetByPath(Path({"struct"})), &descriptions, &severity));
   EXPECT_THAT(schema.GetSchema(), EqualsProto(initial));
 }
 

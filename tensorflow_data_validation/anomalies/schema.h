@@ -137,7 +137,7 @@ class Schema {
   bool IsEmpty() const;
 
   // Check if there are any issues with a single column.
-  tensorflow::Status Update(
+  tensorflow::Status UpdateFeature(
       const Updater& updater, const FeatureStatsView& feature_stats_view,
       std::vector<Description>* descriptions,
       tensorflow::metadata::v0::AnomalyInfo::Severity* severity);
@@ -153,14 +153,6 @@ class Schema {
   // (i.e., no FeatureNameStatistics).
   std::vector<Path> GetMissingPaths(const DatasetStatsView& dataset_stats);
 
-  // Updates Schema given new data, but only on the columns specified.
-  // If you have a new, previously unseen column on the list of columns to
-  // consider, then config is used to create it.
-  // If paths_to_consider is unspecified, then it updates all columns.
-  tensorflow::Status Update(
-      const DatasetStatsView& dataset_stats, const Updater& updater,
-      const absl::optional<std::set<Path>>& paths_to_consider);
-
   // Updates a dataset comparator.
   std::vector<Description> UpdateDatasetComparator(
       const DatasetStatsView& dataset_stats_view);
@@ -169,6 +161,14 @@ class Schema {
   using Feature = tensorflow::metadata::v0::Feature;
   using SparseFeature = tensorflow::metadata::v0::SparseFeature;
   using StringDomain = tensorflow::metadata::v0::StringDomain;
+  // Updates Schema given new data, but only on the columns specified.
+  // If you have a new, previously unseen column on the list of columns to
+  // consider, then config is used to create it.
+  // If paths_to_consider is unspecified, then it updates all columns.
+  tensorflow::Status Update(
+      const DatasetStatsView& dataset_stats, const Updater& updater,
+      const absl::optional<std::set<Path>>& paths_to_consider);
+
   // Gets a map from a simple enum name to the columns that are using it.
   // Used in GetRelatedEnums().
   std::map<string, std::set<Path>> EnumNameToPaths() const;
@@ -214,15 +214,6 @@ class Schema {
   // Check if a feature is internally consistent. If not, fix it and return a
   // description of what is wrong.
   std::vector<Description> UpdateFeatureSelf(Feature* feature);
-
-  // Updates Schema given new data, but only on the columns specified.
-  // If you have a new, previously unseen column on the list of columns to
-  // consider, then config is used to create it.
-  // If columns_to_consider is unspecified, then it updates all columns.
-  tensorflow::Status Update(
-      const DatasetStatsView& dataset_stats,
-      const FeatureStatisticsToProtoConfig& config,
-      const absl::optional<std::set<Path>>& columns_to_consider);
 
   // Gets an EnumType, adding it to enum_types_ and/or appending
   // values if necessary.

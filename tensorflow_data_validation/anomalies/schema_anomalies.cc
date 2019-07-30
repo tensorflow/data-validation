@@ -216,8 +216,8 @@ tensorflow::Status SchemaAnomaly::Update(
     const FeatureStatsView& feature_stats_view) {
   std::vector<Description> new_descriptions;
   tensorflow::metadata::v0::AnomalyInfo::Severity new_severity;
-  TF_RETURN_IF_ERROR(schema_->Update(updater, feature_stats_view,
-                                     &new_descriptions, &new_severity));
+  TF_RETURN_IF_ERROR(schema_->UpdateFeature(updater, feature_stats_view,
+                                            &new_descriptions, &new_severity));
   descriptions_.insert(descriptions_.end(), new_descriptions.begin(),
                        new_descriptions.end());
   UpgradeSeverity(new_severity);

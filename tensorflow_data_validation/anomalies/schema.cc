@@ -182,7 +182,20 @@ Status Schema::Init(const tensorflow::metadata::v0::Schema& input) {
   return Status::OK();
 }
 
-tensorflow::Status Schema::Update(
+Status Schema::Update(const DatasetStatsView& dataset_stats,
+                      const FeatureStatisticsToProtoConfig& config) {
+  return Update(dataset_stats, Updater(config), absl::nullopt);
+}
+
+Status Schema::Update(const DatasetStatsView& dataset_stats,
+                      const FeatureStatisticsToProtoConfig& config,
+                      const std::vector<Path>& paths_to_consider) {
+  return Update(
+      dataset_stats, Updater(config),
+      std::set<Path>(paths_to_consider.begin(), paths_to_consider.end()));
+}
+
+tensorflow::Status Schema::UpdateFeature(
     const Updater& updater, const FeatureStatsView& feature_stats_view,
     std::vector<Description>* descriptions,
     tensorflow::metadata::v0::AnomalyInfo::Severity* severity) {
@@ -258,7 +271,7 @@ Status Schema::UpdateRecursively(
     return Status::OK();
   }
   TF_RETURN_IF_ERROR(
-      Update(updater, feature_stats_view, descriptions, severity));
+      UpdateFeature(updater, feature_stats_view, descriptions, severity));
   if (!FeatureIsDeprecated(feature_stats_view.GetPath())) {
     for (const FeatureStatsView& child : feature_stats_view.GetChildren()) {
       std::vector<Description> child_descriptions;
@@ -272,38 +285,6 @@ Status Schema::UpdateRecursively(
     }
   }
   return Status::OK();
-}
-
-Status Schema::Update(const DatasetStatsView& dataset_stats,
-                      const FeatureStatisticsToProtoConfig& config) {
-  return Update(dataset_stats, Updater(config), absl::nullopt);
-}
-
-Status Schema::Update(const DatasetStatsView& dataset_stats,
-                      const Updater& updater,
-                      const absl::optional<std::set<Path>>& paths_to_consider) {
-  std::vector<Description> dummy_descriptions;
-  tensorflow::metadata::v0::AnomalyInfo::Severity dummy_severity;
-
-  for (const auto& feature_stats_view : dataset_stats.GetRootFeatures()) {
-    TF_RETURN_IF_ERROR(UpdateRecursively(updater, feature_stats_view,
-                                         paths_to_consider, &dummy_descriptions,
-                                         &dummy_severity));
-  }
-  for (const Path& missing_path : GetMissingPaths(dataset_stats)) {
-    if (ContainsPath(paths_to_consider, missing_path)) {
-      DeprecateFeature(missing_path);
-    }
-  }
-  return Status::OK();
-}
-
-Status Schema::Update(const DatasetStatsView& dataset_stats,
-                      const FeatureStatisticsToProtoConfig& config,
-                      const std::vector<Path>& paths_to_consider) {
-  return Update(
-      dataset_stats, Updater(config),
-      std::set<Path>(paths_to_consider.begin(), paths_to_consider.end()));
 }
 
 Schema::Updater::Updater(const FeatureStatisticsToProtoConfig& config)
@@ -493,6 +474,25 @@ std::map<string, std::set<Path>> Schema::EnumNameToPaths() const {
     }
   }
   return result;
+}
+
+Status Schema::Update(const DatasetStatsView& dataset_stats,
+                      const Updater& updater,
+                      const absl::optional<std::set<Path>>& paths_to_consider) {
+  std::vector<Description> dummy_descriptions;
+  tensorflow::metadata::v0::AnomalyInfo::Severity dummy_severity;
+
+  for (const auto& feature_stats_view : dataset_stats.GetRootFeatures()) {
+    TF_RETURN_IF_ERROR(UpdateRecursively(updater, feature_stats_view,
+                                         paths_to_consider, &dummy_descriptions,
+                                         &dummy_severity));
+  }
+  for (const Path& missing_path : GetMissingPaths(dataset_stats)) {
+    if (ContainsPath(paths_to_consider, missing_path)) {
+      DeprecateFeature(missing_path);
+    }
+  }
+  return Status::OK();
 }
 
 // TODO(114757721): expose this.
