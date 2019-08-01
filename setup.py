@@ -90,9 +90,9 @@ setup(
     # Make sure to sync the versions of common dependencies (absl-py, numpy,
     # six, and protobuf) with TF.
     install_requires=[
-        'absl-py>=0.1.6,<1',
-        'apache-beam[gcp]>=2.11,<3',
-        'numpy>=1.14.5,<2',
+        'absl-py>=0.7,<1',
+        'apache-beam[gcp]>=2.14,<3',
+        'numpy>=1.16,<2',
         'protobuf>=3.7,<4',
         'six>=1.10,<2',
 
@@ -100,7 +100,7 @@ setup(
         # compatible TF version. If not, fail with a clear error.
         # TODO(pachristopher): Uncomment this once TF can automatically
         # select between CPU and GPU installation.
-        # 'tensorflow>=1.13.1,<2',
+        # 'tensorflow>=1.14,<2',
         'tensorflow-metadata>=0.14,<0.15',
         'tensorflow-transform>=0.13,<0.14',
 

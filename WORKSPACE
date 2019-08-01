@@ -11,11 +11,11 @@ workspace(name = "tensorflow_data_validation")
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
-# updated: 2019/04/12
-_TENSORFLOW_GIT_COMMIT = "978dba096289fd03b9baa38c82e966eba03c6e1a"
+# TF 1.14
+_TENSORFLOW_GIT_COMMIT = "87989f69597d6b2d60de8f112e1e3cea23be7298"
 http_archive(
     name = "org_tensorflow",
-    sha256 = "95ca6b06cd072f185e3752bec004a977619b28e10d21dcaeae916d2e440bd342",
+    sha256 = "c4da79385dfbfb30c1aaf73fae236bc6e208c3171851dfbe0e1facf7ca127a6a",
     urls = [
       "https://mirror.bazel.build/github.com/tensorflow/tensorflow/archive/%s.tar.gz" % _TENSORFLOW_GIT_COMMIT,
       "https://github.com/tensorflow/tensorflow/archive/%s.tar.gz" % _TENSORFLOW_GIT_COMMIT,

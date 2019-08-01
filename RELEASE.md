@@ -48,10 +48,13 @@
 * Add `compression_type` option to `generate_statistics_from_*` methods.
 * Add link to SysML paper describing some technical details behind TFDV.
 * Add Python types to the source code.
+* Depends on `absl-py>=0.7,<1`
+* Depends on `apache-beam[gcp]>=2.14,<3`
+* Depends on `numpy>=1.16,<2`.
+* Depends on `pandas>=0.24,<1`.
 * Depends on `pyarrow>=0.14.0,<0.15.0`.
 * Depends on `scikit-learn>=0.18,<0.21`.
 * Depends on `tensorflow-metadata>=0.14,<0.15`.
-* Depends on `pandas>=0.24,<1`.
 
 ## Breaking Changes
 
