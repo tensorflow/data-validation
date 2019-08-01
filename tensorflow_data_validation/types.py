@@ -33,6 +33,9 @@ CSVCell = Union[bytes, Text]
 # Type of the feature name we support in the input batch.
 FeatureName = Union[bytes, Text]
 
+# Type of the feature cross.
+FeatureCross = Tuple[FeatureName, FeatureName]
+
 # Feature type enum value.
 FeatureNameStatisticsType = int
 

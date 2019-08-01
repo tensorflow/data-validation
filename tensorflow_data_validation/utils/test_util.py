@@ -25,7 +25,7 @@ import numpy as np
 from tensorflow_data_validation import types
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import stats_generator
-from typing import Callable, Dict, List, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 from tensorflow.python.util.protobuf import compare
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -162,8 +162,11 @@ class CombinerStatsGeneratorTest(absltest.TestCase):
   def assertCombinerOutputEqual(
       self, batches: List[types.ExampleBatch],
       generator: stats_generator.CombinerStatsGenerator,
-      expected_result: Dict[types.FeaturePath, statistics_pb2
-                            .FeatureNameStatistics]) -> None:
+      expected_feature_stats: Dict[types.FeaturePath,
+                                   statistics_pb2.FeatureNameStatistics],
+      expected_cross_feature_stats: Optional[Dict[
+          types.FeatureCross, statistics_pb2.CrossFeatureStatistics]] = None
+      ) -> None:
     """Tests a combiner statistics generator.
 
     This runs the generator twice to cover different behavior. There must be at
@@ -172,9 +175,14 @@ class CombinerStatsGeneratorTest(absltest.TestCase):
     Args:
       batches: A list of batches of test data.
       generator: The CombinerStatsGenerator to test.
-      expected_result: Dict mapping feature name to FeatureNameStatistics proto
-        that it is expected the generator will return for the feature.
+      expected_feature_stats: Dict mapping feature name to FeatureNameStatistics
+        proto that it is expected the generator will return for the feature.
+      expected_cross_feature_stats: Dict mapping feature cross to
+        CrossFeatureStatistics proto that it is expected the generator will
+        return for the feature cross.
     """
+    if expected_cross_feature_stats is None:
+      expected_cross_feature_stats = {}
     # Run generator to check that merge_accumulators() works correctly.
     accumulators = [
         generator.add_input(generator.create_accumulator(), batch)
@@ -183,14 +191,26 @@ class CombinerStatsGeneratorTest(absltest.TestCase):
     result = generator.extract_output(
         generator.merge_accumulators(accumulators))
     self.assertEqual(  # pylint: disable=g-generic-assert
-        len(result.features), len(expected_result),
-        '{}, {}'.format(result, expected_result))
+        len(result.features), len(expected_feature_stats),
+        '{}, {}'.format(result, expected_feature_stats))
     for actual_feature_stats in result.features:
       compare.assertProtoEqual(
           self,
           actual_feature_stats,
-          expected_result[types.FeaturePath.from_proto(
+          expected_feature_stats[types.FeaturePath.from_proto(
               actual_feature_stats.path)],
+          normalize_numbers=True)
+
+    self.assertEqual(  # pylint: disable=g-generic-assert
+        len(result.cross_features), len(expected_cross_feature_stats),
+        '{}, {}'.format(result, expected_cross_feature_stats))
+    for actual_cross_feature_stats in result.cross_features:
+      cross = (actual_cross_feature_stats.path_x.step[0],
+               actual_cross_feature_stats.path_y.step[0])
+      compare.assertProtoEqual(
+          self,
+          actual_cross_feature_stats,
+          expected_cross_feature_stats[cross],
           normalize_numbers=True)
 
     # Run generator to check that add_input() works correctly when adding
@@ -201,13 +221,24 @@ class CombinerStatsGeneratorTest(absltest.TestCase):
       accumulator = generator.add_input(accumulator, batch)
 
     result = generator.extract_output(accumulator)
-    self.assertEqual(len(result.features), len(expected_result))  # pylint: disable=g-generic-assert
+    self.assertEqual(len(result.features), len(expected_feature_stats))  # pylint: disable=g-generic-assert
     for actual_feature_stats in result.features:
       compare.assertProtoEqual(
           self,
           actual_feature_stats,
-          expected_result[types.FeaturePath.from_proto(
+          expected_feature_stats[types.FeaturePath.from_proto(
               actual_feature_stats.path)],
+          normalize_numbers=True)
+
+    self.assertEqual(len(result.cross_features),
+                     len(expected_cross_feature_stats))  # pylint: disable=g-generic-assert
+    for actual_cross_feature_stats in result.cross_features:
+      cross = (actual_cross_feature_stats.path_x.step[0],
+               actual_cross_feature_stats.path_y.step[0])
+      compare.assertProtoEqual(
+          self,
+          actual_cross_feature_stats,
+          expected_cross_feature_stats[cross],
           normalize_numbers=True)
 
 

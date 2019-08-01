@@ -22,6 +22,7 @@
   current and previous spans of data (using the existing `validate_statistics`
   function).
 * Support building a manylinux2010 compliant wheel in docker.
+* Add support for cross feature statistics.
 
 ## Bug Fixes and Other Changes
 
