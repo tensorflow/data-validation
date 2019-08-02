@@ -481,7 +481,12 @@ class StatsAPITest(absltest.TestCase):
               self, expected_result))
 
   def test_stats_pipeline_with_zero_examples(self):
-    expected_result = statistics_pb2.DatasetFeatureStatisticsList()
+    expected_result = text_format.Parse(
+        """
+        datasets {
+          num_examples: 0
+        }
+        """, statistics_pb2.DatasetFeatureStatisticsList())
     with beam.Pipeline() as p:
       options = stats_options.StatsOptions(
           num_top_values=1,
@@ -490,8 +495,7 @@ class StatsAPITest(absltest.TestCase):
           num_histogram_buckets=1,
           num_quantiles_histogram_buckets=1,
           epsilon=0.001)
-      result = (
-          p | beam.Create([]) | stats_api.GenerateStatistics(options))
+      result = (p | beam.Create([]) | stats_api.GenerateStatistics(options))
       util.assert_that(
           result,
           test_util.make_dataset_feature_stats_list_proto_equal_fn(

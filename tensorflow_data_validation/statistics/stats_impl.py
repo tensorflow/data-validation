@@ -347,6 +347,8 @@ def _merge_dataset_feature_stats_protos(
 def _update_example_and_missing_count(
     stats: statistics_pb2.DatasetFeatureStatistics) -> None:
   """Updates example count of the dataset and missing count for all features."""
+  if not stats.features:
+    return
   dummy_feature = stats_util.get_feature_stats(stats, _DUMMY_FEATURE_PATH)
   num_examples = stats_util.get_custom_stats(dummy_feature, _NUM_EXAMPLES_KEY)
   weighted_num_examples = stats_util.get_custom_stats(
@@ -397,6 +399,11 @@ def _make_dataset_feature_statistics_list_proto(
     # may be completely missing in a shard. We set the missing count of a
     # feature to be num_examples - non_missing_count.
     _update_example_and_missing_count(new_stats_proto)
+  if not stats_protos:
+    # Handle the case in which there are no examples. In that case, we want to
+    # output a DatasetFeatureStatisticsList proto with a dataset containing
+    # num_examples == 0 instead of an empty DatasetFeatureStatisticsList proto.
+    result.datasets.add(num_examples=0)
   return result
 
 

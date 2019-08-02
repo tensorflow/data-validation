@@ -48,6 +48,9 @@
 * Add `compression_type` option to `generate_statistics_from_*` methods.
 * Add link to SysML paper describing some technical details behind TFDV.
 * Add Python types to the source code.
+* Make`GenerateStatistics` generate a DatasetFeatureStatisticsList containing a
+  dataset with num_examples == 0 instead of an empty proto if there are no
+  examples in the input.
 * Depends on `absl-py>=0.7,<1`
 * Depends on `apache-beam[gcp]>=2.14,<3`
 * Depends on `numpy>=1.16,<2`.
