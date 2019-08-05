@@ -1,4 +1,4 @@
-# Current version (not yet released; still in development)
+# Release 0.14.0
 
 ## Major Features and Improvements
 
@@ -58,6 +58,7 @@
 * Depends on `pyarrow>=0.14.0,<0.15.0`.
 * Depends on `scikit-learn>=0.18,<0.21`.
 * Depends on `tensorflow-metadata>=0.14,<0.15`.
+* Depends on `tensorflow-transform>=0.14,<0.15`.
 
 ## Breaking Changes
 

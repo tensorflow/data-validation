@@ -163,10 +163,11 @@ pip install dist/*.whl
 
 ## Supported platforms
 
-TFDV is built and tested on the following 64-bit operating systems:
+TFDV is tested on the following 64-bit operating systems:
 
   * macOS 10.12.6 (Sierra) or later.
-  * Ubuntu 14.04 or later.
+  * Ubuntu 16.04 or later.
+  * Windows 7 or later.
 
 ## Dependencies
 
@@ -192,6 +193,7 @@ other *untested* combinations may also work.
 |tensorflow-data-validation                                                            |tensorflow    |apache-beam[gcp] |pyarrow |
 |--------------------------------------------------------------------------------------|--------------|-----------------|--------|
 |[GitHub master](https://github.com/tensorflow/data-validation/blob/master/RELEASE.md) |nightly (1.x) |2.14.0           |0.14.0  |
+|[0.14.0](https://github.com/tensorflow/data-validation/blob/v0.14.0/RELEASE.md)       |1.14          |2.14.0           |0.14.0  |
 |[0.13.1](https://github.com/tensorflow/data-validation/blob/v0.13.1/RELEASE.md)       |1.13          |2.11.0           |n/a     |
 |[0.13.0](https://github.com/tensorflow/data-validation/blob/v0.13.0/RELEASE.md)       |1.13          |2.11.0           |n/a     |
 |[0.12.0](https://github.com/tensorflow/data-validation/blob/v0.12.0/RELEASE.md)       |1.12          |2.10.0           |n/a     |

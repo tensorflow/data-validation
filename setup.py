@@ -70,15 +70,14 @@ setup(
         'License :: OSI Approved :: Apache Software License',
         'Operating System :: MacOS :: MacOS X',
         'Operating System :: POSIX :: Linux',
+        'Operating System :: Microsoft :: Windows',
         'Programming Language :: Python',
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.5',
-        # TODO(b/125613675): Once Beam supports Python 3.6 and 3.7, uncomment
-        # these lines.
-        # 'Programming Language :: Python :: 3.6',
-        # 'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         'Topic :: Scientific/Engineering',
         'Topic :: Scientific/Engineering :: Artificial Intelligence',
         'Topic :: Scientific/Engineering :: Mathematics',
@@ -102,7 +101,7 @@ setup(
         # select between CPU and GPU installation.
         # 'tensorflow>=1.14,<2',
         'tensorflow-metadata>=0.14,<0.15',
-        'tensorflow-transform>=0.13,<0.14',
+        'tensorflow-transform>=0.14,<0.15',
 
         # Dependencies needed for visualization.
         # Note that we don't add a max version for IPython as it introduces a
