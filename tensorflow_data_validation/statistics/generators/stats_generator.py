@@ -54,6 +54,7 @@ from __future__ import division
 from __future__ import print_function
 
 import apache_beam as beam
+from tensorflow_data_validation import types
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from typing import Iterable, Optional, Text, TypeVar
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -162,13 +163,14 @@ class CombinerFeatureStatsGenerator(StatsGenerator):
     """
     raise NotImplementedError
 
-  def add_input(self, accumulator: ACCTYPE, input_column: pa.Column
-               ) -> ACCTYPE:
+  def add_input(self, accumulator: ACCTYPE, feature_path: types.FeaturePath,
+                feature_array: pa.Array) -> ACCTYPE:
     """Returns result of folding a batch of inputs into accumulator.
 
     Args:
       accumulator: The current accumulator.
-      input_column: An arrow column representing a batch of feature values
+      feature_path: The path of the feature.
+      feature_array: An arrow Array representing a batch of feature values
         which should be added to the accumulator.
 
     Returns:

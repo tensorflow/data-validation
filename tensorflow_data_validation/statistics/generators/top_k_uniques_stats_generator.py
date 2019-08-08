@@ -33,7 +33,7 @@ from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import schema_util
-from tensorflow_data_validation.utils.stats_util import maybe_get_utf8
+from tensorflow_data_validation.utils import stats_util
 from typing import Any, Iterable, Iterator, FrozenSet, List, Optional, Set, Text, Tuple, Union
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -127,7 +127,7 @@ def make_feature_stats_proto_with_topk_stats(
     # Check if we have a valid utf-8 string. If not, assign a default invalid
     # string value.
     if isinstance(value, six.binary_type):
-      value = maybe_get_utf8(value)
+      value = stats_util.maybe_get_utf8(value)
       if value is None:
         logging.warning('Feature "%s" has bytes value "%s" which cannot be '
                         'decoded as a UTF-8 string.', feature_path, value)
@@ -196,50 +196,40 @@ def _weighted_unique(values: np.ndarray, weights: np.ndarray
 def _to_topk_tuples(
     sliced_table: Tuple[Text, pa.Table],
     categorical_features: FrozenSet[types.FeaturePath],
-    weight_feature: Optional[Text] = None
+    weight_feature: Optional[Text]
 ) -> Iterable[
     Tuple[Tuple[Text, FeaturePathTuple, Any],
           Union[int, Tuple[int, Union[int, float]]]]]:
   """Generates tuples for computing top-k and uniques from input tables."""
   slice_key, table = sliced_table
-  weight_column = table.column(weight_feature) if weight_feature else None
-  weight_array = weight_column.data.chunk(0) if weight_column else []
-  if weight_array:
-    flattened_weights = arrow_util.FlattenListArray(weight_array).to_numpy()
 
-  for feature_column in table.columns:
-    feature_name = feature_column.name
-    # Skip the weight feature.
-    if feature_name == weight_feature:
-      continue
-    feature_path = types.FeaturePath([feature_name])
-    # if it's not a categorical feature nor a string feature, we don't bother
-    # with topk stats.
-    if not (feature_path in categorical_features or
-            feature_column.type.equals(pa.list_(pa.binary())) or
-            feature_column.type.equals(pa.list_(pa.string()))):
-      continue
-    value_array = feature_column.data.chunk(0)
-    flattened_values = arrow_util.FlattenListArray(value_array)
-
-    if weight_array and flattened_values:
-      if (pa.types.is_binary(flattened_values.type) or
-          pa.types.is_string(flattened_values.type)):
-        # no free conversion.
-        flattened_values_np = flattened_values.to_pandas()
+  for feature_path, feature_array, weights in arrow_util.enumerate_arrays(
+      table,
+      weight_column=weight_feature,
+      enumerate_leaves_only=True):
+    feature_array_type = feature_array.type
+    if (feature_path in categorical_features or
+        stats_util.get_feature_type_from_arrow_type(
+            feature_path,
+            feature_array_type) == statistics_pb2.FeatureNameStatistics.STRING):
+      flattened_values = arrow_util.FlattenListArray(feature_array)
+      if weights is not None and flattened_values:
+        # Slow path: weighted uniques.
+        flattened_values_np = arrow_util.primitive_array_to_numpy(
+            flattened_values)
+        parent_indices = (
+            arrow_util.primitive_array_to_numpy(
+                arrow_util.GetFlattenedArrayParentIndices(feature_array)))
+        weights_ndarray = weights[parent_indices]
+        for value, count, weight in _weighted_unique(
+            flattened_values_np, weights_ndarray):
+          yield (slice_key, feature_path.steps(), value), (count, weight)
       else:
-        flattened_values_np = flattened_values.to_numpy()
-      indices = arrow_util.GetFlattenedArrayParentIndices(value_array)
-      weights_ndarray = flattened_weights[indices.to_numpy()]
-      for value, count, weight in _weighted_unique(
-          flattened_values_np, weights_ndarray):
-        yield (slice_key, feature_path.steps(), value), (count, weight)
-    else:
-      value_counts = arrow_util.ValueCounts(flattened_values)
-      values = value_counts.field('values').to_pylist()
-      counts = value_counts.field('counts').to_pylist()
-      for value, count in six.moves.zip(values, counts):
-        yield ((slice_key, feature_path.steps(), value), count)
+        value_counts = arrow_util.ValueCounts(flattened_values)
+        values = value_counts.field('values').to_pylist()
+        counts = value_counts.field('counts').to_pylist()
+        for value, count in six.moves.zip(values, counts):
+          yield ((slice_key, feature_path.steps(), value), count)
 
 
 class _ComputeTopKUniquesStats(beam.PTransform):

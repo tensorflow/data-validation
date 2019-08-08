@@ -49,6 +49,8 @@ def _remove_unsupported_feature_columns(examples_table: pa.Table,
   All feature columns that are multivalent are dropped since they are
   not supported by sk-learn.
 
+  All columns of STRUCT type are also dropped.
+
   Args:
     examples_table: Arrow table containing a batch of examples.
     schema: The schema for the data.
@@ -60,6 +62,11 @@ def _remove_unsupported_feature_columns(examples_table: pa.Table,
   unsupported_columns = set()
   for f in multivalent_features:
     unsupported_columns.add(f.steps()[0])
+  for c in examples_table.columns:
+    if (stats_util.get_feature_type_from_arrow_type(
+        types.FeaturePath([c.name]),
+        c.type) == statistics_pb2.FeatureNameStatistics.STRUCT):
+      unsupported_columns.add(c.name)
   return examples_table.drop(unsupported_columns)
 
 
@@ -94,14 +101,15 @@ def _flatten_and_impute(examples_table: pa.Table,
     # the NaN values.
     non_missing_values = np.copy(arrow_util.FlattenListArray(
         feature_array).to_pandas())
-    non_missing_parent_indices = arrow_util.GetFlattenedArrayParentIndices(
-        feature_array).to_numpy()
+    non_missing_parent_indices = arrow_util.primitive_array_to_numpy(
+        arrow_util.GetFlattenedArrayParentIndices(feature_array))
     is_categorical_feature = feature_path in categorical_features
     result_dtype = non_missing_values.dtype
     if non_missing_parent_indices.size < num_rows and is_categorical_feature:
       result_dtype = np.object
     flattened_array = np.ndarray(shape=num_rows, dtype=result_dtype)
-    num_values = arrow_util.ListLengthsFromListArray(feature_array).to_numpy()
+    num_values = arrow_util.primitive_array_to_numpy(
+        arrow_util.ListLengthsFromListArray(feature_array))
     missing_parent_indices = np.where(num_values == 0)[0]
     if feature_path in categorical_features:
       imputation_fill_value = CATEGORICAL_FEATURE_IMPUTATION_FILL_VALUE

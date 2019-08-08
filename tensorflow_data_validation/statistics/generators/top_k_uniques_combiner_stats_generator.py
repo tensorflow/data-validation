@@ -163,68 +163,45 @@ class TopKUniquesCombinerStatsGenerator(
   def create_accumulator(self) -> Dict[types.FeatureName, _ValueCounts]:
     return {}
 
-  # Implementation note:
-  # The current implementation loops over the flattened value ndarrays and
-  # weight ndarrays which is slow. We could have used np.unique() (or similar
-  # vectorized approach) but np.unique() involves a sort(), which is slow if
-  # dtype==np.object (for strings, which is our most common use case).
-  # However pandas allows us to group-by-and-count-and-sum without sorting.
-  # So one way to improve the performance would be, for each feature, to
-  # construct an Arrow Table that consists of flattend values and weights
-  # (zero copy here), then table.to_pandas() (one copy here, but unavoidable
-  # anyways), then use something like DataFrame.groupby().agg(['sum', 'count']).
-  # The accumulator could simply be a DataFrame for each feature, and make use
-  # of DataFrame merging provided by pandas.
   def add_input(self, accumulator: Dict[types.FeaturePath, _ValueCounts],
                 input_table: pa.Table) -> Dict[types.FeaturePath, _ValueCounts]:
-    weight_column = (input_table.column(self._weight_feature)
-                     if self._weight_feature else None)
-    weight_array = weight_column.data.chunk(0) if weight_column else []
-    if weight_array:
-      flattened_weights = arrow_util.FlattenListArray(weight_array).to_numpy()
-
-    for column in input_table.columns:
-      feature_name = column.name
-      # Skip the weight feature.
-      if feature_name == self._weight_feature:
-        continue
-      feature_path = types.FeaturePath([feature_name])
+    for feature_path, leaf_array, weights in arrow_util.enumerate_arrays(
+        input_table,
+        weight_column=self._weight_feature,
+        enumerate_leaves_only=True):
       feature_type = stats_util.get_feature_type_from_arrow_type(
-          feature_path, column.type)
+          feature_path, leaf_array.type)
       # if it's not a categorical feature nor a string feature, we don't bother
       # with topk stats.
-      if not (feature_path in self._categorical_features or
-              feature_type == statistics_pb2.FeatureNameStatistics.STRING):
-        continue
-      value_array = column.data.chunk(0)
-      flattened_values = arrow_util.FlattenListArray(value_array)
-      unweighted_counts = collections.Counter()
-      # Compute unweighted counts.
-      value_counts = arrow_util.ValueCounts(flattened_values)
-      for value_count in value_counts:
-        value_count = value_count.as_py()
-        unweighted_counts[value_count['values']] = value_count['counts']
+      if (feature_path in self._categorical_features or
+          feature_type == statistics_pb2.FeatureNameStatistics.STRING):
+        flattened_values = arrow_util.FlattenListArray(leaf_array)
+        unweighted_counts = collections.Counter()
+        # Compute unweighted counts.
+        value_counts = arrow_util.ValueCounts(flattened_values)
+        values = value_counts.field('values').to_pylist()
+        counts = value_counts.field('counts').to_pylist()
+        for value, count in six.moves.zip(values, counts):
+          unweighted_counts[value] = count
 
-      # Compute weighted counts if a weight feature is specified.
-      weighted_counts = _WeightedCounter()
-      if weight_array:
-        if (pa.types.is_binary(flattened_values.type) or
-            pa.types.is_string(flattened_values.type)):
-          # no free conversion.
-          flattened_values_np = flattened_values.to_pandas()
+        # Compute weighted counts if a weight feature is specified.
+        weighted_counts = _WeightedCounter()
+        if weights is not None:
+          flattened_values_np = arrow_util.primitive_array_to_numpy(
+              flattened_values)
+          parent_indices = arrow_util.GetFlattenedArrayParentIndices(leaf_array)
+          weighted_counts.weighted_update(
+              flattened_values_np,
+              weights[arrow_util.primitive_array_to_numpy(parent_indices)])
+
+        if feature_path not in accumulator:
+          accumulator[feature_path] = _ValueCounts(
+              unweighted_counts=unweighted_counts,
+              weighted_counts=weighted_counts)
         else:
-          flattened_values_np = flattened_values.to_numpy()
-        indices = arrow_util.GetFlattenedArrayParentIndices(value_array)
-        weighted_counts.weighted_update(flattened_values_np,
-                                        flattened_weights[indices.to_numpy()])
+          accumulator[feature_path].unweighted_counts.update(unweighted_counts)
+          accumulator[feature_path].weighted_counts.update(weighted_counts)
 
-      if feature_path not in accumulator:
-        accumulator[feature_path] = _ValueCounts(
-            unweighted_counts=unweighted_counts,
-            weighted_counts=weighted_counts)
-      else:
-        accumulator[feature_path].unweighted_counts.update(unweighted_counts)
-        accumulator[feature_path].weighted_counts.update(weighted_counts)
     return accumulator
 
   def merge_accumulators(

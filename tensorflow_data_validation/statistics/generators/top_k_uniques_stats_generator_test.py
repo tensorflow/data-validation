@@ -1353,5 +1353,244 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
     self.assertSlicingAwareTransformOutputEqual(examples, generator,
                                                 expected_result)
 
+  def test_topk_uniques_with_struct_leaves(self):
+    inputs = [
+        pa.Table.from_arrays([
+            pa.array([[1.0], [2.0]]),
+            pa.array([[{
+                'f1': ['a', 'b'],
+                'f2': [1, 2]
+            }, {
+                'f1': ['b'],
+            }], [{
+                'f1': ['c', 'd'],
+                'f2': [2, 3]
+            }, {
+                'f2': [3]
+            }]]),
+        ], ['w', 'c']),
+        pa.Table.from_arrays([
+            pa.array([[3.0]]),
+            pa.array([[{
+                'f1': ['d'],
+                'f2': [4]
+            }]]),
+        ], ['w', 'c']),
+    ]
+    expected_result = [
+        text_format.Parse(
+            """
+            features{
+              type: STRING
+              string_stats {
+                top_values {
+                  value: "d"
+                  frequency: 2.0
+                }
+                top_values {
+                  value: "b"
+                  frequency: 2.0
+                }
+                top_values {
+                  value: "c"
+                  frequency: 1.0
+                }
+                rank_histogram {
+                  buckets {
+                    label: "d"
+                    sample_count: 2.0
+                  }
+                  buckets {
+                    low_rank: 1
+                    high_rank: 1
+                    label: "b"
+                    sample_count: 2.0
+                  }
+                  buckets {
+                    low_rank: 2
+                    high_rank: 2
+                    label: "c"
+                    sample_count: 1.0
+                  }
+                }
+              }
+              path {
+                step: "c"
+                step: "f1"
+              }
+            }""", statistics_pb2.DatasetFeatureStatistics()),
+        text_format.Parse(
+            """
+            features {
+              string_stats {
+                top_values {
+                  value: "3"
+                  frequency: 2.0
+                }
+                top_values {
+                  value: "2"
+                  frequency: 2.0
+                }
+                top_values {
+                  value: "4"
+                  frequency: 1.0
+                }
+                rank_histogram {
+                  buckets {
+                    label: "3"
+                    sample_count: 2.0
+                  }
+                  buckets {
+                    low_rank: 1
+                    high_rank: 1
+                    label: "2"
+                    sample_count: 2.0
+                  }
+                  buckets {
+                    low_rank: 2
+                    high_rank: 2
+                    label: "4"
+                    sample_count: 1.0
+                  }
+                }
+              }
+              path {
+                step: "c"
+                step: "f2"
+              }
+            }""", statistics_pb2.DatasetFeatureStatistics()),
+        text_format.Parse("""
+            features {
+              type: STRING
+              string_stats {
+                unique: 4
+              }
+              path {
+                step: "c"
+                step: "f1"
+              }
+            }""", statistics_pb2.DatasetFeatureStatistics()),
+        text_format.Parse("""
+            features {
+              type: INT
+              string_stats {
+                unique: 4
+              }
+              path {
+                step: "c"
+                step: "f2"
+              }
+            }""", statistics_pb2.DatasetFeatureStatistics()),
+        text_format.Parse("""
+            features {
+              type: STRING
+              string_stats {
+                weighted_string_stats {
+                  top_values {
+                    value: "d"
+                    frequency: 5.0
+                  }
+                  top_values {
+                    value: "c"
+                    frequency: 2.0
+                  }
+                  top_values {
+                    value: "b"
+                    frequency: 2.0
+                  }
+                  rank_histogram {
+                    buckets {
+                      label: "d"
+                      sample_count: 5.0
+                    }
+                    buckets {
+                      low_rank: 1
+                      high_rank: 1
+                      label: "c"
+                      sample_count: 2.0
+                    }
+                    buckets {
+                      low_rank: 2
+                      high_rank: 2
+                      label: "b"
+                      sample_count: 2.0
+                    }
+                  }
+                }
+              }
+              path {
+                step: "c"
+                step: "f1"
+              }
+            }""", statistics_pb2.DatasetFeatureStatistics()),
+        text_format.Parse("""
+            features {
+              string_stats {
+                weighted_string_stats {
+                  top_values {
+                    value: "3"
+                    frequency: 4.0
+                  }
+                  top_values {
+                    value: "4"
+                    frequency: 3.0
+                  }
+                  top_values {
+                    value: "2"
+                    frequency: 3.0
+                  }
+                  rank_histogram {
+                    buckets {
+                      label: "3"
+                      sample_count: 4.0
+                    }
+                    buckets {
+                      low_rank: 1
+                      high_rank: 1
+                      label: "4"
+                      sample_count: 3.0
+                    }
+                    buckets {
+                      low_rank: 2
+                      high_rank: 2
+                      label: "2"
+                      sample_count: 3.0
+                    }
+                  }
+                }
+              }
+              path {
+                step: "c"
+                step: "f2"
+              }
+            }""", statistics_pb2.DatasetFeatureStatistics()),
+
+    ]
+    schema = text_format.Parse(
+        """
+        feature {
+          name: "c"
+          type: STRUCT
+          struct_domain {
+            feature {
+              name: "f2"
+              type: INT
+              int_domain {
+                is_categorical: true
+              }
+            }
+          }
+        }
+        """, schema_pb2.Schema())
+    generator = top_k_uniques_stats_generator.TopKUniquesStatsGenerator(
+        schema=schema,
+        weight_feature='w', num_top_values=3, num_rank_histogram_buckets=3)
+    self.assertSlicingAwareTransformOutputEqual(
+        inputs,
+        generator,
+        expected_result,
+        add_default_slice_key_to_input=True,
+        add_default_slice_key_to_output=True)
+
 if __name__ == '__main__':
   absltest.main()

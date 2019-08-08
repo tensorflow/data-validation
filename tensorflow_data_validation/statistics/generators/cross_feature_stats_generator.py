@@ -124,19 +124,23 @@ class CrossFeatureStatsGenerator(stats_generator.CombinerStatsGenerator):
       feature_type = stats_util.get_feature_type_from_arrow_type(
           feature_name, feature_column.type)
       # Only consider crosses of numeric features.
-      if feature_type == statistics_pb2.FeatureNameStatistics.STRING:
+      # TODO(zhuo): Support numeric features nested under structs.
+      if feature_type in (statistics_pb2.FeatureNameStatistics.STRING,
+                          statistics_pb2.FeatureNameStatistics.STRUCT):
         continue
       # Assume we have only a single chunk.
       assert feature_column.data.num_chunks == 1
       feat_arr = feature_column.data.chunk(0)
-      value_lengths = arrow_util.ListLengthsFromListArray(feat_arr).to_numpy()
+      value_lengths = arrow_util.primitive_array_to_numpy(
+          arrow_util.ListLengthsFromListArray(feat_arr))
       univalent_parent_indices = set((value_lengths == 1).nonzero()[0])
       # If there are no univalent values, continue to the next feature.
       if not univalent_parent_indices:
         continue
-      non_missing_values = arrow_util.FlattenListArray(feat_arr).to_numpy()
-      value_parent_indices = arrow_util.GetFlattenedArrayParentIndices(
-          feat_arr).to_numpy()
+      non_missing_values = arrow_util.primitive_array_to_numpy(
+          arrow_util.FlattenListArray(feat_arr))
+      value_parent_indices = arrow_util.primitive_array_to_numpy(
+          arrow_util.GetFlattenedArrayParentIndices(feat_arr))
       if feature_type == statistics_pb2.FeatureNameStatistics.FLOAT:
         # Remove any NaN values if present.
         non_nan_mask = ~np.isnan(non_missing_values)

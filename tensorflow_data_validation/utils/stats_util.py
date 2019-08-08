@@ -99,10 +99,12 @@ def get_feature_type_from_arrow_type(
   value_type = arrow_type.value_type
   if pa.types.is_integer(value_type):
     return statistics_pb2.FeatureNameStatistics.INT
-  if pa.types.is_floating(value_type):
+  elif pa.types.is_floating(value_type):
     return statistics_pb2.FeatureNameStatistics.FLOAT
-  if pa.types.is_binary(value_type) or pa.types.is_unicode(value_type):
+  elif pa.types.is_binary(value_type) or pa.types.is_unicode(value_type):
     return statistics_pb2.FeatureNameStatistics.STRING
+  elif pa.types.is_struct(value_type):
+    return statistics_pb2.FeatureNameStatistics.STRUCT
 
   raise TypeError('Feature {} has unsupported arrow type: {}'.format(
       feature_path, arrow_type))

@@ -31,6 +31,7 @@ from __future__ import print_function
 import abc
 import numpy as np
 import six
+from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import stats_generator
@@ -166,12 +167,14 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     return _PartialNLStats()
 
   def add_input(self, accumulator: _PartialNLStats,
-                input_column: pa.Column) -> _PartialNLStats:
+                feature_path: types.FeaturePath,
+                feature_array: pa.Array) -> _PartialNLStats:
     """Return result of folding a batch of inputs into accumulator.
 
     Args:
       accumulator: The current accumulator.
-      input_column: An arrow column representing a batch of feature values
+      feature_path: The path of the feature.
+      feature_array: An arrow Array representing a batch of feature values
         which should be added to the accumulator.
 
     Returns:
@@ -180,7 +183,7 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     if accumulator.invalidate:
       return accumulator
     feature_type = stats_util.get_feature_type_from_arrow_type(
-        input_column.name, input_column.type)
+        feature_path, feature_array.type)
     # Ignore null array.
     if feature_type is None:
       return accumulator
@@ -195,13 +198,12 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
 
     is_non_utf_vec = np.vectorize(_is_non_utf8, otypes=[np.bool])
     classify_vec = np.vectorize(self._classifier.classify, otypes=[np.bool])
-    for feature_array in input_column.data.iterchunks():
-      values = arrow_util.FlattenListArray(feature_array).to_pandas()
-      if np.any(is_non_utf_vec(values)):
-        accumulator.invalidate = True
-        return accumulator
-      accumulator.considered += values.size
-      accumulator.matched += np.sum(classify_vec(values))
+    values = arrow_util.FlattenListArray(feature_array).to_pandas()
+    if np.any(is_non_utf_vec(values)):
+      accumulator.invalidate = True
+      return accumulator
+    accumulator.considered += values.size
+    accumulator.matched += np.sum(classify_vec(values))
     return accumulator
 
   def merge_accumulators(

@@ -94,11 +94,10 @@ class NaturalLanguageStatsGeneratorTest(
     """Tests generator values threshold with fake heuristic."""
     # Expected to give 6 matches.
     input_batches = [
-        pa.Column.from_array(
-            'feature', pa.array([['MATCH', 'MATCH', 'MATCH'], ['MATCH']])),
-        pa.Column.from_array('feature', pa.array([['MATCH', 'MATCH']])),
+        pa.array([['MATCH', 'MATCH', 'MATCH'], ['MATCH']]),
+        pa.array([['MATCH', 'MATCH']]),
         # Nones should be ignored.
-        pa.Column.from_array('feature', pa.array([None, None])),
+        pa.array([None, None]),
     ]
     # Try generators with values_threshold=7 (should not create stats) and
     # 6 (should create stats)
@@ -120,11 +119,10 @@ class NaturalLanguageStatsGeneratorTest(
     """Tests generator utf8 check with fake heuristic."""
     # Expected to give 6 matches.
     input_batches = [
-        pa.Column.from_array(
-            'feature', pa.array([['MATCH', 'MATCH', 'MATCH'], ['MATCH']])),
-        pa.Column.from_array('feature', pa.array([['MATCH', 'MATCH']])),
+        pa.array([['MATCH', 'MATCH', 'MATCH'], ['MATCH']]),
+        pa.array([['MATCH', 'MATCH']]),
         # Non utf-8 string invalidates accumulator.
-        pa.Column.from_array('feature', pa.array([[b'\xF0']])),
+        pa.array([[b'\xF0']]),
     ]
     # Try generators with values_threshold=1 which should have generated
     # stats without the non utf-8 value.
@@ -136,11 +134,10 @@ class NaturalLanguageStatsGeneratorTest(
     """Tests generator invalidation with fake heuristic."""
     # Expected to give 6 matches.
     input_batches = [
-        pa.Column.from_array(
-            'feature', pa.array([['MATCH', 'MATCH', 'MATCH'], ['MATCH']])),
-        pa.Column.from_array('feature', pa.array([['MATCH', 'MATCH']])),
+        pa.array([['MATCH', 'MATCH', 'MATCH'], ['MATCH']]),
+        pa.array([['MATCH', 'MATCH']]),
         # Incorrect type invalidates accumulator.
-        pa.Column.from_array('feature', pa.array([[42]])),
+        pa.array([[42]]),
     ]
     # No domain_info is generated as the incorrect type of 42 value invalidated
     # the stats.
@@ -151,12 +148,9 @@ class NaturalLanguageStatsGeneratorTest(
   def test_nl_generator_match_ratio_check(self):
     """Tests generator match ratio with fake heuristic."""
     input_batches = [
-        pa.Column.from_array(
-            'feature',
-            pa.array([['MATCH', 'MATCH', 'MATCH'], ['MATCH', 'Nope']])),
-        pa.Column.from_array('feature',
-                             pa.array([['MATCH', 'MATCH', 'MATCH']])),
-        pa.Column.from_array('feature', pa.array([['12345', 'No']])),
+        pa.array([['MATCH', 'MATCH', 'MATCH'], ['MATCH', 'Nope']]),
+        pa.array([['MATCH', 'MATCH', 'MATCH']]),
+        pa.array([['12345', 'No']]),
     ]
     # Set values_threshold=5 so it always passes.
     # Try generators with match_ratio 0.71 (should not create stats) and
@@ -181,17 +175,10 @@ class NaturalLanguageStatsGeneratorTest(
     """Tests generator with avg word length heuristic."""
     generator = nlsg.NLStatsGenerator(values_threshold=2)
     input_batches = [
-        pa.Column.from_array(
-            'feature',
-            pa.array([
-                ['This looks correct.', 'This one too, it should be text.'],
-                ['xosuhddsofuhg123fdgosh']])),
-        pa.Column.from_array(
-            'feature',
-            pa.array(
-                [['This should be text as well', 'Here is another text']])),
-        pa.Column.from_array(
-            'feature', pa.array([['This should also be considered good.']])),
+        pa.array([['This looks correct.', 'This one too, it should be text.'],
+                  ['xosuhddsofuhg123fdgosh']]),
+        pa.array([['This should be text as well', 'Here is another text']]),
+        pa.array([['This should also be considered good.']]),
     ]
 
     self.assertCombinerOutputEqual(
@@ -207,10 +194,8 @@ class NaturalLanguageStatsGeneratorTest(
     """Tests generator with avg word length heuristic."""
     generator = nlsg.NLStatsGenerator(values_threshold=2)
     input_batches = [
-        pa.Column.from_array(
-            'feature',
-            pa.array([['abc' * 10, 'xxxxxxxxx'], ['xosuhddsofuhg123fdgosh']])),
-        pa.Column.from_array('feature', pa.array([['Only one valid text?']])),
+        pa.array([['abc' * 10, 'xxxxxxxxx'], ['xosuhddsofuhg123fdgosh']]),
+        pa.array([['Only one valid text?']]),
     ]
 
     self.assertCombinerOutputEqual(input_batches, generator,

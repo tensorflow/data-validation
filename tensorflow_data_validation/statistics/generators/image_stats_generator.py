@@ -38,6 +38,7 @@ import numpy as np
 import pandas as pd
 import six
 
+from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.pyarrow_tf import tensorflow as tf
@@ -237,12 +238,14 @@ class ImageStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     return _PartialImageStats()
 
   def add_input(self, accumulator: _PartialImageStats,
-                input_column: pa.Column) -> _PartialImageStats:
+                feature_path: types.FeaturePath,
+                feature_array: pa.Array) -> _PartialImageStats:
     """Return result of folding a batch of inputs into accumulator.
 
     Args:
       accumulator: The current accumulator.
-      input_column: An arrow column representing a batch of feature values
+      feature_path: The path of the feature.
+      feature_array: An arrow array representing a batch of feature values
         which should be added to the accumulator.
 
     Returns:
@@ -251,7 +254,7 @@ class ImageStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     if accumulator.invalidate:
       return accumulator
     feature_type = stats_util.get_feature_type_from_arrow_type(
-        input_column.name, input_column.type)
+        feature_path, feature_array.type)
     # Ignore null array.
     if feature_type is None:
       return accumulator
@@ -260,30 +263,30 @@ class ImageStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
       accumulator.invalidate = True
       return accumulator
 
-    for feature_array in input_column.data.iterchunks():
-      # Consider using memoryview to avoid copying after upgrading to
-      # arrow 0.12. Note that this would involve modifying the subsequent logic
-      # to iterate over the values in a loop.
-      values = arrow_util.FlattenListArray(feature_array).to_pandas()
-      accumulator.total_num_values += values.size
-      image_formats = self._image_decoder.get_formats(values)
-      valid_mask = ~pd.isnull(image_formats)
-      valid_formats = image_formats[valid_mask]
-      format_counts = np.unique(valid_formats, return_counts=True)
-      for (image_format, count) in zip(*format_counts):
-        accumulator.counter_by_format[image_format] += count
-      unknown_count = image_formats.size - valid_formats.size
-      if unknown_count > 0:
-        accumulator.counter_by_format[''] += unknown_count
+    # Consider using memoryview to avoid copying after upgrading to
+    # arrow 0.12. Note that this would involve modifying the subsequent logic
+    # to iterate over the values in a loop.
+    values = arrow_util.FlattenListArray(feature_array).to_pandas()
+    accumulator.total_num_values += values.size
+    image_formats = self._image_decoder.get_formats(values)
+    valid_mask = ~pd.isnull(image_formats)
+    valid_formats = image_formats[valid_mask]
+    format_counts = np.unique(valid_formats, return_counts=True)
+    for (image_format, count) in zip(*format_counts):
+      accumulator.counter_by_format[image_format] += count
+    unknown_count = image_formats.size - valid_formats.size
+    if unknown_count > 0:
+      accumulator.counter_by_format[''] += unknown_count
 
-      if self._enable_size_stats:
-        # Get image height and width.
-        image_sizes = self._image_decoder.get_sizes(values[valid_mask])
-        if image_sizes.any():
-          max_sizes = np.max(image_sizes, axis=0)
-          # Update the max image height/width with all image values.
-          accumulator.max_height = max(accumulator.max_height, max_sizes[0])
-          accumulator.max_width = max(accumulator.max_width, max_sizes[1])
+    if self._enable_size_stats:
+      # Get image height and width.
+      image_sizes = self._image_decoder.get_sizes(values[valid_mask])
+      if image_sizes.any():
+        max_sizes = np.max(image_sizes, axis=0)
+        # Update the max image height/width with all image values.
+        accumulator.max_height = max(accumulator.max_height, max_sizes[0])
+        accumulator.max_width = max(accumulator.max_width, max_sizes[1])
+
     return accumulator
 
   def merge_accumulators(

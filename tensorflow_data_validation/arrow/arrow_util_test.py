@@ -23,6 +23,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 import six
+from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 
@@ -241,6 +242,99 @@ class MakeListArrayFromParentIndicesAndValuesTest(parameterized.TestCase):
     self.assertTrue(
         actual.equals(expected),
         "actual: {}, expected: {}".format(actual, expected))
+
+
+class EnumerateArraysTest(absltest.TestCase):
+
+  def testInvalidWeightColumn(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        "weight feature must have exactly one value in each example"):
+      for _ in arrow_util.enumerate_arrays(
+          pa.Table.from_arrays([pa.array([[1], [2, 3]]),
+                                pa.array([[1], []])], ["v", "w"]),
+          weight_column="w",
+          enumerate_leaves_only=False):
+        pass
+
+  def testEnumerate(self):
+    input_table = pa.Table.from_arrays([
+        pa.array([[1], [2, 3]]),
+        pa.array([[{
+            "sf1": [["a", "b"]]
+        }], [{
+            "sf2": [{
+                "ssf1": [[3], [4]]
+            }]
+        }]]),
+        pa.array([[1.0], [2.0]])
+    ], ["f1", "f2", "w"])
+    possible_results = {
+        types.FeaturePath(["f1"]): (pa.array([[1], [2, 3]]), [1.0, 2.0]),
+        types.FeaturePath(["w"]): (pa.array([[1.0], [2.0]]), None),
+        types.FeaturePath(["f2"]): (pa.array([[{
+            "sf1": [["a", "b"]]
+        }], [{
+            "sf2": [{
+                "ssf1": [[3], [4]]
+            }]
+        }]]), [1.0, 2.0]),
+        types.FeaturePath(["f2", "sf1"]): (
+            pa.array([[["a", "b"]], None]), [1.0, 2.0]),
+        types.FeaturePath(["f2", "sf2"]): (
+            pa.array([None, [{"ssf1": [[3], [4]]}]]), [1.0, 2.0]),
+        types.FeaturePath(["f2", "sf2", "ssf1"]): (
+            pa.array([[[3], [4]]]), [2.0]),
+    }
+    for leaves_only, has_weights in itertools.combinations_with_replacement(
+        [True, False], 2):
+      actual_results = {}
+      for feature_path, feature_array, weights in arrow_util.enumerate_arrays(
+          input_table, "w" if has_weights else None, leaves_only):
+        actual_results[feature_path] = (feature_array, weights)
+
+      expected_results = {}
+      for p in [["f1"], ["f2", "sf1"], ["f2", "sf2", "ssf1"]]:
+        feature_path = types.FeaturePath(p)
+        expected_results[feature_path] = (possible_results[feature_path][0],
+                                          possible_results[feature_path][1]
+                                          if has_weights else None)
+      if not has_weights:
+        expected_results[types.FeaturePath(
+            ["w"])] = possible_results[types.FeaturePath(["w"])]
+      if not leaves_only:
+        for p in [["f2"], ["f2", "sf2"]]:
+          feature_path = types.FeaturePath(p)
+          expected_results[feature_path] = (possible_results[feature_path][0],
+                                            possible_results[feature_path][1]
+                                            if has_weights else None)
+
+      self.assertLen(actual_results, len(expected_results))
+      for k, v in six.iteritems(expected_results):
+        self.assertIn(k, actual_results)
+        actual = actual_results[k]
+        self.assertTrue(
+            actual[0].equals(v[0]), "leaves_only={}; has_weights={}; "
+            "feature={}; expected: {}; actual: {}".format(
+                leaves_only, has_weights, k, v, actual))
+        np.testing.assert_array_equal(actual[1], v[1])
+
+
+class PrimitiveArrayToNumpyTest(absltest.TestCase):
+
+  def testSimple(self):
+    int32_array = pa.array([1, 2, 3], pa.int32())
+    np_array = arrow_util.primitive_array_to_numpy(int32_array)
+    self.assertEqual(np_array.dtype, np.int32)
+    self.assertEqual(np_array.shape, (3,))
+    # Check that they share the same buffer.
+    self.assertEqual(np_array.ctypes.data, int32_array.buffers()[1].address)
+
+    string_array = pa.array(["a", "b"], pa.utf8())
+    np_array = arrow_util.primitive_array_to_numpy(string_array)
+    self.assertEqual(np_array.dtype, np.object)
+    self.assertEqual(np_array.shape, (2,))
+    np.testing.assert_array_equal(np_array, [u"a", u"b"])
 
 
 if __name__ == "__main__":

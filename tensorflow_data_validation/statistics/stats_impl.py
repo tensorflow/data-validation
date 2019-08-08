@@ -355,9 +355,17 @@ def _update_example_and_missing_count(
       dummy_feature, _WEIGHTED_NUM_EXAMPLES_KEY)
   stats.features.remove(dummy_feature)
   for feature_stats in stats.features:
+    # For features nested under a STRUCT feature, their num_missing is computed
+    # in the basic stats generator (because their num_missing is relative to
+    # their parent's value count).
+    if len(feature_stats.path.step) > 1:
+      continue
     common_stats = None
-    if feature_stats.WhichOneof('stats') == 'num_stats':
+    which_oneof_stats = feature_stats.WhichOneof('stats')
+    if which_oneof_stats == 'num_stats':
       common_stats = feature_stats.num_stats.common_stats
+    elif which_oneof_stats == 'struct_stats':
+      common_stats = feature_stats.struct_stats.common_stats
     else:
       common_stats = feature_stats.string_stats.common_stats
     assert num_examples >= common_stats.num_non_missing, (
@@ -429,7 +437,8 @@ class NumExamplesStatsGenerator(stats_generator.CombinerStatsGenerator):
       weights_column = examples_table.column(self._weight_feature)
       for weight_array in weights_column.data.iterchunks():
         accumulator[1] += np.sum(
-            arrow_util.FlattenListArray(weight_array).to_numpy())
+            arrow_util.primitive_array_to_numpy(
+                arrow_util.FlattenListArray(weight_array)))
     return accumulator
 
   def merge_accumulators(self, accumulators: Iterable[List[float]]
@@ -775,16 +784,17 @@ class CombinerFeatureStatsWrapperGenerator(
     """
     if self._sample_rate is not None and random.random() <= self._sample_rate:
       return wrapper_accumulator
-    for feature_column in input_table.itercolumns():
-      feature_name = feature_column.name
-      if feature_name == self._weight_feature:
-        continue
-      feature_path = types.FeaturePath([feature_name])
-      self._perhaps_initialize_for_feature_path(wrapper_accumulator,
-                                                feature_path)
+
+    for feature_path, feature_array, _ in arrow_util.enumerate_arrays(
+        input_table,
+        weight_column=self._weight_feature,
+        enumerate_leaves_only=True):
       for index, generator in enumerate(self._feature_stats_generators):
+        self._perhaps_initialize_for_feature_path(wrapper_accumulator,
+                                                  feature_path)
         wrapper_accumulator[feature_path][index] = generator.add_input(
-            generator.create_accumulator(), feature_column)
+            generator.create_accumulator(), feature_path, feature_array)
+
     return wrapper_accumulator
 
   def merge_accumulators(
@@ -800,12 +810,12 @@ class CombinerFeatureStatsWrapperGenerator(
     """
     result = self.create_accumulator()
     for wrapper_accumulator in wrapper_accumulators:
-      for feature_name, accumulator_for_feature in six.iteritems(
+      for feature_path, accumulator_for_feature in six.iteritems(
           wrapper_accumulator):
-        self._perhaps_initialize_for_feature_path(result, feature_name)
+        self._perhaps_initialize_for_feature_path(result, feature_path)
         for index, generator in enumerate(self._feature_stats_generators):
-          result[feature_name][index] = generator.merge_accumulators(
-              [result[feature_name][index], accumulator_for_feature[index]])
+          result[feature_path][index] = generator.merge_accumulators(
+              [result[feature_path][index], accumulator_for_feature[index]])
     return result
 
   def extract_output(self, wrapper_accumulator: WrapperAccumulator

@@ -59,18 +59,14 @@ class ImageStatsGeneratorTest(test_util.CombinerFeatureStatsGeneratorTest,
 
   @parameterized.named_parameters(
       ('EmptyList', []),  # Line-break comment for readability.
-      ('EmptyBatch', [pa.Column.from_array('feature', pa.array([]))]),
+      ('EmptyBatch', [pa.array([])]),
       ('NumericalShouldInvalidateImageStats', [
-          pa.Column.from_array(
-              'feature',
-              pa.array([
-                  [
-                      FakeImageDecoder.encode_image_metadata('TIFF', 5, 1),
-                      FakeImageDecoder.encode_image_metadata('JPEG', 1, 1),
-                      FakeImageDecoder.encode_image_metadata('TIFF', 3, 7),
-                  ]
-              ])),
-          pa.Column.from_array('feature', pa.array([[1]])),
+          pa.array([[
+              FakeImageDecoder.encode_image_metadata('TIFF', 5, 1),
+              FakeImageDecoder.encode_image_metadata('JPEG', 1, 1),
+              FakeImageDecoder.encode_image_metadata('TIFF', 3, 7),
+          ]]),
+          pa.array([[1]]),
       ]))
   def test_cases_with_no_image_stats(self, batches):
     """Test cases that should not generate image statistics."""
@@ -85,14 +81,10 @@ class ImageStatsGeneratorTest(test_util.CombinerFeatureStatsGeneratorTest,
   def test_image_stats_generator_with_missing_feature(self):
     """Test with missing values for a batch."""
     batches = [
-        pa.Column.from_array('feature', pa.array([])),
-        pa.Column.from_array(
-            'feature',
-            pa.array([
-                [
-                    FakeImageDecoder.encode_image_metadata('JPEG', 10, 1),
-                ]
-            ])),
+        pa.array([]),
+        pa.array([[
+            FakeImageDecoder.encode_image_metadata('JPEG', 10, 1),
+        ]]),
     ]
     expected_result = text_format.Parse(
         """
@@ -127,26 +119,20 @@ class ImageStatsGeneratorTest(test_util.CombinerFeatureStatsGeneratorTest,
   def test_image_stats_generator_values_threshold_check(self):
     """Check values_threshold with a feature that is all images."""
     batches = [
-        pa.Column.from_array(
-            'feature',
-            pa.array([
-                [
-                    FakeImageDecoder.encode_image_metadata('PNG', 2, 4),
-                    FakeImageDecoder.encode_image_metadata('JPEG', 4, 2),
-                ],
-                [
-                    FakeImageDecoder.encode_image_metadata('TIFF', 5, 1),
-                    FakeImageDecoder.encode_image_metadata('JPEG', -1, -1),
-                    FakeImageDecoder.encode_image_metadata('TIFF', 3, 7)
-                ]
-            ])),
-        pa.Column.from_array(
-            'feature',
-            pa.array([
-                [
-                    FakeImageDecoder.encode_image_metadata('GIF', 2, 1),
-                ]
-            ])),
+        pa.array([
+            [
+                FakeImageDecoder.encode_image_metadata('PNG', 2, 4),
+                FakeImageDecoder.encode_image_metadata('JPEG', 4, 2),
+            ],
+            [
+                FakeImageDecoder.encode_image_metadata('TIFF', 5, 1),
+                FakeImageDecoder.encode_image_metadata('JPEG', -1, -1),
+                FakeImageDecoder.encode_image_metadata('TIFF', 3, 7)
+            ],
+        ]),
+        pa.array([[
+            FakeImageDecoder.encode_image_metadata('GIF', 2, 1),
+        ]]),
     ]
 
     # With values_threshold = 7 statistics should not be generated.
@@ -205,26 +191,20 @@ class ImageStatsGeneratorTest(test_util.CombinerFeatureStatsGeneratorTest,
     """Check is_image_ratio with a feature that has partially images."""
     # The image ratio is: 0.83
     batches = [
-        pa.Column.from_array(
-            'feature',
-            pa.array([
-                [
-                    FakeImageDecoder.encode_image_metadata('PNG', 2, 4),
-                    FakeImageDecoder.encode_image_metadata('JPEG', 4, 2),
-                ],
-                [
-                    FakeImageDecoder.encode_image_metadata('TIFF', 5, 1),
-                    FakeImageDecoder.encode_image_metadata('', -1, -1),
-                    FakeImageDecoder.encode_image_metadata('TIFF', 3, 7)
-                ]
-            ])),
-        pa.Column.from_array(
-            'feature',
-            pa.array([
-                [
-                    FakeImageDecoder.encode_image_metadata('GIF', 2, 1),
-                ]
-            ])),
+        pa.array([
+            [
+                FakeImageDecoder.encode_image_metadata('PNG', 2, 4),
+                FakeImageDecoder.encode_image_metadata('JPEG', 4, 2),
+            ],
+            [
+                FakeImageDecoder.encode_image_metadata('TIFF', 5, 1),
+                FakeImageDecoder.encode_image_metadata('', -1, -1),
+                FakeImageDecoder.encode_image_metadata('TIFF', 3, 7)
+            ],
+        ]),
+        pa.array([[
+            FakeImageDecoder.encode_image_metadata('GIF', 2, 1),
+        ]]),
     ]
     # For image_ratio_threshold=0.85 we for not expect stats.
     expected_result = statistics_pb2.FeatureNameStatistics()
@@ -288,26 +268,20 @@ class ImageStatsGeneratorTest(test_util.CombinerFeatureStatsGeneratorTest,
     """Test the enable_size_stats_option."""
     # Identical input to test_image_stats_generator_check_is_image_ratio
     batches = [
-        pa.Column.from_array(
-            'feature',
-            pa.array([
-                [
-                    FakeImageDecoder.encode_image_metadata('PNG', 2, 4),
-                    FakeImageDecoder.encode_image_metadata('JPEG', 4, 2),
-                ],
-                [
-                    FakeImageDecoder.encode_image_metadata('TIFF', 5, 1),
-                    FakeImageDecoder.encode_image_metadata('', -1, -1),
-                    FakeImageDecoder.encode_image_metadata('TIFF', 3, 7)
-                ]
-            ])),
-        pa.Column.from_array(
-            'feature',
-            pa.array([
-                [
-                    FakeImageDecoder.encode_image_metadata('GIF', 2, 1),
-                ]
-            ])),
+        pa.array([
+            [
+                FakeImageDecoder.encode_image_metadata('PNG', 2, 4),
+                FakeImageDecoder.encode_image_metadata('JPEG', 4, 2),
+            ],
+            [
+                FakeImageDecoder.encode_image_metadata('TIFF', 5, 1),
+                FakeImageDecoder.encode_image_metadata('', -1, -1),
+                FakeImageDecoder.encode_image_metadata('TIFF', 3, 7)
+            ],
+        ]),
+        pa.array([[
+            FakeImageDecoder.encode_image_metadata('GIF', 2, 1),
+        ]]),
     ]
     # Stats should be identical but without stats for image size.
     expected_result = text_format.Parse(
@@ -363,26 +337,20 @@ class ImageStatsGeneratorRealImageTest(
   def test_image_stats_generator_real_image(self):
     test_data_dir = os.path.join(os.path.dirname(__file__), 'testdata')
     batches = [
-        pa.Column.from_array(
-            'feature',
-            pa.array([
-                [
-                    _read_file(os.path.join(test_data_dir, 'image1.gif')),
-                    _read_file(os.path.join(test_data_dir, 'image2.png')),
-                    _read_file(os.path.join(test_data_dir, 'not_a_image.abc'))
-                ],
-                [
-                    _read_file(os.path.join(test_data_dir, 'image3.bmp')),
-                    b'not_a_image'
-                ]
-            ])),
-        pa.Column.from_array(
-            'feature',
-            pa.array([
-                [
-                    _read_file(os.path.join(test_data_dir, 'image4.png')),
-                ]
-            ])),
+        pa.array([
+            [
+                _read_file(os.path.join(test_data_dir, 'image1.gif')),
+                _read_file(os.path.join(test_data_dir, 'image2.png')),
+                _read_file(os.path.join(test_data_dir, 'not_a_image.abc'))
+            ],
+            [
+                _read_file(os.path.join(test_data_dir, 'image3.bmp')),
+                b'not_a_image'
+            ],
+        ]),
+        pa.array([[
+            _read_file(os.path.join(test_data_dir, 'image4.png')),
+        ]]),
     ]
     expected_result = text_format.Parse(
         """

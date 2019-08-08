@@ -345,7 +345,8 @@ class CombinerFeatureStatsGeneratorTest(absltest.TestCase):
     """
     # Run generator to check that merge_accumulators() works correctly.
     accumulators = [
-        generator.add_input(generator.create_accumulator(), input_batch)
+        generator.add_input(generator.create_accumulator(),
+                            types.FeaturePath(['']), input_batch)
         for input_batch in input_batches
     ]
     result = generator.extract_output(
@@ -358,7 +359,8 @@ class CombinerFeatureStatsGeneratorTest(absltest.TestCase):
     accumulator = generator.create_accumulator()
 
     for input_batch in input_batches:
-      accumulator = generator.add_input(accumulator, input_batch)
+      accumulator = generator.add_input(
+          accumulator, types.FeaturePath(['']), input_batch)
 
     result = generator.extract_output(accumulator)
     compare.assertProtoEqual(

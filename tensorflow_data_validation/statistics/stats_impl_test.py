@@ -65,21 +65,19 @@ class _BaseCounter(stats_generator.CombinerFeatureStatsGenerator):
 class _ValueCounter(_BaseCounter):
   """A _BaseCounter that counts number of values."""
 
-  def add_input(self, accumulator: int, input_column: pa.Column) -> int:
-    for feature_array in input_column.data.iterchunks():
-      num_values = arrow_util.ListLengthsFromListArray(feature_array).to_numpy()
-      none_mask = arrow_util.GetArrayNullBitmapAsByteArray(
-          feature_array).to_numpy().view(np.bool)
-      accumulator += np.sum(num_values[~none_mask])
+  def add_input(self, accumulator, feature_path, feature_array):
+    num_values = arrow_util.ListLengthsFromListArray(feature_array).to_numpy()
+    none_mask = arrow_util.GetArrayNullBitmapAsByteArray(
+        feature_array).to_numpy().view(np.bool)
+    accumulator += np.sum(num_values[~none_mask])
     return accumulator
 
 
 class _ExampleCounter(_BaseCounter):
   """A _BaseCounter that counts number of examples with feature set."""
 
-  def add_input(self, accumulator: int, input_column: pa.Column) -> int:
-    for feature_array in input_column.data.iterchunks():
-      accumulator += len(feature_array) - feature_array.null_count
+  def add_input(self, accumulator, feature_path, feature_array):
+    accumulator += len(feature_array) - feature_array.null_count
     return accumulator
 
 
@@ -90,21 +88,21 @@ GENERATE_STATS_TESTS = [
         'tables': [
             pa.Table.from_arrays([
                 pa.array([[1.0, 2.0]], type=pa.list_(pa.float32())),
-                pa.array([[b'a', b'b', b'c', b'e']],
-                         type=pa.list_(pa.binary())),
+                pa.array([[b'a', b'b', b'c', b'e']], type=pa.list_(
+                    pa.binary())),
                 pa.array([np.linspace(1, 500, 500, dtype=np.int64)]),
             ], ['a', 'b', 'c']),
             pa.Table.from_arrays([
-                pa.array([[3.0, 4.0, np.NaN, 5.0]],
-                         type=pa.list_(pa.float32())),
-                pa.array([[b'a', b'c', b'd', b'a']],
-                         type=pa.list_(pa.binary())),
+                pa.array([[3.0, 4.0, np.NaN, 5.0]], type=pa.list_(
+                    pa.float32())),
+                pa.array([[b'a', b'c', b'd', b'a']], type=pa.list_(
+                    pa.binary())),
                 pa.array([np.linspace(501, 1250, 750, dtype=np.int64)]),
             ], ['a', 'b', 'c']),
             pa.Table.from_arrays([
                 pa.array([[1.0]], type=pa.list_(pa.float32())),
-                pa.array([[b'a', b'b', b'c', b'd']],
-                         type=pa.list_(pa.binary())),
+                pa.array([[b'a', b'b', b'c', b'd']], type=pa.list_(
+                    pa.binary())),
                 pa.array([np.linspace(1251, 3000, 1750, dtype=np.int64)]),
             ], ['a', 'b', 'c'])
         ],
@@ -193,9 +191,15 @@ GENERATE_STATS_TESTS = [
         'testcase_name':
             'schema',
         'tables': [
-            pa.Table.from_arrays([pa.array([[1, 3, 5, 7]]),], ['a']),
-            pa.Table.from_arrays([pa.array([[2, 4, 6, 8]]),], ['a']),
-            pa.Table.from_arrays([pa.array([[0, 3, 6, 9]]),], ['a'])
+            pa.Table.from_arrays([
+                pa.array([[1, 3, 5, 7]]),
+            ], ['a']),
+            pa.Table.from_arrays([
+                pa.array([[2, 4, 6, 8]]),
+            ], ['a']),
+            pa.Table.from_arrays([
+                pa.array([[0, 3, 6, 9]]),
+            ], ['a'])
         ],
         'options':
             stats_options.StatsOptions(
@@ -486,12 +490,265 @@ GENERATE_STATS_TESTS = [
     },
     {
         'testcase_name':
+            'combiner_feature_stats_generator_on_struct_leaves',
+        'tables': [
+            pa.Table.from_arrays(
+                [pa.array([[{
+                    'f1': [
+                        {
+                            'f2': [1, 2, 3]
+                        },
+                        {},
+                        {
+                            'f2': None
+                        },
+                    ]
+                }]])], ['c']),
+            pa.Table.from_arrays([pa.array([[{
+                'f1': [{
+                    'f2': [4]
+                }]
+            }]])], ['c']),
+        ],
+        'options':
+            stats_options.StatsOptions(
+                generators=[_ValueCounter()],
+                num_top_values=4,
+                num_rank_histogram_buckets=3,
+                num_values_histogram_buckets=3,
+                enable_semantic_domain_stats=True),
+        'expected_result_proto_text':
+            """
+            datasets {
+              num_examples: 2
+              features {
+                path {
+                  step: "c"
+                  step: "f1"
+                  step: "f2"
+                }
+                num_stats {
+                  common_stats {
+                    num_non_missing: 2
+                    num_missing: 2
+                    min_num_values: 1
+                    max_num_values: 3
+                    avg_num_values: 2.0
+                    num_values_histogram {
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 0.666666666667
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 3.0
+                        sample_count: 0.666666666667
+                      }
+                      buckets {
+                        low_value: 3.0
+                        high_value: 3.0
+                        sample_count: 0.666666666667
+                      }
+                      type: QUANTILES
+                    }
+                    tot_num_values: 4
+                  }
+                  mean: 2.5
+                  std_dev: 1.11803398875
+                  min: 1.0
+                  median: 3.0
+                  max: 4.0
+                  histograms {
+                    buckets {
+                      low_value: 1.0
+                      high_value: 1.3
+                      sample_count: 0.9972
+                    }
+                    buckets {
+                      low_value: 1.3
+                      high_value: 1.6
+                      sample_count: 0.0012
+                    }
+                    buckets {
+                      low_value: 1.6
+                      high_value: 1.9
+                      sample_count: 0.0012
+                    }
+                    buckets {
+                      low_value: 1.9
+                      high_value: 2.2
+                      sample_count: 0.9972
+                    }
+                    buckets {
+                      low_value: 2.2
+                      high_value: 2.5
+                      sample_count: 0.0012
+                    }
+                    buckets {
+                      low_value: 2.5
+                      high_value: 2.8
+                      sample_count: 0.0012
+                    }
+                    buckets {
+                      low_value: 2.8
+                      high_value: 3.1
+                      sample_count: 0.9972
+                    }
+                    buckets {
+                      low_value: 3.1
+                      high_value: 3.4
+                      sample_count: 0.0012
+                    }
+                    buckets {
+                      low_value: 3.4
+                      high_value: 3.7
+                      sample_count: 0.0012
+                    }
+                    buckets {
+                      low_value: 3.7
+                      high_value: 4.0
+                      sample_count: 1.0012
+                    }
+                  }
+                  histograms {
+                    buckets {
+                      low_value: 1.0
+                      high_value: 1.0
+                      sample_count: 0.4
+                    }
+                    buckets {
+                      low_value: 1.0
+                      high_value: 1.0
+                      sample_count: 0.4
+                    }
+                     buckets {
+                      low_value: 1.0
+                      high_value: 2.0
+                      sample_count: 0.4
+                    }
+                    buckets {
+                      low_value: 2.0
+                      high_value: 2.0
+                      sample_count: 0.4
+                    }
+                    buckets {
+                      low_value: 2.0
+                      high_value: 3.0
+                      sample_count: 0.4
+                    }
+                    buckets {
+                      low_value: 3.0
+                      high_value: 3.0
+                      sample_count: 0.4
+                    }
+                    buckets {
+                      low_value: 3.0
+                      high_value: 3.0
+                      sample_count: 0.4
+                    }
+                    buckets {
+                      low_value: 3.0
+                      high_value: 4.0
+                      sample_count: 0.4
+                    }
+                    buckets {
+                      low_value: 4.0
+                      high_value: 4.0
+                      sample_count: 0.4
+                    }
+                    buckets {
+                      low_value: 4.0
+                      high_value: 4.0
+                      sample_count: 0.4
+                    }
+                    type: QUANTILES
+                  }
+                }
+                custom_stats {
+                  name: "_ValueCounter"
+                  num: 4.0
+                }
+              }
+              features {
+                path {
+                  step: "c"
+                }
+                type: STRUCT
+                struct_stats {
+                  common_stats {
+                    num_non_missing: 2
+                    min_num_values: 1
+                    max_num_values: 1
+                    avg_num_values: 1.0
+                    num_values_histogram {
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 0.666666666667
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 0.666666666667
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 0.666666666667
+                      }
+                      type: QUANTILES
+                    }
+                    tot_num_values: 2
+                  }
+                }
+              }
+              features {
+                path {
+                  step: "c"
+                  step: "f1"
+                }
+                type: STRUCT
+                struct_stats {
+                  common_stats {
+                    num_non_missing: 2
+                    min_num_values: 1
+                    max_num_values: 3
+                    avg_num_values: 2.0
+                    num_values_histogram {
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 0.666666666667
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 3.0
+                        sample_count: 0.666666666667
+                      }
+                      buckets {
+                        low_value: 3.0
+                        high_value: 3.0
+                        sample_count: 0.666666666667
+                      }
+                      type: QUANTILES
+                    }
+                    tot_num_values: 4
+                  }
+                }
+              }
+            }"""
+    },
+    {
+        'testcase_name':
             'custom_feature_generator',
         'tables': [
             pa.Table.from_arrays([
-                pa.array([[b'doing']], type=pa.list_(pa.binary())),], ['a']),
+                pa.array([[b'doing']], type=pa.list_(pa.binary())),
+            ], ['a']),
             pa.Table.from_arrays([
-                pa.array([[b'lala']], type=pa.list_(pa.binary())),], ['b']),
+                pa.array([[b'lala']], type=pa.list_(pa.binary())),
+            ], ['b']),
             pa.Table.from_arrays([
                 pa.array([[b'din', b'don']], type=pa.list_(pa.binary())),
                 pa.array([[b'lolo']], type=pa.list_(pa.binary())),

@@ -21,6 +21,7 @@ from __future__ import print_function
 from absl.testing import absltest
 from absl.testing import parameterized
 import mock
+from tensorflow_data_validation import types
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import time_stats_generator
 from tensorflow_data_validation.utils import test_util
@@ -32,12 +33,7 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 VALID_FORMATS_TESTS = [
     {
         'testcase_name': 'time_only_formats',
-        'input_batch': pa.Column.from_array(
-            'feature', pa.array([[
-                '23:59',
-                '23:59:58',
-                '23:59:58.123456'
-            ]])),
+        'input_batch': pa.array([['23:59', '23:59:58', '23:59:58.123456']]),
         'expected_matching_formats': {
             '%H:%M': 1,
             '%H:%M:%S': 1,
@@ -45,16 +41,17 @@ VALID_FORMATS_TESTS = [
         },
     },
     {
-        'testcase_name': 'date_only_formats',
-        'input_batch': pa.Column.from_array(
-            'feature', pa.array([[
+        'testcase_name':
+            'date_only_formats',
+        'input_batch':
+            pa.array([[
                 '2018-11-30',
                 '2018/11/30',
                 '20181130',
                 '18-11-30',  # Will be identified as '%y-%m-%d' and '%d-%m-%y'.
                 '18/11/30',  # Will be identified as '%y/%m/%d' and '%d/%m/%y'.
                 '30-November-2018',
-            ]])),
+            ]]),
         'expected_matching_formats': {
             '%Y-%m-%d': 1,
             '%Y/%m/%d': 1,
@@ -68,11 +65,10 @@ VALID_FORMATS_TESTS = [
     },
     {
         'testcase_name': 'combined_formats',
-        'input_batch': pa.Column.from_array(
-            'feature', pa.array([[
-                '2018-11-30T23:59',
-                '2018/11/30 23:59',
-            ]])),
+        'input_batch': pa.array([[
+            '2018-11-30T23:59',
+            '2018/11/30 23:59',
+        ]]),
         'expected_matching_formats': {
             '%Y-%m-%dT%H:%M': 1,
             '%Y/%m/%d %H:%M': 1,
@@ -89,6 +85,7 @@ class TimeStatsGeneratorValidFormatsTest(parameterized.TestCase):
     """Tests that generator's add_input method properly counts valid formats."""
     generator = time_stats_generator.TimeStatsGenerator(values_threshold=1)
     accumulator = generator.add_input(generator.create_accumulator(),
+                                      types.FeaturePath(['']),
                                       input_batch)
     self.assertDictEqual(expected_matching_formats,
                          accumulator.matching_formats)
@@ -121,15 +118,9 @@ class TimeStatsGeneratorTest(test_util.CombinerFeatureStatsGeneratorTest):
     """Tests generator values threshold."""
     # Expected to give 6 matches with the same format.
     input_batches = [
-        pa.Column.from_array(
-            'feature',
-            pa.array([
-                ['2018-11-30', '2018-11-30', '2018-11-30'],
-                ['2018-11-30']
-            ])),
-        pa.Column.from_array('feature',
-                             pa.array([['2018-11-30', '2018-11-30']])),
-        pa.Column.from_array('feature', pa.array([None, None])),
+        pa.array([['2018-11-30', '2018-11-30', '2018-11-30'], ['2018-11-30']]),
+        pa.array([['2018-11-30', '2018-11-30']]),
+        pa.array([None, None]),
     ]
     # Try generator with values_threshold=7 (should not create stats).
     generator = time_stats_generator.TimeStatsGenerator(values_threshold=7)
@@ -151,16 +142,10 @@ class TimeStatsGeneratorTest(test_util.CombinerFeatureStatsGeneratorTest):
     """Tests that generator invalidates stats if there is a non-utf8 string."""
     # Absent invalidation, this is expected to give 6 matches.
     input_batches = [
-        pa.Column.from_array(
-            'feature',
-            pa.array([
-                ['2018-11-30', '2018-11-30', '2018-11-30'],
-                ['2018-11-30']
-            ])),
-        pa.Column.from_array('feature',
-                             pa.array([['2018-11-30', '2018-11-30']])),
+        pa.array([['2018-11-30', '2018-11-30', '2018-11-30'], ['2018-11-30']]),
+        pa.array([['2018-11-30', '2018-11-30']]),
         # Non utf-8 string that will invalidate the accumulator.
-        pa.Column.from_array('feature', pa.array([[b'\xF0']])),
+        pa.array([[b'\xF0']]),
     ]
     # No domain_info should be generated as the non-utf8 string should
     # invalidate the stats. Absent this type issue, these examples would
@@ -174,15 +159,9 @@ class TimeStatsGeneratorTest(test_util.CombinerFeatureStatsGeneratorTest):
     """Tests that generator invalidates stats if inconsistent types are used."""
     # Absent invalidation, this is expected to give 6 matches.
     input_batches = [
-        pa.Column.from_array(
-            'feature',
-            pa.array([
-                ['2018-11-30', '2018-11-30', '2018-11-30'],
-                ['2018-11-30']
-            ])),
-        pa.Column.from_array('feature',
-                             pa.array([['2018-11-30', '2018-11-30']])),
-        pa.Column.from_array('feature', pa.array([[1.0]])),
+        pa.array([['2018-11-30', '2018-11-30', '2018-11-30'], ['2018-11-30']]),
+        pa.array([['2018-11-30', '2018-11-30']]),
+        pa.array([[1.0]]),
     ]
     # No domain_info should be generated as the incorrect type of the 1.0 value
     # should invalidate the stats. Absent this type issue, these examples would
@@ -195,20 +174,20 @@ class TimeStatsGeneratorTest(test_util.CombinerFeatureStatsGeneratorTest):
   @mock.patch.object(time_stats_generator._PartialTimeStats, 'update')
   def test_time_stats_generator_invalidated_exits_add_input_early(
       self, mock_update):
-    input_batch = pa.Column.from_array('feature', pa.array([['2018-11-30']]))
+    input_batch = pa.array([['2018-11-30']])
     generator = time_stats_generator.TimeStatsGenerator()
     accumulator = generator.create_accumulator()
 
     # When an accumulator is invalidated is True, it is not updated when an
     # input batch is added.
     accumulator.invalidated = True
-    generator.add_input(accumulator, input_batch)
+    generator.add_input(accumulator, types.FeaturePath(['']), input_batch)
     self.assertFalse(mock_update.called)
 
     # When an accumulator is not invalidated, it is updated when an input batch
     # is added.
     accumulator.invalidated = False
-    generator.add_input(accumulator, input_batch)
+    generator.add_input(accumulator, types.FeaturePath(['']), input_batch)
     self.assertTrue(mock_update.called)
 
   @mock.patch.object(time_stats_generator._PartialTimeStats, 'update')
@@ -219,36 +198,28 @@ class TimeStatsGeneratorTest(test_util.CombinerFeatureStatsGeneratorTest):
 
     # The accumulator is not updated when the values list in an input batch is
     # None.
-    input_batch = pa.Column.from_array('feature', pa.array([None]))
-    generator.add_input(accumulator, input_batch)
+    input_batch = pa.array([None])
+    generator.add_input(accumulator, types.FeaturePath(['']), input_batch)
     self.assertFalse(mock_update.called)
 
     # The accumulator is not updated when the values list in an input batch is
     # empty.
-    input_batch = pa.Column.from_array('feature', pa.array([]))
-    generator.add_input(accumulator, input_batch)
+    input_batch = pa.array([])
+    generator.add_input(accumulator, types.FeaturePath(['']), input_batch)
     self.assertFalse(mock_update.called)
 
     # The accumulator is updated when a non-empty input_batch is added.
-    input_batch = pa.Column.from_array('feature', pa.array([['2018-11-30']]))
-    generator.add_input(accumulator, input_batch)
+    input_batch = pa.array([['2018-11-30']])
+    generator.add_input(accumulator, types.FeaturePath(['']), input_batch)
     self.assertTrue(mock_update.called)
 
   def test_time_stats_generator_match_ratio_with_same_valid_format(self):
     """Tests match ratio where all valid values have the same format."""
     input_batches = [
-        pa.Column.from_array(
-            'feature',
-            pa.array([
-                ['2018-11-30', '2018-11-30', '2018-11-30'],
-                ['2018-11-30', '2018-11-30']
-            ])),
-        pa.Column.from_array(
-            'feature',
-            pa.array([
-                ['not-valid', 'not-valid', 'not-valid'],
-                ['not-valid', 'not-valid']
-            ])),
+        pa.array([['2018-11-30', '2018-11-30', '2018-11-30'],
+                  ['2018-11-30', '2018-11-30']]),
+        pa.array([['not-valid', 'not-valid', 'not-valid'],
+                  ['not-valid', 'not-valid']]),
     ]
     # Try generator with match_ratio 0.51 (should not create stats).
     generator = time_stats_generator.TimeStatsGenerator(
@@ -270,13 +241,9 @@ class TimeStatsGeneratorTest(test_util.CombinerFeatureStatsGeneratorTest):
   def test_time_stats_generator_match_ratio_with_different_valid_formats(self):
     """Tests match ratio where valid values have different formats."""
     input_batches = [
-        pa.Column.from_array(
-            'feature',
-            pa.array([
-                ['2018-11-30', '2018/11/30', '20181130', '18-11-30',
-                 '18/11/30'],
-                ['11-30-2018', '11/30/2018', '11302018', '11/30/18', '11/30/18']
-            ])),
+        pa.array(
+            [['2018-11-30', '2018/11/30', '20181130', '18-11-30', '18/11/30'],
+             ['11-30-2018', '11/30/2018', '11302018', '11/30/18', '11/30/18']]),
     ]
     # Any single format could satisfy the match_ratio, but this should identify
     # only the most common as the time format.
@@ -302,12 +269,9 @@ class TimeStatsGeneratorTest(test_util.CombinerFeatureStatsGeneratorTest):
     """Tests that the generator handles batches that contain no valid values."""
     # None of these values is a valid format.
     input_batches = [
-        pa.Column.from_array(
-            'feature', pa.array([['', '2018-Nov-30', '20183011']])),
-        pa.Column.from_array(
-            'feature', pa.array([['all/invalid', '2018-11-30invalid']])),
-        pa.Column.from_array(
-            'feature', pa.array([['invalid2018-11-30', 'invalid\n2018-11-30']]))
+        pa.array([['', '2018-Nov-30', '20183011']]),
+        pa.array([['all/invalid', '2018-11-30invalid']]),
+        pa.array([['invalid2018-11-30', 'invalid\n2018-11-30']])
     ]
     generator = time_stats_generator.TimeStatsGenerator(
         match_ratio=0.1, values_threshold=1)
@@ -319,12 +283,9 @@ class TimeStatsGeneratorTest(test_util.CombinerFeatureStatsGeneratorTest):
     # The combined format is the most common, since the generator should count
     # it only as the combined format and not its component parts.
     input_batches = [
-        pa.Column.from_array(
-            'feature', pa.array([['2018/11/30 23:59', '2018/12/01 23:59']])),
-        pa.Column.from_array(
-            'feature', pa.array([['2018/11/30 23:59', '23:59']])),
-        pa.Column.from_array(
-            'feature', pa.array([['2018/11/30', '2018/11/30']])),
+        pa.array([['2018/11/30 23:59', '2018/12/01 23:59']]),
+        pa.array([['2018/11/30 23:59', '23:59']]),
+        pa.array([['2018/11/30', '2018/11/30']]),
     ]
     generator = time_stats_generator.TimeStatsGenerator(
         match_ratio=0.1, values_threshold=1)
@@ -343,12 +304,9 @@ class TimeStatsGeneratorTest(test_util.CombinerFeatureStatsGeneratorTest):
     # the valid range for Unix milliseconds, and the other two are not within
     # the valid range for any integer time formats.
     input_batches = [
-        pa.Column.from_array(
-            'feature', pa.array([[631152001, 631152002]])),
-        pa.Column.from_array(
-            'feature', pa.array([[631152003, 631152000001]])),
-        pa.Column.from_array(
-            'feature', pa.array([[1, 2]]))
+        pa.array([[631152001, 631152002]]),
+        pa.array([[631152003, 631152000001]]),
+        pa.array([[1, 2]])
     ]
     generator = time_stats_generator.TimeStatsGenerator(
         match_ratio=0.1, values_threshold=1)
@@ -367,8 +325,7 @@ class TimeStatsGeneratorTest(test_util.CombinerFeatureStatsGeneratorTest):
     """Tests that the generator handles integers that are not times."""
     # None of these numbers are valid times.
     input_batches = [
-        pa.Column.from_array(
-            'feature', pa.array([[1, 2]])),
+        pa.array([[1, 2]]),
     ]
     generator = time_stats_generator.TimeStatsGenerator(
         match_ratio=0.1, values_threshold=1)

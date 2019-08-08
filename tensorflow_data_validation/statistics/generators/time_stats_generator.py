@@ -298,12 +298,14 @@ class TimeStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     return _PartialTimeStats()
 
   def add_input(self, accumulator: _PartialTimeStats,
-                input_column: pa.Column) -> _PartialTimeStats:
+                feature_path: types.FeaturePath,
+                feature_array: pa.Column) -> _PartialTimeStats:
     """Returns result of folding a batch of inputs into the current accumulator.
 
     Args:
       accumulator: The current accumulator.
-      input_column: An arrow column representing a batch of feature values
+      feature_path: The path of the feature.
+      feature_array: An arrow Array representing a batch of feature values
         which should be added to the accumulator.
 
     Returns:
@@ -312,7 +314,7 @@ class TimeStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     if accumulator.invalidated:
       return accumulator
     feature_type = stats_util.get_feature_type_from_arrow_type(
-        input_column.name, input_column.type)
+        feature_path, feature_array.type)
     # Ignore null array.
     if feature_type is None:
       return accumulator
@@ -321,21 +323,18 @@ class TimeStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
       def _maybe_get_utf8(val):
         return stats_util.maybe_get_utf8(val) if isinstance(val, bytes) else val
 
-      for feature_array in input_column.data.iterchunks():
-        values = arrow_util.FlattenListArray(feature_array).to_pandas()
-        maybe_utf8 = np.vectorize(_maybe_get_utf8, otypes=[np.object])(values)
-        if not maybe_utf8.all():
-          accumulator.invalidated = True
-          return accumulator
-        accumulator.update(maybe_utf8, feature_type)
-
+      values = arrow_util.FlattenListArray(feature_array).to_pandas()
+      maybe_utf8 = np.vectorize(_maybe_get_utf8, otypes=[np.object])(values)
+      if not maybe_utf8.all():
+        accumulator.invalidated = True
+        return accumulator
+      accumulator.update(maybe_utf8, feature_type)
     elif feature_type == statistics_pb2.FeatureNameStatistics.INT:
-      for feature_array in input_column.data.iterchunks():
-        values = arrow_util.FlattenListArray(feature_array).to_pandas()
-        accumulator.update(values, feature_type)
-
+      values = arrow_util.FlattenListArray(feature_array).to_pandas()
+      accumulator.update(values, feature_type)
     else:
       accumulator.invalidated = True
+
     return accumulator
 
   def merge_accumulators(
