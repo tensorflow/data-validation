@@ -40,7 +40,6 @@
 //   - any ndarrays as value in the dicts are not of expected type (
 //     only np.int64, np.float32 and np.object (for bytes feature) are expected)
 //   - for np.object ndarrays, if any element is not a python bytes object.
-//   - the input list if empty (since 0 column Table is not a valid Table).
 //   - some dicts don't agree on the type of the values of the same feature.
 
 PyObject* TFDV_Arrow_DecodedExamplesToTable(PyObject* list_of_decoded_examples);
