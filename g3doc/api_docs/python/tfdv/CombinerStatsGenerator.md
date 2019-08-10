@@ -18,7 +18,8 @@
 
 Generate statistics using combiner function.
 
-This object mirrors a beam.CombineFn.
+This object mirrors a beam.CombineFn except for the add_input interface, which
+is expected to be defined by its sub-classes.
 
 <h2 id="__init__"><code>__init__</code></h2>
 
@@ -54,10 +55,10 @@ Initializes a statistics generator.
 
 <h3 id="add_input"><code>add_input</code></h3>
 
-``` python
+```python
 add_input(
     accumulator,
-    input_batch
+    input_table
 )
 ```
 
@@ -65,11 +66,11 @@ Returns result of folding a batch of inputs into accumulator.
 
 #### Args:
 
-* <b>`accumulator`</b>: The current accumulator.
-* <b>`input_batch`</b>: A Python dict whose keys are strings denoting feature names
-    and values are lists representing a batch of examples, which should be
-    added to the accumulator.
-
+*   <b>`accumulator`</b>: The current accumulator.
+*   <b>`input_table`</b>: An Arrow Table whose columns are features and rows are
+    examples. The columns are of type List<primitive> or Null (If a feature's
+    value is None across all the examples in the batch, its corresponding column
+    is of Null type).
 
 #### Returns:
 
@@ -111,6 +112,9 @@ merge_accumulators(accumulators)
 ```
 
 Merges several accumulators to a single accumulator value.
+
+Note: mutating any element in `accumulators` is not allowed and will result in
+undefined behavior.
 
 #### Args:
 

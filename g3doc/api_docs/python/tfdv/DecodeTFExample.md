@@ -12,3 +12,15 @@ tfdv.DecodeTFExample(
 )
 ```
 
+Decodes serialized TF examples into Arrow tables.
+
+#### Args:
+
+*   <b>`examples`</b>: A PCollection of strings representing serialized TF
+    examples.
+*   <b>`desired_batch_size`</b>: Batch size. The output Arrow tables will have
+    as many rows as the `desired_batch_size`.
+
+#### Returns:
+
+A PCollection of Arrow tables.

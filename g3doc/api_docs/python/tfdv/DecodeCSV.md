@@ -9,21 +9,20 @@
 
 ## Class `DecodeCSV`
 
+Decodes CSV records into Arrow tables.
 
-
-Decodes CSV records into an in-memory dict representation.
-
-Currently we assume each column has only a single value.
+Currently we assume each column in the input CSV has only a single value.
 
 <h2 id="__init__"><code>__init__</code></h2>
 
-``` python
+```python
 __init__(
     column_names,
     delimiter=',',
     skip_blank_lines=True,
     schema=None,
-    infer_type_from_schema=False
+    infer_type_from_schema=False,
+    desired_batch_size=constants.DEFAULT_DESIRED_INPUT_BATCH_SIZE
 )
 ```
 
@@ -31,17 +30,17 @@ Initializes the CSV decoder.
 
 #### Args:
 
-* <b>`column_names`</b>: List of feature names. Order must match the order in the CSV
-    file.
-* <b>`delimiter`</b>: A one-character string used to separate fields.
-* <b>`skip_blank_lines`</b>: A boolean to indicate whether to skip over blank lines
-    rather than interpreting them as missing values.
-* <b>`schema`</b>: An optional schema of the input data.
-* <b>`infer_type_from_schema`</b>: A boolean to indicate whether the feature types
-    should be inferred from the schema. If set to True, an input schema must
-    be provided.
-
-
+*   <b>`column_names`</b>: List of feature names. Order must match the order in
+    the CSV file.
+*   <b>`delimiter`</b>: A one-character string used to separate fields.
+*   <b>`skip_blank_lines`</b>: A boolean to indicate whether to skip over blank
+    lines rather than interpreting them as missing values.
+*   <b>`schema`</b>: An optional schema of the input data.
+*   <b>`infer_type_from_schema`</b>: A boolean to indicate whether the feature
+    types should be inferred from the schema. If set to True, an input schema
+    must be provided.
+*   <b>`desired_batch_size`</b>: Batch size. The output Arrow tables will have
+    as many rows as the `desired_batch_size`.
 
 ## Methods
 
@@ -51,7 +50,7 @@ Initializes the CSV decoder.
 expand(lines)
 ```
 
-Decodes the input CSV records into an in-memory dict representation.
+Decodes the input CSV records into Arrow tables.
 
 #### Args:
 
@@ -60,7 +59,4 @@ Decodes the input CSV records into an in-memory dict representation.
 
 #### Returns:
 
-A PCollection of dicts representing the CSV records.
-
-
-
+A PCollection of Arrow tables.

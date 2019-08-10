@@ -5,10 +5,10 @@
 
 # tfdv.set_domain
 
-``` python
+```python
 tfdv.set_domain(
     schema,
-    feature_name,
+    feature_path,
     domain
 )
 ```
@@ -20,27 +20,19 @@ provided input domain. This method cannot be used to add a new global domain.
 
 #### Args:
 
-* <b>`schema`</b>: A Schema protocol buffer.
-* <b>`feature_name`</b>: The name of the feature whose domain needs to be set.
-* <b>`domain`</b>: A domain protocol buffer (one of IntDomain, FloatDomain,
-      StringDomain or BoolDomain) or the name of a global string domain
-      present in the input schema.
-
-Example:
-
-```python
-  >>> from tensorflow_metadata.proto.v0 import schema_pb2
-  >>> import tensorflow_data_validation as tfdv
-  >>> schema = schema_pb2.Schema()
-  >>> schema.feature.add(name='feature')
-  # Setting a int domain.
-  >>> int_domain = schema_pb2.IntDomain(min=3, max=5)
-  >>> tfdv.set_domain(schema, "feature", int_domain)
-  # Setting a string domain.
-  >>> str_domain = schema_pb2.StringDomain(value=['one', 'two', 'three'])
-  >>> tfdv.set_domain(schema, "feature", str_domain)
-```
-
+*   <b>`schema`</b>: A Schema protocol buffer.
+*   <b>`feature_path`</b>: The name of the feature whose domain needs to be set.
+    If a FeatureName is passed, a one-step FeaturePath will be constructed and
+    used. For example, "my_feature" -> types.FeaturePath(["my_feature"])
+*   <b>`domain`</b>: A domain protocol buffer (one of IntDomain, FloatDomain,
+    StringDomain or BoolDomain) or the name of a global string domain present in
+    the input schema. Example: `python >>> from tensorflow_metadata.proto.v0
+    import schema_pb2 >>> import tensorflow_data_validation as tfdv >>> schema =
+    schema_pb2.Schema() >>> schema.feature.add(name='feature') # Setting a int
+    domain. >>> int_domain = schema_pb2.IntDomain(min=3, max=5) >>>
+    tfdv.set_domain(schema, "feature", int_domain) # Setting a string
+    domain. >>> str_domain = schema_pb2.StringDomain(value=['one', 'two',
+    'three']) >>> tfdv.set_domain(schema, "feature", str_domain)`
 
 #### Raises:
 

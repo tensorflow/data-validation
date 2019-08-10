@@ -42,9 +42,9 @@ ColumnInfo = collections.namedtuple('ColumnInfo', ['name', 'type'])
 @beam.typehints.with_input_types(types.BeamCSVRecord)
 @beam.typehints.with_output_types(pa.Table)
 class DecodeCSV(beam.PTransform):
-  """Decodes CSV records into an in-memory dict representation.
+  """Decodes CSV records into Arrow tables.
 
-  Currently we assume each column has only a single value.
+  Currently we assume each column in the input CSV has only a single value.
   """
 
   def __init__(

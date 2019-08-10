@@ -110,7 +110,8 @@ class StatsOptions(object):
       enable_semantic_domain_stats: If True statistics for semantic domains are
         generated (e.g: image, text domains).
       semantic_domain_stats_sample_rate: An optional sampling rate for semantic
-        domain statistics. If specified, statistics is computed over a sample.
+        domain statistics. If specified, semantic domain statistics is computed
+        over a sample.
     """
     self.generators = generators
     self.feature_whitelist = feature_whitelist

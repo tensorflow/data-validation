@@ -48,7 +48,7 @@ def DecodeTFExample(
     examples: beam.pvalue.PCollection,
     desired_batch_size: int = constants.DEFAULT_DESIRED_INPUT_BATCH_SIZE
 ) -> beam.pvalue.PCollection:  # pylint: disable=invalid-name
-  """Decodes serialized TF examples into an Arrow table.
+  """Decodes serialized TF examples into Arrow tables.
 
   Args:
     examples: A PCollection of strings representing serialized TF examples.

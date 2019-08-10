@@ -5,10 +5,10 @@
 
 # tfdv.get_domain
 
-``` python
+```python
 tfdv.get_domain(
     schema,
-    feature_name
+    feature_path
 )
 ```
 
@@ -16,9 +16,11 @@ Get the domain associated with the input feature from the schema.
 
 #### Args:
 
-* <b>`schema`</b>: A Schema protocol buffer.
-* <b>`feature_name`</b>: The name of the feature whose domain needs to be found.
-
+*   <b>`schema`</b>: A Schema protocol buffer.
+*   <b>`feature_path`</b>: The path of the feature whose domain needs to be
+    found. If a FeatureName is passed, a one-step FeaturePath will be
+    constructed and used. For example, "my_feature" ->
+    types.FeaturePath(["my_feature"])
 
 #### Returns:
 

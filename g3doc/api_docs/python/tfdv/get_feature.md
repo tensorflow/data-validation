@@ -5,10 +5,10 @@
 
 # tfdv.get_feature
 
-``` python
+```python
 tfdv.get_feature(
     schema,
-    feature_name
+    feature_path
 )
 ```
 
@@ -16,9 +16,10 @@ Get a feature from the schema.
 
 #### Args:
 
-* <b>`schema`</b>: A Schema protocol buffer.
-* <b>`feature_name`</b>: The name of the feature to obtain from the schema.
-
+*   <b>`schema`</b>: A Schema protocol buffer.
+*   <b>`feature_path`</b>: The path of the feature to obtain from the schema. If
+    a FeatureName is passed, a one-step FeaturePath will be constructed and
+    used. For example, "my_feature" -> types.FeaturePath(["my_feature"])
 
 #### Returns:
 

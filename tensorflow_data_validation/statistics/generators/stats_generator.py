@@ -109,10 +109,10 @@ class CombinerStatsGenerator(StatsGenerator):
 
     Args:
       accumulator: The current accumulator.
-      input_table: An Arrow Table whose columns are features rows are examples.
-        The columns are of type List<primitive> or Null (If a feature's value
-        is None across all the examples in the batch, its corresponding column
-        is of Null type).
+      input_table: An Arrow Table whose columns are features and rows are
+        examples. The columns are of type List<primitive> or Null (If a
+        feature's value is None across all the examples in the batch, its
+        corresponding column is of Null type).
 
     Returns:
       The accumulator after updating the statistics for the batch of inputs.

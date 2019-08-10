@@ -11,7 +11,10 @@ Init module for TensorFlow Data Validation.
 
 [`class CombinerStatsGenerator`](./tfdv/CombinerStatsGenerator.md): Generate statistics using combiner function.
 
-[`class DecodeCSV`](./tfdv/DecodeCSV.md): Decodes CSV records into an in-memory dict representation.
+[`class DecodeCSV`](./tfdv/DecodeCSV.md): Decodes CSV records into Arrow tables.
+
+[`class FeaturePath`](./tfdv/FeaturePath.md): Represents the path to a feature
+in an input example.
 
 [`class GenerateStatistics`](./tfdv/GenerateStatistics.md): API for generating data statistics.
 
@@ -23,7 +26,8 @@ Init module for TensorFlow Data Validation.
 
 ## Functions
 
-[`DecodeTFExample(...)`](./tfdv/DecodeTFExample.md)
+[`DecodeTFExample(...)`](./tfdv/DecodeTFExample.md): Decodes serialized TF
+examples into Arrow tables.
 
 [`display_anomalies(...)`](./tfdv/display_anomalies.md): Displays the input anomalies.
 
@@ -41,17 +45,33 @@ Init module for TensorFlow Data Validation.
 
 [`infer_schema(...)`](./tfdv/infer_schema.md): Infers schema from the input statistics.
 
+[`load_anomalies_text(...)`](./tfdv/load_anomalies_text.md): Loads the Anomalies
+proto stored in text format in the input path.
+
 [`load_schema_text(...)`](./tfdv/load_schema_text.md): Loads the schema stored in text format in the input path.
 
 [`load_statistics(...)`](./tfdv/load_statistics.md): Loads data statistics proto from file.
 
 [`set_domain(...)`](./tfdv/set_domain.md): Sets the domain for the input feature in the schema.
 
-[`validate_instance(...)`](./tfdv/validate_instance.md): Validates a single example against the schema provided in `options`.
+[`update_schema(...)`](./tfdv/update_schema.md): Updates input schema to conform
+to the input statistics.
+
+[`validate_examples_in_csv(...)`](./tfdv/validate_examples_in_csv.md): Validates
+examples in csv files.
+
+[`validate_examples_in_tfrecord(...)`](./tfdv/validate_examples_in_tfrecord.md):
+Validates TFExamples in TFRecord files.
+
+[`validate_instance(...)`](./tfdv/validate_instance.md): Validates a batch of
+examples against the schema provided in `options`.
 
 [`validate_statistics(...)`](./tfdv/validate_statistics.md): Validates the input statistics against the provided input schema.
 
 [`visualize_statistics(...)`](./tfdv/visualize_statistics.md): Visualize the input statistics using Facets.
+
+[`write_anomalies_text(...)`](./tfdv/write_anomalies_text.md): Writes the
+Anomalies proto to a file in text format.
 
 [`write_schema_text(...)`](./tfdv/write_schema_text.md): Writes input schema to a file in text format.
 
