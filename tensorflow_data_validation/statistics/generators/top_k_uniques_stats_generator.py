@@ -212,7 +212,7 @@ def _to_topk_tuples(
         stats_util.get_feature_type_from_arrow_type(
             feature_path,
             feature_array_type) == statistics_pb2.FeatureNameStatistics.STRING):
-      flattened_values = arrow_util.FlattenListArray(feature_array)
+      flattened_values = feature_array.flatten()
       if weights is not None and flattened_values:
         # Slow path: weighted uniques.
         flattened_values_np = arrow_util.primitive_array_to_numpy(

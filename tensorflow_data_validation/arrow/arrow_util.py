@@ -26,7 +26,6 @@ from typing import Iterable, Optional, Text, Tuple
 
 # The following are function aliases thus valid function names.
 # pylint: disable=invalid-name
-FlattenListArray = pywrap.TFDV_Arrow_FlattenListArray
 ListLengthsFromListArray = pywrap.TFDV_Arrow_ListLengthsFromListArray
 GetFlattenedArrayParentIndices = pywrap.TFDV_Arrow_GetFlattenedArrayParentIndices
 GetArrayNullBitmapAsByteArray = pywrap.TFDV_Arrow_GetArrayNullBitmapAsByteArray
@@ -49,7 +48,9 @@ def primitive_array_to_numpy(primitive_array: pa.Array) -> np.ndarray:
     corresponding numpy type is np.object (str, bytes or unicode)).
   """
   array_type = primitive_array.type
-  if (pa.types.is_binary(array_type) or pa.types.is_string(array_type)):
+  if (pa.types.is_binary(array_type) or
+      pa.types.is_string(array_type) or
+      primitive_array.null_count > 0):
     # no free conversion.
     return primitive_array.to_pandas()
   return primitive_array.to_numpy()
@@ -105,7 +106,7 @@ def enumerate_arrays(
         pa.types.is_struct(array_type.value_type)):
       if not enumerate_leaves_only:
         yield (feature_path, array, weights)
-      flat_struct_array = FlattenListArray(array)
+      flat_struct_array = array.flatten()
       flat_weights = None
       if weights is not None:
         flat_weights = weights[GetFlattenedArrayParentIndices(array).to_numpy()]
@@ -121,8 +122,7 @@ def enumerate_arrays(
 
   weights = None
   if weight_column is not None:
-    weights = FlattenListArray(
-        table.column(weight_column).data.chunk(0)).to_numpy()
+    weights = table.column(weight_column).data.chunk(0).flatten().to_numpy()
     if weights.size != table.num_rows:
       raise ValueError(
           'The weight feature must have exactly one value in each example')

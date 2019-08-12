@@ -266,7 +266,7 @@ class ImageStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     # Consider using memoryview to avoid copying after upgrading to
     # arrow 0.12. Note that this would involve modifying the subsequent logic
     # to iterate over the values in a loop.
-    values = arrow_util.FlattenListArray(feature_array).to_pandas()
+    values = arrow_util.primitive_array_to_numpy(feature_array.flatten())
     accumulator.total_num_values += values.size
     image_formats = self._image_decoder.get_formats(values)
     valid_mask = ~pd.isnull(image_formats)

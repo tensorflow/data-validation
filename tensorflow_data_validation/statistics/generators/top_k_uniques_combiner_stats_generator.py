@@ -175,7 +175,7 @@ class TopKUniquesCombinerStatsGenerator(
       # with topk stats.
       if (feature_path in self._categorical_features or
           feature_type == statistics_pb2.FeatureNameStatistics.STRING):
-        flattened_values = arrow_util.FlattenListArray(leaf_array)
+        flattened_values = leaf_array.flatten()
         unweighted_counts = collections.Counter()
         # Compute unweighted counts.
         value_counts = arrow_util.ValueCounts(flattened_values)

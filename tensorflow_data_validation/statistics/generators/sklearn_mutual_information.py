@@ -99,8 +99,8 @@ def _flatten_and_impute(examples_table: pa.Table,
     feature_array = feature_column.data.chunk(0)
     # to_pandas returns a readonly array. Create a copy as we will be imputing
     # the NaN values.
-    non_missing_values = np.copy(arrow_util.FlattenListArray(
-        feature_array).to_pandas())
+    non_missing_values = np.copy(
+        arrow_util.primitive_array_to_numpy(feature_array.flatten()))
     non_missing_parent_indices = arrow_util.primitive_array_to_numpy(
         arrow_util.GetFlattenedArrayParentIndices(feature_array))
     is_categorical_feature = feature_path in categorical_features

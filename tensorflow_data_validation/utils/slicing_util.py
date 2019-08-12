@@ -120,8 +120,8 @@ def get_feature_value_slicer(
       column = table.column(feature_name)
       # Assume we have a single chunk.
       feature_array = column.data.chunk(0)
-      non_missing_values = arrow_util.FlattenListArray(
-          feature_array).to_pandas()
+      non_missing_values = arrow_util.primitive_array_to_numpy(
+          feature_array.flatten())
       value_parent_indices = arrow_util.GetFlattenedArrayParentIndices(
           feature_array).to_numpy()
       # Create dataframe with feature value and parent index.

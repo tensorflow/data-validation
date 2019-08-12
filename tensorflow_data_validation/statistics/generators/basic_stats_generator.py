@@ -237,7 +237,7 @@ class _PartialNumericStats(object):
     if not feature_array:
       return
 
-    flattened_value_array = arrow_util.FlattenListArray(feature_array)
+    flattened_value_array = feature_array.flatten()
     # Note: to_numpy will fail if flattened_value_array is empty.
     if not flattened_value_array:
       return
@@ -291,7 +291,7 @@ class _PartialStringStats(object):
   def update(self, feature_array: pa.Array) -> None:
     """Update the partial string statistics using the input value."""
     # Iterate through the value array and update the partial stats.
-    flattened_values_array = arrow_util.FlattenListArray(feature_array)
+    flattened_values_array = feature_array.flatten()
     if pa.types.is_binary(flattened_values_array.type) or pa.types.is_unicode(
         flattened_values_array.type):
       # GetBinaryArrayTotalByteSize returns a Python long (to be compatible

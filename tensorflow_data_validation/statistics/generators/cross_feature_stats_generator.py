@@ -138,7 +138,7 @@ class CrossFeatureStatsGenerator(stats_generator.CombinerStatsGenerator):
       if not univalent_parent_indices:
         continue
       non_missing_values = arrow_util.primitive_array_to_numpy(
-          arrow_util.FlattenListArray(feat_arr))
+          feat_arr.flatten())
       value_parent_indices = arrow_util.primitive_array_to_numpy(
           arrow_util.GetFlattenedArrayParentIndices(feat_arr))
       if feature_type == statistics_pb2.FeatureNameStatistics.FLOAT:

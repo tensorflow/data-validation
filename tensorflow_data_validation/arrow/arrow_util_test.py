@@ -33,7 +33,6 @@ class ArrowUtilTest(absltest.TestCase):
   def test_invalid_input_type(self):
 
     functions_expecting_list_array = [
-        arrow_util.FlattenListArray,
         arrow_util.ListLengthsFromListArray,
         arrow_util.GetFlattenedArrayParentIndices,
     ]
@@ -52,15 +51,6 @@ class ArrowUtilTest(absltest.TestCase):
     for f in functions_expecting_binary_array:
       with self.assertRaisesRegex(RuntimeError, "Expected BinaryArray"):
         f(pa.array([[1, 2, 3]]))
-
-  def test_flatten_list_array(self):
-    flattened = arrow_util.FlattenListArray(
-        pa.array([], type=pa.list_(pa.int64())))
-    self.assertTrue(flattened.equals(pa.array([], type=pa.int64())))
-
-    flattened = arrow_util.FlattenListArray(
-        pa.array([[1.], [2.], [], [3.]]))
-    self.assertTrue(flattened.equals(pa.array([1., 2., 3.])))
 
   def test_list_lengths(self):
     list_lengths = arrow_util.ListLengthsFromListArray(
@@ -322,19 +312,26 @@ class EnumerateArraysTest(absltest.TestCase):
 
 class PrimitiveArrayToNumpyTest(absltest.TestCase):
 
-  def testSimple(self):
-    int32_array = pa.array([1, 2, 3], pa.int32())
-    np_array = arrow_util.primitive_array_to_numpy(int32_array)
-    self.assertEqual(np_array.dtype, np.int32)
+  def testNumberArrayShouldShareBuffer(self):
+    float_array = pa.array([1, 2, np.NaN], pa.float32())
+    np_array = arrow_util.primitive_array_to_numpy(float_array)
+    self.assertEqual(np_array.dtype, np.float32)
     self.assertEqual(np_array.shape, (3,))
     # Check that they share the same buffer.
-    self.assertEqual(np_array.ctypes.data, int32_array.buffers()[1].address)
+    self.assertEqual(np_array.ctypes.data, float_array.buffers()[1].address)
 
+  def testStringArray(self):
     string_array = pa.array(["a", "b"], pa.utf8())
     np_array = arrow_util.primitive_array_to_numpy(string_array)
     self.assertEqual(np_array.dtype, np.object)
     self.assertEqual(np_array.shape, (2,))
     np.testing.assert_array_equal(np_array, [u"a", u"b"])
+
+  def testNumberArrayWithNone(self):
+    float_array = pa.array([1.0, 2.0, None], pa.float64())
+    np_array = arrow_util.primitive_array_to_numpy(float_array)
+    self.assertEqual(np_array.dtype, np.float64)
+    np.testing.assert_array_equal(np_array, [1.0, 2.0, np.NaN])
 
 
 if __name__ == "__main__":

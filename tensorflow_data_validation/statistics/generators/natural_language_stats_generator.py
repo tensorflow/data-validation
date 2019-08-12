@@ -198,7 +198,7 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
 
     is_non_utf_vec = np.vectorize(_is_non_utf8, otypes=[np.bool])
     classify_vec = np.vectorize(self._classifier.classify, otypes=[np.bool])
-    values = arrow_util.FlattenListArray(feature_array).to_pandas()
+    values = arrow_util.primitive_array_to_numpy(feature_array.flatten())
     if np.any(is_non_utf_vec(values)):
       accumulator.invalidate = True
       return accumulator

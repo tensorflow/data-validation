@@ -45,13 +45,6 @@ Status GetListArray(const Array& array, const ListArray** list_array) {
   return Status::OK();
 }
 
-Status FlattenListArray(const Array& array, std::shared_ptr<Array>* flattened) {
-  const ListArray* list_array;
-  RETURN_NOT_OK(GetListArray(array, &list_array));
-  *flattened = list_array->values();
-  return Status::OK();
-}
-
 Status GetFlattenedArrayParentIndices(
     const Array& array,
     std::shared_ptr<Array>* parent_indices_array) {
@@ -167,15 +160,6 @@ Status PythonIntToInt64(PyObject* py_int, int64_t* out) {
 }
 
 }  // namespace
-
-PyObject* TFDV_Arrow_FlattenListArray(PyObject* py_list_array) {
-  ImportPyArrow();
-  std::shared_ptr<arrow::Array> unwrapped;
-  TFDV_RAISE_IF_NOT_OK(arrow::py::unwrap_array(py_list_array, &unwrapped));
-  std::shared_ptr<arrow::Array> flattened;
-  TFDV_RAISE_IF_NOT_OK(FlattenListArray(*unwrapped, &flattened));
-  return arrow::py::wrap_array(flattened);
-}
 
 PyObject* TFDV_Arrow_ListLengthsFromListArray(PyObject* py_list_array) {
   ImportPyArrow();
