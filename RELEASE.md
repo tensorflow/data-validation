@@ -5,6 +5,8 @@
 
 ## Bug Fixes and Other Changes
 
+* Fix incorrect file hashes in the TFDV wheel.
+
 ## Breaking Changes
 
 ## Deprecations

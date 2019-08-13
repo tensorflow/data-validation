@@ -44,8 +44,9 @@ function setup_environment() {
   export PIP_BIN="${PYTHON_DIR}"/bin/pip
   export PYTHON_BIN_PATH="${PYTHON_DIR}"/bin/python
   echo "PYTHON_BIN_PATH=${PYTHON_BIN_PATH}"
+  export WHEEL_BIN="${PYTHON_DIR}"/bin/wheel
   ${PIP_BIN} install --upgrade pip
-  ${PIP_BIN} install wheel
+  ${PIP_BIN} install wheel --upgrade
   # Auditwheel does not have a python2 version and auditwheel is just a binary.
   pip3 install auditwheel
 }
@@ -91,7 +92,14 @@ function stamp_wheel() {
   auditwheel repair --plat manylinux2010_x86_64 -w "${WHEEL_DIR}" "${WHEEL_PATH}"
   rm "${WHEEL_PATH}"
   MANY_LINUX_WHEEL_PATH=$(ls "${WHEEL_DIR}"/*manylinux*.whl)
-  zip "${MANY_LINUX_WHEEL_PATH}" "${SO_FILE_PATH}"
+  # Unzip the manylinux2010 wheel and pack it again with the original .so file.
+  # We need to use "wheel pack" in order to compute the file hashes again.
+  TMP_DIR="$(mktemp -d)"
+  unzip "${MANY_LINUX_WHEEL_PATH}" -d "${TMP_DIR}"
+  cp ${SO_FILE_PATH} "${TMP_DIR}/${SO_FILE_PATH}"
+  rm "${MANY_LINUX_WHEEL_PATH}"
+  ${WHEEL_BIN} version
+  ${WHEEL_BIN} pack "${TMP_DIR}" --dest-dir "${WHEEL_DIR}"
 }
 
 setup_environment
