@@ -76,11 +76,10 @@ python tensorflow_data_validation/tools/strip_type_hints.py tensorflow_data_vali
 Then, run the following at the project root:
 
 ```bash
-DOCKER_SERVICE=manylinux-python${PY_VERSION}
-sudo docker-compose build ${DOCKER_SERVICE}
-sudo docker-compose run ${DOCKER_SERVICE}
+sudo docker-compose build manylinux2010
+sudo docker-compose run -e PYTHON_VERSION=${PYTHON_VERSION} manylinux2010
 ```
-where `PY_VERSION` is one of `{27, 35, 36, 37}`.
+where `PYTHON_VERSION` is one of `{27, 35, 36, 37}`.
 
 A wheel will be produced under `dist/`.
 
