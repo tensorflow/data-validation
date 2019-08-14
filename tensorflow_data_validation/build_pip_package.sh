@@ -45,12 +45,14 @@ set -u -x
 cp -f ${BUILD_WORKSPACE_DIRECTORY}/bazel-bin/tensorflow_data_validation/pywrap/pywrap_tensorflow_data_validation.py \
   ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/pywrap
 if is_windows; then
-  cp -f ${BUILD_WORKSPACE_DIRECTORY}/bazel-out/x64_windows-opt/genfiles/tensorflow_data_validation/pywrap/_pywrap_tensorflow_data_validation.pyd \
-    ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/pywrap/_pywrap_tensorflow_data_validation.pyd
+  PYWRAP_TFDV="tensorflow_data_validation/pywrap/_pywrap_tensorflow_data_validation.pyd"
+  cp -f "${BUILD_WORKSPACE_DIRECTORY}/bazel-out/x64_windows-opt/genfiles/${PYWRAP_TFDV}" \
+    "${BUILD_WORKSPACE_DIRECTORY}/${PYWRAP_TFDV}"
 else
-  cp -f ${BUILD_WORKSPACE_DIRECTORY}/bazel-bin/tensorflow_data_validation/pywrap/_pywrap_tensorflow_data_validation.so \
-    ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/pywrap
-  chmod +w ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/pywrap/_pywrap_tensorflow_data_validation.so
+  PYWRAP_TFDV="tensorflow_data_validation/pywrap/_pywrap_tensorflow_data_validation.so"
+  cp -f "${BUILD_WORKSPACE_DIRECTORY}/bazel-bin/${PYWRAP_TFDV}" \
+    "${BUILD_WORKSPACE_DIRECTORY}/${PYWRAP_TFDV}"
+  chmod +w "${BUILD_WORKSPACE_DIRECTORY}/${PYWRAP_TFDV}"
 fi
 
 # Create the wheel
