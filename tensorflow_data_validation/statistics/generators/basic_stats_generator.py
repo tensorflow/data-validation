@@ -613,15 +613,15 @@ def _update_tfdv_telemetry(
         feature_type).lower()
     type_metrics = metrics[feature_type]
     counter(constants.METRICS_NAMESPACE,
-            'num_' + type_str + '_feature_values').inc(
-                type_metrics.num_non_missing)
+            'num_' + type_str + '_feature_values').inc(int(
+                type_metrics.num_non_missing))
     is_present = type_metrics.num_non_missing > 0
     counter(constants.METRICS_NAMESPACE,
-            type_str + '_feature_values_min_count').inc(
-                type_metrics.min_value_count if is_present else -1)
+            type_str + '_feature_values_min_count').inc(int(
+                type_metrics.min_value_count if is_present else -1))
     counter(constants.METRICS_NAMESPACE,
-            type_str + '_feature_values_max_count').inc(
-                type_metrics.max_value_count if is_present else -1)
+            type_str + '_feature_values_max_count').inc(int(
+                type_metrics.max_value_count if is_present else -1))
     counter(
         constants.METRICS_NAMESPACE,
         type_str + '_feature_values_mean_count').inc(
