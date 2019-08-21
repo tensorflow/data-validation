@@ -1,5 +1,5 @@
 <!-- mdlint off(HEADERS_TOO_MANY_H1) -->
-# Current version (not yet released; still in development)
+# Release 0.14.1
 
 ## Major Features and Improvements
 

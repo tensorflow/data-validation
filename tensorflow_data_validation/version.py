@@ -15,4 +15,4 @@
 """Contains the version string of TFDV."""
 
 # Note that setup.py uses this version.
-__version__ = '0.15.0dev'
+__version__ = '0.14.1'
