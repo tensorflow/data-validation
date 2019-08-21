@@ -239,7 +239,7 @@ def get_statistics_html(
         <script>
         facets_iframe = document.getElementById('facets-iframe');
         facets_html = '<link rel="import" href="https://raw.githubusercontent.com/PAIR-code/facets/master/facets-dist/facets-jupyter.html"><facets-overview proto-input="protostr"></facets-overview>';
-        facets_iframe.contentWindow.document.write(facets_html);
+        facets_iframe.srcdoc = facets_html;
          facets_iframe.id = "";
          setTimeout(() => {
            facets_iframe.setAttribute('height', facets_iframe.contentWindow.document.body.offsetHeight + 'px')
