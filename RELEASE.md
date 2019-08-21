@@ -8,6 +8,7 @@
 ## Bug Fixes and Other Changes
 
 * Fix incorrect file hashes in the TFDV wheel.
+* Fix DOMException when embedding visualization in iframe.
 
 ## Breaking Changes
 
