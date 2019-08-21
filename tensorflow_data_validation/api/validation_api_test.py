@@ -434,6 +434,81 @@ class ValidationApiTest(absltest.TestCase):
                                                 infer_feature_shape=True)
     self.assertEqual(actual_schema, expected_schema)
 
+  def test_infer_schema_with_transformations(self):
+    statistics = text_format.Parse(
+        """
+        datasets {
+          num_examples: 7
+          features: {
+            name: 'foo'
+            type: STRING
+            string_stats: {
+              common_stats: {
+                num_non_missing: 7
+                min_num_values: 1
+                max_num_values: 1
+              }
+              unique: 3
+            }
+          }
+          features: {
+            name: 'xyz_query'
+            type: STRING
+            string_stats: {
+              common_stats: {
+                num_non_missing: 7
+                min_num_values: 1
+                max_num_values: 1
+              }
+              unique: 3
+            }
+          }
+        }
+        """, statistics_pb2.DatasetFeatureStatisticsList())
+
+    def _semantic_type_transformation_fn(schema, unused_stats):
+      for feature in schema.feature:
+        if 'query' in feature.name:
+          feature.natural_language_domain.CopyFrom(
+              schema_pb2.NaturalLanguageDomain())
+      return schema
+
+    expected_schema = text_format.Parse(
+        """
+        feature {
+          name: "foo"
+          value_count: {
+            min: 1
+            max: 1
+          }
+          presence: {
+            min_fraction: 1.0
+            min_count: 1
+          }
+          type: BYTES
+        }
+        feature {
+          name: "xyz_query"
+          value_count: {
+            min: 1
+            max: 1
+          }
+          presence: {
+            min_fraction: 1.0
+            min_count: 1
+          }
+          type: BYTES
+          natural_language_domain {}
+        }
+        """, schema_pb2.Schema())
+    validation_api._may_be_set_legacy_flag(expected_schema)
+
+    # Infer the schema from the stats.
+    actual_schema = validation_api.infer_schema(
+        statistics, infer_feature_shape=False,
+        schema_transformations=[_semantic_type_transformation_fn])
+    self.assertEqual(actual_schema, expected_schema)
+
   def test_infer_schema_invalid_statistics_input(self):
     with self.assertRaisesRegexp(
         TypeError, '.*should be a DatasetFeatureStatisticsList proto.*'):

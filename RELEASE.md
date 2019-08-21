@@ -3,6 +3,8 @@
 
 ## Major Features and Improvements
 
+* Add support for custom schema transformations when inferring schema.
+
 ## Bug Fixes and Other Changes
 
 * Fix incorrect file hashes in the TFDV wheel.

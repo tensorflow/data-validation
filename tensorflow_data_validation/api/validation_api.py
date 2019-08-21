@@ -31,7 +31,7 @@ from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.utils import anomalies_util
 from tensorflow_data_validation.utils import slicing_util
-from typing import Optional
+from typing import Callable, List, Optional
 from tensorflow_metadata.proto.v0 import anomalies_pb2
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -51,10 +51,14 @@ _GLOBAL_ONLY_ANOMALY_TYPES = set([
 ])
 
 
-def infer_schema(statistics: statistics_pb2.DatasetFeatureStatisticsList,
-                 infer_feature_shape: Optional[bool] = True,
-                 max_string_domain_size: Optional[int] = 100
-                ) -> schema_pb2.Schema:
+def infer_schema(
+    statistics: statistics_pb2.DatasetFeatureStatisticsList,
+    infer_feature_shape: bool = True,
+    max_string_domain_size: int = 100,
+    schema_transformations: Optional[List[
+        Callable[[schema_pb2.Schema, statistics_pb2.DatasetFeatureStatistics],
+                 schema_pb2.Schema]]] = None
+) -> schema_pb2.Schema:
   """Infers schema from the input statistics.
 
   Args:
@@ -65,6 +69,10 @@ def infer_schema(statistics: statistics_pb2.DatasetFeatureStatisticsList,
         to be inferred from the statistics.
     max_string_domain_size: Maximum size of the domain of a string feature in
         order to be interpreted as a categorical feature.
+    schema_transformations: List of transformation functions to apply to the
+        auto-inferred schema. Each transformation function should take the
+        schema and statistics as input and should return the transformed schema.
+        The transformations are applied in the order provided in the list.
 
   Returns:
     A Schema protocol buffer.
@@ -99,6 +107,9 @@ def infer_schema(statistics: statistics_pb2.DatasetFeatureStatisticsList,
   if infer_feature_shape:
     _infer_shape(result)
 
+  if schema_transformations is not None:
+    for transformation_fn in schema_transformations:
+      result = transformation_fn(result, statistics.datasets[0])
   return result
 
 
