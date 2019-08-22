@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
-"""API for schema inference and statistics validation.
-"""
+"""API for schema inference and statistics validation."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -24,6 +22,7 @@ from __future__ import print_function
 import logging
 import apache_beam as beam
 import pyarrow as pa
+from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.pyarrow_tf import tensorflow as tf
 from tensorflow_data_validation.pywrap import pywrap_tensorflow_data_validation
@@ -62,11 +61,15 @@ def infer_schema(
   """Infers schema from the input statistics.
 
   Args:
-    statistics: A DatasetFeatureStatisticsList protocol buffer. Schema
-        inference is currently only supported for lists with a single
-        DatasetFeatureStatistics proto.
-    infer_feature_shape: A boolean to indicate if shape of the features need
-        to be inferred from the statistics.
+    statistics: A DatasetFeatureStatisticsList protocol buffer. Schema inference
+      is currently supported only for lists with a single
+      DatasetFeatureStatistics proto or lists with multiple
+      DatasetFeatureStatistics protos corresponding to data slices that include
+      the default slice (i.e., the slice with all examples). If a list with
+      multiple DatasetFeatureStatistics protos is used, this function will infer
+      the schema from the statistics corresponding to the default slice.
+    infer_feature_shape: A boolean to indicate if shape of the features need to
+      be inferred from the statistics.
     max_string_domain_size: Maximum size of the domain of a string feature in
         order to be interpreted as a categorical feature.
     schema_transformations: List of transformation functions to apply to the
@@ -79,21 +82,22 @@ def infer_schema(
 
   Raises:
     TypeError: If the input argument is not of the expected type.
-    ValueError: If the input statistics proto does not have only one dataset.
+    ValueError: If the input statistics proto contains multiple datasets, none
+        of which corresponds to the default slice.
   """
   if not isinstance(statistics, statistics_pb2.DatasetFeatureStatisticsList):
     raise TypeError(
         'statistics is of type %s, should be '
         'a DatasetFeatureStatisticsList proto.' % type(statistics).__name__)
 
-  if len(statistics.datasets) != 1:
-    raise ValueError('Only statistics proto with one dataset is currently '
-                     'supported for inferring schema.')
+  # This will raise an exception if there are multiple datasets, none of which
+  # corresponds to the default slice.
+  dataset_statistics = _get_default_dataset_statistics(statistics)
 
-  _check_for_unsupported_stats_fields(statistics.datasets[0], 'statistics')
+  _check_for_unsupported_stats_fields(dataset_statistics, 'statistics')
 
   schema_proto_string = pywrap_tensorflow_data_validation.InferSchema(
-      tf.compat.as_bytes(statistics.datasets[0].SerializeToString()),
+      tf.compat.as_bytes(dataset_statistics.SerializeToString()),
       max_string_domain_size)
 
   # Parse the serialized Schema proto.
@@ -139,20 +143,26 @@ def update_schema(schema: schema_pb2.Schema,
 
   Args:
     schema: A Schema protocol buffer.
-    statistics: A DatasetFeatureStatisticsList protocol buffer. Schema
-        inference is currently only supported for lists with a single
-        DatasetFeatureStatistics proto.
-    infer_feature_shape: A boolean to indicate if shape of the features need
-        to be inferred from the statistics.
+    statistics: A DatasetFeatureStatisticsList protocol buffer. Schema inference
+      is currently supported only for lists with a single
+      DatasetFeatureStatistics proto or lists with multiple
+      DatasetFeatureStatistics protos corresponding to data slices that include
+      the default slice (i.e., the slice with all examples). If a list with
+      multiple DatasetFeatureStatistics protos is used, this function will
+      update the schema to conform to the statistics corresponding to the
+      default slice.
+    infer_feature_shape: A boolean to indicate if shape of the features need to
+      be inferred from the statistics.
     max_string_domain_size: Maximum size of the domain of a string feature in
-        order to be interpreted as a categorical feature.
+      order to be interpreted as a categorical feature.
 
   Returns:
     A Schema protocol buffer.
 
   Raises:
     TypeError: If the input argument is not of the expected type.
-    ValueError: If the input statistics proto does not have only one dataset.
+    ValueError: If the input statistics proto contains multiple datasets, none
+        of which corresponds to the default slice.
   """
   if not isinstance(schema, schema_pb2.Schema):
     raise TypeError('schema is of type %s, should be a Schema proto.' %
@@ -161,15 +171,16 @@ def update_schema(schema: schema_pb2.Schema,
     raise TypeError(
         'statistics is of type %s, should be '
         'a DatasetFeatureStatisticsList proto.' % type(statistics).__name__)
-  if len(statistics.datasets) != 1:
-    raise ValueError('Only statistics proto with one dataset is currently '
-                     'supported for inferring schema.')
 
-  _check_for_unsupported_stats_fields(statistics.datasets[0], 'statistics')
+  # This will raise an exception if there are multiple datasets, none of which
+  # corresponds to the default slice.
+  dataset_statistics = _get_default_dataset_statistics(statistics)
+
+  _check_for_unsupported_stats_fields(dataset_statistics, 'statistics')
 
   schema_proto_string = pywrap_tensorflow_data_validation.UpdateSchema(
       tf.compat.as_bytes(schema.SerializeToString()),
-      tf.compat.as_bytes(statistics.datasets[0].SerializeToString()),
+      tf.compat.as_bytes(dataset_statistics.SerializeToString()),
       max_string_domain_size)
 
   # Parse the serialized Schema proto.
@@ -202,8 +213,13 @@ def validate_statistics(
 
   Args:
     statistics: A DatasetFeatureStatisticsList protocol buffer denoting the
-        statistics computed over the current data. Validation is currently only
-        supported for lists with a single DatasetFeatureStatistics proto.
+       statistics computed over the current data. Validation is currently
+       supported only for lists with a single DatasetFeatureStatistics proto or
+       lists with multiple DatasetFeatureStatistics protos corresponding to data
+       slices that include the default slice (i.e., the slice with all
+       examples). If a list with multiple DatasetFeatureStatistics protos is
+       used, this function will validate the statistics corresponding to the
+       default slice.
     schema: A Schema protocol buffer.
     environment: An optional string denoting the validation environment.
         Must be one of the default environments specified in the schema.
@@ -236,16 +252,17 @@ def validate_statistics(
 
   Raises:
     TypeError: If any of the input arguments is not of the expected type.
-    ValueError: If the input statistics proto does not have only one dataset.
+    ValueError: If the input statistics proto contains multiple datasets, none
+        of which corresponds to the default slice.
   """
   if not isinstance(statistics, statistics_pb2.DatasetFeatureStatisticsList):
     raise TypeError(
         'statistics is of type %s, should be '
         'a DatasetFeatureStatisticsList proto.' % type(statistics).__name__)
 
-  if len(statistics.datasets) != 1:
-    raise ValueError('statistics proto contains multiple datasets. Only '
-                     'one dataset is currently supported for validation.')
+  # This will raise an exception if there are multiple datasets, none of which
+  # corresponds to the default slice.
+  dataset_statistics = _get_default_dataset_statistics(statistics)
 
   if not isinstance(schema, schema_pb2.Schema):
     raise TypeError('schema is of type %s, should be a Schema proto.' %
@@ -257,7 +274,7 @@ def validate_statistics(
   else:
     environment = ''
 
-  _check_for_unsupported_stats_fields(statistics.datasets[0], 'statistics')
+  _check_for_unsupported_stats_fields(dataset_statistics, 'statistics')
   _check_for_unsupported_schema_fields(schema)
 
   if previous_statistics is not None:
@@ -268,12 +285,9 @@ def validate_statistics(
           'a DatasetFeatureStatisticsList proto.'
           % type(previous_statistics).__name__)
 
-    if len(previous_statistics.datasets) != 1:
-      raise ValueError(
-          'previous_statistics proto contains multiple datasets. '
-          'Only one dataset is currently supported for validation.')
-
-    _check_for_unsupported_stats_fields(previous_statistics.datasets[0],
+    previous_dataset_statistics = _get_default_dataset_statistics(
+        previous_statistics)
+    _check_for_unsupported_stats_fields(previous_dataset_statistics,
                                         'previous_statistics')
 
   if serving_statistics is not None:
@@ -284,22 +298,19 @@ def validate_statistics(
           'a DatasetFeatureStatisticsList proto.'
           % type(serving_statistics).__name__)
 
-    if len(serving_statistics.datasets) != 1:
-      raise ValueError(
-          'serving_statistics proto contains multiple datasets. '
-          'Only one dataset is currently supported for validation.')
-
-    _check_for_unsupported_stats_fields(serving_statistics.datasets[0],
+    serving_dataset_statistics = _get_default_dataset_statistics(
+        serving_statistics)
+    _check_for_unsupported_stats_fields(serving_dataset_statistics,
                                         'serving_statistics')
 
   # Serialize the input protos.
   serialized_schema = schema.SerializeToString()
-  serialized_stats = statistics.datasets[0].SerializeToString()
+  serialized_stats = dataset_statistics.SerializeToString()
   serialized_previous_stats = (
-      previous_statistics.datasets[0].SerializeToString()
+      previous_dataset_statistics.SerializeToString()
       if previous_statistics is not None else '')
   serialized_serving_stats = (
-      serving_statistics.datasets[0].SerializeToString()
+      serving_dataset_statistics.SerializeToString()
       if serving_statistics is not None else '')
   # TODO(b/138589321): Update API to support validation against previous version
   # stats.
@@ -391,6 +402,41 @@ def _detect_anomalies_in_example(table: pa.Table,
   return (table, validate_instance(table, options))
 
 
+def _get_default_dataset_statistics(
+    statistics: statistics_pb2.DatasetFeatureStatisticsList
+) -> statistics_pb2.DatasetFeatureStatistics:
+  """Gets the DatasetFeatureStatistics to use for validation.
+
+  If there is a single DatasetFeatureStatistics, this function returns that. If
+  there are multiple DatasetFeatureStatistics, this function attempts to find
+  the one that corresponds to the default slice. If found, this function returns
+  that. If not found, this function raises an error.
+
+  Args:
+    statistics: A DatasetFeatureStatisticsList protocol buffer.
+
+  Returns:
+    A DatasetFeatureStatistics protocol buffer to use for validation.
+
+  Raises:
+    ValueError: If the input statistics proto contains multiple datasets, none
+        of which corresponds to the default slice.
+  """
+  if len(statistics.datasets) == 1:
+    return statistics.datasets[0]
+  # If there are multiple datasets, attempt to find the dataset for the
+  # default slice (i.e., slice for all examples) from among the datasets.
+  for dataset in statistics.datasets:
+    if dataset.name == constants.DEFAULT_SLICE_KEY:
+      logging.warning('Multiple datasets found in statistics. Using the '
+                      'default slice dataset.')
+      return dataset
+  # If there are multiple datasets, but the default slice is not found, raise an
+  # error.
+  raise ValueError('Only statistics proto with one dataset or the default '
+                   'slice (i.e., "All Examples" slice) is currently supported.')
+
+
 @beam.typehints.with_input_types(
     beam.typehints.Tuple[pa.Table, anomalies_pb2.Anomalies])
 @beam.typehints.with_output_types(types.BeamSlicedTable)
@@ -444,3 +490,4 @@ class IdentifyAnomalousExamples(beam.PTransform):
             _detect_anomalies_in_example, options=self.options)
         | 'GenerateAnomalyReasonKeys' >> beam.ParDo(
             _GenerateAnomalyReasonSliceKeys()))
+

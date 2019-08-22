@@ -105,17 +105,6 @@ IDENTIFY_ANOMALOUS_EXAMPLES_VALID_INPUTS = [
                 type: BYTES
                 domain: "MyAloneEnum"
               }
-              feature {
-                name: "ignore_this"
-                lifecycle_stage: DEPRECATED
-                value_count {
-                  min:1
-                }
-                presence {
-                  min_count: 1
-                }
-                type: BYTES
-              }
               """,
         'expected_result':
             [
@@ -152,17 +141,6 @@ IDENTIFY_ANOMALOUS_EXAMPLES_VALID_INPUTS = [
                 }
                 type: BYTES
                 domain: "MyAloneEnum"
-              }
-              feature {
-                name: "ignore_this"
-                lifecycle_stage: DEPRECATED
-                value_count {
-                  min:1
-                }
-                presence {
-                  min_count: 1
-                }
-                type: BYTES
               }
               """,
         'expected_result':
@@ -225,18 +203,18 @@ class ValidationApiTest(absltest.TestCase):
     statistics = text_format.Parse(
         """
         datasets {
-          num_examples: 7
+          num_examples: 6
           features: {
             name: 'feature1'
             type: STRING
             string_stats: {
               common_stats: {
                 num_missing: 3
-                num_non_missing: 4
+                num_non_missing: 3
                 min_num_values: 1
                 max_num_values: 1
               }
-              unique: 3
+              unique: 2
               rank_histogram {
                 buckets {
                   low_rank: 0
@@ -248,12 +226,6 @@ class ValidationApiTest(absltest.TestCase):
                   low_rank: 1
                   high_rank: 1
                   label: "b"
-                  sample_count: 1.0
-                }
-                buckets {
-                  low_rank: 2
-                  high_rank: 2
-                  label: "c"
                   sample_count: 1.0
                 }
               }
@@ -280,7 +252,6 @@ class ValidationApiTest(absltest.TestCase):
           name: "feature1"
           value: "a"
           value: "b"
-          value: "c"
         }
         """, schema_pb2.Schema())
     validation_api._may_be_set_legacy_flag(expected_schema)
@@ -293,14 +264,14 @@ class ValidationApiTest(absltest.TestCase):
     statistics = text_format.Parse(
         """
         datasets {
-          num_examples: 7
+          num_examples: 6
           features: {
             name: 'feature1'
             type: STRING
             string_stats: {
               common_stats: {
                 num_missing: 3
-                num_non_missing: 4
+                num_non_missing: 3
                 min_num_values: 1
                 max_num_values: 1
               }
@@ -316,12 +287,6 @@ class ValidationApiTest(absltest.TestCase):
                   low_rank: 1
                   high_rank: 1
                   label: "b"
-                  sample_count: 1.0
-                }
-                buckets {
-                  low_rank: 2
-                  high_rank: 2
-                  label: "c"
                   sample_count: 1.0
                 }
               }
@@ -348,7 +313,7 @@ class ValidationApiTest(absltest.TestCase):
 
     # Infer the schema from the stats.
     actual_schema = validation_api.infer_schema(statistics,
-                                                max_string_domain_size=2)
+                                                max_string_domain_size=1)
     self.assertEqual(actual_schema, expected_schema)
 
   def test_infer_schema_with_infer_shape(self):
@@ -509,12 +474,70 @@ class ValidationApiTest(absltest.TestCase):
         schema_transformations=[_semantic_type_transformation_fn])
     self.assertEqual(actual_schema, expected_schema)
 
+  def test_infer_schema_multiple_datasets_with_default_slice(self):
+    statistics = text_format.Parse(
+        """
+        datasets {
+          name: 'All Examples'
+          num_examples: 7
+          features: {
+            name: 'feature1'
+            type: STRING
+            string_stats: {
+              common_stats: {
+                num_non_missing: 7
+                min_num_values: 1
+                max_num_values: 2
+              }
+              unique: 3
+            }
+          }
+        }
+        datasets {
+          name: 'feature1_testvalue'
+          num_examples: 4
+          features: {
+            name: 'feature1'
+            type: STRING
+            string_stats: {
+              common_stats: {
+                num_non_missing: 4
+                min_num_values: 1
+                max_num_values: 1
+              }
+              unique: 1
+            }
+          }
+        }
+        """, statistics_pb2.DatasetFeatureStatisticsList())
+
+    expected_schema = text_format.Parse(
+        """
+        feature {
+          name: "feature1"
+          value_count: {
+            min: 1
+          }
+          presence: {
+            min_fraction: 1.0
+            min_count: 1
+          }
+          type: BYTES
+        }
+        """, schema_pb2.Schema())
+    validation_api._may_be_set_legacy_flag(expected_schema)
+
+    # Infer the schema from the stats.
+    actual_schema = validation_api.infer_schema(statistics,
+                                                infer_feature_shape=False)
+    self.assertEqual(actual_schema, expected_schema)
+
   def test_infer_schema_invalid_statistics_input(self):
     with self.assertRaisesRegexp(
         TypeError, '.*should be a DatasetFeatureStatisticsList proto.*'):
       _ = validation_api.infer_schema({})
 
-  def test_infer_schema_invalid_multiple_datasets(self):
+  def test_infer_schema_invalid_multiple_datasets_no_default_slice(self):
     statistics = statistics_pb2.DatasetFeatureStatisticsList()
     statistics.datasets.extend([
         statistics_pb2.DatasetFeatureStatistics(),
@@ -557,17 +580,6 @@ class ValidationApiTest(absltest.TestCase):
           }
           type: BYTES
           domain: "MyAloneEnum"
-        }
-        feature {
-          name: "ignore_this"
-          lifecycle_stage: DEPRECATED
-          value_count {
-            min:1
-          }
-          presence {
-            min_count: 1
-          }
-          type: BYTES
         }
         """, schema_pb2.Schema())
     statistics = text_format.Parse(
@@ -627,6 +639,109 @@ class ValidationApiTest(absltest.TestCase):
         statistics, actual_updated_schema)
     self._assert_equal_anomalies(actual_updated_anomalies, {})
 
+  def test_update_schema_multiple_datasets_with_default_slice(self):
+    schema = text_format.Parse(
+        """
+        string_domain {
+          name: "MyAloneEnum"
+          value: "A"
+          value: "B"
+          value: "C"
+        }
+        feature {
+          name: "annotated_enum"
+          value_count {
+            min:1
+            max:1
+          }
+          presence {
+            min_count: 1
+          }
+          type: BYTES
+          domain: "MyAloneEnum"
+        }
+        """, schema_pb2.Schema())
+    statistics = text_format.Parse(
+        """
+        datasets{
+          name: 'All Examples'
+          num_examples: 10
+          features {
+            name: 'annotated_enum'
+            type: STRING
+            string_stats {
+              common_stats {
+                num_missing: 3
+                num_non_missing: 7
+                min_num_values: 1
+                max_num_values: 1
+              }
+              unique: 3
+              rank_histogram {
+                buckets {
+                  label: "D"
+                  sample_count: 1
+                }
+              }
+            }
+          }
+        }
+        datasets{
+          name: 'other dataset'
+          num_examples: 5
+          features {
+            name: 'annotated_enum'
+            type: STRING
+            string_stats {
+              common_stats {
+                num_missing: 3
+                num_non_missing: 2
+                min_num_values: 1
+                max_num_values: 1
+              }
+              unique: 3
+              rank_histogram {
+                buckets {
+                  label: "E"
+                  sample_count: 1
+                }
+              }
+            }
+          }
+        }
+        """, statistics_pb2.DatasetFeatureStatisticsList())
+    expected_anomalies = {
+        'annotated_enum':
+            text_format.Parse(
+                """
+      description: "Examples contain values missing from the schema: D (?). "
+      severity: ERROR
+      short_description: "Unexpected string values"
+      reason {
+        type: ENUM_TYPE_UNEXPECTED_STRING_VALUES
+        short_description: "Unexpected string values"
+        description: "Examples contain values missing from the schema: D (?). "
+      }
+            """, anomalies_pb2.AnomalyInfo())
+    }
+
+    # Validate the stats.
+    anomalies = validation_api.validate_statistics(statistics, schema)
+    self._assert_equal_anomalies(anomalies, expected_anomalies)
+
+    # Verify the updated schema.
+    actual_updated_schema = validation_api.update_schema(schema, statistics)
+    expected_updated_schema = schema
+    schema_util.get_domain(
+        expected_updated_schema,
+        types.FeaturePath(['annotated_enum'])).value.append('D')
+    self.assertEqual(actual_updated_schema, expected_updated_schema)
+
+    # Verify that there are no anomalies with the updated schema.
+    actual_updated_anomalies = validation_api.validate_statistics(
+        statistics, actual_updated_schema)
+    self._assert_equal_anomalies(actual_updated_anomalies, {})
+
   def test_update_schema_invalid_schema_input(self):
     statistics = statistics_pb2.DatasetFeatureStatisticsList()
     statistics.datasets.extend([statistics_pb2.DatasetFeatureStatistics()])
@@ -639,6 +754,17 @@ class ValidationApiTest(absltest.TestCase):
     with self.assertRaisesRegexp(
         TypeError, 'statistics is of type.*'):
       _ = validation_api.update_schema(schema, {})
+
+  def test_update_schema_invalid_multiple_datasets_no_default_slice(self):
+    schema = schema_pb2.Schema()
+    statistics = statistics_pb2.DatasetFeatureStatisticsList()
+    statistics.datasets.extend([
+        statistics_pb2.DatasetFeatureStatistics(),
+        statistics_pb2.DatasetFeatureStatistics()
+    ])
+    with self.assertRaisesRegexp(ValueError,
+                                 '.*statistics proto with one dataset.*'):
+      _ = validation_api.update_schema(schema, statistics)
 
   def test_validate_stats(self):
     schema = text_format.Parse(
@@ -1069,6 +1195,137 @@ class ValidationApiTest(absltest.TestCase):
     self._assert_equal_anomalies(anomalies, expected_anomalies)
   # pylint: enable=line-too-long
 
+  def test_validate_stats_with_previous_and_serving_stats_with_default_slices(
+      self):
+    # All input statistics protos have multiple datasets, one of which
+    # corresponds to the default slice.
+    statistics = text_format.Parse(
+        """
+        datasets {
+          name: 'All Examples'
+          num_examples: 10
+          features {
+            name: 'annotated_enum'
+            type: STRING
+            string_stats {
+              common_stats {
+                num_missing: 0
+                num_non_missing: 10
+                max_num_values: 1
+              }
+              rank_histogram {
+                buckets { label: "a" sample_count: 1 }
+                buckets { label: "b" sample_count: 1 }
+              }
+            }
+          }
+        }""", statistics_pb2.DatasetFeatureStatisticsList())
+
+    previous_statistics = text_format.Parse(
+        """
+        datasets {
+          name: 'All Examples'
+          num_examples: 10
+          features {
+            name: 'annotated_enum'
+            type: STRING
+            string_stats {
+              common_stats {
+                num_non_missing: 10
+                num_missing: 0
+                max_num_values: 1
+              }
+              rank_histogram {
+                buckets { label: "a" sample_count: 3 }
+                buckets { label: "b" sample_count: 1 }
+              }
+            }
+          }
+        }
+        datasets {
+          name: "annotated_enum_b"
+          num_examples: 1
+          features {
+            name: 'annotated_enum'
+            type: STRING
+            string_stats {
+              common_stats {
+                num_non_missing: 1
+                num_missing: 0
+                max_num_values: 1
+              }
+              rank_histogram {
+                buckets { label: "b" sample_count: 1 }
+              }
+            }
+          }
+        }""", statistics_pb2.DatasetFeatureStatisticsList())
+
+    serving_statistics = text_format.Parse(
+        """
+        datasets {
+          name: 'All Examples'
+          num_examples: 10
+          features {
+            name: 'annotated_enum'
+            type: STRING
+            string_stats {
+              common_stats {
+                num_non_missing: 10
+                num_missing: 0
+                max_num_values: 1
+              }
+              rank_histogram {
+                buckets { label: "a" sample_count: 3 }
+                buckets { label: "b" sample_count: 1 }
+              }
+            }
+          }
+        }
+        datasets {
+          name: "annotated_enum_a"
+          num_examples: 3
+          features {
+            name: 'annotated_enum'
+            type: STRING
+            string_stats {
+              common_stats {
+                num_non_missing: 3
+                num_missing: 0
+                max_num_values: 1
+              }
+              rank_histogram {
+                buckets { label: "a" sample_count: 3 }
+              }
+            }
+          }
+        }""", statistics_pb2.DatasetFeatureStatisticsList())
+
+    schema = text_format.Parse(
+        """
+        feature {
+          name: "annotated_enum"
+          type: BYTES
+          domain: "annotated_enum"
+          drift_comparator { infinity_norm { threshold: 0.01 } }
+        }
+        string_domain { name: "annotated_enum" value: "a" }
+        """, schema_pb2.Schema())
+
+    expected_anomalies = {
+        'annotated_enum': text_format.Parse(self._annotated_enum_anomaly_info,
+                                            anomalies_pb2.AnomalyInfo())
+    }
+
+    # Validate the stats.
+    anomalies = validation_api.validate_statistics(
+        statistics,
+        schema,
+        previous_statistics=previous_statistics,
+        serving_statistics=serving_statistics)
+    self._assert_equal_anomalies(anomalies, expected_anomalies)
+  # pylint: enable=line-too-long
+
   def test_validate_stats_invalid_statistics_input(self):
     schema = schema_pb2.Schema()
     with self.assertRaisesRegexp(
@@ -1119,7 +1376,8 @@ class ValidationApiTest(absltest.TestCase):
       _ = validation_api.validate_statistics(statistics, schema,
                                              environment='INVALID')
 
-  def test_validate_stats_invalid_statistics_multiple_datasets(self):
+  def test_validate_stats_invalid_statistics_multiple_datasets_no_default_slice(
+      self):
     statistics = statistics_pb2.DatasetFeatureStatisticsList()
     statistics.datasets.extend([
         statistics_pb2.DatasetFeatureStatistics(),
@@ -1127,7 +1385,7 @@ class ValidationApiTest(absltest.TestCase):
     ])
     schema = schema_pb2.Schema()
     with self.assertRaisesRegexp(
-        ValueError, 'statistics proto contains multiple datasets.*'):
+        ValueError, 'Only statistics proto with one dataset or the default.*'):
       _ = validation_api.validate_statistics(statistics, schema)
 
   def test_validate_stats_invalid_previous_statistics_multiple_datasets(self):
@@ -1142,7 +1400,7 @@ class ValidationApiTest(absltest.TestCase):
     ])
     schema = schema_pb2.Schema()
     with self.assertRaisesRegexp(
-        ValueError, 'previous_statistics proto contains multiple datasets.*'):
+        ValueError, 'Only statistics proto with one dataset or the default.*'):
       _ = validation_api.validate_statistics(current_stats, schema,
                                              previous_statistics=previous_stats)
 
@@ -1158,7 +1416,7 @@ class ValidationApiTest(absltest.TestCase):
     ])
     schema = schema_pb2.Schema()
     with self.assertRaisesRegexp(
-        ValueError, 'serving_statistics proto contains multiple datasets.*'):
+        ValueError, 'Only statistics proto with one dataset or the default.*'):
       _ = validation_api.validate_statistics(current_stats, schema,
                                              serving_statistics=serving_stats)
 
@@ -1242,17 +1500,6 @@ class ValidationApiTest(absltest.TestCase):
           }
           type: BYTES
           domain: "MyAloneEnum"
-        }
-        feature {
-          name: "ignore_this"
-          lifecycle_stage: DEPRECATED
-          value_count {
-            min:1
-          }
-          presence {
-            min_count: 1
-          }
-          type: BYTES
         }
         """, schema_pb2.Schema())
     expected_anomalies = {
