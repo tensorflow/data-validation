@@ -122,10 +122,10 @@ class ArrayOfNullsMaker {
     return Status::OK();
   }
 
-  // TODO(pachristopher): Remove external only tags after arrow 0.14.
+
   Status Visit(const arrow::FixedSizeListType& l) {
     return Status::NotImplemented(
-        absl::StrCat("Make array of nulls: ", l.ToString()));
+    absl::StrCat("Make array of nulls: ", l.ToString()));
   }
 
   Status Visit(const arrow::StructType& s) {
@@ -347,7 +347,7 @@ Status SliceTableByRowIndices(const Table& table,
   std::vector<std::shared_ptr<Table>> table_slices;
   // The following loop essentially turns consecutive indices into
   // ranges, and slice `table` by those ranges.
-  for (int64_t begin = 0, end = 1; end <= row_indices.size(); ++end) {
+  for (size_t begin = 0, end = 1; end <= row_indices.size(); ++end) {
     while (end < row_indices.size() &&
            row_indices[end] == row_indices[end - 1] + 1) {
       ++end;
