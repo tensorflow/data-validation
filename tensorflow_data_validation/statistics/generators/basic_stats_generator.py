@@ -83,7 +83,7 @@ class _PartialCommonStats(object):
     self.type = None
     # Summary of the quantiles histogram for the number of values in this
     # feature.
-    self.num_values_summary = ''
+    self.num_values_summary = None
 
     self.has_weights = has_weights
     # Keep track of partial weighted common stats.
@@ -194,7 +194,7 @@ class _PartialNumericStats(object):
     # The maximum value among all the values for this feature.
     self.max = -sys.maxsize
     # Summary of the quantiles for the values in this feature.
-    self.quantiles_summary = ''
+    self.quantiles_summary = None
 
     self.has_weights = has_weights
     # Keep track of partial weighted numeric stats.
@@ -207,7 +207,7 @@ class _PartialNumericStats(object):
       # excluding the weights for NaN values)
       self.weighted_total_num_values = 0.0
       # Summary of the weighted quantiles for the values in this feature.
-      self.weighted_quantiles_summary = ''
+      self.weighted_quantiles_summary = None
 
   def __iadd__(self, other: '_PartialNumericStats') -> '_PartialNumericStats':
     """Merge two partial numeric statistics and return the merged statistics."""
@@ -714,10 +714,12 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
       stats_for_feature = accumulator.get(feature_path)
       if stats_for_feature is None:
         stats_for_feature = _PartialBasicStats(self._weight_feature is not None)
-        # Store empty summary.
+        # Store empty summary for each of the quantiles computations.
         stats_for_feature.common_stats.num_values_summary = (
             self._num_values_quantiles_combiner.create_accumulator())
         stats_for_feature.numeric_stats.quantiles_summary = (
+            self._values_quantiles_combiner.create_accumulator())
+        stats_for_feature.numeric_stats.weighted_quantiles_summary = (
             self._values_quantiles_combiner.create_accumulator())
         accumulator[feature_path] = stats_for_feature
 
@@ -756,12 +758,6 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
         existing_stats = result.get(feature_path)
         if existing_stats is None:
           existing_stats = basic_stats
-          # TODO(b/129424660): this leads to mutation of accumulators and
-          # should be avoided.
-          # Beam only allows mutating the first accumulator in the sequence
-          # passed to a CombineFn's merge_accumulators. And because this class
-          # is not directly used as a CombineFn but wrapped, mutating *any*
-          # accumulator is not allowed.
           result[feature_path] = basic_stats
         else:
           # Check if the types from the two partial statistics are not
