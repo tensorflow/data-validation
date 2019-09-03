@@ -41,7 +41,6 @@ ADJUSTED_MUTUAL_INFORMATION_KEY = "sklearn_adjusted_mutual_information"
 CATEGORICAL_FEATURE_IMPUTATION_FILL_VALUE = "__missing_category__"
 
 
-# TODO(b/117650247): sk-learn MI can't handle NaN, None or multivalent features
 def _remove_unsupported_feature_columns(examples_table: pa.Table,
                                         schema: schema_pb2.Schema) -> pa.Table:
   """Removes feature columns that contain unsupported values.

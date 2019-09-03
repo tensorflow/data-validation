@@ -36,7 +36,6 @@ from typing import Dict, Iterable, List, Text, Tuple
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
-# TODO(b/117937992): Seed RNG so MI and partitioner are determenistic in test
 def _assign_to_partition(sliced_table: types.SlicedTable,
                          num_partitions: int
                         ) -> Tuple[Tuple[types.SliceKey, int], pa.Table]:
