@@ -290,6 +290,8 @@ class _PartialStringStats(object):
 
   def update(self, feature_array: pa.Array) -> None:
     """Update the partial string statistics using the input value."""
+    if pa.types.is_null(feature_array.type):
+      return
     # Iterate through the value array and update the partial stats.
     flattened_values_array = feature_array.flatten()
     if pa.types.is_binary(flattened_values_array.type) or pa.types.is_unicode(

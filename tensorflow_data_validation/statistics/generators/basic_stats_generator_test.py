@@ -1082,6 +1082,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     batches = [
         pa.Table.from_arrays([pa.array([[1, 5, 10], [0]])], ['c']),
         pa.Table.from_arrays([pa.array([[1, 1, 1, 5, 15], [-1]])], ['c']),
+        pa.Table.from_arrays([pa.array([None, None], type=pa.null())], ['c'])
     ]
     expected_result = {
         types.FeaturePath(['c']): text_format.Parse(

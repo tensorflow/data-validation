@@ -4,9 +4,11 @@
 ## Major Features and Improvements
 
 ## Bug Fixes and Other Changes
+
 * Support validation and schema inference from sliced statistics that include
   the default slice (validation/inference will be done using the default slice
   statistics).
+* Avoid flattening null arrays.
 
 
 ## Breaking Changes

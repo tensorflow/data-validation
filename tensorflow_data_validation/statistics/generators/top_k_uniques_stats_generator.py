@@ -208,6 +208,8 @@ def _to_topk_tuples(
       weight_column=weight_feature,
       enumerate_leaves_only=True):
     feature_array_type = feature_array.type
+    if pa.types.is_null(feature_array_type):
+      continue
     if (feature_path in categorical_features or
         stats_util.get_feature_type_from_arrow_type(
             feature_path,

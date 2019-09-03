@@ -898,7 +898,8 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
   def test_topk_uniques_with_categorical_feature(self):
     examples = [
         pa.Table.from_arrays(
-            [pa.array([[12, 23, 34, 12], [45, 23], [12, 12, 34, 45]])], ['fa'])
+            [pa.array([[12, 23, 34, 12], [45, 23], [12, 12, 34, 45]])], ['fa']),
+        pa.Table.from_arrays([pa.array([None, None], type=pa.null())], ['fa'])
     ]
 
     expected_result = [
