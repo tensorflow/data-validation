@@ -261,7 +261,7 @@ class EnumerateArraysTest(absltest.TestCase):
     ], ["f1", "f2", "w"])
     possible_results = {
         types.FeaturePath(["f1"]): (pa.array([[1], [2, 3]]), [1.0, 2.0]),
-        types.FeaturePath(["w"]): (pa.array([[1.0], [2.0]]), None),
+        types.FeaturePath(["w"]): (pa.array([[1.0], [2.0]]), [1.0, 2.0]),
         types.FeaturePath(["f2"]): (pa.array([[{
             "sf1": [["a", "b"]]
         }], [{
@@ -284,14 +284,11 @@ class EnumerateArraysTest(absltest.TestCase):
         actual_results[feature_path] = (feature_array, weights)
 
       expected_results = {}
-      for p in [["f1"], ["f2", "sf1"], ["f2", "sf2", "ssf1"]]:
+      for p in [["f1"], ["w"], ["f2", "sf1"], ["f2", "sf2", "ssf1"]]:
         feature_path = types.FeaturePath(p)
         expected_results[feature_path] = (possible_results[feature_path][0],
                                           possible_results[feature_path][1]
                                           if has_weights else None)
-      if not has_weights:
-        expected_results[types.FeaturePath(
-            ["w"])] = possible_results[types.FeaturePath(["w"])]
       if not leaves_only:
         for p in [["f2"], ["f2", "sf2"]]:
           feature_path = types.FeaturePath(p)

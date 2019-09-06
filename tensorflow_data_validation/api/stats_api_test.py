@@ -462,7 +462,82 @@ class StatsAPITest(absltest.TestCase):
             }
           }
         }
+        features {
+          path {
+          step: 'w'
+        }
+        type: INT
+        num_stats {
+          common_stats {
+            num_non_missing: 3
+            num_missing: 0
+            min_num_values: 1
+            max_num_values: 1
+            avg_num_values: 1.0
+            tot_num_values: 3
+            num_values_histogram {
+              buckets {
+                low_value: 1.0
+                high_value: 1.0
+                sample_count: 1.5
+              }
+              buckets {
+                low_value: 1.0
+                high_value: 1.0
+                sample_count: 1.5
+              }
+              type: QUANTILES
+            }
+            weighted_common_stats {
+                num_non_missing: 6.0
+                avg_num_values: 1.0
+                tot_num_values: 6.0
+            }
+          }
+          mean: 2.0
+          std_dev: 0.0
+          min: 2.0
+          max: 2.0
+          median: 2.0
+          histograms {
+            buckets {
+              low_value: 2.0
+              high_value: 2.0
+              sample_count: 3.0
+            }
+            type: STANDARD
+          }
+          histograms {
+            buckets {
+              low_value: 2.0
+              high_value: 2.0
+              sample_count: 3.0
+            }
+            type: QUANTILES
+          }
+          weighted_numeric_stats {
+            mean: 2.0
+            median: 2.0
+            histograms {
+              buckets {
+                low_value: 2.0
+                high_value: 2.0
+                sample_count: 6.0
+              }
+              type: STANDARD
+            }
+            histograms {
+              buckets {
+                low_value: 2.0
+                high_value: 2.0
+                sample_count: 6.0
+              }
+              type: QUANTILES
+            }
+          }
+        }
       }
+    }
     """, statistics_pb2.DatasetFeatureStatisticsList())
     with beam.Pipeline() as p:
       options = stats_options.StatsOptions(

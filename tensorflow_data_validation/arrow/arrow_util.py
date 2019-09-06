@@ -81,7 +81,7 @@ def enumerate_arrays(
       contains only one chunk.
     weight_column: The name of the weight column, or None. The elements of
       the weight column should be lists of numerics, and each list should
-      contain only one value. The weight column is not enumarated.
+      contain only one value.
     enumerate_leaves_only: If True, only enumerate "leaf" arrays.
       Otherwise, also enumerate the struct arrays where the leaf arrays are
       contained.
@@ -128,8 +128,6 @@ def enumerate_arrays(
           'The weight feature must have exactly one value in each example')
   for column in table.columns:
     column_name = column.name
-    if column_name == weight_column:
-      continue
     # use "yield from" after PY 3.3.
     for e in _recursion_helper(
         types.FeaturePath([column_name]), column.data.chunk(0), weights):

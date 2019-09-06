@@ -347,8 +347,9 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
 
     batches = [b1, b2]
     expected_result = {
-        types.FeaturePath(['a']): text_format.Parse(
-            """
+        types.FeaturePath(['a']):
+            text_format.Parse(
+                """
             path {
               step: 'a'
             }
@@ -487,8 +488,9 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               }
             }
             """, statistics_pb2.FeatureNameStatistics()),
-        types.FeaturePath(['b']): text_format.Parse(
-            """
+        types.FeaturePath(['b']):
+            text_format.Parse(
+                """
             path {
               step: 'b'
             }
@@ -622,7 +624,145 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 }
               }
             }
-            """, statistics_pb2.FeatureNameStatistics())}
+            """, statistics_pb2.FeatureNameStatistics()),
+        types.FeaturePath(['w']):
+            text_format.Parse(
+                """
+            path {
+              step: 'w'
+            }
+            type: FLOAT
+            num_stats {
+              common_stats {
+                num_non_missing: 4
+                min_num_values: 1
+                max_num_values: 1
+                avg_num_values: 1.0
+                tot_num_values: 4
+                num_values_histogram {
+                  buckets {
+                    low_value: 1.0
+                    high_value: 1.0
+                    sample_count: 1.0
+                  }
+                  buckets {
+                    low_value: 1.0
+                    high_value: 1.0
+                    sample_count: 1.0
+                  }
+                  buckets {
+                    low_value: 1.0
+                    high_value: 1.0
+                    sample_count: 1.0
+                  }
+                  buckets {
+                    low_value: 1.0
+                    high_value: 1.0
+                    sample_count: 1.0
+                  }
+                  type: QUANTILES
+                }
+                weighted_common_stats {
+                  num_non_missing: 8.0
+                  avg_num_values: 1.0
+                  tot_num_values: 8.0
+                }
+              }
+              mean: 2.0
+              std_dev: 0.7071068
+              num_zeros: 0
+              min: 1.0
+              max: 3.0
+              median: 2.0
+              histograms {
+                buckets {
+                  low_value: 1.0
+                  high_value: 1.6666667
+                  sample_count: 0.9955556
+                }
+                buckets {
+                  low_value: 1.6666667
+                  high_value: 2.3333333
+                  sample_count: 1.9955556
+                }
+                buckets {
+                  low_value: 2.3333333
+                  high_value: 3.0
+                  sample_count: 1.0088889
+                }
+                type: STANDARD
+              }
+              histograms {
+                buckets {
+                  low_value: 1.0
+                  high_value: 2.0
+                  sample_count: 1.0
+                }
+                buckets {
+                  low_value: 2.0
+                  high_value: 2.0
+                  sample_count: 1.0
+                }
+                buckets {
+                  low_value: 2.0
+                  high_value: 3.0
+                  sample_count: 1.0
+                }
+                buckets {
+                  low_value: 3.0
+                  high_value: 3.0
+                  sample_count: 1.0
+                }
+                type: QUANTILES
+              }
+              weighted_numeric_stats {
+                mean: 2.25
+                std_dev: 0.6614378
+                median: 2.0
+                histograms {
+                  buckets {
+                     low_value: 1.0
+                      high_value: 1.6666667
+                      sample_count: 1.0044444
+                    }
+                    buckets {
+                      low_value: 1.6666667
+                      high_value: 2.3333333
+                      sample_count: 3.9911111
+                    }
+                    buckets {
+                      low_value: 2.3333333
+                      high_value: 3.0
+                      sample_count: 3.0044444
+                    }
+                  }
+                histograms {
+                  buckets {
+                    low_value: 1.0
+                    high_value: 2.0
+                    sample_count: 2.0
+                  }
+                  buckets {
+                    low_value: 2.0
+                    high_value: 2.0
+                    sample_count: 2.0
+                  }
+                  buckets {
+                    low_value: 2.0
+                    high_value: 3.0
+                    sample_count: 2.0
+                  }
+                  buckets {
+                    low_value: 3.0
+                    high_value: 3.0
+                    sample_count: 2.0
+                  }
+                  type: QUANTILES
+                }
+              }
+            }
+            """, statistics_pb2.FeatureNameStatistics())
+    }
     generator = basic_stats_generator.BasicStatsGenerator(
         weight_feature='w',
         num_values_histogram_buckets=4, num_histogram_buckets=3,
@@ -1751,7 +1891,9 @@ class BasicStatsGeneratorStructStatsTest(test_util.CombinerStatsGeneratorTest,
     ]
 
     expected_result = {
-        types.FeaturePath(['c']): text_format.Parse("""
+        types.FeaturePath(['c']):
+            text_format.Parse(
+                """
           type: STRUCT
           struct_stats {
             common_stats {
@@ -1783,7 +1925,9 @@ class BasicStatsGeneratorStructStatsTest(test_util.CombinerStatsGeneratorTest,
           path {
             step: "c"
           }""", statistics_pb2.FeatureNameStatistics()),
-        types.FeaturePath(['c', 'f1']): text_format.Parse("""
+        types.FeaturePath(['c', 'f1']):
+            text_format.Parse(
+                """
           type: STRUCT
           struct_stats {
             common_stats {
@@ -1816,7 +1960,9 @@ class BasicStatsGeneratorStructStatsTest(test_util.CombinerStatsGeneratorTest,
             step: "c"
             step: "f1"
           }""", statistics_pb2.FeatureNameStatistics()),
-        types.FeaturePath(['c', 'f1', 'f2']): text_format.Parse("""
+        types.FeaturePath(['c', 'f1', 'f2']):
+            text_format.Parse(
+                """
           num_stats {
             common_stats {
               num_non_missing: 3
@@ -1935,8 +2081,132 @@ class BasicStatsGeneratorStructStatsTest(test_util.CombinerStatsGeneratorTest,
             step: "f1"
             step: "f2"
           }""", statistics_pb2.FeatureNameStatistics()),
+        types.FeaturePath(['w']):
+            text_format.Parse(
+                """
+          type: FLOAT
+          num_stats {
+            common_stats {
+              num_non_missing: 2
+              min_num_values: 1
+              max_num_values: 1
+              avg_num_values: 1.0
+              num_values_histogram {
+                buckets {
+                  low_value: 1.0
+                  high_value: 1.0
+                  sample_count: 1.0
+                }
+                buckets {
+                  low_value: 1.0
+                  high_value: 1.0
+                  sample_count: 1.0
+                }
+                type: QUANTILES
+              }
+              weighted_common_stats {
+                num_non_missing: 3.0
+                avg_num_values: 1.0
+                tot_num_values: 3.0
+              }
+              tot_num_values: 2
+            }
+            mean: 1.5
+            std_dev: 0.5
+            min: 1.0
+            median: 2.0
+            max: 2.0
+            histograms {
+              buckets {
+                low_value: 1.0
+                high_value: 1.33333333333
+                sample_count: 0.995555555556
+              }
+              buckets {
+                low_value: 1.33333333333
+                high_value: 1.66666666667
+                sample_count: 0.00222222222222
+              }
+              buckets {
+                low_value: 1.66666666667
+                high_value: 2.0
+                sample_count: 1.00222222222
+              }
+            }
+            histograms {
+              buckets {
+                low_value: 1.0
+                high_value: 1.0
+                sample_count: 0.5
+              }
+              buckets {
+                low_value: 1.0
+                high_value: 2.0
+                sample_count: 0.5
+              }
+              buckets {
+                low_value: 2.0
+                high_value: 2.0
+                sample_count: 0.5
+              }
+              buckets {
+                low_value: 2.0
+                high_value: 2.0
+                sample_count: 0.5
+              }
+              type: QUANTILES
+            }
+            weighted_numeric_stats {
+              mean: 1.66666666667
+              std_dev: 0.471404520791
+              median: 2.0
+              histograms {
+                buckets {
+                  low_value: 1.0
+                  high_value: 1.33333333333
+                  sample_count: 0.993333333333
+                }
+                buckets {
+                  low_value: 1.33333333333
+                  high_value: 1.66666666667
+                  sample_count: 0.00333333333333
+                }
+                buckets {
+                  low_value: 1.66666666667
+                  high_value: 2.0
+                  sample_count: 2.00333333333
+                }
+              }
+              histograms {
+                buckets {
+                  low_value: 1.0
+                  high_value: 1.0
+                  sample_count: 0.75
+                }
+                buckets {
+                  low_value: 1.0
+                  high_value: 2.0
+                  sample_count: 0.75
+                }
+                buckets {
+                  low_value: 2.0
+                  high_value: 2.0
+                  sample_count: 0.75
+                }
+                buckets {
+                  low_value: 2.0
+                  high_value: 2.0
+                  sample_count: 0.75
+                }
+                type: QUANTILES
+              }
+            }
+          }
+      path {
+        step: "w"
+      }
+    """, statistics_pb2.FeatureNameStatistics()),
     }
-
     generator = basic_stats_generator.BasicStatsGenerator(
         weight_feature='w',
         num_values_histogram_buckets=2, num_histogram_buckets=3,

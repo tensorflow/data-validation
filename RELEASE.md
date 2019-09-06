@@ -5,6 +5,7 @@
 
 ## Bug Fixes and Other Changes
 
+* Generate statistics for the weight feature.
 * Support validation and schema inference from sliced statistics that include
   the default slice (validation/inference will be done using the default slice
   statistics).

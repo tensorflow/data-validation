@@ -485,6 +485,103 @@ GENERATE_STATS_TESTS = [
                   }
                 }
               }
+              features {
+                path {
+                  step: "w"
+                }
+                type: FLOAT
+                num_stats {
+                  common_stats {
+                    num_non_missing: 2
+                    num_missing: 0
+                    min_num_values: 1
+                    max_num_values: 1
+                    avg_num_values: 1.0
+                    tot_num_values: 2
+                    num_values_histogram {
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 1
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 1
+                      }
+                      type: QUANTILES
+                    }
+                    weighted_common_stats {
+                      num_non_missing: 3.0
+                      num_missing: 0.0
+                      avg_num_values: 1.0
+                      tot_num_values: 3.0
+                    }
+                  }
+                  mean: 1.5
+                  std_dev: 0.5
+                  num_zeros: 0
+                  min: 1.0
+                  max: 2.0
+                  median: 2.0
+                  histograms {
+                    buckets {
+                      low_value: 1.0
+                      high_value: 1.5
+                      sample_count: 0.995
+                    }
+                    buckets {
+                      low_value: 1.5
+                      high_value: 2.0
+                      sample_count: 1.005
+                    }
+                    type: STANDARD
+                  }
+                  histograms {
+                    buckets {
+                      low_value: 1.0
+                      high_value: 2.0
+                      sample_count: 1.0
+                    }
+                    buckets {
+                      low_value: 2.0
+                      high_value: 2.0
+                      sample_count: 1.0
+                    }
+                    type: QUANTILES
+                  }
+                  weighted_numeric_stats {
+                    mean: 1.6666667
+                    std_dev: 0.4714045
+                    median: 2.0
+                    histograms {
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.5
+                        sample_count: 0.9975
+                      }
+                      buckets {
+                        low_value: 1.5
+                        high_value: 2.0
+                        sample_count: 2.0025
+                      }
+                    }
+                    histograms {
+                      buckets {
+                        low_value: 1.0
+                        high_value: 2.0
+                        sample_count: 1.5
+                      }
+                      buckets {
+                        low_value: 2.0
+                        high_value: 2.0
+                        sample_count: 1.5
+                      }
+                      type: QUANTILES
+                    }
+                  }
+                }
+              }
             }
             """,
     },
