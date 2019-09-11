@@ -180,7 +180,8 @@ tensorflow::Status ValidateFeatureStatisticsWithoutDiff(
     const string& previous_span_statistics_proto_string,
     const string& serving_statistics_proto_string,
     const string& previous_version_statistics_proto_string,
-    string* anomalies_proto_string) {
+    const string& features_needed_string,
+    const string& validation_config_string, string* anomalies_proto_string) {
   tensorflow::metadata::v0::Schema schema;
   if (!schema.ParseFromString(schema_proto_string)) {
     return tensorflow::errors::InvalidArgument("Failed to parse Schema proto.");
@@ -231,11 +232,33 @@ tensorflow::Status ValidateFeatureStatisticsWithoutDiff(
     may_be_environment = environment;
   }
 
+  gtl::optional<FeaturesNeeded> features_needed = gtl::nullopt;
+  if (!features_needed_string.empty()) {
+    FeaturesNeededProto parsed_proto;
+    if (!parsed_proto.ParseFromString(features_needed_string)) {
+      return tensorflow::errors::InvalidArgument(
+          "Failed to parse FeaturesNeeded");
+    }
+
+    FeaturesNeeded parsed_feature_needed;
+    TF_RETURN_IF_ERROR(
+        FromFeaturesNeededProto(parsed_proto, &parsed_feature_needed));
+    if (!parsed_feature_needed.empty()) {
+      features_needed = parsed_feature_needed;
+    }
+  }
+
+  data_validation::ValidationConfig validation_config;
+  if (!validation_config.ParseFromString(validation_config_string)) {
+    return tensorflow::errors::InvalidArgument(
+        "Failed to parse ValidationConfig");
+  }
+
   tensorflow::metadata::v0::Anomalies anomalies;
   TF_RETURN_IF_ERROR(ValidateFeatureStatistics(
       feature_statistics, schema, may_be_environment, previous_span_statistics,
-      serving_statistics, previous_version_statistics,
-      /*features_needed=*/gtl::nullopt, ValidationConfig(),
+      serving_statistics, previous_version_statistics, features_needed,
+      validation_config,
       /*enable_diff_regions=*/false, &anomalies));
 
   if (!anomalies.SerializeToString(anomalies_proto_string)) {

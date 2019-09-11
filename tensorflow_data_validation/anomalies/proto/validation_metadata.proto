@@ -15,6 +15,8 @@
 
 syntax = "proto3";
 
+import "tensorflow_metadata/proto/v0/path.proto";
+
 package tensorflow.data_validation;
 
 // TODO(martinz): consider adding an environment.
@@ -26,14 +28,14 @@ message ReasonFeatureNeeded {
   string comment = 1;
 }
 
-message ReasonFeatureNeededList {
-  repeated ReasonFeatureNeeded reason_feature_needed = 1;
+message PathAndReasonFeatureNeeded {
+  tensorflow.metadata.v0.Path path = 1;
+  repeated ReasonFeatureNeeded reason_feature_needed = 2;
 }
 
 // A proto representation of tensorflow::data_validation::FeaturesNeeded
-// used to for serialization and deserialization.
+// used for serialization and deserialization.
 message FeaturesNeededProto {
-  // Key string are expected to be instances of
-  // metadata::v0::Path::SerializeAsString()
-  map<string, ReasonFeatureNeededList> feature_needed = 1;
+  repeated PathAndReasonFeatureNeeded path_and_reason_feature_need = 2;
+  reserved 1;
 }

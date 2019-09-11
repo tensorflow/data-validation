@@ -24,17 +24,20 @@ import apache_beam as beam
 import pyarrow as pa
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
+from tensorflow_data_validation.anomalies.proto import validation_config_pb2
+from tensorflow_data_validation.anomalies.proto import validation_metadata_pb2
+from tensorflow_data_validation.api import validation_options as vo
 from tensorflow_data_validation.pyarrow_tf import tensorflow as tf
 from tensorflow_data_validation.pywrap import pywrap_tensorflow_data_validation
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.utils import anomalies_util
 from tensorflow_data_validation.utils import slicing_util
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Text
+
 from tensorflow_metadata.proto.v0 import anomalies_pb2
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
-
 # Set of anomaly types that do not apply on a per-example basis.
 _GLOBAL_ONLY_ANOMALY_TYPES = set([
     anomalies_pb2.AnomalyInfo.FEATURE_TYPE_LOW_FRACTION_PRESENT,
@@ -197,7 +200,7 @@ def update_schema(schema: schema_pb2.Schema,
 def validate_statistics(
     statistics: statistics_pb2.DatasetFeatureStatisticsList,
     schema: schema_pb2.Schema,
-    environment: Optional[str] = None,
+    environment: Optional[Text] = None,
     previous_statistics: Optional[
         statistics_pb2.DatasetFeatureStatisticsList] = None,
     serving_statistics: Optional[
@@ -209,7 +212,7 @@ def validate_statistics(
   `environment` is specified, the `schema` is filtered using the
   `environment` and the `statistics` is validated against the filtered schema.
   The optional `previous_statistics` and `serving_statistics` are the statistics
-  computed over the treatment data for drift- and skew-detection, respectively.
+  computed over the control data for drift- and skew-detection, respectively.
 
   Args:
     statistics: A DatasetFeatureStatisticsList protocol buffer denoting the
@@ -255,6 +258,97 @@ def validate_statistics(
     ValueError: If the input statistics proto contains multiple datasets, none
         of which corresponds to the default slice.
   """
+
+  # This check is added here because the arguments name for previous_statistics
+  # is different in TFX::OSS and TFX internal. It is preferred to report the
+  # error with the name used in the API.
+  if previous_statistics is not None:
+    if not isinstance(
+        previous_statistics, statistics_pb2.DatasetFeatureStatisticsList):
+      raise TypeError(
+          'previous_statistics is of type %s, should be '
+          'a DatasetFeatureStatisticsList proto.'
+          % type(previous_statistics).__name__)
+
+  return validate_statistics_internal(statistics, schema, environment,
+                                      previous_statistics, serving_statistics)
+
+
+def validate_statistics_internal(
+    statistics: statistics_pb2.DatasetFeatureStatisticsList,
+    schema: schema_pb2.Schema,
+    environment: Optional[Text] = None,
+    previous_span_statistics: Optional[
+        statistics_pb2.DatasetFeatureStatisticsList] = None,
+    serving_statistics: Optional[
+        statistics_pb2.DatasetFeatureStatisticsList] = None,
+    previous_version_statistics: Optional[
+        statistics_pb2.DatasetFeatureStatisticsList] = None,
+    validation_options: Optional[vo.ValidationOptions] = None
+) -> anomalies_pb2.Anomalies:
+  """Validates the input statistics against the provided input schema.
+
+  This method validates the `statistics` against the `schema`. If an optional
+  `environment` is specified, the `schema` is filtered using the
+  `environment` and the `statistics` is validated against the filtered schema.
+  The optional `previous_span_statistics`, `serving_statistics`, and
+  `previous_version_statistics` are the statistics computed over the control
+  data for drift detection, skew detection, and dataset-level anomaly detection
+  across versions, respectively.
+
+  Args:
+    statistics: A DatasetFeatureStatisticsList protocol buffer denoting the
+       statistics computed over the current data. Validation is currently
+       supported only for lists with a single DatasetFeatureStatistics proto or
+       lists with multiple DatasetFeatureStatistics protos corresponding to data
+       slices that include the default slice (i.e., the slice with all
+       examples). If a list with multiple DatasetFeatureStatistics protos is
+       used, this function will validate the statistics corresponding to the
+       default slice.
+    schema: A Schema protocol buffer.
+    environment: An optional string denoting the validation environment.
+        Must be one of the default environments specified in the schema.
+        By default, validation assumes that all Examples in a pipeline adhere
+        to a single schema. In some cases introducing slight schema variations
+        is necessary, for instance features used as labels are required during
+        training (and should be validated), but are missing during serving.
+        Environments can be used to express such requirements. For example,
+        assume a feature named 'LABEL' is required for training, but is expected
+        to be missing from serving. This can be expressed by defining two
+        distinct environments in schema: ["SERVING", "TRAINING"] and
+        associating 'LABEL' only with environment "TRAINING".
+    previous_span_statistics: An optional DatasetFeatureStatisticsList protocol
+        buffer denoting the statistics computed over an earlier data (for
+        example, previous day's data). If provided, the
+        `validate_statistics_internal` method will detect if there exists drift
+        between current data and previous data. Configuration for drift
+        detection can be done by specifying a `drift_comparator` in the schema.
+        For now drift detection is only supported for categorical features.
+    serving_statistics: An optional DatasetFeatureStatisticsList protocol
+        buffer denoting the statistics computed over the serving data. If
+        provided, the `validate_statistics_internal` method will identify if
+        there exists distribution skew between current data and serving data.
+        Configuration for skew detection can be done by specifying a
+        `skew_comparator` in the schema. For now skew detection is only
+        supported for categorical features.
+    previous_version_statistics: An optional DatasetFeatureStatisticsList
+        protocol buffer denoting the statistics computed over an earlier data
+        (typically, previous run's data within the same day). If provided,
+        the `validate_statistics_internal` method will detect if there exists a
+        change in the number of examples between current data and previous
+        version data. Configuration for such dataset-wide anomaly detection can
+        be done by specifying a `num_examples_version_comparator` in the schema.
+    validation_options: Optional input used to specify the options of this
+        validation.
+
+  Returns:
+    An Anomalies protocol buffer.
+
+  Raises:
+    TypeError: If any of the input arguments is not of the expected type.
+    ValueError: If the input statistics proto contains multiple datasets, none
+        of which corresponds to the default slice.
+  """
   if not isinstance(statistics, statistics_pb2.DatasetFeatureStatisticsList):
     raise TypeError(
         'statistics is of type %s, should be '
@@ -277,16 +371,16 @@ def validate_statistics(
   _check_for_unsupported_stats_fields(dataset_statistics, 'statistics')
   _check_for_unsupported_schema_fields(schema)
 
-  if previous_statistics is not None:
+  if previous_span_statistics is not None:
     if not isinstance(
-        previous_statistics, statistics_pb2.DatasetFeatureStatisticsList):
+        previous_span_statistics, statistics_pb2.DatasetFeatureStatisticsList):
       raise TypeError(
-          'previous_statistics is of type %s, should be '
+          'previous_span_statistics is of type %s, should be '
           'a DatasetFeatureStatisticsList proto.'
-          % type(previous_statistics).__name__)
+          % type(previous_span_statistics).__name__)
 
     previous_dataset_statistics = _get_default_dataset_statistics(
-        previous_statistics)
+        previous_span_statistics)
     _check_for_unsupported_stats_fields(previous_dataset_statistics,
                                         'previous_statistics')
 
@@ -303,27 +397,59 @@ def validate_statistics(
     _check_for_unsupported_stats_fields(serving_dataset_statistics,
                                         'serving_statistics')
 
+  if previous_version_statistics is not None:
+    if not isinstance(previous_version_statistics,
+                      statistics_pb2.DatasetFeatureStatisticsList):
+      raise TypeError('previous_version_statistics is of type %s, should be '
+                      'a DatasetFeatureStatisticsList proto.' %
+                      type(previous_version_statistics).__name__)
+
+    previous_version_dataset_statistics = _get_default_dataset_statistics(
+        previous_version_statistics)
+    _check_for_unsupported_stats_fields(previous_version_dataset_statistics,
+                                        'previous_version_statistics')
+
   # Serialize the input protos.
   serialized_schema = schema.SerializeToString()
   serialized_stats = dataset_statistics.SerializeToString()
-  serialized_previous_stats = (
+  serialized_previous_span_stats = (
       previous_dataset_statistics.SerializeToString()
-      if previous_statistics is not None else '')
+      if previous_span_statistics is not None else '')
   serialized_serving_stats = (
       serving_dataset_statistics.SerializeToString()
       if serving_statistics is not None else '')
-  # TODO(b/138589321): Update API to support validation against previous version
-  # stats.
-  serialized_previous_version_stats = ''
+  serialized_previous_version_stats = (
+      previous_version_dataset_statistics.SerializeToString()
+      if previous_version_statistics is not None else '')
+
+  features_needed_pb = validation_metadata_pb2.FeaturesNeededProto()
+  if validation_options is not None and validation_options.features_needed:
+    for path, reason_list in validation_options.features_needed.items():
+      path_and_reason_feature_need = (
+          features_needed_pb.path_and_reason_feature_need.add())
+      path_and_reason_feature_need.path.CopyFrom(path.to_proto())
+      for reason in reason_list:
+        r = path_and_reason_feature_need.reason_feature_needed.add()
+        r.comment = reason.comment
+
+  serialized_features_needed = features_needed_pb.SerializeToString()
+
+  validation_config = validation_config_pb2.ValidationConfig()
+  if validation_options is not None:
+    validation_config.new_features_are_warnings = (
+        validation_options.new_features_are_warnings)
+  serialized_validation_config = validation_config.SerializeToString()
 
   anomalies_proto_string = (
       pywrap_tensorflow_data_validation.ValidateFeatureStatistics(
           tf.compat.as_bytes(serialized_stats),
           tf.compat.as_bytes(serialized_schema),
           tf.compat.as_bytes(environment),
-          tf.compat.as_bytes(serialized_previous_stats),
+          tf.compat.as_bytes(serialized_previous_span_stats),
           tf.compat.as_bytes(serialized_serving_stats),
-          tf.compat.as_bytes(serialized_previous_version_stats)))
+          tf.compat.as_bytes(serialized_previous_version_stats),
+          tf.compat.as_bytes(serialized_features_needed),
+          tf.compat.as_bytes(serialized_validation_config)))
 
   # Parse the serialized Anomalies proto.
   result = anomalies_pb2.Anomalies()
@@ -490,4 +616,3 @@ class IdentifyAnomalousExamples(beam.PTransform):
             _detect_anomalies_in_example, options=self.options)
         | 'GenerateAnomalyReasonKeys' >> beam.ParDo(
             _GenerateAnomalyReasonSliceKeys()))
-

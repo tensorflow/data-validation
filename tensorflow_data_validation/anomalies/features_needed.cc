@@ -28,12 +28,13 @@ namespace data_validation {
 Status ToFeaturesNeededProto(const FeaturesNeeded& feature_needed,
                              FeaturesNeededProto* result) {
   for (const auto& entry : feature_needed) {
-    string key = entry.first.AsProto().SerializeAsString();
-    ReasonFeatureNeededList value;
+    PathAndReasonFeatureNeeded path_and_reason_feature_need;
+    *path_and_reason_feature_need.mutable_path() = entry.first.AsProto();
     for (const auto& reason_feature_needed : entry.second) {
-      *value.add_reason_feature_needed() = reason_feature_needed;
+      *path_and_reason_feature_need.add_reason_feature_needed() =
+          reason_feature_needed;
     }
-    (*result->mutable_feature_needed())[key] = value;
+    *result->add_path_and_reason_feature_need() = path_and_reason_feature_need;
   }
 
   return Status::OK();
@@ -41,17 +42,12 @@ Status ToFeaturesNeededProto(const FeaturesNeeded& feature_needed,
 
 Status FromFeaturesNeededProto(const FeaturesNeededProto& feature_needed_proto,
                                FeaturesNeeded* result) {
-  for (const auto& entry : feature_needed_proto.feature_needed()) {
-    metadata::v0::Path path;
-    if (!path.ParseFromString(entry.first)) {
-      return Status(
-          error::INVALID_ARGUMENT,
-          "FeaturesNeededProto key can not be parsed as metadata::v0::Path");
-    }
-    Path key(path);
+  for (const auto& entry :
+       feature_needed_proto.path_and_reason_feature_need()) {
+    Path key(entry.path());
     std::vector<ReasonFeatureNeeded> value = {
-        entry.second.reason_feature_needed().begin(),
-        entry.second.reason_feature_needed().end()};
+        entry.reason_feature_needed().begin(),
+        entry.reason_feature_needed().end()};
     (*result)[key] = value;
   }
 

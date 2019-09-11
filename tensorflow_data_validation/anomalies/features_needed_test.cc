@@ -45,12 +45,10 @@ TEST(FeaturesNeededTest, CppToProtoToCpp) {
 
   // Verify that proto_format are correctly generated.
   EXPECT_THAT(proto_format, testing::EqualsProto(R"(
-                feature_needed {
-                  key: "\n\001a\n\001b\n\001c"
-                  value {
-                    reason_feature_needed { comment: "test1" }
-                    reason_feature_needed { comment: "test2" }
-                  }
+                path_and_reason_feature_need {
+                  path { step: "a" step: "b" step: "c" }
+                  reason_feature_needed { comment: "test1" }
+                  reason_feature_needed { comment: "test2" }
                 }
               )"));
 
@@ -66,12 +64,10 @@ TEST(FeaturesNeededTest, CppToProtoToCpp) {
 
 TEST(FeaturesNeededTest, ProtoToCppToProto) {
   auto original_proto = ParseTextProtoOrDie<FeaturesNeededProto>(R"(
-    feature_needed {
-      key: "\n\001a\n\001b\n\001c"
-      value {
-        reason_feature_needed { comment: "test1" }
-        reason_feature_needed { comment: "test2" }
-      }
+    path_and_reason_feature_need {
+      path { step: "a" step: "b" step: "c" }
+      reason_feature_needed { comment: "test1" }
+      reason_feature_needed { comment: "test2" }
     }
   )");
   FeaturesNeeded features_need;
@@ -94,21 +90,6 @@ TEST(FeaturesNeededTest, ProtoToCppToProto) {
       ToFeaturesNeededProto(features_need, &generated_proto_format).ok());
 
   EXPECT_THAT(original_proto, EqualsProto(generated_proto_format));
-}
-
-TEST(FeaturesNeededTest, MalformInput) {
-  auto original_proto = ParseTextProtoOrDie<FeaturesNeededProto>(R"(
-    feature_needed {
-      key: "malform"
-      value { reason_feature_needed { comment: "test1" } }
-    }
-  )");
-  FeaturesNeeded features_need;
-  Status status = FromFeaturesNeededProto(original_proto, &features_need);
-  EXPECT_FALSE(status.ok());
-  EXPECT_EQ(status.code(), error::INVALID_ARGUMENT);
-  EXPECT_EQ(status.error_message(),
-            "FeaturesNeededProto key can not be parsed as metadata::v0::Path");
 }
 
 }  // namespace

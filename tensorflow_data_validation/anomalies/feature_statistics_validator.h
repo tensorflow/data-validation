@@ -98,7 +98,8 @@ Status ValidateFeatureStatisticsWithoutDiff(
     const string& previous_span_statistics_proto_string,
     const string& serving_statistics_proto_string,
     const string& previous_version_statistics_proto_string,
-    string* anomalies_proto_string);
+    const string& features_needed_string,
+    const string& validation_config_string, string* anomalies_proto_string);
 
 // Updates an existing schema to match the data characteristics in
 // <feature_statistics>, but only on the paths_to_consider.

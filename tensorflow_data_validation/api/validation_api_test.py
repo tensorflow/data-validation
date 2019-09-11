@@ -26,10 +26,14 @@ from apache_beam.testing import util
 import numpy as np
 from tensorflow_data_validation import types
 from tensorflow_data_validation.api import validation_api
+from tensorflow_data_validation.api import validation_options
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics import stats_options
+from tensorflow_data_validation.types import FeaturePath
 from tensorflow_data_validation.utils import schema_util
+
 from google.protobuf import text_format
+
 from tensorflow_metadata.proto.v0 import anomalies_pb2
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -547,13 +551,17 @@ class ValidationApiTest(absltest.TestCase):
                                  '.*statistics proto with one dataset.*'):
       _ = validation_api.infer_schema(statistics)
 
-  def _assert_equal_anomalies(self, actual_anomalies, expected_anomalies):
+  def _assert_equal_anomalies(self,
+                              actual_anomalies,
+                              expected_anomalies,
+                              compare_path=False):
     # Check if the actual anomalies matches with the expected anomalies.
     for feature_name in expected_anomalies:
       self.assertIn(feature_name, actual_anomalies.anomaly_info)
       # Doesn't compare the diff_regions and path fields.
       actual_anomalies.anomaly_info[feature_name].ClearField('diff_regions')
-      actual_anomalies.anomaly_info[feature_name].ClearField('path')
+      if not compare_path:
+        actual_anomalies.anomaly_info[feature_name].ClearField('path')
 
       self.assertEqual(actual_anomalies.anomaly_info[feature_name],
                        expected_anomalies[feature_name])
@@ -1341,6 +1349,15 @@ class ValidationApiTest(absltest.TestCase):
       _ = validation_api.validate_statistics(statistics, schema,
                                              previous_statistics='test')
 
+  def test_validate_stats_internal_invalid_previous_span_statistics_input(self):
+    statistics = statistics_pb2.DatasetFeatureStatisticsList()
+    statistics.datasets.extend([statistics_pb2.DatasetFeatureStatistics()])
+    schema = schema_pb2.Schema()
+    with self.assertRaisesRegexp(TypeError,
+                                 'previous_span_statistics is of type.*'):
+      _ = validation_api.validate_statistics_internal(
+          statistics, schema, previous_span_statistics='test')
+
   def test_validate_stats_invalid_serving_statistics_input(self):
     statistics = statistics_pb2.DatasetFeatureStatisticsList()
     statistics.datasets.extend([statistics_pb2.DatasetFeatureStatistics()])
@@ -1349,6 +1366,15 @@ class ValidationApiTest(absltest.TestCase):
         TypeError, 'serving_statistics is of type.*'):
       _ = validation_api.validate_statistics(statistics, schema,
                                              serving_statistics='test')
+
+  def test_validate_stats_invalid_previous_version_statistics_input(self):
+    statistics = statistics_pb2.DatasetFeatureStatisticsList()
+    statistics.datasets.extend([statistics_pb2.DatasetFeatureStatistics()])
+    schema = schema_pb2.Schema()
+    with self.assertRaisesRegexp(TypeError,
+                                 'previous_version_statistics is of type.*'):
+      _ = validation_api.validate_statistics_internal(
+          statistics, schema, previous_version_statistics='test')
 
   def test_validate_stats_invalid_schema_input(self):
     statistics = statistics_pb2.DatasetFeatureStatisticsList()
@@ -1419,6 +1445,285 @@ class ValidationApiTest(absltest.TestCase):
         ValueError, 'Only statistics proto with one dataset or the default.*'):
       _ = validation_api.validate_statistics(current_stats, schema,
                                              serving_statistics=serving_stats)
+
+  def test_validate_stats_invalid_previous_version_stats_multiple_datasets(
+      self):
+    current_stats = statistics_pb2.DatasetFeatureStatisticsList()
+    current_stats.datasets.extend([
+        statistics_pb2.DatasetFeatureStatistics()
+    ])
+    previous_version_stats = statistics_pb2.DatasetFeatureStatisticsList()
+    previous_version_stats.datasets.extend([
+        statistics_pb2.DatasetFeatureStatistics(),
+        statistics_pb2.DatasetFeatureStatistics()
+    ])
+    schema = schema_pb2.Schema()
+    with self.assertRaisesRegexp(
+        ValueError, 'Only statistics proto with one dataset or the default.*'):
+      _ = validation_api.validate_statistics_internal(
+          current_stats,
+          schema,
+          previous_version_statistics=previous_version_stats)
+
+  def test_validate_stats_internal_with_previous_version_stats(self):
+    statistics = text_format.Parse(
+        """
+        datasets {
+          num_examples: 10
+          features {
+            name: 'bar'
+            type: STRING
+            string_stats {
+              common_stats {
+                num_missing: 0
+                num_non_missing: 10
+                max_num_values: 1
+              }
+              rank_histogram {
+                buckets { label: "a" sample_count: 1 }
+                buckets { label: "b" sample_count: 2 }
+                buckets { label: "c" sample_count: 7 }
+              }
+            }
+          }
+          features {
+            name: 'annotated_enum'
+            type: STRING
+            string_stats {
+              common_stats {
+                num_missing: 0
+                num_non_missing: 10
+                max_num_values: 1
+              }
+              rank_histogram {
+                buckets { label: "a" sample_count: 1 }
+                buckets { label: "b" sample_count: 1 }
+              }
+            }
+          }
+        }""", statistics_pb2.DatasetFeatureStatisticsList())
+
+    previous_span_statistics = text_format.Parse(
+        """
+        datasets {
+          num_examples: 10
+          features {
+            name: 'annotated_enum'
+            type: STRING
+            string_stats {
+              common_stats {
+                num_non_missing: 10
+                num_missing: 0
+                max_num_values: 1
+              }
+              rank_histogram {
+                buckets { label: "a" sample_count: 3 }
+                buckets { label: "b" sample_count: 1 }
+              }
+            }
+          }
+          features {
+            name: 'bar'
+            type: STRING
+            string_stats {
+              common_stats {
+                num_missing: 0
+                num_non_missing: 10
+                max_num_values: 1
+              }
+              rank_histogram {
+                buckets { label: "a" sample_count: 3 }
+                buckets { label: "b" sample_count: 1 }
+                buckets { label: "c" sample_count: 6 }
+              }
+            }
+          }
+        }""", statistics_pb2.DatasetFeatureStatisticsList())
+
+    serving_statistics = text_format.Parse(
+        """
+        datasets {
+          num_examples: 10
+          features {
+            name: 'bar'
+            type: STRING
+            string_stats {
+              common_stats {
+                num_missing: 0
+                num_non_missing: 10
+                max_num_values: 1
+              }
+              rank_histogram {
+                buckets { label: "a" sample_count: 3 }
+                buckets { label: "b" sample_count: 1 }
+                buckets { label: "c" sample_count: 6 }
+              }
+            }
+          }
+          features {
+            name: 'annotated_enum'
+            type: STRING
+            string_stats {
+              common_stats {
+                num_non_missing: 10
+                num_missing: 0
+                max_num_values: 1
+              }
+              rank_histogram {
+                buckets { label: "a" sample_count: 3 }
+                buckets { label: "b" sample_count: 1 }
+              }
+            }
+          }
+        }""", statistics_pb2.DatasetFeatureStatisticsList())
+
+    previous_version_statistics = text_format.Parse(
+        """
+        datasets {
+          num_examples: 10
+          features {
+            name: 'annotated_enum'
+            type: STRING
+            string_stats {
+              common_stats {
+                num_non_missing: 10
+                num_missing: 0
+                max_num_values: 1
+              }
+              rank_histogram {
+                buckets { label: "a" sample_count: 3 }
+                buckets { label: "b" sample_count: 1 }
+              }
+            }
+          }
+          features {
+            name: 'bar'
+            type: STRING
+            string_stats {
+              common_stats {
+                num_missing: 0
+                num_non_missing: 10
+                max_num_values: 1
+              }
+              rank_histogram {
+                buckets { label: "a" sample_count: 3 }
+                buckets { label: "b" sample_count: 1 }
+                buckets { label: "c" sample_count: 6 }
+              }
+            }
+          }
+        }""", statistics_pb2.DatasetFeatureStatisticsList())
+
+    schema = text_format.Parse(
+        """
+        feature {
+          name: 'bar'
+          type: BYTES
+          skew_comparator { infinity_norm { threshold: 0.1 } }
+        }
+        feature {
+          name: "annotated_enum"
+          type: BYTES
+          domain: "annotated_enum"
+          drift_comparator { infinity_norm { threshold: 0.01 } }
+        }
+        string_domain { name: "annotated_enum" value: "a" }
+        """, schema_pb2.Schema())
+
+    expected_anomalies = {
+        'bar': text_format.Parse(self._bar_anomaly_info,
+                                 anomalies_pb2.AnomalyInfo()),
+        'annotated_enum': text_format.Parse(self._annotated_enum_anomaly_info,
+                                            anomalies_pb2.AnomalyInfo())
+    }
+
+    # Validate the stats.
+    anomalies = validation_api.validate_statistics_internal(
+        statistics,
+        schema,
+        previous_span_statistics=previous_span_statistics,
+        serving_statistics=serving_statistics,
+        previous_version_statistics=previous_version_statistics)
+    self._assert_equal_anomalies(anomalies, expected_anomalies)
+  # pylint: enable=line-too-long
+
+  def test_validate_stats_internal_with_validation_options_set(self):
+    statistics = text_format.Parse(
+        """
+        datasets {
+          num_examples: 10
+          features {
+            name: 'bar'
+            type: STRING
+            string_stats {
+              common_stats {
+                num_missing: 0
+                num_non_missing: 10
+                max_num_values: 1
+              }
+              rank_histogram {
+                buckets { label: "a" sample_count: 1 }
+                buckets { label: "b" sample_count: 2 }
+                buckets { label: "c" sample_count: 7 }
+              }
+            }
+          }
+          features {
+            name: 'annotated_enum'
+            type: STRING
+            string_stats {
+              common_stats {
+                num_missing: 0
+                num_non_missing: 10
+                max_num_values: 1
+              }
+              rank_histogram {
+                buckets { label: "a" sample_count: 1 }
+                buckets { label: "b" sample_count: 1 }
+              }
+            }
+          }
+        }""", statistics_pb2.DatasetFeatureStatisticsList())
+
+    empty_schema = schema_pb2.Schema()
+
+    # In this test case, both `bar` and `annotated_enum` are not defined in
+    # schema. But since only `bar` is in features_needed path, the expected
+    # anomalies only reports it. Besides, since new_features_are_warnings is
+    # set to true, the severity in the report is WARNING.
+    expected_anomalies = {
+        'bar': text_format.Parse("""
+         description: "New column (column in data but not in schema)"
+         severity: WARNING
+         short_description: "New column"
+         reason {
+           type: SCHEMA_NEW_COLUMN
+           short_description: "New column"
+           description: "New column (column in data but not in schema)"
+         }
+         path {
+           step: "bar"
+         }""", anomalies_pb2.AnomalyInfo())
+    }
+
+    features_needed = {
+        FeaturePath(['bar']): [
+            validation_options.ReasonFeatureNeeded(comment='reason1'),
+            validation_options.ReasonFeatureNeeded(comment='reason2')
+        ]
+    }
+    new_features_are_warnings = True
+    vo = validation_options.ValidationOptions(
+        features_needed, new_features_are_warnings)
+
+    # Validate the stats.
+    anomalies = validation_api.validate_statistics_internal(
+        statistics,
+        empty_schema,
+        validation_options=vo)
+    self._assert_equal_anomalies(
+        anomalies, expected_anomalies, compare_path=True)
+  # pylint: enable=line-too-long
 
   def test_validate_instance(self):
     instance = pa.Table.from_arrays([pa.array([['D']])], ['annotated_enum'])
