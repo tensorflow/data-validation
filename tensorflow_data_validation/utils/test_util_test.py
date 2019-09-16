@@ -304,7 +304,7 @@ class TestAssertDatasetFeatureStatsProtoEqual(absltest.TestCase):
         self._test.assert_on_two_protos_with_same_features_in_different_order())
 
   def test_two_protos_with_different_features(self):
-    with self.assertRaises(AssertionError):
+    with self.assertRaisesRegexp(AssertionError, 'Feature path .*'):
       self._test.assert_on_two_protos_with_different_features()
 
   def test_two_protos_with_different_numbers_of_features(self):

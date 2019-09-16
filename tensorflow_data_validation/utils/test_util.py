@@ -150,7 +150,9 @@ def assert_dataset_feature_stats_proto_equal(
   for feature in actual.features:
     feature_path = types.FeaturePath.from_proto(feature.path)
     if feature_path not in expected_features:
-      raise AssertionError
+      raise AssertionError(
+          'Feature path %s found in actual but not found in expected.' %
+          feature_path)
     assert_feature_proto_equal(test, feature, expected_features[feature_path])
 
 
