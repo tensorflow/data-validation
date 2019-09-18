@@ -63,13 +63,14 @@ PyObject* ValidateFeatureStatistics(
   const string& serving_statistics_proto_string,
   const string& previous_version_statistics_proto_string,
   const string& feature_needed_string,
-  const string& validation_config_string) {
+  const string& validation_config_string,
+  const bool enable_diff_regions) {
   string anomalies_proto_string;
-  const tensorflow::Status status = tensorflow::data_validation::ValidateFeatureStatisticsWithoutDiff(
+  const tensorflow::Status status = tensorflow::data_validation::ValidateFeatureStatisticsWithSerializedInputs(
     statistics_proto_string, schema_proto_string, environment,
     previous_span_statistics_proto_string, serving_statistics_proto_string,
     previous_version_statistics_proto_string, feature_needed_string,
-    validation_config_string,
+    validation_config_string, enable_diff_regions,
     &anomalies_proto_string);
   if (!status.ok()) {
     PyErr_SetString(PyExc_RuntimeError, status.error_message().c_str());
@@ -103,4 +104,5 @@ PyObject* ValidateFeatureStatistics(
   const string& serving_statistics_proto_string,
   const string& previous_version_statistics_proto_string,
   const string& feature_needed_string,
-  const string& validation_config_string);
+  const string& validation_config_string,
+  const bool enable_diff_regions);

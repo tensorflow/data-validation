@@ -284,7 +284,8 @@ def validate_statistics_internal(
         statistics_pb2.DatasetFeatureStatisticsList] = None,
     previous_version_statistics: Optional[
         statistics_pb2.DatasetFeatureStatisticsList] = None,
-    validation_options: Optional[vo.ValidationOptions] = None
+    validation_options: Optional[vo.ValidationOptions] = None,
+    enable_diff_regions: bool = False
 ) -> anomalies_pb2.Anomalies:
   """Validates the input statistics against the provided input schema.
 
@@ -340,6 +341,9 @@ def validate_statistics_internal(
         be done by specifying a `num_examples_version_comparator` in the schema.
     validation_options: Optional input used to specify the options of this
         validation.
+    enable_diff_regions: Specifies whether to include a comparison between the
+        existing schema and the fixed schema in the Anomalies protocol buffer
+        output.
 
   Returns:
     An Anomalies protocol buffer.
@@ -449,7 +453,8 @@ def validate_statistics_internal(
           tf.compat.as_bytes(serialized_serving_stats),
           tf.compat.as_bytes(serialized_previous_version_stats),
           tf.compat.as_bytes(serialized_features_needed),
-          tf.compat.as_bytes(serialized_validation_config)))
+          tf.compat.as_bytes(serialized_validation_config),
+          enable_diff_regions))
 
   # Parse the serialized Anomalies proto.
   result = anomalies_pb2.Anomalies()

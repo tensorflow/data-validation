@@ -174,14 +174,15 @@ tensorflow::Status ValidateFeatureStatistics(
   return tensorflow::Status::OK();
 }
 
-tensorflow::Status ValidateFeatureStatisticsWithoutDiff(
+tensorflow::Status ValidateFeatureStatisticsWithSerializedInputs(
     const string& feature_statistics_proto_string,
     const string& schema_proto_string, const string& environment,
     const string& previous_span_statistics_proto_string,
     const string& serving_statistics_proto_string,
     const string& previous_version_statistics_proto_string,
     const string& features_needed_string,
-    const string& validation_config_string, string* anomalies_proto_string) {
+    const string& validation_config_string, const bool enable_diff_regions,
+    string* anomalies_proto_string) {
   tensorflow::metadata::v0::Schema schema;
   if (!schema.ParseFromString(schema_proto_string)) {
     return tensorflow::errors::InvalidArgument("Failed to parse Schema proto.");
@@ -258,8 +259,7 @@ tensorflow::Status ValidateFeatureStatisticsWithoutDiff(
   TF_RETURN_IF_ERROR(ValidateFeatureStatistics(
       feature_statistics, schema, may_be_environment, previous_span_statistics,
       serving_statistics, previous_version_statistics, features_needed,
-      validation_config,
-      /*enable_diff_regions=*/false, &anomalies));
+      validation_config, enable_diff_regions, &anomalies));
 
   if (!anomalies.SerializeToString(anomalies_proto_string)) {
     return tensorflow::errors::Internal(

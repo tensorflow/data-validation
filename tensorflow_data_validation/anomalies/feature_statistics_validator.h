@@ -90,16 +90,16 @@ Status ValidateFeatureStatistics(
     metadata::v0::Anomalies* result);
 
 // Similar to the above, but takes all the proto parameters as serialized
-// strings. This method doesn't compute schema diff and is called by the
-// Python code using SWIG.
-Status ValidateFeatureStatisticsWithoutDiff(
+// strings. This method is called by the Python code using SWIG.
+Status ValidateFeatureStatisticsWithSerializedInputs(
     const string& feature_statistics_proto_string,
     const string& schema_proto_string, const string& environment,
     const string& previous_span_statistics_proto_string,
     const string& serving_statistics_proto_string,
     const string& previous_version_statistics_proto_string,
     const string& features_needed_string,
-    const string& validation_config_string, string* anomalies_proto_string);
+    const string& validation_config_string, const bool enable_diff_regions,
+    string* anomalies_proto_string);
 
 // Updates an existing schema to match the data characteristics in
 // <feature_statistics>, but only on the paths_to_consider.
