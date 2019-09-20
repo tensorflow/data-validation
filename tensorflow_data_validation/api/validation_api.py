@@ -588,6 +588,9 @@ class IdentifyAnomalousExamples(beam.PTransform):
 
   Validates each input example against the schema provided in `options` and
   outputs (anomaly reason, anomalous example) tuples.
+
+  Note: This transform requires that the input PCollection consist of pyarrow
+  Tables that have a single row (i.e., batch size == 1).
   """
 
   def __init__(
