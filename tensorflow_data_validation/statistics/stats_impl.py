@@ -35,6 +35,7 @@ from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.statistics.generators import basic_stats_generator
 from tensorflow_data_validation.statistics.generators import image_stats_generator
 from tensorflow_data_validation.statistics.generators import natural_language_stats_generator
+from tensorflow_data_validation.statistics.generators import sparse_feature_stats_generator
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.statistics.generators import time_stats_generator
 from tensorflow_data_validation.statistics.generators import top_k_uniques_combiner_stats_generator
@@ -185,6 +186,10 @@ def get_generators(options: stats_options.StatsOptions,
             semantic_domain_feature_stats_generators,
             weight_feature=options.weight_feature,
             sample_rate=options.semantic_domain_stats_sample_rate))
+  if options.schema is not None and _schema_has_sparse_features(options.schema):
+    generators.append(
+        sparse_feature_stats_generator.SparseFeatureStatsGenerator(
+            options.schema))
   # Replace all CombinerFeatureStatsGenerator with a single
   # CombinerFeatureStatsWrapperGenerator.
   feature_generators = [
@@ -254,6 +259,27 @@ def _get_default_generators(
             num_rank_histogram_buckets=options.num_rank_histogram_buckets),
     ])
   return stats_generators
+
+
+def _schema_has_sparse_features(schema: schema_pb2.Schema) -> bool:
+  """Returns whether there are any sparse features in the specified schema."""
+
+  def _has_sparse_features(
+      feature_container: Iterable[schema_pb2.Feature]
+  ) -> bool:
+    """Helper function used to determine whether there are sparse features."""
+    for f in feature_container:
+      if isinstance(f, schema_pb2.SparseFeature):
+        return True
+      if f.type == schema_pb2.STRUCT:
+        if f.struct_domain.sparse_feature:
+          return True
+        return _has_sparse_features(f.struct_domain.feature)
+    return False
+
+  if schema.sparse_feature:
+    return True
+  return _has_sparse_features(schema.feature)
 
 
 def _filter_features(
@@ -366,8 +392,14 @@ def _update_example_and_missing_count(
       common_stats = feature_stats.num_stats.common_stats
     elif which_oneof_stats == 'struct_stats':
       common_stats = feature_stats.struct_stats.common_stats
-    else:
+    elif (which_oneof_stats == 'string_stats' or
+          which_oneof_stats == 'bytes_stats'):
       common_stats = feature_stats.string_stats.common_stats
+    else:
+      # There are not common_stats for this feature (which can be the case when
+      # generating only custom_stats for a sparse feature). In that case, simply
+      # return without modifying the common stats or num_examples.
+      return
     assert num_examples >= common_stats.num_non_missing, (
         'Total number of examples: {} is less than number of non missing '
         'examples: {} for feature {}.'.format(

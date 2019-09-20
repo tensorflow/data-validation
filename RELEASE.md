@@ -3,6 +3,8 @@
 
 ## Major Features and Improvements
 
+* Generate statistics for sparse features.
+
 ## Bug Fixes and Other Changes
 
 * Generate statistics for the weight feature.

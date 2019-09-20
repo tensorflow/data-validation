@@ -1310,6 +1310,407 @@ GENERATE_STATS_TESTS = [
               }
             }""",
     },
+    {
+        'testcase_name':
+            'flat_sparse_feature',
+        'tables': [
+            pa.Table.from_arrays(
+                [pa.array([[1, 3, 5, 7]]),
+                 pa.array([['a', 'b', 'c', 'd']])],
+                ['value_feature', 'index_feature']),
+            pa.Table.from_arrays(
+                [pa.array([[2, 4, 6, 8]]),
+                 pa.array([['a', 'b', 'c', 'd']])],
+                ['value_feature', 'index_feature']),
+            pa.Table.from_arrays(
+                [pa.array([[0, 3, 6, 9]]),
+                 pa.array([['a', 'b', 'c', 'd']])],
+                ['value_feature', 'index_feature'])
+        ],
+        'options':
+            stats_options.StatsOptions(
+                num_top_values=1,
+                num_rank_histogram_buckets=1,
+                num_quantiles_histogram_buckets=1,
+                num_histogram_buckets=1,
+                num_values_histogram_buckets=2,
+                enable_semantic_domain_stats=False),
+        'expected_result_proto_text':
+            """
+              datasets {
+                num_examples: 3
+                features {
+                  path {
+                    step: "value_feature"
+                  }
+                  type: INT
+                  num_stats {
+                    common_stats {
+                      num_non_missing: 3
+                      min_num_values: 4
+                      max_num_values: 4
+                      avg_num_values: 4.0
+                      tot_num_values: 12
+                      num_values_histogram {
+                        buckets {
+                          low_value: 4.0
+                          high_value: 4.0
+                          sample_count: 1.5
+                        }
+                        buckets {
+                          low_value: 4.0
+                          high_value: 4.0
+                          sample_count: 1.5
+                        }
+                        type: QUANTILES
+                      }
+                    }
+                    mean: 4.5
+                    std_dev: 2.6925824
+                    num_zeros: 1
+                    min: 0.0
+                    max: 9.0
+                    median: 5.0
+                    histograms {
+                      buckets {
+                        low_value: 0.0
+                        high_value: 9.0
+                        sample_count: 12.0
+                      }
+                      type: STANDARD
+                    }
+                    histograms {
+                      buckets {
+                        low_value: 0.0
+                        high_value: 9.0
+                        sample_count: 12.0
+                      }
+                      type: QUANTILES
+                    }
+                  }
+                }
+                features {
+                  path {
+                    step: "index_feature"
+                  }
+                  type: STRING
+                  string_stats {
+                    common_stats {
+                      num_non_missing: 3
+                      min_num_values: 4
+                      max_num_values: 4
+                      avg_num_values: 4.0
+                      tot_num_values: 12
+                      num_values_histogram {
+                        buckets {
+                          low_value: 4.0
+                          high_value: 4.0
+                          sample_count: 1.5
+                        }
+                        buckets {
+                          low_value: 4.0
+                          high_value: 4.0
+                          sample_count: 1.5
+                        }
+                        type: QUANTILES
+                      }
+                    }
+                    unique: 4
+                    top_values {
+                      value: "d"
+                      frequency: 3.0
+                    }
+                    avg_length: 1.0
+                    rank_histogram {
+                      buckets {
+                        low_rank: 0
+                        high_rank: 0
+                        label: "d"
+                        sample_count: 3.0
+                      }
+                    }
+                  }
+                }
+                features {
+                  path {
+                    step: "sparse_feature"
+                  }
+                  custom_stats {
+                    name: 'missing_value'
+                    num: 0
+                  }
+                  custom_stats {
+                    name: 'missing_index'
+                    rank_histogram {
+                      buckets {
+                        label: 'index_feature'
+                        sample_count: 0
+                      }
+                    }
+                  }
+                  custom_stats {
+                    name: 'max_length_diff'
+                    rank_histogram {
+                      buckets {
+                        label: 'index_feature'
+                        sample_count: 0
+                      }
+                    }
+                  }
+                  custom_stats {
+                    name: 'min_length_diff'
+                    rank_histogram {
+                      buckets {
+                        label: 'index_feature'
+                        sample_count: 0
+                      }
+                    }
+                  }
+                }
+              }
+              """,
+        'schema':
+            text_format.Parse(
+                """
+                feature {
+                  name: "value_feature"
+                }
+                feature {
+                  name: "index_feature"
+                }
+                sparse_feature {
+                  name: "sparse_feature"
+                  index_feature {
+                    name: "index_feature"
+                  }
+                  value_feature {
+                    name: "value_feature"
+                  }
+                }
+              """, schema_pb2.Schema())
+    },
+    {
+        'testcase_name':
+            'struct_leaf_sparse_feature',
+        'tables': [
+            pa.Table.from_arrays([
+                pa.array([[{
+                    'value_feature': [1, 3, 5, 7],
+                    'index_feature': ['a', 'b', 'c', 'd']
+                }]])
+            ], ['parent_feature']),
+            pa.Table.from_arrays([
+                pa.array([[{
+                    'value_feature': [2, 4, 6, 8],
+                    'index_feature': ['a', 'b', 'c', 'd']
+                }]])
+            ], ['parent_feature']),
+            pa.Table.from_arrays([
+                pa.array([[{
+                    'value_feature': [0, 3, 6, 9],
+                    'index_feature': ['a', 'b', 'c', 'd']
+                }]])
+            ], ['parent_feature']),
+        ],
+        'options':
+            stats_options.StatsOptions(
+                num_top_values=1,
+                num_rank_histogram_buckets=1,
+                num_quantiles_histogram_buckets=1,
+                num_histogram_buckets=1,
+                num_values_histogram_buckets=2,
+                enable_semantic_domain_stats=False),
+        'expected_result_proto_text':
+            """
+              datasets {
+                num_examples: 3
+                features {
+                  path {
+                    step: "parent_feature"
+                  }
+                  type: STRUCT
+                  struct_stats {
+                    common_stats {
+                      num_non_missing: 3
+                      min_num_values: 1
+                      max_num_values: 1
+                      avg_num_values: 1.0
+                      tot_num_values: 3
+                      num_values_histogram {
+                        buckets {
+                          low_value: 1.0
+                          high_value: 1.0
+                          sample_count: 1.5
+                        }
+                        buckets {
+                          low_value: 1.0
+                          high_value: 1.0
+                          sample_count: 1.5
+                        }
+                        type: QUANTILES
+                      }
+                    }
+                  }
+                }
+                features {
+                  path {
+                    step: "parent_feature"
+                    step: "value_feature"
+                  }
+                  type: INT
+                  num_stats {
+                    common_stats {
+                      num_non_missing: 3
+                      min_num_values: 4
+                      max_num_values: 4
+                      avg_num_values: 4.0
+                      tot_num_values: 12
+                      num_values_histogram {
+                        buckets {
+                          low_value: 4.0
+                          high_value: 4.0
+                          sample_count: 1.5
+                        }
+                        buckets {
+                          low_value: 4.0
+                          high_value: 4.0
+                          sample_count: 1.5
+                        }
+                        type: QUANTILES
+                      }
+                    }
+                    mean: 4.5
+                    std_dev: 2.6925824
+                    num_zeros: 1
+                    min: 0.0
+                    max: 9.0
+                    median: 5.0
+                    histograms {
+                      buckets {
+                        low_value: 0.0
+                        high_value: 9.0
+                        sample_count: 12.0
+                      }
+                      type: STANDARD
+                    }
+                    histograms {
+                      buckets {
+                        low_value: 0.0
+                        high_value: 9.0
+                        sample_count: 12.0
+                      }
+                      type: QUANTILES
+                    }
+                  }
+                }
+                features {
+                  path {
+                    step: "parent_feature"
+                    step: "index_feature"
+                  }
+                  type: STRING
+                  string_stats {
+                    common_stats {
+                      num_non_missing: 3
+                      min_num_values: 4
+                      max_num_values: 4
+                      avg_num_values: 4.0
+                      tot_num_values: 12
+                      num_values_histogram {
+                        buckets {
+                          low_value: 4.0
+                          high_value: 4.0
+                          sample_count: 1.5
+                        }
+                        buckets {
+                          low_value: 4.0
+                          high_value: 4.0
+                          sample_count: 1.5
+                        }
+                        type: QUANTILES
+                      }
+                    }
+                    unique: 4
+                    top_values {
+                      value: "d"
+                      frequency: 3.0
+                    }
+                    avg_length: 1.0
+                    rank_histogram {
+                      buckets {
+                        low_rank: 0
+                        high_rank: 0
+                        label: "d"
+                        sample_count: 3.0
+                      }
+                    }
+                  }
+                }
+                features {
+                  path {
+                    step: "parent_feature"
+                    step: "sparse_feature"
+                  }
+                  custom_stats {
+                    name: 'missing_value'
+                    num: 0
+                  }
+                  custom_stats {
+                    name: 'missing_index'
+                    rank_histogram {
+                      buckets {
+                        label: 'index_feature'
+                        sample_count: 0
+                      }
+                    }
+                  }
+                  custom_stats {
+                    name: 'max_length_diff'
+                    rank_histogram {
+                      buckets {
+                        label: 'index_feature'
+                        sample_count: 0
+                      }
+                    }
+                  }
+                  custom_stats {
+                    name: 'min_length_diff'
+                    rank_histogram {
+                      buckets {
+                        label: 'index_feature'
+                        sample_count: 0
+                      }
+                    }
+                  }
+                }
+              }
+              """,
+        'schema':
+            text_format.Parse(
+                """
+                feature {
+                  name: "parent_feature"
+                  type: STRUCT
+                  struct_domain {
+                    feature {
+                      name: "value_feature"
+                    }
+                    feature {
+                      name: "index_feature"
+                    }
+                    sparse_feature {
+                      name: "sparse_feature"
+                      index_feature {
+                        name: "index_feature"
+                      }
+                      value_feature {
+                        name: "value_feature"
+                      }
+                    }
+                  }
+                }
+              """, schema_pb2.Schema())
+    },
 ]
 
 
