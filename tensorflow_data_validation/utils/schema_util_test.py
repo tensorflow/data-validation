@@ -598,6 +598,16 @@ class SchemaUtilTest(parameterized.TestCase):
                     types.FeaturePath(['fi', 'fi_fb'])])
     self.assertEqual(schema_util.get_multivalent_features(schema), expected)
 
+  def test_look_up_feature(self):
+    feature_1 = text_format.Parse("""name: "feature1" """, schema_pb2.Feature())
+    feature_2 = text_format.Parse("""name: "feature2" """, schema_pb2.Feature())
+
+    container = [feature_1, feature_2]
+    self.assertEqual(
+        schema_util.look_up_feature('feature1', container), feature_1)
+    self.assertEqual(
+        schema_util.look_up_feature('feature2', container), feature_2)
+    self.assertEqual(schema_util.look_up_feature('feature3', container), None)
 
 if __name__ == '__main__':
   absltest.main()

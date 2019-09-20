@@ -56,7 +56,7 @@ def get_feature(schema: schema_pb2.Schema,
   parent = feature_path.parent()
   if parent:
     for step in parent.steps():
-      f = _look_up_feature(step, feature_container)
+      f = look_up_feature(step, feature_container)
       if f is None:
         raise ValueError('Feature %s not found in the schema.' % feature_path)
       if f.type != schema_pb2.STRUCT:
@@ -65,7 +65,7 @@ def get_feature(schema: schema_pb2.Schema,
             (step, feature_path))
       feature_container = f.struct_domain.feature
 
-  feature = _look_up_feature(feature_path.steps()[-1], feature_container)
+  feature = look_up_feature(feature_path.steps()[-1], feature_container)
   if feature is None:
     raise ValueError('Feature %s not found in the schema.' % feature_path)
   return feature
@@ -292,9 +292,10 @@ def get_multivalent_features(schema: schema_pb2.Schema
   }
 
 
-def _look_up_feature(feature_name: types.FeatureName,
-                     container: Iterable[schema_pb2.Feature]
-                    ) -> Optional[schema_pb2.Feature]:
+def look_up_feature(
+    feature_name: types.FeatureName,
+    container: Iterable[schema_pb2.Feature]) -> Optional[schema_pb2.Feature]:
+  """Returns a feature if it is found in the specified container."""
   for f in container:
     if f.name == feature_name:
       return f
