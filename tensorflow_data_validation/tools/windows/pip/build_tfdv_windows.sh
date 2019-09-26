@@ -139,6 +139,28 @@ pip uninstall -y Cython
 pip install dist/*.whl
 pip install ${TENSORFLOW}
 
+# If running with tf-nightly, install TFT at head. If installing TFT at head,
+# also install TFX-BSL at head.
+if [[ ${TENSORFLOW}==tf-nightly ]]; then
+  echo "Installing TFX-BSL at head"
+  pushd tfx_bsl_at_head
+  PYARROW_REQUIREMENT=$(python -c "fp = open('third_party/pyarrow_version.bzl', 'r'); d = {}; exec(fp.read(), d); fp.close(); print(d['PY_DEP'])")
+  pip install "${PYARROW_REQUIREMENT}"
+  ./configure.sh
+  bazel run -c opt --copt=-DWIN32_LEAN_AND_MEAN tfx_bsl:build_pip_package -- --python_bin_path ${PYTHON_BIN_PATH}
+  BSL_WHEEL_PATH=$(find dist -name "*.whl")
+  pip install ${BSL_WHEEL_PATH}
+  popd # pop tfx_bsl_at_head
+
+  pip uninstall -y tensorflow-transform
+  echo "Installing TFT at head"
+  pushd tft_at_head
+  "${PYTHON_BIN_PATH}" setup.py bdist_wheel
+  TFT_WHEEL_PATH=$(find dist -name "tensorflow_transform-*.whl")
+  pip install ${TFT_WHEEL_PATH}
+  popd # pop tft_at_head
+fi
+
 run_py_tests "tensorflow_data_validation" $@
 
 # copy wheel to ${KOKORO_ARTIFACTS_DIR}
