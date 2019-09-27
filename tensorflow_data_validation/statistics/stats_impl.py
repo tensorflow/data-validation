@@ -412,6 +412,7 @@ def _update_example_and_missing_count(
           weighted_num_examples -
           common_stats.weighted_common_stats.num_non_missing)
   stats.num_examples = int(num_examples)
+  stats.weighted_num_examples = weighted_num_examples
 
 
 def _make_dataset_feature_statistics_list_proto(

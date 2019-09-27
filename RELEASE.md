@@ -12,6 +12,8 @@
   the default slice (validation/inference will be done using the default slice
   statistics).
 * Avoid flattening null arrays.
+* Set `weighted_num_examples` field in the statistics proto if a weight feature
+  is specified.
 
 
 ## Breaking Changes

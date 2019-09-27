@@ -317,6 +317,7 @@ GENERATE_STATS_TESTS = [
             """
             datasets {
               num_examples: 2
+              weighted_num_examples: 3
               features {
                 path {
                   step: "a"
