@@ -14,7 +14,7 @@
 * Avoid flattening null arrays.
 * Set `weighted_num_examples` field in the statistics proto if a weight feature
   is specified.
-
+* Depends on `apache-beam[gcp]>=2.15,<3`
 
 ## Breaking Changes
 
