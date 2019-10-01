@@ -122,33 +122,6 @@ class StatsUtilTest(absltest.TestCase):
           expected[types.FeaturePath.from_proto(actual_feature_stats.path)],
           normalize_numbers=True)
 
-  def test_get_weight_feature_with_valid_weight_feature(self):
-    batch = {'a': np.array([np.array([1, 2]), np.array([3])]),
-             'w': np.array([np.array([10]), np.array([20])])}
-    actual = stats_util.get_weight_feature(batch, 'w')
-    np.testing.assert_equal(actual, batch['w'])
-
-  def test_get_weight_feature_invalid_weight_feature(self):
-    batch = {'a': np.array([np.array([1])])}
-    with self.assertRaisesRegexp(ValueError, 'Weight feature.*not present'):
-      stats_util.get_weight_feature(batch, 'w')
-
-  def test_get_weight_feature_with_weight_feature_missing(self):
-    batch = {'a': np.array([np.array([1])]), 'w': np.array([None])}
-    with self.assertRaisesRegexp(ValueError, 'Weight feature.*missing'):
-      stats_util.get_weight_feature(batch, 'w')
-
-  def test_get_weight_feature_with_weight_feature_string_type(self):
-    batch = {'a': np.array([np.array([1])]), 'w': np.array([np.array(['a'])])}
-    with self.assertRaisesRegexp(ValueError, 'Weight feature.*numeric type'):
-      stats_util.get_weight_feature(batch, 'w')
-
-  def test_get_weight_feature_with_weight_feature_multiple_values(self):
-    batch = {'a': np.array([np.array([1])]),
-             'w': np.array([np.array([2, 3])])}
-    with self.assertRaisesRegexp(ValueError, 'Weight feature.*single value'):
-      stats_util.get_weight_feature(batch, 'w')
-
   def test_get_utf8(self):
     self.assertEqual(u'This is valid.',
                      stats_util.maybe_get_utf8(b'This is valid.'))

@@ -21,7 +21,7 @@ from __future__ import print_function
 import numpy as np
 from tensorflow_data_validation import types
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
-from typing import Dict, List, Optional, Text, Union
+from typing import Dict, Optional, Text, Union
 from google.protobuf import text_format
 # TODO(b/125849585): Update to import from TF directly.
 from tensorflow.python.lib.io import file_io  # pylint: disable=g-direct-tensorflow-import
@@ -173,43 +173,6 @@ def _make_feature_stats_proto(
   for stat_name in stat_names:
     result.custom_stats.add(name=stat_name, num=stats_values[stat_name])
   return result
-
-
-def get_weight_feature(input_batch: types.ExampleBatch,
-                       weight_feature: types.FeatureName) -> List[np.ndarray]:
-  """Gets the weight feature from the input batch.
-
-  Args:
-    input_batch: Input batch of examples.
-    weight_feature: Name of the weight feature.
-
-  Returns:
-    A list containing the weights of the examples in the input batch.
-
-  Raises:
-    ValueError: If the weight feature is not present in the input batch or is
-        not a valid weight feature (must be of numeric type and have a
-        single value).
-  """
-  try:
-    weights = input_batch[weight_feature]
-  except KeyError:
-    raise ValueError('Weight feature "{}" not present in the input '
-                     'batch.'.format(weight_feature))
-
-  # Check if we have a valid weight feature.
-  for w in weights:
-    if w is None:
-      raise ValueError('Weight feature "{}" missing in an '
-                       'example.'.format(weight_feature))
-    elif (get_feature_type(w.dtype) ==
-          statistics_pb2.FeatureNameStatistics.STRING):
-      raise ValueError('Weight feature "{}" must be of numeric type. '
-                       'Found {}.'.format(weight_feature, w))
-    elif w.size != 1:
-      raise ValueError('Weight feature "{}" must have a single value. '
-                       'Found {}.'.format(weight_feature, w))
-  return weights  # pytype: disable=bad-return-type
 
 
 def write_stats_text(stats: statistics_pb2.DatasetFeatureStatisticsList,

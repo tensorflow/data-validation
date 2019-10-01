@@ -35,6 +35,45 @@ MakeListArrayFromParentIndicesAndValues = (
     pywrap.TFDV_Arrow_MakeListArrayFromParentIndicesAndValues)
 
 
+def _get_weight_feature(input_table: pa.Table,
+                        weight_feature: Text) -> np.ndarray:
+  """Gets the weight column from the input table.
+
+  Args:
+    input_table: Input table.
+    weight_feature: Name of the weight feature.
+
+  Returns:
+    A numpy array containing the weights of the examples in the input table.
+
+  Raises:
+    ValueError: If the weight feature is not present in the input table or is
+        not a valid weight feature (must be of numeric type and have a
+        single value for each example).
+  """
+  try:
+    weights = input_table.column(weight_feature).data.chunk(0)
+  except KeyError:
+    raise ValueError('Weight feature "{}" not present in the input '
+                     'table.'.format(weight_feature))
+
+  # Before flattening, check that there is a single value for each example.
+  weight_lengths = ListLengthsFromListArray(weights).to_numpy()
+  if not np.all(weight_lengths == 1):
+    raise ValueError(
+        'Weight feature "{}" must have exactly one value in each example.'
+        .format(weight_feature))
+  weights = weights.flatten()
+  # Before converting to numpy view, check the type (cannot convert string and
+  # binary arrays to numpy view).
+  weights_type = weights.type
+  if pa.types.is_string(weights_type) or pa.types.is_binary(weights_type):
+    raise ValueError(
+        'Weight feature "{}" must be of numeric type. Found {}.'.format(
+            weight_feature, weights_type))
+  return weights.to_numpy()
+
+
 def primitive_array_to_numpy(primitive_array: pa.Array) -> np.ndarray:
   """Converts a primitive Arrow array to a numpy 1-D ndarray.
 
@@ -122,10 +161,7 @@ def enumerate_arrays(
 
   weights = None
   if weight_column is not None:
-    weights = table.column(weight_column).data.chunk(0).flatten().to_numpy()
-    if weights.size != table.num_rows:
-      raise ValueError(
-          'The weight feature must have exactly one value in each example')
+    weights = _get_weight_feature(table, weight_column)
   for column in table.columns:
     column_name = column.name
     # use "yield from" after PY 3.3.

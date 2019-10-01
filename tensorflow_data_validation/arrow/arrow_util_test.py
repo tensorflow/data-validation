@@ -236,13 +236,35 @@ class MakeListArrayFromParentIndicesAndValuesTest(parameterized.TestCase):
 
 class EnumerateArraysTest(absltest.TestCase):
 
-  def testInvalidWeightColumn(self):
+  def testInvalidWeightColumnMissingValue(self):
     with self.assertRaisesRegex(
         ValueError,
-        "weight feature must have exactly one value in each example"):
+        'Weight feature "w" must have exactly one value.*'):
       for _ in arrow_util.enumerate_arrays(
           pa.Table.from_arrays([pa.array([[1], [2, 3]]),
                                 pa.array([[1], []])], ["v", "w"]),
+          weight_column="w",
+          enumerate_leaves_only=False):
+        pass
+
+  def testInvalidWeightColumnTooManyValues(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        'Weight feature "w" must have exactly one value.*'):
+      for _ in arrow_util.enumerate_arrays(
+          pa.Table.from_arrays([pa.array([[1], [2, 3]]),
+                                pa.array([[1], [2, 2]])], ["v", "w"]),
+          weight_column="w",
+          enumerate_leaves_only=False):
+        pass
+
+  def testInvalidWeightColumnStringValues(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        'Weight feature "w" must be of numeric type.*'):
+      for _ in arrow_util.enumerate_arrays(
+          pa.Table.from_arrays([pa.array([[1], [2, 3]]),
+                                pa.array([["two"], ["two"]])], ["v", "w"]),
           weight_column="w",
           enumerate_leaves_only=False):
         pass
