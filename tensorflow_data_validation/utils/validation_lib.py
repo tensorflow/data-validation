@@ -83,8 +83,8 @@ def validate_examples_in_tfrecord(
   if output_path is None:
     output_path = os.path.join(tempfile.mkdtemp(), 'anomaly_stats.tfrecord')
   output_dir_path = os.path.dirname(output_path)
-  if not tf.gfile.Exists(output_dir_path):
-    tf.gfile.MakeDirs(output_dir_path)
+  if not tf.io.gfile.exists(output_dir_path):
+    tf.io.gfile.makedirs(output_dir_path)
 
   with beam.Pipeline(options=pipeline_options) as p:
     _ = (
@@ -161,8 +161,8 @@ def validate_examples_in_csv(
   if output_path is None:
     output_path = os.path.join(tempfile.mkdtemp(), 'anomaly_stats.tfrecord')
   output_dir_path = os.path.dirname(output_path)
-  if not tf.gfile.Exists(output_dir_path):
-    tf.gfile.MakeDirs(output_dir_path)
+  if not tf.io.gfile.exists(output_dir_path):
+    tf.io.gfile.makedirs(output_dir_path)
 
   # If a header is not provided, assume the first line in a file
   # to be the header.

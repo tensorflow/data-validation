@@ -89,7 +89,7 @@ class ValidationLibTest(absltest.TestCase):
 
     temp_dir_path = self.create_tempdir().full_path
     input_data_path = os.path.join(temp_dir_path, 'input_data.tfrecord')
-    with tf.python_io.TFRecordWriter(input_data_path) as writer:
+    with tf.io.TFRecordWriter(input_data_path) as writer:
       for example in input_examples:
         example = text_format.Parse(example, tf.train.Example())
         writer.write(example.SerializeToString())

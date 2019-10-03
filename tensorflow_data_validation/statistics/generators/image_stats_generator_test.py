@@ -327,7 +327,7 @@ class ImageStatsGeneratorTest(test_util.CombinerFeatureStatsGeneratorTest,
 
 def _read_file(filepath):
   """Helper method for reading a file in binary mode."""
-  f = tf.gfile.Open(filepath, mode='rb')
+  f = tf.io.gfile.GFile(filepath, mode='rb')
   return f.read()
 
 

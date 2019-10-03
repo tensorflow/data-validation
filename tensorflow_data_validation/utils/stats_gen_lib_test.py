@@ -81,7 +81,7 @@ class StatsGenTest(parameterized.TestCase):
 
   def _write_tfexamples_to_tfrecords(self, examples, compression_type):
     data_location = os.path.join(self._get_temp_dir(), 'input_data.tfrecord')
-    with tf.python_io.TFRecordWriter(
+    with tf.io.TFRecordWriter(
         data_location, options=compression_type) as writer:
       for example in examples:
         writer.write(example.SerializeToString())
@@ -115,8 +115,11 @@ class StatsGenTest(parameterized.TestCase):
         })
     ]
     tf_compression_lookup = {
-        CompressionTypes.AUTO: tf.io.TFRecordCompressionType.NONE,
-        CompressionTypes.GZIP: tf.io.TFRecordCompressionType.GZIP}
+        CompressionTypes.AUTO:
+            tf.compat.v1.python_io.TFRecordCompressionType.NONE,
+        CompressionTypes.GZIP:
+            tf.compat.v1.python_io.TFRecordCompressionType.GZIP
+    }
     input_data_path = self._write_tfexamples_to_tfrecords(
         examples, tf_compression_lookup[compression_type])
 

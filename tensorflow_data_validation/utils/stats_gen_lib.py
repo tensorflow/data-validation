@@ -87,8 +87,8 @@ def generate_statistics_from_tfrecord(
   if output_path is None:
     output_path = os.path.join(tempfile.mkdtemp(), 'data_stats.tfrecord')
   output_dir_path = os.path.dirname(output_path)
-  if not tf.gfile.Exists(output_dir_path):
-    tf.gfile.MakeDirs(output_dir_path)
+  if not tf.io.gfile.exists(output_dir_path):
+    tf.io.gfile.makedirs(output_dir_path)
 
   batch_size = (
       stats_options.desired_batch_size if stats_options.desired_batch_size
@@ -162,8 +162,8 @@ def generate_statistics_from_csv(
   if output_path is None:
     output_path = os.path.join(tempfile.mkdtemp(), 'data_stats.tfrecord')
   output_dir_path = os.path.dirname(output_path)
-  if not tf.gfile.Exists(output_dir_path):
-    tf.gfile.MakeDirs(output_dir_path)
+  if not tf.io.gfile.exists(output_dir_path):
+    tf.io.gfile.makedirs(output_dir_path)
 
   batch_size = (
       stats_options.desired_batch_size if stats_options.desired_batch_size
@@ -318,13 +318,13 @@ def get_csv_header(data_location: Text,
     ValueError: If any of the input files is not found or empty, or if the files
       have different headers.
   """
-  matched_files = tf.gfile.Glob(data_location)
+  matched_files = tf.io.gfile.glob(data_location)
   if not matched_files:
     raise ValueError(
         'No file found in the input data location: %s' % data_location)
 
   # Read the header line in the first file.
-  with tf.gfile.GFile(matched_files[0], 'r') as reader:
+  with tf.io.gfile.GFile(matched_files[0], 'r') as reader:
     try:
       result = next(csv.reader(reader, delimiter=delimiter))
     except StopIteration:
@@ -333,7 +333,7 @@ def get_csv_header(data_location: Text,
 
   # Make sure that all files have the same header.
   for filename in matched_files[1:]:
-    with tf.gfile.GFile(filename, 'r') as reader:
+    with tf.io.gfile.GFile(filename, 'r') as reader:
       try:
         if next(csv.reader(reader, delimiter=delimiter)) != result:
           raise ValueError('Files have different headers.')
@@ -354,7 +354,7 @@ def load_statistics(
   Returns:
     A DatasetFeatureStatisticsList proto.
   """
-  serialized_stats = next(tf.python_io.tf_record_iterator(input_path))
+  serialized_stats = next(tf.compat.v1.io.tf_record_iterator(input_path))
   result = statistics_pb2.DatasetFeatureStatisticsList()
   result.ParseFromString(serialized_stats)
   return result
