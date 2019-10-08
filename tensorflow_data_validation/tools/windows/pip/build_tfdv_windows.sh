@@ -86,6 +86,10 @@ run_py_tests() {
 
     rm -f "${TEST_LOG_PATH}"
   done
+  if [ ! -z "${FAILED_TESTS}" ]; then
+    echo "Some tests failed. Check the logs for details."
+    exit 1
+  fi
 }
 
 # All commands shall pass, and all should be visible.
