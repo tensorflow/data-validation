@@ -24,7 +24,6 @@ tf_py_wrap_cc(
     srcs = ["tensorflow_data_validation.i"],
     swig_includes = [
         "arrow.i",
-        "fast_example_decoder.i",
         "validation_api.i",
     ],
     # Since we are building a python extension, we tell the linker to only
@@ -44,7 +43,6 @@ tf_py_wrap_cc(
         "//tensorflow_data_validation/arrow/cc:arrow_util",
         "//tensorflow_data_validation/arrow/cc:decoded_examples_to_arrow",
         "//tensorflow_data_validation/arrow/cc:merge",
-        "//tensorflow_data_validation/coders/cc:fast_example_decoder",
         "@local_config_python//:python_headers",
         "@org_tensorflow//tensorflow/core:lib",
     ],

@@ -4,6 +4,8 @@
 ## Major Features and Improvements
 
 * Generate statistics for sparse features.
+* Directly convert a batch of tf.Examples to Arrow tables. Avoids conversion of
+  tf.Example to intermediate Dict representation.
 
 ## Bug Fixes and Other Changes
 

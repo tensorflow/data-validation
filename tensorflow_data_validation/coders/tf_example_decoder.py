@@ -23,22 +23,18 @@ import apache_beam as beam
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
-from tensorflow_data_validation.pywrap import pywrap_tensorflow_data_validation
 from tensorflow_data_validation.utils import batch_util
+from tfx_bsl.coders import example_coder
 
 
-DecodeExample = pywrap_tensorflow_data_validation.TFDV_DecodeExample  # pylint: disable=invalid-name
-
-
-# TODO(pachristopher): This fast coder can also benefit TFT. Consider moving
-# this coder to tf.Beam once it is available.
+# TODO(pachristopher): Deprecate this in 0.16.
 class TFExampleDecoder(object):
   """A decoder for decoding TF examples into tf data validation datasets.
   """
 
   def decode(self, serialized_example_proto: bytes) -> types.Example:
     """Decodes serialized tf.Example to tf data validation input dict."""
-    return DecodeExample(serialized_example_proto)
+    return example_coder.ExampleToNumpyDict(serialized_example_proto)
 
 
 @beam.ptransform_fn
@@ -58,9 +54,7 @@ def DecodeTFExample(
   Returns:
     A PCollection of Arrow tables.
   """
-  decoder = TFExampleDecoder()
   return (examples
-          | 'ParseTFExamples' >> beam.Map(decoder.decode)
-          | 'BatchExamplesToArrowTables' >>
-          batch_util.BatchExamplesToArrowTables(
+          | 'BatchSerializedExamplesToArrowTables' >>
+          batch_util.BatchSerializedExamplesToArrowTables(
               desired_batch_size=desired_batch_size))

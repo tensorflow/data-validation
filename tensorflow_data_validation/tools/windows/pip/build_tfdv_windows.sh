@@ -129,6 +129,17 @@ pip install setuptools --upgrade
 pip install wheel --upgrade
 pip freeze --all
 
+echo "Installing TFX-BSL at head"
+pushd tfx_bsl_at_head
+source "tfx_bsl/tools/windows/pip/build_tfx_bsl_windows.sh" \
+  || { echo "Failed to source build_tfx_bsl_windows.sh" >&2; exit 1; }
+
+(tfx_bsl::build_from_head_windows) && wheel=$(ls dist/*.whl) \
+  || { echo "Failed to build tfx_bsl."; exit 1; }
+
+pip install ${wheel}
+popd
+
 PYARROW_REQUIREMENT=$(python -c "fp = open('third_party/pyarrow_version.bzl', 'r'); d = {}; exec(fp.read(), d); fp.close(); print(d['PY_DEP'])")
 pip install "${PYARROW_REQUIREMENT}"
 ./configure.sh
@@ -143,19 +154,8 @@ pip uninstall -y Cython
 pip install dist/*.whl
 pip install ${TENSORFLOW}
 
-# If running with tf-nightly, install TFT at head. If installing TFT at head,
-# also install TFX-BSL at head.
+# If running with tf-nightly, install TFT at head.
 if [[ ${TENSORFLOW}==tf-nightly ]]; then
-  echo "Installing TFX-BSL at head"
-  pushd tfx_bsl_at_head
-  PYARROW_REQUIREMENT=$(python -c "fp = open('third_party/pyarrow_version.bzl', 'r'); d = {}; exec(fp.read(), d); fp.close(); print(d['PY_DEP'])")
-  pip install "${PYARROW_REQUIREMENT}"
-  ./configure.sh
-  bazel run -c opt --copt=-DWIN32_LEAN_AND_MEAN tfx_bsl:build_pip_package -- --python_bin_path ${PYTHON_BIN_PATH}
-  BSL_WHEEL_PATH=$(find dist -name "*.whl")
-  pip install ${BSL_WHEEL_PATH}
-  popd # pop tfx_bsl_at_head
-
   pip uninstall -y tensorflow-transform
   echo "Installing TFT at head"
   pushd tft_at_head

@@ -102,6 +102,7 @@ setup(
         # 'tensorflow>=1.14,<2',
         'tensorflow-metadata>=0.14,<0.15',
         'tensorflow-transform>=0.14,<0.15',
+        'tfx-bsl>=0.15.0.dev0,<0.16',
 
         # Dependencies needed for visualization.
         # Note that we don't add a max version for IPython as it introduces a
