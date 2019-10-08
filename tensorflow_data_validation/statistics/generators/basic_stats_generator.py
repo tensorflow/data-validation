@@ -57,6 +57,7 @@ from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import quantiles_util
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
+from tfx_bsl.arrow import array_util
 from typing import Any, Dict, Iterable, Optional, Text
 
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -143,9 +144,9 @@ class _PartialCommonStats(object):
       return
 
     num_values = arrow_util.primitive_array_to_numpy(
-        arrow_util.ListLengthsFromListArray(feature_array))
+        array_util.ListLengthsFromListArray(feature_array))
     none_mask = arrow_util.primitive_array_to_numpy(
-        arrow_util.GetArrayNullBitmapAsByteArray(feature_array)).view(np.bool)
+        array_util.GetArrayNullBitmapAsByteArray(feature_array)).view(np.bool)
 
     self.num_non_missing += len(feature_array) - feature_array.null_count
     num_values_not_none = num_values[~none_mask]
@@ -263,7 +264,7 @@ class _PartialNumericStats(object):
         self.quantiles_summary, [values_no_nan, np.ones_like(values_no_nan)])
     if weights is not None:
       value_parent_indices = arrow_util.primitive_array_to_numpy(
-          arrow_util.GetFlattenedArrayParentIndices(feature_array))
+          array_util.GetFlattenedArrayParentIndices(feature_array))
       flat_weights = weights[value_parent_indices]
       flat_weights_no_nan = flat_weights[non_nan_mask]
       weighted_values = flat_weights_no_nan * values_no_nan
@@ -299,7 +300,7 @@ class _PartialStringStats(object):
       # GetBinaryArrayTotalByteSize returns a Python long (to be compatible
       # with Python3). To make sure we do cheaper integer arithemetics in
       # Python2, we first convert it to int.
-      self.total_bytes_length += int(arrow_util.GetBinaryArrayTotalByteSize(
+      self.total_bytes_length += int(array_util.GetBinaryArrayTotalByteSize(
           flattened_values_array))
     elif flattened_values_array:
       # We can only do flattened_values_array.to_numpy() when it's not empty.

@@ -17,20 +17,6 @@ cc_library(
 )
 
 cc_library(
-    name = "arrow_util",
-    srcs = ["arrow_util.cc"],
-    hdrs = ["arrow_util.h"],
-    deps = [
-        ":common",
-        ":init_numpy",
-        "@arrow",
-        "@com_google_absl//absl/strings",
-        "@com_google_absl//absl/types:span",
-        "@local_config_python//:python_headers",
-    ],
-)
-
-cc_library(
     name = "decoded_examples_to_arrow",
     srcs = ["decoded_examples_to_arrow.cc"],
     hdrs = ["decoded_examples_to_arrow.h"],
@@ -42,22 +28,6 @@ cc_library(
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:optional",
-        "@local_config_python//:numpy_headers",
-        "@local_config_python//:python_headers",
-    ],
-)
-
-cc_library(
-    name = "merge",
-    srcs = ["merge.cc"],
-    hdrs = ["merge.h"],
-    deps = [
-        ":common",
-        ":init_numpy",
-        "@arrow",
-        "@com_google_absl//absl/container:flat_hash_map",
-        "@com_google_absl//absl/strings",
-        "@com_google_absl//absl/types:variant",
         "@local_config_python//:numpy_headers",
         "@local_config_python//:python_headers",
     ],

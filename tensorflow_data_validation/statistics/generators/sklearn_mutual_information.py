@@ -29,6 +29,7 @@ from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import partitioned_stats_generator
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
+from tfx_bsl.arrow import array_util
 
 from typing import Dict, List, Set, Text
 
@@ -101,14 +102,14 @@ def _flatten_and_impute(examples_table: pa.Table,
     non_missing_values = np.copy(
         arrow_util.primitive_array_to_numpy(feature_array.flatten()))
     non_missing_parent_indices = arrow_util.primitive_array_to_numpy(
-        arrow_util.GetFlattenedArrayParentIndices(feature_array))
+        array_util.GetFlattenedArrayParentIndices(feature_array))
     is_categorical_feature = feature_path in categorical_features
     result_dtype = non_missing_values.dtype
     if non_missing_parent_indices.size < num_rows and is_categorical_feature:
       result_dtype = np.object
     flattened_array = np.ndarray(shape=num_rows, dtype=result_dtype)
     num_values = arrow_util.primitive_array_to_numpy(
-        arrow_util.ListLengthsFromListArray(feature_array))
+        array_util.ListLengthsFromListArray(feature_array))
     missing_parent_indices = np.where(num_values == 0)[0]
     if feature_path in categorical_features:
       imputation_fill_value = CATEGORICAL_FEATURE_IMPUTATION_FILL_VALUE

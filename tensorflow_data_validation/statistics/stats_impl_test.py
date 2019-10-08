@@ -24,8 +24,6 @@ import apache_beam as beam
 from apache_beam.testing import util
 import numpy as np
 from tensorflow_data_validation import types
-from tensorflow_data_validation.arrow import arrow_util
-from tensorflow_data_validation.arrow import merge
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options
@@ -33,6 +31,8 @@ from tensorflow_data_validation.statistics.generators import basic_stats_generat
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import slicing_util
 from tensorflow_data_validation.utils import test_util
+from tfx_bsl.arrow import array_util
+from tfx_bsl.arrow import table_util
 from typing import List
 
 from google.protobuf import text_format
@@ -66,8 +66,8 @@ class _ValueCounter(_BaseCounter):
   """A _BaseCounter that counts number of values."""
 
   def add_input(self, accumulator, feature_path, feature_array):
-    num_values = arrow_util.ListLengthsFromListArray(feature_array).to_numpy()
-    none_mask = arrow_util.GetArrayNullBitmapAsByteArray(
+    num_values = array_util.ListLengthsFromListArray(feature_array).to_numpy()
+    none_mask = array_util.GetArrayNullBitmapAsByteArray(
         feature_array).to_numpy().view(np.bool)
     accumulator += np.sum(num_values[~none_mask])
     return accumulator
@@ -2389,7 +2389,7 @@ class StatsImplTest(parameterized.TestCase):
     if schema is not None:
       options.schema = schema
     result = stats_impl.generate_statistics_in_memory(
-        merge.MergeTables(tables), options)
+        table_util.MergeTables(tables), options)
     # generate_statistics_in_memory does not deterministically
     # order multiple features within a DatasetFeatureStatistics proto. So, we
     # cannot use compare.assertProtoEqual (which requires the same ordering of

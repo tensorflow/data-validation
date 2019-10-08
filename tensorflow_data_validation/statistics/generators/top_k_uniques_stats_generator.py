@@ -34,7 +34,9 @@ from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
+from tfx_bsl.arrow import array_util
 from typing import Any, Iterable, Iterator, FrozenSet, List, Optional, Set, Text, Tuple, Union
+
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
@@ -221,13 +223,13 @@ def _to_topk_tuples(
             flattened_values)
         parent_indices = (
             arrow_util.primitive_array_to_numpy(
-                arrow_util.GetFlattenedArrayParentIndices(feature_array)))
+                array_util.GetFlattenedArrayParentIndices(feature_array)))
         weights_ndarray = weights[parent_indices]
         for value, count, weight in _weighted_unique(
             flattened_values_np, weights_ndarray):
           yield (slice_key, feature_path.steps(), value), (count, weight)
       else:
-        value_counts = arrow_util.ValueCounts(flattened_values)
+        value_counts = array_util.ValueCounts(flattened_values)
         values = value_counts.field('values').to_pylist()
         counts = value_counts.field('counts').to_pylist()
         for value, count in six.moves.zip(values, counts):

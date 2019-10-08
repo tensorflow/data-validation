@@ -27,10 +27,10 @@ import functools
 import apache_beam as beam
 import numpy as np
 from tensorflow_data_validation import types
-from tensorflow_data_validation.arrow import merge
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import stats_util
+from tfx_bsl.arrow import table_util
 from typing import Dict, Iterable, List, Text, Tuple
 
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -182,7 +182,7 @@ def _process_partition(
 ) -> Tuple[types.SliceKey, statistics_pb2.DatasetFeatureStatistics]:
   """Process batches in a single partition."""
   (slice_key, _), tables = partition
-  return slice_key, stats_fn.compute(merge.MergeTables(tables))
+  return slice_key, stats_fn.compute(table_util.MergeTables(tables))
 
 
 # Input type check is commented out, as beam python will fail the type check

@@ -27,7 +27,9 @@ from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.statistics.generators import top_k_uniques_stats_generator
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
+from tfx_bsl.arrow import array_util
 from typing import Any, Dict, Iterable, List, Optional, Set, Text
+
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
@@ -178,7 +180,7 @@ class TopKUniquesCombinerStatsGenerator(
         flattened_values = leaf_array.flatten()
         unweighted_counts = collections.Counter()
         # Compute unweighted counts.
-        value_counts = arrow_util.ValueCounts(flattened_values)
+        value_counts = array_util.ValueCounts(flattened_values)
         values = value_counts.field('values').to_pylist()
         counts = value_counts.field('counts').to_pylist()
         for value, count in six.moves.zip(values, counts):
@@ -189,7 +191,7 @@ class TopKUniquesCombinerStatsGenerator(
         if weights is not None:
           flattened_values_np = arrow_util.primitive_array_to_numpy(
               flattened_values)
-          parent_indices = arrow_util.GetFlattenedArrayParentIndices(leaf_array)
+          parent_indices = array_util.GetFlattenedArrayParentIndices(leaf_array)
           weighted_counts.weighted_update(
               flattened_values_np,
               weights[arrow_util.primitive_array_to_numpy(parent_indices)])

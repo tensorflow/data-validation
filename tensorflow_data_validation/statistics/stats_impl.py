@@ -29,7 +29,6 @@ from six.moves import zip
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
-from tensorflow_data_validation.arrow import merge
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.statistics.generators import basic_stats_generator
@@ -42,6 +41,7 @@ from tensorflow_data_validation.statistics.generators import top_k_uniques_combi
 from tensorflow_data_validation.statistics.generators import top_k_uniques_stats_generator
 from tensorflow_data_validation.utils import slicing_util
 from tensorflow_data_validation.utils import stats_util
+from tfx_bsl.arrow import table_util
 from typing import Any, Callable, Dict, Iterable, List, Optional, Text, Tuple
 
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -609,7 +609,7 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
       if len(accumulator.input_tables) == 1:
         arrow_table = accumulator.input_tables[0]
       else:
-        arrow_table = merge.MergeTables(accumulator.input_tables)
+        arrow_table = table_util.MergeTables(accumulator.input_tables)
       accumulator.partial_accumulators = self._for_each_generator(
           lambda gen, gen_acc: gen.add_input(gen_acc, arrow_table),
           accumulator.partial_accumulators)

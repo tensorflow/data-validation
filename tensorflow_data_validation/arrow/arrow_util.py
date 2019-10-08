@@ -21,18 +21,8 @@ from __future__ import print_function
 import numpy as np
 from tensorflow_data_validation import types
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
-from tensorflow_data_validation.pywrap import pywrap_tensorflow_data_validation as pywrap
+from tfx_bsl.arrow import array_util
 from typing import Iterable, Optional, Text, Tuple
-
-# The following are function aliases thus valid function names.
-# pylint: disable=invalid-name
-ListLengthsFromListArray = pywrap.TFDV_Arrow_ListLengthsFromListArray
-GetFlattenedArrayParentIndices = pywrap.TFDV_Arrow_GetFlattenedArrayParentIndices
-GetArrayNullBitmapAsByteArray = pywrap.TFDV_Arrow_GetArrayNullBitmapAsByteArray
-GetBinaryArrayTotalByteSize = pywrap.TFDV_Arrow_GetBinaryArrayTotalByteSize
-ValueCounts = pywrap.TFDV_Arrow_ValueCounts
-MakeListArrayFromParentIndicesAndValues = (
-    pywrap.TFDV_Arrow_MakeListArrayFromParentIndicesAndValues)
 
 
 def _get_weight_feature(input_table: pa.Table,
@@ -58,7 +48,7 @@ def _get_weight_feature(input_table: pa.Table,
                      'table.'.format(weight_feature))
 
   # Before flattening, check that there is a single value for each example.
-  weight_lengths = ListLengthsFromListArray(weights).to_numpy()
+  weight_lengths = array_util.ListLengthsFromListArray(weights).to_numpy()
   if not np.all(weight_lengths == 1):
     raise ValueError(
         'Weight feature "{}" must have exactly one value in each example.'
@@ -148,7 +138,8 @@ def enumerate_arrays(
       flat_struct_array = array.flatten()
       flat_weights = None
       if weights is not None:
-        flat_weights = weights[GetFlattenedArrayParentIndices(array).to_numpy()]
+        flat_weights = weights[
+            array_util.GetFlattenedArrayParentIndices(array).to_numpy()]
       for field in flat_struct_array.type:
         field_name = field.name
         # use "yield from" after PY 3.3.
