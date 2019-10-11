@@ -33,13 +33,17 @@ class ValidationOptionsTest(absltest.TestCase):
         ]
     }
     new_features_are_warnings = True
+    severity_overrides = []
     options = validation_options.ValidationOptions(features_needed,
-                                                   new_features_are_warnings)
+                                                   new_features_are_warnings,
+                                                   severity_overrides)
 
     # Test getters
     self.assertEqual(features_needed, options.features_needed)
     self.assertEqual(new_features_are_warnings,
                      options.new_features_are_warnings)
+    self.assertEqual(severity_overrides, options.severity_overrides)
+
 
 if __name__ == '__main__':
   absltest.main()

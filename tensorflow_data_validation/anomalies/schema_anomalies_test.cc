@@ -546,9 +546,19 @@ TEST(Schema, FindChangesOnlyValidateSchemaFeatures) {
   expected_anomalies["new_feature"].expected_info_without_diff.set_severity(
       tensorflow::metadata::v0::AnomalyInfo::WARNING);
 
+  // Set to warning severity using legacy new_features_are_warnings
   TestFindChanges(schema, DatasetStatsView(statistics, false),
                   ParseTextProtoOrDie<FeatureStatisticsToProtoConfig>(
                       "new_features_are_warnings: true"),
+                  expected_anomalies);
+
+  // Set to warning severity using severity_overrides
+  TestFindChanges(schema, DatasetStatsView(statistics, false),
+                  ParseTextProtoOrDie<FeatureStatisticsToProtoConfig>(
+                      R"pb(severity_overrides: {
+                             type: SCHEMA_NEW_COLUMN
+                             severity: WARNING
+                           })pb"),
                   expected_anomalies);
 }
 
@@ -710,6 +720,22 @@ TEST(GetSchemaDiff, FindSelectedChanges) {
   auto result = anomalies.GetSchemaDiff(/*enable_diff_regions=*/false);
 
   TestAnomalies(result, initial, expected_anomalies);
+
+  // Test that severity overrides affect severity in output anomalies.
+  SchemaAnomalies anomalies_with_overrides(initial);
+  TF_CHECK_OK(anomalies_with_overrides.FindChanges(
+      DatasetStatsView(statistics), features,
+      ParseTextProtoOrDie<FeatureStatisticsToProtoConfig>(
+          R"pb(severity_overrides: {
+                 type: FEATURE_TYPE_HIGH_NUMBER_VALUES
+                 severity: WARNING
+               })pb")));
+  auto result_with_overrides = anomalies_with_overrides.GetSchemaDiff(
+      /*enable_diff_regions=*/false);
+
+  expected_anomalies["bar"].expected_info_without_diff.set_severity(
+      tensorflow::metadata::v0::AnomalyInfo::WARNING);
+  TestAnomalies(result_with_overrides, initial, expected_anomalies);
 }
 
 TEST(GetSchemaDiff, ValidSparseFeature) {
@@ -1341,6 +1367,18 @@ TEST(GetSchemaDiff, MissingFeatureSparseFeature) {
       schema_proto,
       DatasetStatsView(missing_features_stats, /* by_weight= */ false),
       FeatureStatisticsToProtoConfig(), expected_anomalies);
+
+  // Severity will be ERROR even though one anomaly is overidden to WARNING
+  // because the max severity takes precedence.
+  TestFindChanges(
+      schema_proto,
+      DatasetStatsView(missing_features_stats, /* by_weight= */ false),
+      ParseTextProtoOrDie<FeatureStatisticsToProtoConfig>(
+          R"pb(severity_overrides: {
+                 type: SPARSE_FEATURE_MISSING_VALUE
+                 severity: WARNING
+               })pb"),
+      expected_anomalies);
 }
 
 TEST(GetSchemaDiff, LengthMismatchSparseFeature) {
@@ -1410,6 +1448,19 @@ TEST(GetSchemaDiff, LengthMismatchSparseFeature) {
       schema_proto,
       DatasetStatsView(length_mismatch_stats, /* by_weight= */ false),
       FeatureStatisticsToProtoConfig(), expected_anomalies);
+
+  // Test that severity overrides take effect.
+  expected_anomalies["sparse_feature"].expected_info_without_diff.set_severity(
+      tensorflow::metadata::v0::AnomalyInfo::WARNING);
+  TestFindChanges(
+      schema_proto,
+      DatasetStatsView(length_mismatch_stats, /* by_weight= */ false),
+      ParseTextProtoOrDie<FeatureStatisticsToProtoConfig>(
+          R"pb(severity_overrides: {
+                 type: SPARSE_FEATURE_LENGTH_MISMATCH
+                 severity: WARNING
+               })pb"),
+      expected_anomalies);
 }
 
 // Two reasons in the same example.

@@ -15,9 +15,11 @@
 
 syntax = "proto2";
 
-import "tensorflow_metadata/proto/v0/path.proto";
-
 package tensorflow.data_validation;
+
+import "tensorflow_data_validation/anomalies/proto/validation_config.proto";
+import "tensorflow_metadata/proto/v0/anomalies.proto";
+import "tensorflow_metadata/proto/v0/path.proto";
 
 // Manual constraints on the automatic generation of a schema.
 message ColumnConstraint {
@@ -59,5 +61,9 @@ message FeatureStatisticsToProtoConfig {
   // Ignore the following columns.
   repeated string column_to_ignore = 6;
   // Sets the severity of an anomaly which indicates a new feature.
-  optional bool new_features_are_warnings = 7;
+  // Deprecated. Prefer severity_overrides.
+  optional bool new_features_are_warnings = 7 [deprecated = true];
+  // Overrides for the severity of different anomalies. If not specified, the
+  // default severities are used.
+  repeated SeverityOverride severity_overrides = 9;
 }

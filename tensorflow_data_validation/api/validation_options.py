@@ -21,6 +21,7 @@ from __future__ import print_function
 
 import collections
 
+from tensorflow_data_validation.anomalies.proto import validation_config_pb2
 from tensorflow_data_validation.types import FeaturePath
 from typing import List, Optional, Mapping, Text
 
@@ -40,9 +41,12 @@ class ValidationOptions(object):
       self,
       features_needed: Optional[Mapping[FeaturePath,
                                         List[ReasonFeatureNeeded]]] = None,
-      new_features_are_warnings: Optional[bool] = False):
+      new_features_are_warnings: Optional[bool] = False,
+      severity_overrides: Optional[List[
+          validation_config_pb2.SeverityOverride]] = None):
     self._features_needed = features_needed
     self._new_features_are_warnings = new_features_are_warnings
+    self._severity_overrides = severity_overrides or []
 
   @property
   def features_needed(
@@ -52,3 +56,7 @@ class ValidationOptions(object):
   @property
   def new_features_are_warnings(self) -> bool:
     return self._new_features_are_warnings
+
+  @property
+  def severity_overrides(self) -> bool:
+    return self._severity_overrides

@@ -192,6 +192,7 @@ cc_library(
         ":path",
         ":statistics_view",
         "//tensorflow_data_validation/anomalies/proto:feature_statistics_to_proto_proto",
+        "//tensorflow_data_validation/anomalies/proto:validation_config_proto",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/memory",

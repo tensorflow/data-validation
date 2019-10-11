@@ -442,6 +442,8 @@ def validate_statistics_internal(
   if validation_options is not None:
     validation_config.new_features_are_warnings = (
         validation_options.new_features_are_warnings)
+    for override in validation_options.severity_overrides:
+      validation_config.severity_overrides.append(override)
   serialized_validation_config = validation_config.SerializeToString()
 
   anomalies_proto_string = (

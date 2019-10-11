@@ -123,6 +123,9 @@ tensorflow::Status ValidateFeatureStatistics(
   feature_statistics_to_proto_config.set_enum_threshold(kDefaultEnumThreshold);
   feature_statistics_to_proto_config.set_new_features_are_warnings(
       validation_config.new_features_are_warnings());
+  *feature_statistics_to_proto_config.mutable_severity_overrides() =
+      validation_config.severity_overrides();
+
   const bool by_weight =
       DatasetStatsView(feature_statistics).WeightedStatisticsExist();
   if (feature_statistics.num_examples() == 0) {

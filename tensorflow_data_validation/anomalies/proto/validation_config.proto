@@ -13,14 +13,27 @@
 // limitations under the License.
 // =============================================================================
 
-syntax = "proto3";
+syntax = "proto2";
 
 package tensorflow.data_validation;
+
+import "tensorflow_metadata/proto/v0/anomalies.proto";
 
 // Configuration for example statistics validation.
 message ValidationConfig {
   // If true then validation will mark new features (i.e., those that are not
   // covered in the schema) as warnings instead of errors. The distinction is
   // that warnings do not cause alerts to fire.
-  bool new_features_are_warnings = 1;
+  // Deprecated. Prefer severity_overrides.
+  optional bool new_features_are_warnings = 1 [deprecated = true];
+
+  // Overrides for the severity of different anomalies. If not specified, the
+  // default severities are used. Note: if multiple anomaly types are observed,
+  // the maximum severity takes precedence for the overall severity.
+  repeated SeverityOverride severity_overrides = 2;
+}
+
+message SeverityOverride {
+  optional metadata.v0.AnomalyInfo.Type type = 1;
+  optional metadata.v0.AnomalyInfo.Severity severity = 2;
 }

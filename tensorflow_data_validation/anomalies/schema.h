@@ -26,6 +26,7 @@ limitations under the License.
 #include "tensorflow_data_validation/anomalies/internal_types.h"
 #include "tensorflow_data_validation/anomalies/path.h"
 #include "tensorflow_data_validation/anomalies/proto/feature_statistics_to_proto.pb.h"
+#include "tensorflow_data_validation/anomalies/proto/validation_config.pb.h"
 #include "tensorflow_data_validation/anomalies/statistics_view.h"
 #include "tensorflow/core/lib/core/status.h"
 #include "tensorflow/core/platform/protobuf.h"
@@ -67,6 +68,12 @@ class Schema {
     // Updates the severity of the change.
     tensorflow::Status CreateColumn(
         const FeatureStatsView& feature_stats_view, Schema* schema,
+        tensorflow::metadata::v0::AnomalyInfo::Severity* severity) const;
+
+    // Sets the severity based on anomaly descriptions, possibly using severity
+    // overrides.
+    void UpdateSeverityForAnomaly(
+        const std::vector<Description>& descriptions,
         tensorflow::metadata::v0::AnomalyInfo::Severity* severity) const;
 
     // Returns true if there is a limit on the size of a string domain and it

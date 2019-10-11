@@ -215,28 +215,25 @@ tensorflow::Status Schema::UpdateFeature(
            "Sparse feature name collision", "Sparse feature name collision"});
       ::tensorflow::data_validation::DeprecateSparseFeature(sparse_feature);
       ::tensorflow::data_validation::DeprecateFeature(feature);
-      *severity = tensorflow::metadata::v0::AnomalyInfo::ERROR;
+      updater.UpdateSeverityForAnomaly(*descriptions, severity);
       return Status::OK();
     } else {
       *descriptions = UpdateSparseFeature(feature_stats_view, sparse_feature);
-      if (!descriptions->empty()) {
-        *severity = tensorflow::metadata::v0::AnomalyInfo::ERROR;
-      }
+      updater.UpdateSeverityForAnomaly(*descriptions, severity);
       return Status::OK();
     }
   }
 
   if (feature != nullptr) {
     *descriptions = UpdateFeatureInternal(updater, feature_stats_view, feature);
-    if (!descriptions->empty()) {
-      *severity = tensorflow::metadata::v0::AnomalyInfo::ERROR;
-    }
+    updater.UpdateSeverityForAnomaly(*descriptions, severity);
     return Status::OK();
   } else {
     const Description description = {
         tensorflow::metadata::v0::AnomalyInfo::SCHEMA_NEW_COLUMN, "New column",
         "New column (column in data but not in schema)"};
     *descriptions = {description};
+    updater.UpdateSeverityForAnomaly(*descriptions, severity);
     return updater.CreateColumn(feature_stats_view, this, severity);
   }
   return Status::OK();
@@ -284,6 +281,7 @@ Status Schema::UpdateRecursively(
       *severity = MaxSeverity(child_severity, *severity);
     }
   }
+  updater.UpdateSeverityForAnomaly(*descriptions, severity);
   return Status::OK();
 }
 
@@ -298,6 +296,32 @@ Schema::Updater::Updater(const FeatureStatisticsToProtoConfig& config)
   }
 }
 
+// Sets the severity based on anomaly descriptions, possibly using severity
+// overrides.
+void Schema::Updater::UpdateSeverityForAnomaly(
+    const std::vector<Description>& descriptions,
+    tensorflow::metadata::v0::AnomalyInfo::Severity* severity) const {
+  for (auto description : descriptions) {
+    // By default, all anomalies are ERROR level.
+    tensorflow::metadata::v0::AnomalyInfo::Severity severity_for_anomaly =
+        tensorflow::metadata::v0::AnomalyInfo::ERROR;
+
+    if (config_.new_features_are_warnings() &&
+        (description.type ==
+         tensorflow::metadata::v0::AnomalyInfo::SCHEMA_NEW_COLUMN)) {
+      LOG(WARNING) << "new_features_are_warnings is deprecated. Use "
+                      "severity_overrides";
+      severity_for_anomaly = tensorflow::metadata::v0::AnomalyInfo::WARNING;
+    }
+    for (auto severity_override : config_.severity_overrides()) {
+      if (severity_override.type() == description.type) {
+        severity_for_anomaly = severity_override.severity();
+      }
+    }
+    *severity = MaxSeverity(*severity, severity_for_anomaly);
+  }
+}
+
 Status Schema::Updater::CreateColumn(
     const FeatureStatsView& feature_stats_view, Schema* schema,
     tensorflow::metadata::v0::AnomalyInfo::Severity* severity) const {
@@ -305,10 +329,6 @@ Status Schema::Updater::CreateColumn(
     return InvalidArgument("Schema already contains \"",
                            feature_stats_view.GetPath().Serialize(), "\".");
   }
-
-  *severity = config_.new_features_are_warnings()
-                  ? tensorflow::metadata::v0::AnomalyInfo::WARNING
-                  : tensorflow::metadata::v0::AnomalyInfo::ERROR;
 
   Feature* feature = schema->GetNewFeature(feature_stats_view.GetPath());
 
@@ -479,13 +499,13 @@ std::map<string, std::set<Path>> Schema::EnumNameToPaths() const {
 Status Schema::Update(const DatasetStatsView& dataset_stats,
                       const Updater& updater,
                       const absl::optional<std::set<Path>>& paths_to_consider) {
-  std::vector<Description> dummy_descriptions;
-  tensorflow::metadata::v0::AnomalyInfo::Severity dummy_severity;
+  std::vector<Description> descriptions;
+  tensorflow::metadata::v0::AnomalyInfo::Severity severity;
 
   for (const auto& feature_stats_view : dataset_stats.GetRootFeatures()) {
     TF_RETURN_IF_ERROR(UpdateRecursively(updater, feature_stats_view,
-                                         paths_to_consider, &dummy_descriptions,
-                                         &dummy_severity));
+                                         paths_to_consider, &descriptions,
+                                         &severity));
   }
   for (const Path& missing_path : GetMissingPaths(dataset_stats)) {
     if (ContainsPath(paths_to_consider, missing_path)) {
