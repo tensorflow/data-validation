@@ -20,6 +20,7 @@ from __future__ import division
 from __future__ import print_function
 
 import itertools
+import math
 import random
 
 import apache_beam as beam
@@ -129,14 +130,15 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
                         'found object of type %s' %
                         generator.__class__.__name__)
     if combiner_stats_generators:
-      # TODO(b/115685296): Obviate the need for the fanout=8 workaround.
+      # TODO(b/115685296): Obviate the need for explicit fanout.
+      fanout = 5 * int(math.ceil(math.sqrt(len(combiner_stats_generators))))
       result_protos.append(dataset
                            | 'RunCombinerStatsGenerators'
                            >> beam.CombinePerKey(
                                _CombinerStatsGeneratorsCombineFn(
                                    combiner_stats_generators,
                                    self._options.desired_batch_size
-                                   )).with_hot_key_fanout(fanout=8))
+                                   )).with_hot_key_fanout(fanout))
 
     # result_protos is a list of PCollections of (slice key,
     # DatasetFeatureStatistics proto) pairs. We now flatten the list into a
