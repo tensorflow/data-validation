@@ -28,6 +28,7 @@ from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.statistics.generators import basic_stats_generator
+from tensorflow_data_validation.statistics.generators import cross_feature_stats_generator
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import slicing_util
 from tensorflow_data_validation.utils import test_util
@@ -1711,6 +1712,109 @@ GENERATE_STATS_TESTS = [
                   }
                 }
               """, schema_pb2.Schema())
+    },
+    {
+        'testcase_name':
+            'cross_feature_stats',
+        'tables': [
+            pa.Table.from_arrays([
+                pa.array([[1.0], [3.0], [5.0]]),
+                pa.array([[2.0], [4.0], [6.0]]),
+                pa.array([[5.0], [3.0], [7.0]]),], ['a', 'b', 'c']),
+            pa.Table.from_arrays([
+                pa.array([[6.0], [10.0]]), pa.array([[14.0], [16.0]]),
+                pa.array([[-1.0], [0]]),], ['a', 'b', 'c'])
+        ],
+        'options':
+            stats_options.StatsOptions(
+                generators=[
+                    cross_feature_stats_generator.CrossFeatureStatsGenerator(
+                        sample_rate=1.0)
+                ],
+                feature_whitelist=['a'],
+                num_quantiles_histogram_buckets=1,
+                num_histogram_buckets=1,
+                num_values_histogram_buckets=2),
+        'expected_result_proto_text':
+            """
+            datasets {
+              num_examples: 5
+              cross_features {
+                path_x { step: "a" }
+                path_y { step: "b" }
+                count: 5
+                num_cross_stats {
+                  correlation: 0.923145
+                  covariance: 15.6
+                }
+              }
+              cross_features {
+                path_x { step: "a" }
+                path_y { step: "c" }
+                count: 5
+                num_cross_stats {
+                  correlation: -0.59476602
+                  covariance: -5.4000001
+                }
+              }
+              cross_features {
+                path_x { step: "b" }
+                path_y { step: "c" }
+                count: 5
+                num_cross_stats {
+                  correlation: -0.81070298
+                  covariance: -13.52
+                }
+              }
+              features {
+                type: FLOAT
+                num_stats {
+                  common_stats {
+                    num_non_missing: 5
+                    min_num_values: 1
+                    max_num_values: 1
+                    avg_num_values: 1.0
+                    num_values_histogram {
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 2.5
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 2.5
+                      }
+                      type: QUANTILES
+                    }
+                    tot_num_values: 5
+                  }
+                  mean: 5.0
+                  std_dev: 3.033150177620621
+                  min: 1.0
+                  median: 5.0
+                  max: 10.0
+                  histograms {
+                    buckets {
+                      low_value: 1.0
+                      high_value: 10.0
+                      sample_count: 5.0
+                    }
+                  }
+                  histograms {
+                    buckets {
+                      low_value: 1.0
+                      high_value: 10.0
+                      sample_count: 5.0
+                    }
+                    type: QUANTILES
+                  }
+                }
+                path {
+                  step: "a"
+                }
+              }
+            }""",
     },
 ]
 

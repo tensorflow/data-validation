@@ -329,9 +329,13 @@ def _merge_dataset_feature_stats_protos(
     The merged DatasetFeatureStatistics proto.
   """
   stats_per_feature = {}
+  # Create a new DatasetFeatureStatistics proto.
+  result = statistics_pb2.DatasetFeatureStatistics()
   # Iterate over each DatasetFeatureStatistics proto and merge the
-  # FeatureNameStatistics protos per feature.
+  # FeatureNameStatistics protos per feature and add the cross feature stats.
   for stats_proto in stats_protos:
+    if stats_proto.cross_features:
+      result.cross_features.extend(stats_proto.cross_features)
     for feature_stats_proto in stats_proto.features:
       feature_path = types.FeaturePath.from_proto(feature_stats_proto.path)
       if feature_path not in stats_per_feature:
@@ -343,8 +347,6 @@ def _merge_dataset_feature_stats_protos(
         del stats_for_feature.path.step[:]
         stats_per_feature[feature_path].MergeFrom(feature_stats_proto)
 
-  # Create a new DatasetFeatureStatistics proto.
-  result = statistics_pb2.DatasetFeatureStatistics()
   num_examples = None
   for feature_stats_proto in six.itervalues(stats_per_feature):
     # Add the merged FeatureNameStatistics proto for the feature
