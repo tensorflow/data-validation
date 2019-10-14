@@ -614,6 +614,23 @@ class StatsGenTest(parameterized.TestCase):
     test_util.assert_dataset_feature_stats_proto_equal(
         self, result.datasets[0], expected_result.datasets[0])
 
+  def test_stats_gen_with_dataframe_feature_whitelist(self):
+    records, _, expected_result = self._get_csv_test(delimiter=',',
+                                                     with_header=True)
+    input_data_path = self._write_records_to_csv(records, self._get_temp_dir(),
+                                                 'input_data.csv')
+
+    dataframe = pd.read_csv(input_data_path)
+    stats_options_whitelist = self._default_stats_options
+    stats_options_whitelist.feature_whitelist = list(dataframe.columns)
+    dataframe['to_be_removed_column'] = [
+        [1, 2], [], None, [1], None, [3, 4], [], None]
+    result = stats_gen_lib.generate_statistics_from_dataframe(
+        dataframe=dataframe, stats_options=stats_options_whitelist, n_jobs=1)
+    self.assertLen(result.datasets, 1)
+    test_util.assert_dataset_feature_stats_proto_equal(
+        self, result.datasets[0], expected_result.datasets[0])
+
   def test_stats_gen_with_dataframe_invalid_njobs_zero(self):
     records, _, _ = self._get_csv_test(delimiter=',', with_header=True)
     input_data_path = self._write_records_to_csv(records, self._get_temp_dir(),

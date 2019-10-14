@@ -18,6 +18,7 @@ from __future__ import division
 
 from __future__ import print_function
 
+import copy
 import csv
 import logging
 import multiprocessing
@@ -273,10 +274,18 @@ def _generate_partial_statistics_from_df(
       'U': str_fn,
   }
 
+  feature_whitelist = set()
+  if stats_options.feature_whitelist:
+    feature_whitelist.update(stats_options.feature_whitelist)
+  # Create a copy of the stats options so that we don't modify the input object.
+  stats_options_modified = copy.copy(stats_options)
+  # Remove feature_whitelist option as it is no longer needed.
+  stats_options_modified.feature_whitelist = None
   schema = schema_pb2.Schema()
   for col_name, col_type in zip(dataframe.columns, dataframe.dtypes):
     kind = col_type.kind
-    if kind not in decode_fn:
+    if (kind not in decode_fn or
+        (feature_whitelist and col_name not in feature_whitelist)):
       logging.warning('Ignoring feature %s of type %s', col_name, col_type)
       continue
     if kind == 'b':
@@ -293,10 +302,10 @@ def _generate_partial_statistics_from_df(
       inmemory_dicts[j][col_name] = fn(val)
       j += 1
   if schema.feature:
-    stats_options.schema = schema
+    stats_options_modified.schema = schema
   return stats_impl.generate_partial_statistics_in_memory(
       decoded_examples_to_arrow.DecodedExamplesToTable(inmemory_dicts),
-      stats_options, stats_generators)
+      stats_options_modified, stats_generators)
 
 
 def get_csv_header(data_location: Text,
