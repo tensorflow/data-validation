@@ -123,6 +123,127 @@ TEST(FeatureUtilTest, FeatureIsDeprecated) {
   }
 }
 
+TEST(FeatureUtilTest,
+     UpdateComparatorWithoutControlFeatureStatsClearsThreshold) {
+  DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        num_examples: 1
+        features {
+          name: "test_feature"
+          type: INT
+          num_stats: { min: 0.0 max: 10.0 }
+        }
+        features {
+          name: "other_feature"
+          type: INT
+          num_stats: { min: 0.0 max: 10.0 }
+        })");
+  DatasetFeatureStatistics previous_statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        num_examples: 1
+        features {
+          name: "other_feature"
+          type: INT
+          num_stats: { min: 0.0 max: 10.0 }
+        })");
+  // There are previous span statistics, but they do not contain stats for
+  // 'test_feature'.
+  DatasetStatsView stats_view(
+      statistics, false, "environment_name",
+      std::make_shared<DatasetStatsView>(previous_statistics),
+      std::shared_ptr<DatasetStatsView>(), std::shared_ptr<DatasetStatsView>());
+  const FeatureStatsView feature_stats_view =
+      stats_view.GetByPath(Path({"test_feature"})).value();
+  FeatureComparator comparator = ParseTextProtoOrDie<FeatureComparator>(R"(
+    infinity_norm: { threshold: 0.1 })");
+
+  UpdateFeatureComparatorDirect(feature_stats_view,
+                                FeatureComparatorType::DRIFT, &comparator);
+
+  FeatureComparator expected_comparator =
+      ParseTextProtoOrDie<FeatureComparator>(R"(infinity_norm: {})");
+  EXPECT_THAT(comparator, EqualsProto(expected_comparator));
+}
+
+TEST(FeatureUtilTest,
+     UpdateComparatorWithoutControlFeatureStatsGeneratesAnomaly) {
+  DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        num_examples: 1
+        features {
+          name: "test_feature"
+          type: INT
+          num_stats: { min: 0.0 max: 10.0 }
+        }
+        features {
+          name: "other_feature"
+          type: INT
+          num_stats: { min: 0.0 max: 10.0 }
+        })");
+  DatasetFeatureStatistics previous_statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        num_examples: 1
+        features {
+          name: "other_feature"
+          type: INT
+          num_stats: { min: 0.0 max: 10.0 }
+        })");
+  // There are previous span statistics, but they do not contain stats for
+  // 'test_feature'.
+  DatasetStatsView stats_view(
+      statistics, false, "environment_name",
+      std::make_shared<DatasetStatsView>(previous_statistics),
+      std::shared_ptr<DatasetStatsView>(), std::shared_ptr<DatasetStatsView>());
+  const FeatureStatsView feature_stats_view =
+      stats_view.GetByPath(Path({"test_feature"})).value();
+  FeatureComparator comparator = ParseTextProtoOrDie<FeatureComparator>(R"(
+    infinity_norm: { threshold: 0.1 })");
+
+  std::vector<Description> actual_descriptions = UpdateFeatureComparatorDirect(
+      feature_stats_view, FeatureComparatorType::DRIFT, &comparator);
+
+  EXPECT_EQ(actual_descriptions.size(), 1);
+  EXPECT_EQ(
+      actual_descriptions[0].type,
+      tensorflow::metadata::v0::AnomalyInfo::COMPARATOR_CONTROL_DATA_MISSING);
+  EXPECT_EQ(actual_descriptions[0].short_description, "previous data missing");
+  EXPECT_EQ(actual_descriptions[0].long_description,
+            "previous data is missing.");
+}
+
+TEST(FeatureUtilTest,
+     UpdateComparatorWithoutControlDatasetStatsMakesNoChanges) {
+  DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        num_examples: 1
+        features {
+          name: "test_feature"
+          type: INT
+          num_stats: { min: 0.0 max: 10.0 }
+        }
+        features {
+          name: "other_feature"
+          type: INT
+          num_stats: { min: 0.0 max: 10.0 }
+        })");
+  // There are no previous span statistics.
+  DatasetStatsView stats_view(statistics);
+  const FeatureStatsView feature_stats_view =
+      stats_view.GetByPath(Path({"test_feature"})).value();
+  FeatureComparator original_comparator =
+      ParseTextProtoOrDie<FeatureComparator>(R"(
+        infinity_norm: { threshold: 0.1 })");
+  FeatureComparator comparator;
+  comparator.CopyFrom(original_comparator);
+
+  std::vector<Description> actual_descriptions = UpdateFeatureComparatorDirect(
+      feature_stats_view, FeatureComparatorType::DRIFT, &comparator);
+
+  // The comparator is not changed, and no anomalies are generated.
+  EXPECT_THAT(comparator, EqualsProto(original_comparator));
+  EXPECT_EQ(actual_descriptions.size(), 0);
+}
+
 TEST(FeatureTypeTest, Deprecate) {
   for (const auto& test : GetFeatureIsDeprecatedTests()) {
     Feature to_modify = test.feature_proto;

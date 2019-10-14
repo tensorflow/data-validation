@@ -212,6 +212,8 @@ std::vector<Description> UpdateFeatureComparatorDirect(
          absl::StrCat(context.control_name, " data missing"),
          absl::StrCat(context.control_name, " data is missing.")}};
   }
+  // If there is no control dataset at all, return without generating an
+  // anomaly.
   return {};
 }
 
