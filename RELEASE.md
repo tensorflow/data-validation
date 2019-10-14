@@ -14,9 +14,11 @@
   the default slice (validation/inference will be done using the default slice
   statistics).
 * Avoid flattening null arrays.
-* Set `weighted_num_examples` field in the statistics proto if a weight feature
-  is specified.
-* Depends on `apache-beam[gcp]>=2.15,<3`
+* Set `weighted_num_examples` field in the statistics proto if a weight
+  feature is specified.
+* Depends on `apache-beam[gcp]>=2.16,<3`.
+* Depends on `six>=1.12,<2`.
+* Depends on `tensorflow-metadata>=0.15,<0.16`.
 
 ## Breaking Changes
 

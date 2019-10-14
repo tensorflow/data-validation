@@ -90,17 +90,17 @@ setup(
     # six, and protobuf) with TF.
     install_requires=[
         'absl-py>=0.7,<1',
-        'apache-beam[gcp]>=2.15,<3',
+        'apache-beam[gcp]>=2.16,<3',
         'numpy>=1.16,<2',
         'protobuf>=3.7,<4',
-        'six>=1.10,<2',
+        'six>=1.12,<2',
 
         # TODO(pachristopher): Add a method to check if we are using a
         # compatible TF version. If not, fail with a clear error.
         # TODO(pachristopher): Uncomment this once TF can automatically
         # select between CPU and GPU installation.
         # 'tensorflow>=1.14,<2',
-        'tensorflow-metadata>=0.14,<0.15',
+        'tensorflow-metadata>=0.15,<0.16',
         'tensorflow-transform>=0.14,<0.15',
         'tfx-bsl>=0.15.0.dev0,<0.16',
 
