@@ -92,7 +92,7 @@ class _BatchSerializedExamplesDoFn(beam.DoFn):
     self._buffer = []
     self._decoder = None
 
-  def start_bundle(self):
+  def setup(self):
     self._decoder = example_coder.ExamplesToRecordBatchDecoder()
 
   def _flush_buffer(self):
