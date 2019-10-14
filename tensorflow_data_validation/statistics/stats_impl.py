@@ -493,8 +493,6 @@ class NumExamplesStatsGenerator(stats_generator.CombinerStatsGenerator):
     dummy_feature.custom_stats.add(name=_NUM_EXAMPLES_KEY, num=accumulator[0])
     dummy_feature.custom_stats.add(name=_WEIGHTED_NUM_EXAMPLES_KEY,
                                    num=accumulator[1])
-    beam.metrics.Metrics.counter(constants.METRICS_NAMESPACE, 'num_instances'
-                                ).inc(accumulator[0])
     return result
 
 
@@ -570,6 +568,8 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
         constants.METRICS_NAMESPACE, 'combine_batch_size')
     self._num_compacts = beam.metrics.Metrics.counter(
         constants.METRICS_NAMESPACE, 'num_compacts')
+    self._num_instances = beam.metrics.Metrics.counter(
+        constants.METRICS_NAMESPACE, 'num_instances')
 
   def _for_each_generator(self,
                           func: Callable[..., Any],
@@ -625,8 +625,10 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
       input_table: pa.Table
       ) -> _CombinerStatsGeneratorsCombineFnAcc:
     accumulator.input_tables.append(input_table)
-    accumulator.curr_batch_size += input_table.num_rows
+    num_rows = input_table.num_rows
+    accumulator.curr_batch_size += num_rows
     self._maybe_do_batch(accumulator)
+    self._num_instances.inc(num_rows)
     return accumulator
 
   def merge_accumulators(
