@@ -3,7 +3,6 @@
 
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 load("@org_tensorflow//tensorflow:workspace.bzl", "tf_workspace")
-load("//third_party:arrow_configure.bzl", "arrow_configure")
 
 def tf_data_validation_workspace():
     """All TensorFlow Data Validation external dependencies."""
@@ -20,5 +19,3 @@ def tf_data_validation_workspace():
         remote = "https://github.com/tensorflow/metadata.git",
     )
     # LINT.ThenChange(//third_party/py/tensorflow_data_validation/google/copy.bara.sky)
-
-    arrow_configure(name = "arrow")

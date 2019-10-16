@@ -22,13 +22,7 @@ from __future__ import print_function
 import six
 from tensorflow_data_validation import types
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
-from tensorflow_data_validation.pywrap import pywrap_tensorflow_data_validation as pywrap
 from typing import List
-
-# The following are function aliases thus valid function names.
-# pylint: disable=invalid-name
-DecodedExamplesToTable = pywrap.TFDV_Arrow_DecodedExamplesToTable
-# pylint: enable=invalid-name
 
 
 def _GetEmptyTable(num_rows: int) -> pa.Table:
@@ -40,7 +34,7 @@ def _GetEmptyTable(num_rows: int) -> pa.Table:
   return t.remove_column(0)
 
 
-def DecodedExamplesToTablePy(decoded_examples: List[types.Example]) -> pa.Table:
+def DecodedExamplesToTable(decoded_examples: List[types.Example]) -> pa.Table:
   """Converts a list of types.Example to an Arrow Table.
 
   where types.Example is Dict[Union[bytes, unicode], Union[None, np.ndarray]]

@@ -49,13 +49,6 @@ __version__ = globals_dict['__version__']
 with open('README.md') as fp:
   _LONG_DESCRIPTION = fp.read()
 
-# Get pyarrow dependency.
-with open('third_party/pyarrow_version.bzl') as fp:
-  globals_dict = {}
-  exec (fp.read(), globals_dict)  # pylint: disable=exec-used
-  _PYARROW_VERSION_REQUIREMENT = globals_dict['PY_DEP']
-
-
 setup(
     name='tensorflow-data-validation',
     version=__version__,
@@ -93,6 +86,7 @@ setup(
         'apache-beam[gcp]>=2.16,<3',
         'numpy>=1.16,<2',
         'protobuf>=3.7,<4',
+        'pyarrow>=0.14,<0.15',
         'six>=1.12,<2',
 
         # TODO(pachristopher): Add a method to check if we are using a
@@ -115,7 +109,7 @@ setup(
 
         # Dependency for multi-processing.
         'joblib>=0.12,<1',
-    ] + [_PYARROW_VERSION_REQUIREMENT],
+    ],
     python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,<4',
     packages=find_packages(),
     include_package_data=True,

@@ -14,4 +14,3 @@ limitations under the License.
 ==============================================================================*/
 
 %include "tensorflow_data_validation/pywrap/validation_api.i"
-%include "tensorflow_data_validation/pywrap/arrow.i"

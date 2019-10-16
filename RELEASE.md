@@ -16,6 +16,8 @@
 * Avoid flattening null arrays.
 * Set `weighted_num_examples` field in the statistics proto if a weight
   feature is specified.
+* Replace DecodedExamplesToTable with a Python implementation.
+* Building TFDV from source does not need pyarrow anymore.
 * Depends on `apache-beam[gcp]>=2.16,<3`.
 * Depends on `six>=1.12,<2`.
 * Depends on `tensorflow-metadata>=0.15,<0.16`.

@@ -103,19 +103,6 @@ directions](https://www.scipy.org/scipylib/download.html).
 If Bazel is not installed on your system, install it now by following [these
 directions](https://bazel.build/versions/master/docs/install.html).
 
-#### Install PyArrow
-
-TFDV needs to be built with specific PyArrow versions (
-as indicated in third_party/pyarrow.version). Install pyarrow by following
-[these directions](https://arrow.apache.org/docs/python/install.html).
-
-When installing please make sure to specify the compatible pyarrow version. For
-example:
-
-```shell
-pip install "pyarrow>=0.14.0,<0.15.0"
-```
-
 ### 2. Clone the TFDV repository
 
 ```shell
@@ -139,10 +126,9 @@ python tensorflow_data_validation/tools/strip_type_hints.py tensorflow_data_vali
 
 TFDV uses Bazel to build the pip package from source. Before invoking the
 following commands, make sure the `python` in your `$PATH` is the one of the
-target version and has NumPy and PyArrow installed.
+target version and has NumPy installed.
 
 ```shell
-./configure.sh
 bazel run -c opt --cxxopt=-D_GLIBCXX_USE_CXX11_ABI=0 tensorflow_data_validation:build_pip_package
 ```
 

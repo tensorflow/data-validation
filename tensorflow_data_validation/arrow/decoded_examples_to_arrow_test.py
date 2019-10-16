@@ -28,52 +28,24 @@ from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 
 _INVALID_INPUT_TEST_CASES = [
     dict(
-        testcase_name="not_a_list",
-        test_input=1,
-        expected_error=TypeError,
-        expected_error_regexp="Expected a list"),
-    dict(
         testcase_name="list_of_non_dict",
         test_input=[1, 2],
-        expected_error=RuntimeError,
-        expected_error_regexp="Expected a dict"),
+        expected_error=ValueError,
+        expected_error_regexp="Unexpected Arrow type created from input"),
     dict(
-        testcase_name="list_of_dict_of_non_bytes_key",
+        testcase_name="list_of_dict_of_non_str_key",
         test_input=[{
             1: None
         }],
-        expected_error=RuntimeError,
-        expected_error_regexp="Feature names must be either bytes or unicode."),
-    dict(
-        testcase_name="list_of_dict_of_non_ndarray_value",
-        test_input=[{
-            b"a": [1]
-        }],
-        expected_error=RuntimeError,
-        expected_error_regexp="Expected a numpy ndarray"),
+        expected_error=pa.ArrowTypeError,
+        expected_error_regexp="Expected dict key of type str or bytes"),
     dict(
         testcase_name="unsupported_ndarray_type",
         test_input=[{
-            b"a": np.array([1j, 2j, 3j], dtype=np.complex64)
+            "a": np.array([1j, 2j, 3j], dtype=np.complex64)
         }],
         expected_error=RuntimeError,
         expected_error_regexp="Unsupported numpy type"),
-    dict(
-        testcase_name="different_ndarray_types_for_feature",
-        test_input=[{
-            b"a": np.array([1, 2, 3], dtype=np.int64)
-        }, {
-            b"a": np.array([1., 2., 3.], dtype=np.float)
-        }],
-        expected_error=RuntimeError,
-        expected_error_regexp="Mismatch feature numpy array types"),
-    dict(
-        testcase_name="ndarray_of_object_no_bytes",
-        test_input=[{
-            b"a": np.array([1, 2, 3], dtype=np.object)
-        }],
-        expected_error=RuntimeError,
-        expected_error_regexp="Expected a string or bytes object"),
 ]
 
 _CONVERSION_TEST_CASES = [
@@ -89,22 +61,22 @@ _CONVERSION_TEST_CASES = [
         testcase_name="supported_ndarray_types",
         input_examples=[
             {
-                b"int64_feature": np.array([1, 2, 3], dtype=np.int64),
-                b"uint64_feature": np.array([1, 2, 3], dtype=np.uint64),
-                b"int32_feature": np.array([1, 2, 3], dtype=np.int32),
-                b"uint32_feature": np.array([1, 2, 3], dtype=np.uint32),
-                b"float_feature": np.array([1.], dtype=np.float32),
-                b"double_feature": np.array([1.], dtype=np.float64),
-                b"bytes_feature": np.array([b"abc", b"def"], dtype=np.object),
-                b"unicode_feature": np.array([u"abc", u"def"], dtype=np.object),
+                "int64_feature": np.array([1, 2, 3], dtype=np.int64),
+                "uint64_feature": np.array([1, 2, 3], dtype=np.uint64),
+                "int32_feature": np.array([1, 2, 3], dtype=np.int32),
+                "uint32_feature": np.array([1, 2, 3], dtype=np.uint32),
+                "float_feature": np.array([1.], dtype=np.float32),
+                "double_feature": np.array([1.], dtype=np.float64),
+                "bytes_feature": np.array([b"abc", b"def"], dtype=np.object),
+                "unicode_feature": np.array([u"abc", u"def"], dtype=np.object),
             },
             {
-                b"int64_feature": np.array([4], dtype=np.int64),
-                b"int32_feature": np.array([4], dtype=np.int32),
-                b"float_feature": np.array([2., 3., 4.], dtype=np.float32),
-                b"double_feature": np.array([2., 3., 4.], dtype=np.float64),
-                b"bytes_feature": np.array([b"ghi"], dtype=np.object),
-                b"unicode_feature": np.array([u"ghi"], dtype=np.object),
+                "int64_feature": np.array([4], dtype=np.int64),
+                "int32_feature": np.array([4], dtype=np.int32),
+                "float_feature": np.array([2., 3., 4.], dtype=np.float32),
+                "double_feature": np.array([2., 3., 4.], dtype=np.float64),
+                "bytes_feature": np.array([b"ghi"], dtype=np.object),
+                "unicode_feature": np.array([u"ghi"], dtype=np.object),
             },
         ],
         expected_output={
@@ -123,20 +95,18 @@ _CONVERSION_TEST_CASES = [
             "bytes_feature":
                 pa.array([[b"abc", b"def"], [b"ghi"]],
                          type=pa.list_(pa.binary())),
-            # Note that unicode feature values are encoded in utf-8 and stored
-            # in a BinaryArray.
             "unicode_feature":
                 pa.array([[b"abc", b"def"], [b"ghi"]],
-                         type=pa.list_(pa.binary())),
+                         type=pa.list_(pa.string())),
         }),
     dict(
         testcase_name="mixed_unicode_and_bytes",
         input_examples=[
             {
-                b"a": np.array([b"abc"], dtype=np.object),
+                "a": np.array([b"abc"], dtype=np.object),
             },
             {
-                b"a": np.array([u"def"], dtype=np.object),
+                "a": np.array([u"def"], dtype=np.object),
             },
         ],
         expected_output={
@@ -146,13 +116,13 @@ _CONVERSION_TEST_CASES = [
     dict(
         testcase_name="none_feature_value",
         input_examples=[{
-            b"a": np.array([1, 2, 3], dtype=np.int64),
+            "a": np.array([1, 2, 3], dtype=np.int64),
         }, {
-            b"a": None,
+            "a": None,
         }, {
-            b"a": None,
+            "a": None,
         }, {
-            b"a": np.array([4], dtype=np.int64),
+            "a": np.array([4], dtype=np.int64),
         }],
         expected_output={
             "a":
@@ -162,7 +132,7 @@ _CONVERSION_TEST_CASES = [
     dict(
         testcase_name="empty_feature_value",
         input_examples=[{
-            b"a": np.array([], dtype=np.int64),
+            "a": np.array([], dtype=np.int64),
         }],
         expected_output={
             "a": pa.array([[]], type=pa.list_(pa.int64())),
@@ -170,14 +140,14 @@ _CONVERSION_TEST_CASES = [
     dict(
         testcase_name="missing_feature",
         input_examples=[{
-            b"f1": np.array([1, 2, 3], dtype=np.int64),
+            "f1": np.array([1, 2, 3], dtype=np.int64),
         }, {
-            b"f2": np.array([1., 2., 3.], dtype=np.float32),
+            "f2": np.array([1., 2., 3.], dtype=np.float32),
         }, {
-            b"f3": np.array([b"abc", b"def"], dtype=np.object),
+            "f3": np.array([b"abc", b"def"], dtype=np.object),
         }, {
-            b"f1": np.array([4, 5, 6], dtype=np.int64),
-            b"f4": np.array([8], dtype=np.int64),
+            "f1": np.array([4, 5, 6], dtype=np.int64),
+            "f4": np.array([8], dtype=np.int64),
         }],
         expected_output={
             "f1":
@@ -195,9 +165,9 @@ _CONVERSION_TEST_CASES = [
     dict(
         testcase_name="null_array",
         input_examples=[{
-            b"a": None,
+            "a": None,
         }, {
-            b"a": None,
+            "a": None,
         }],
         expected_output={
             "a": pa.array([None, None], type=pa.null()),
@@ -205,12 +175,12 @@ _CONVERSION_TEST_CASES = [
 ]
 
 
-class DecodedExamplesToArrowTest(parameterized.TestCase):
+class DecodedExamplesToArrowPyTest(parameterized.TestCase):
 
   @parameterized.named_parameters(*_INVALID_INPUT_TEST_CASES)
   def test_invalid_input(self, test_input, expected_error,
                          expected_error_regexp):
-    with self.assertRaisesRegexp(expected_error, expected_error_regexp):
+    with self.assertRaisesRegex(expected_error, expected_error_regexp):
       decoded_examples_to_arrow.DecodedExamplesToTable(test_input)
 
   @parameterized.named_parameters(*_CONVERSION_TEST_CASES)
@@ -219,8 +189,10 @@ class DecodedExamplesToArrowTest(parameterized.TestCase):
     self.assertLen(expected_output, table.num_columns)
     for feature_name, expected_arrow_array in six.iteritems(expected_output):
       self.assertLen(table.column(feature_name).data.chunks, 1)
+      actual = table.column(feature_name).data.chunk(0)
       self.assertTrue(
-          expected_arrow_array.equals(table.column(feature_name).data.chunk(0)))
+          expected_arrow_array.equals(actual),
+          "{} vs {}".format(expected_arrow_array, actual))
 
   def test_conversion_empty_input(self):
     table = decoded_examples_to_arrow.DecodedExamplesToTable([])
