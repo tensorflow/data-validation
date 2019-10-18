@@ -25,26 +25,10 @@ limitations under the License.
 #include "re2/re2.h"
 #include "tensorflow/core/lib/core/errors.h"
 #include "tensorflow/core/lib/core/status.h"
-#include "tensorflow/core/platform/platform.h"
 
 namespace tensorflow {
 namespace data_validation {
 namespace {
-
-#if defined(PLATFORM_GOOGLE) || defined(PLATFORM_GOOGLE_ANDROID) || \
-    defined(PLATFORM_RE2_STRINGPIECE_IS_NOW_ABSL_STRING_VIEW)
-using Re2StringPiece = absl::string_view;
-#else
-using Re2StringPiece = re2::StringPiece;
-#endif
-
-Re2StringPiece StringViewToRe2StringPiece(absl::string_view view) {
-  return Re2StringPiece(view.begin(), view.size());
-}
-
-absl::string_view Re2StringPieceToStringView(Re2StringPiece str_piece) {
-  return absl::string_view(str_piece.begin(), str_piece.size());
-}
 
 // This matches a standard step.
 // Standard steps include any proto steps (extensions and regular fields).
@@ -110,9 +94,8 @@ struct StepDelimiter {
     if (pos >= text.size()) {
       return absl::string_view(text.end(), 0);
     }
-    Re2StringPiece solution;
-    Re2StringPiece remaining_string =
-        StringViewToRe2StringPiece(text.substr(pos));
+    absl::string_view remaining_string = text.substr(pos);
+    absl::string_view solution;
     // Regex captures a serialized step followed by a dot.
     // Note that this only captures the step if it is not the last one. Since
     // on no match we just have the rest of the string be a step, we are OK.
@@ -125,7 +108,7 @@ struct StepDelimiter {
         solution.data() != nullptr) {
       // solution now contains the step and the dot after the step.
       // Returns a string_view of text that is equal to ".".
-      return Re2StringPieceToStringView(solution.substr(solution.size() - 1));
+      return solution.substr(solution.size() - 1);
     }
     return absl::string_view(text.end(), 0);
   }

@@ -361,7 +361,6 @@ cc_library(
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
         "@com_google_absl//absl/strings",
         "@com_googlesource_code_re2//:re2",
-        "@org_tensorflow//tensorflow/core:framework_lite",
         "@org_tensorflow//tensorflow/core:lib",
     ],
 )
