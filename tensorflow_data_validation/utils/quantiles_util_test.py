@@ -59,7 +59,8 @@ class QuantilesUtilTest(absltest.TestCase):
     batches = [[np.linspace(1, 100, 100)],
                [np.linspace(101, 200, 100)],
                [np.linspace(201, 300, 100)]]
-    expected_result = np.array([61.0, 121.0, 181.0, 241.0], dtype=np.float32)
+    expected_result = np.array(
+        [1.0, 61.0, 121.0, 181.0, 241.0, 300.0], dtype=np.float32)
     q_combiner = quantiles_util.QuantilesCombiner(5, 0.00001)
     _run_quantiles_combiner_test(self, q_combiner, batches, expected_result)
 
@@ -67,14 +68,16 @@ class QuantilesUtilTest(absltest.TestCase):
     batches = [[np.linspace(1, 100, 100), [1] * 100],
                [np.linspace(101, 200, 100), [2] * 100],
                [np.linspace(201, 300, 100), [3] * 100]]
-    expected_result = np.array([111.0, 171.0, 221.0, 261.0], dtype=np.float32)
+    expected_result = np.array(
+        [1.0, 111.0, 171.0, 221.0, 261.0, 300.0], dtype=np.float32)
     q_combiner = quantiles_util.QuantilesCombiner(5, 0.00001, has_weights=True)
     _run_quantiles_combiner_test(self, q_combiner, batches, expected_result)
 
   def test_generate_quantiles_histogram(self):
     result = quantiles_util.generate_quantiles_histogram(
-        quantiles=np.array([61.0, 121.0, 181.0, 241.0], dtype=np.float32),
-        min_val=1.0, max_val=300.0, total_count=300.0, num_buckets=5)
+        quantiles=np.array(
+            [1.0, 61.0, 121.0, 181.0, 241.0, 300.0], dtype=np.float32),
+        total_count=300.0, num_buckets=5)
     expected_result = text_format.Parse(
         """
         buckets {
@@ -108,9 +111,9 @@ class QuantilesUtilTest(absltest.TestCase):
 
   def test_generate_quantiles_histogram_diff_num_buckets_multiple(self):
     result = quantiles_util.generate_quantiles_histogram(
-        quantiles=np.array([61.0, 121.0, 181.0, 241.0, 301.0],
+        quantiles=np.array([1.0, 61.0, 121.0, 181.0, 241.0, 301.0, 360.0],
                            dtype=np.float32),
-        min_val=1.0, max_val=360.0, total_count=360.0, num_buckets=3)
+        total_count=360.0, num_buckets=3)
     expected_result = text_format.Parse(
         """
         buckets {
@@ -134,9 +137,9 @@ class QuantilesUtilTest(absltest.TestCase):
 
   def test_generate_quantiles_histogram_diff_num_buckets_non_multiple(self):
     result = quantiles_util.generate_quantiles_histogram(
-        quantiles=np.array([61.0, 121.0, 181.0, 241.0],
+        quantiles=np.array([1.0, 61.0, 121.0, 181.0, 241.0, 300.0],
                            dtype=np.float32),
-        min_val=1.0, max_val=300.0, total_count=300.0, num_buckets=4)
+        total_count=300.0, num_buckets=4)
     expected_result = text_format.Parse(
         """
         buckets {
@@ -165,8 +168,8 @@ class QuantilesUtilTest(absltest.TestCase):
 
   def test_generate_equi_width_histogram(self):
     result = quantiles_util.generate_equi_width_histogram(
-        quantiles=np.array([1, 5, 10, 15, 20], dtype=np.float32),
-        min_val=0, max_val=24.0, total_count=18, num_buckets=3)
+        quantiles=np.array([0, 1, 5, 10, 15, 20, 24], dtype=np.float32),
+        total_count=18, num_buckets=3)
     expected_result = text_format.Parse(
         """
         buckets {
@@ -191,24 +194,24 @@ class QuantilesUtilTest(absltest.TestCase):
   def test_generate_equi_width_buckets(self):
     _assert_buckets_almost_equal(
         self, quantiles_util.generate_equi_width_buckets(
-            quantiles=[1.0, 5.0, 10.0, 15.0, 20.0],
-            min_val=0, max_val=24.0, total_count=18, num_buckets=3),
+            quantiles=[0, 1.0, 5.0, 10.0, 15.0, 20.0, 24.0],
+            total_count=18, num_buckets=3),
         [quantiles_util.Bucket(0, 8.0, 7.8),
          quantiles_util.Bucket(8.0, 16.0, 4.8),
          quantiles_util.Bucket(16.0, 24.0, 5.4)])
 
     _assert_buckets_almost_equal(
         self, quantiles_util.generate_equi_width_buckets(
-            quantiles=[1.0, 2.0, 3.0, 4.0, 5.0],
-            min_val=1.0, max_val=5.0, total_count=6, num_buckets=3),
+            quantiles=[1.0, 1.0, 2.0, 3.0, 4.0, 5.0, 5.0],
+            total_count=6, num_buckets=3),
         [quantiles_util.Bucket(1.0, 2.33333333, 2.33333333),
          quantiles_util.Bucket(2.33333333, 3.66666666, 1.33333333),
          quantiles_util.Bucket(3.66666666, 5, 2.33333333)])
 
     _assert_buckets_almost_equal(
         self, quantiles_util.generate_equi_width_buckets(
-            quantiles=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
-            min_val=1.0, max_val=1.0, total_count=100, num_buckets=3),
+            quantiles=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+            total_count=100, num_buckets=3),
         [quantiles_util.Bucket(1.0, 1.0, 100.0)])
 
   def test_find_median(self):

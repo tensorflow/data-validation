@@ -351,8 +351,7 @@ def _make_common_stats_proto(
     num_values_quantiles = q_combiner.extract_output(
         common_stats.num_values_summary)
     histogram = quantiles_util.generate_quantiles_histogram(
-        num_values_quantiles, common_stats.min_num_values,
-        common_stats.max_num_values, common_stats.num_non_missing,
+        num_values_quantiles, common_stats.num_non_missing,
         num_values_histogram_buckets)
     result.num_values_histogram.CopyFrom(histogram)
 
@@ -419,8 +418,7 @@ def _make_numeric_stats_proto(
   # Construct the equi-width histogram from the quantiles and add it to the
   # numeric stats proto.
   std_histogram = quantiles_util.generate_equi_width_histogram(
-      quantiles, numeric_stats.min, numeric_stats.max,
-      total_num_values, num_histogram_buckets)
+      quantiles, total_num_values, num_histogram_buckets)
   std_histogram.num_nan = numeric_stats.num_nan
   new_std_histogram = result.histograms.add()
   new_std_histogram.CopyFrom(std_histogram)
@@ -428,8 +426,7 @@ def _make_numeric_stats_proto(
   # Construct the quantiles histogram from the quantiles and add it to the
   # numeric stats proto.
   q_histogram = quantiles_util.generate_quantiles_histogram(
-      quantiles, numeric_stats.min, numeric_stats.max,
-      total_num_values, num_quantiles_histogram_buckets)
+      quantiles, total_num_values, num_quantiles_histogram_buckets)
   q_histogram.num_nan = numeric_stats.num_nan
   new_q_histogram = result.histograms.add()
   new_q_histogram.CopyFrom(q_histogram)
@@ -461,16 +458,15 @@ def _make_numeric_stats_proto(
     # Construct the weighted equi-width histogram from the quantiles and
     # add it to the numeric stats proto.
     weighted_std_histogram = quantiles_util.generate_equi_width_histogram(
-        weighted_quantiles, numeric_stats.min, numeric_stats.max,
-        numeric_stats.weighted_total_num_values, num_histogram_buckets)
+        weighted_quantiles, numeric_stats.weighted_total_num_values,
+        num_histogram_buckets)
     weighted_std_histogram.num_nan = numeric_stats.num_nan
     weighted_numeric_stats_proto.histograms.extend([weighted_std_histogram])
 
     # Construct the weighted quantiles histogram from the quantiles and
     # add it to the numeric stats proto.
     weighted_q_histogram = quantiles_util.generate_quantiles_histogram(
-        weighted_quantiles, numeric_stats.min, numeric_stats.max,
-        numeric_stats.weighted_total_num_values,
+        weighted_quantiles, numeric_stats.weighted_total_num_values,
         num_quantiles_histogram_buckets)
     weighted_q_histogram.num_nan = numeric_stats.num_nan
     weighted_numeric_stats_proto.histograms.extend([weighted_q_histogram])

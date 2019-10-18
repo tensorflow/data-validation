@@ -43,7 +43,7 @@ class QuantilesCombiner(object):
     self._quantiles_spec = tft.analyzers.QuantilesCombiner(
         num_quantiles=num_quantiles, epsilon=epsilon,
         bucket_numpy_dtype=np.float32, always_return_num_quantiles=True,
-        has_weights=has_weights)
+        has_weights=has_weights, include_max_and_min=True)
     # TODO(pachristopher): Consider passing an appropriate (runner-dependent)
     # tf_config, similar to TFT.
     self._quantiles_spec.initialize_local_state(tf_config=None)
@@ -97,8 +97,6 @@ def find_median(quantiles: np.ndarray) -> float:
 
 
 def generate_quantiles_histogram(quantiles: np.ndarray,
-                                 min_val: float,
-                                 max_val: float,
                                  total_count: float,
                                  num_buckets: int
                                 ) -> statistics_pb2.Histogram:
@@ -106,10 +104,6 @@ def generate_quantiles_histogram(quantiles: np.ndarray,
 
   Args:
     quantiles: A numpy array containing the quantile boundaries.
-    min_val: The minimum value among all values over which the quantiles
-        are computed.
-    max_val: The maximum value among all values over which the quantiles
-        are computed.
     total_count: The total number of values over which the quantiles
         are computed.
     num_buckets: The required number of buckets in the quantiles histogram.
@@ -121,11 +115,6 @@ def generate_quantiles_histogram(quantiles: np.ndarray,
   result.type = statistics_pb2.Histogram.QUANTILES
 
   quantiles = list(quantiles)
-  # We explicitly add the min and max to the quantiles list as the
-  # quantiles combiner returns only the internal boundaries.
-  quantiles.insert(0, min_val)  # Insert min_val in the beginning.
-  quantiles.append(max_val)  # Append max_val to the end.
-
   # We assume that the number of quantiles is at least the required number of
   # buckets in the quantiles histogram.
   assert len(quantiles) - 1 >= num_buckets
@@ -136,7 +125,7 @@ def generate_quantiles_histogram(quantiles: np.ndarray,
   required_sample_count = float(total_count / num_buckets)
 
   # Start of the current bucket.
-  bucket_start = min_val
+  bucket_start = quantiles[0]
   # Sample count of the current bucket.
   running_sample_count = 0
   # Iterate to create the first num_buckets - 1 buckets.
@@ -164,7 +153,7 @@ def generate_quantiles_histogram(quantiles: np.ndarray,
       running_sample_count += current_sample_count
 
   # Add the last bucket.
-  result.buckets.add(low_value=bucket_start, high_value=max_val,
+  result.buckets.add(low_value=bucket_start, high_value=quantiles[-1],
                      sample_count=required_sample_count)
 
   return result
@@ -176,8 +165,6 @@ Bucket = collections.namedtuple(
 
 
 def generate_equi_width_histogram(quantiles: np.ndarray,
-                                  min_val: float,
-                                  max_val: float,
                                   total_count: float,
                                   num_buckets: int
                                  ) -> statistics_pb2.Histogram:
@@ -192,10 +179,6 @@ def generate_equi_width_histogram(quantiles: np.ndarray,
 
   Args:
     quantiles: A numpy array containing the quantile boundaries.
-    min_val: The minimum value among all values over which the quantiles
-        are computed.
-    max_val: The maximum value among all values over which the quantiles
-        are computed.
     total_count: The total number of values over which the quantiles
         are computed.
     num_buckets: The required number of buckets in the equi-width histogram.
@@ -206,7 +189,7 @@ def generate_equi_width_histogram(quantiles: np.ndarray,
   result = statistics_pb2.Histogram()
   result.type = statistics_pb2.Histogram.STANDARD
   buckets = generate_equi_width_buckets(
-      list(quantiles), min_val, max_val, total_count, num_buckets)
+      list(quantiles), total_count, num_buckets)
   for bucket_info in buckets:
     result.buckets.add(low_value=bucket_info.low_value,
                        high_value=bucket_info.high_value,
@@ -216,18 +199,12 @@ def generate_equi_width_histogram(quantiles: np.ndarray,
 
 
 def generate_equi_width_buckets(quantiles: List[float],
-                                min_val: float,
-                                max_val: float,
                                 total_count: float,
                                 num_buckets: int) -> List[Bucket]:
   """Generate buckets for equi-width histogram.
 
   Args:
     quantiles: A list containing the quantile boundaries.
-    min_val: The minimum value among all values over which the quantiles
-        are computed.
-    max_val: The maximum value among all values over which the quantiles
-        are computed.
     total_count: The total number of values over which the quantiles
         are computed.
     num_buckets: The required number of buckets in the equi-width histogram.
@@ -239,14 +216,10 @@ def generate_equi_width_buckets(quantiles: List[float],
   # the required number of buckets in the equi-width histogram.
   assert len(quantiles) > num_buckets
 
+  min_val, max_val = quantiles[0], quantiles[-1]
   # If all values of a feature are equal, have only a single bucket.
   if min_val == max_val:
     return [Bucket(min_val, max_val, total_count)]
-
-  # We explicitly add the min and max to the quantiles list as the
-  # quantiles combiner returns only the internal boundaries.
-  quantiles.insert(0, min_val)  # Insert min_val in the beginning.
-  quantiles.append(max_val)  # Append max_val to the end.
 
   # Initialize the list of buckets.
   result = []
