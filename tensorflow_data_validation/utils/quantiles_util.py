@@ -48,23 +48,19 @@ class QuantilesCombiner(object):
     # tf_config, similar to TFT.
     self._quantiles_spec.initialize_local_state(tf_config=None)
 
-  # TODO(b/138934800): Remove this after TFT > 0.14 is released and TFDV depends
-  # on said new release.
-  def __reduce__(self):
-    return QuantilesCombiner, (self._num_quantiles, self._epsilon,
-                               self._has_weights)
-
-  def create_accumulator(self) -> List[bytes]:
+  def create_accumulator(self) -> List[List[float]]:
     return self._quantiles_spec.create_accumulator()
 
-  def add_input(self, summary: List[bytes],
-                input_batch: List[List[Union[int, float]]]) -> List[bytes]:
+  def add_input(
+      self, summary: List[List[float]],
+      input_batch: List[List[Union[int, float]]]) -> List[List[float]]:
     return self._quantiles_spec.add_input(summary, input_batch)
 
-  def merge_accumulators(self, summaries: Iterable[List[bytes]]) -> List[bytes]:
+  def merge_accumulators(
+      self, summaries: Iterable[List[List[float]]]) -> List[List[float]]:
     return self._quantiles_spec.merge_accumulators(summaries)
 
-  def extract_output(self, summary: List[bytes]) -> np.ndarray:
+  def extract_output(self, summary: List[List[float]]) -> np.ndarray:
     quantiles = self._quantiles_spec.extract_output(summary)
     # The output of the combiner spec is a list containing a
     # single numpy array which contains the quantile boundaries.
