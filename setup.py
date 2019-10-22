@@ -82,33 +82,30 @@ setup(
     # Make sure to sync the versions of common dependencies (absl-py, numpy,
     # six, and protobuf) with TF.
     install_requires=[
-        'absl-py>=0.7,<1',
+        'absl-py>=0.7,<0.9',
         'apache-beam[gcp]>=2.16,<3',
         'numpy>=1.16,<2',
         'protobuf>=3.7,<4',
         'pyarrow>=0.14,<0.15',
         'six>=1.12,<2',
-
-        # TODO(pachristopher): Add a method to check if we are using a
-        # compatible TF version. If not, fail with a clear error.
-        # TODO(pachristopher): Uncomment this once TF can automatically
-        # select between CPU and GPU installation.
-        # 'tensorflow>=1.14,<2',
+        'tensorflow>=1.15,<3',
         'tensorflow-metadata>=0.15,<0.16',
-        'tensorflow-transform>=0.14,<0.15',
-        'tfx-bsl>=0.15.0.dev0,<0.16',
+        'tensorflow-transform>=0.15,<0.16',
+        'tfx-bsl>=0.15,<0.16',
 
         # Dependencies needed for visualization.
         # Note that we don't add a max version for IPython as it introduces a
         # dependency conflict when installed with TFMA (b/124313906).
-        'IPython>=5.0',
+        'ipython>=5',
         'pandas>=0.24,<1',
 
         # Dependency for mutual information computation.
         'scikit-learn>=0.18,<0.21',
 
+        # TODO(pachristopher): Consider using multi-processing provided by
+        # Beam's DirectRunner.
         # Dependency for multi-processing.
-        'joblib>=0.12,<1',
+        'joblib>=0.12,<0.15',
     ],
     python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,<4',
     packages=find_packages(),
