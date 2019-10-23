@@ -100,7 +100,7 @@ setup(
         'pandas>=0.24,<1',
 
         # Dependency for mutual information computation.
-        'scikit-learn>=0.18,<0.21',
+        'scikit-learn>=0.18,<0.22',
 
         # TODO(pachristopher): Consider using multi-processing provided by
         # Beam's DirectRunner.

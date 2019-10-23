@@ -20,6 +20,7 @@
 * Building TFDV from source does not need pyarrow anymore.
 * Depends on `apache-beam[gcp]>=2.16,<3`.
 * Depends on `six>=1.12,<2`.
+* Depends on `scikit-learn>=0.18,<0.22`.
 * Depends on `tfx-bsl>=0.15,<0.16`.
 * Depends on `tensorflow-metadata>=0.15,<0.16`.
 * Depends on `tensorflow-transform>=0.15,<0.16`.
