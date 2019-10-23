@@ -153,7 +153,7 @@ pip install dist/*.whl
 pip install ${TENSORFLOW}
 
 # If running with tf-nightly, install TFT at head.
-if [[ ${TENSORFLOW}==tf-nightly ]]; then
+if [[ "${TENSORFLOW}" == "tf-nightly" ]]; then
   pip uninstall -y tensorflow-transform
   echo "Installing TFT at head"
   pushd tft_at_head
