@@ -19,54 +19,23 @@ from __future__ import division
 
 from __future__ import print_function
 
-import abc
 import apache_beam as beam
-from apache_beam.transforms import window
-import six
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import decoded_examples_to_arrow
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tfx_bsl.coders import example_coder
-from typing import Any, List, Iterable
+from typing import Dict, List, Iterable, Optional, Text
 
 
-# TODO(pachristopher): Debug why beam.BatchElements is expensive than
-# the custom DoFn and consider using it instead.
-@six.add_metaclass(abc.ABCMeta)
-class BatchDoFn(beam.DoFn):
-  """Base class for batched DoFns."""
-
-  def __init__(self, desired_batch_size: int):
-    self._desired_batch_size = desired_batch_size
-    self._buffer = []
-
-  def _flush_buffer(self) -> List[Any]:
-    result = self.process_batch(self._buffer)
-    del self._buffer[:]
-    return result
-
-  @abc.abstractmethod
-  def process_batch(self, batch: List[Any]) -> Any:
-    """Sub-classes should implement this method."""
-
-  def finish_bundle(self):
-    if self._buffer:
-      yield window.GlobalWindows.windowed_value(self._flush_buffer())
-
-  def process(self, element: Any) -> Iterable[Any]:
-    self._buffer.append(element)
-    if len(self._buffer) >= self._desired_batch_size:
-      yield self._flush_buffer()
-
-
-@beam.typehints.with_input_types(types.BeamExample)
-@beam.typehints.with_output_types(pa.Table)
-class _BatchExamplesDoFn(BatchDoFn):
-  """A DoFn which batches input example dicts into an arrow table."""
-
-  def process_batch(self, batch: List[Any]) -> pa.Table:
-    return decoded_examples_to_arrow.DecodedExamplesToTable(batch)
+def GetBeamBatchKwargs(desired_batch_size: Optional[int]) -> Dict[Text, int]:
+  """Returns the kwargs to be passed to beam.BatchElements."""
+  if desired_batch_size is None:
+    return {}
+  return {
+      "min_batch_size": desired_batch_size,
+      "max_batch_size": desired_batch_size,
+  }
 
 
 # TODO(pachristopher): Deprecate this.
@@ -75,8 +44,9 @@ class _BatchExamplesDoFn(BatchDoFn):
 @beam.typehints.with_output_types(pa.Table)
 def BatchExamplesToArrowTables(
     examples: beam.pvalue.PCollection,
-    desired_batch_size: int = constants.DEFAULT_DESIRED_INPUT_BATCH_SIZE
-) -> beam.pvalue.PCollection:  # pylint: disable=invalid-name
+    desired_batch_size: Optional[int] = constants
+    .DEFAULT_DESIRED_INPUT_BATCH_SIZE
+) -> beam.pvalue.PCollection:
   """Batches example dicts into Arrow tables.
 
   Args:
@@ -87,29 +57,12 @@ def BatchExamplesToArrowTables(
   Returns:
     A PCollection of Arrow tables.
   """
-  # Check if we have the default windowing behavior. The _BatchExamplesDoFn
-  # is expected to be called under a Global window.
-  assert examples.windowing.is_default()
 
   return (examples
-          | 'BatchExamplesToArrowTables' >> beam.ParDo(
-              _BatchExamplesDoFn(desired_batch_size=desired_batch_size)))
-
-
-@beam.typehints.with_input_types(bytes)
-@beam.typehints.with_output_types(pa.Table)
-class _BatchSerializedExamplesDoFn(BatchDoFn):
-  """A DoFn which batches input serialized examples into an arrow table."""
-
-  def __init__(self, desired_batch_size: int):
-    super(_BatchSerializedExamplesDoFn, self).__init__(desired_batch_size)
-    self._decoder = None
-
-  def setup(self):
-    self._decoder = example_coder.ExamplesToRecordBatchDecoder()
-
-  def process_batch(self, batch: List[bytes]) -> pa.Table:
-    return pa.Table.from_batches([self._decoder.DecodeBatch(self._buffer)])
+          | "BatchBeamExamples" >>
+          beam.BatchElements(**GetBeamBatchKwargs(desired_batch_size))
+          | "DecodeExamplesToTable" >> beam.Map(
+              decoded_examples_to_arrow.DecodedExamplesToTable))
 
 
 @beam.ptransform_fn
@@ -117,8 +70,9 @@ class _BatchSerializedExamplesDoFn(BatchDoFn):
 @beam.typehints.with_output_types(pa.Table)
 def BatchSerializedExamplesToArrowTables(
     examples: beam.pvalue.PCollection,
-    desired_batch_size: int = constants.DEFAULT_DESIRED_INPUT_BATCH_SIZE
-) -> beam.pvalue.PCollection:  # pylint: disable=invalid-name
+    desired_batch_size: Optional[int] = constants
+    .DEFAULT_DESIRED_INPUT_BATCH_SIZE
+) -> beam.pvalue.PCollection:
   """Batches serialized examples into Arrow tables.
 
   Args:
@@ -129,11 +83,24 @@ def BatchSerializedExamplesToArrowTables(
   Returns:
     A PCollection of Arrow tables.
   """
-  # Check if we have the default windowing behavior. The _BatchExamplesDoFn
-  # is expected to be called under a Global window.
-  assert examples.windowing.is_default()
-
   return (examples
-          | 'BatchSerializedExamplesToArrowTables' >> beam.ParDo(
-              _BatchSerializedExamplesDoFn(
-                  desired_batch_size=desired_batch_size)))
+          | "BatchSerializedExamples" >>
+          beam.BatchElements(**GetBeamBatchKwargs(desired_batch_size))
+          | "BatchDecodeExamples" >> beam.ParDo(_BatchDecodeExamplesDoFn()))
+
+
+@beam.typehints.with_input_types(List[bytes])
+@beam.typehints.with_output_types(pa.Table)
+class _BatchDecodeExamplesDoFn(beam.DoFn):
+  """A DoFn which batches input serialized examples into an arrow table."""
+
+  __slots__ = ["_decoder"]
+
+  def __init__(self):
+    self._decoder = None
+
+  def setup(self):
+    self._decoder = example_coder.ExamplesToRecordBatchDecoder()
+
+  def process(self, batch: List[bytes]) -> Iterable[pa.Table]:
+    yield pa.Table.from_batches([self._decoder.DecodeBatch(batch)])
