@@ -25,7 +25,7 @@ from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import decoded_examples_to_arrow
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tfx_bsl.coders import example_coder
-from typing import Any, Dict, List, Iterable, Optional, Text
+from typing import Dict, List, Iterable, Optional, Text
 
 
 def GetBeamBatchKwargs(desired_batch_size: Optional[int]) -> Dict[Text, int]:
@@ -36,18 +36,6 @@ def GetBeamBatchKwargs(desired_batch_size: Optional[int]) -> Dict[Text, int]:
       "min_batch_size": desired_batch_size,
       "max_batch_size": desired_batch_size,
   }
-
-
-# TODO(pachristopher): Deprecate this.
-class _BatchedExamplesToArrowTablesDoFn(beam.DoFn):
-  """DoFn for decoding batches of examples."""
-
-  # DecodedExamplesToTable should be called within the process method of a DoFn
-  # instead of beam.Map for the reasons discussed in b/143648957.
-  # TODO(b/131315065): Remove the comment above when the CSV decoder no longer
-  # uses BatchExamplesToArrowTables.
-  def process(self, batch: List[Any]) -> Iterable[pa.Table]:
-    yield decoded_examples_to_arrow.DecodedExamplesToTable(batch)
 
 
 # TODO(pachristopher): Deprecate this.
@@ -69,12 +57,19 @@ def BatchExamplesToArrowTables(
   Returns:
     A PCollection of Arrow tables.
   """
-
-  return (examples
-          | "BatchBeamExamples" >>
-          beam.BatchElements(**GetBeamBatchKwargs(desired_batch_size))
-          | "DecodeExamplesToTable" >> beam.ParDo(
-              _BatchedExamplesToArrowTablesDoFn()))
+  # DecodedExamplesToTable should be called within a lambda function instead of
+  # specifying the function name in beam.Map for the reasons discussed in
+  # b/143648957.
+  # TODO(b/131315065): Remove the comment above when the CSV decoder no longer
+  # uses BatchExamplesToArrowTables.
+  return (
+      examples
+      | "BatchBeamExamples" >>
+      beam.BatchElements(**GetBeamBatchKwargs(desired_batch_size))
+      | "DecodeExamplesToTable" >>
+      # pylint: disable=unnecessary-lambda
+      beam.Map(lambda x: decoded_examples_to_arrow.DecodedExamplesToTable(x)))
+      # pylint: enable=unnecessary-lambda
 
 
 @beam.ptransform_fn
