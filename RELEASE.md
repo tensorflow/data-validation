@@ -11,6 +11,9 @@
 
 ## Bug Fixes and Other Changes
 
+* Exclude examples in which the entire sparse feature is missing when
+  calculating sparse feature statistics.
+
 ## Breaking Changes
 
 * Changed the behavior regarding to statistics over CSV data:

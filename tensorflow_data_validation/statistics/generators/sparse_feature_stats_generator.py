@@ -29,6 +29,7 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
+import itertools
 import numpy as np
 
 from tensorflow_data_validation import types
@@ -261,66 +262,103 @@ class SparseFeatureStatsGenerator(stats_generator.CombinerStatsGenerator):
     Returns:
       The accumulator after updating the statistics for the batch of inputs.
     """
-    component_feature_value_list_lengths = dict()
-    component_feature_num_missing = dict()
+    feature_value_list_lengths = dict()
+    feature_is_missing = dict()
     batch_example_count = input_table.num_rows
     # Do a single pass through the input table to determine the value list
-    # lengths and number missing for every feature that is an index or value
-    # feature in any sparse feature in the schema.
+    # lengths and whether the feature is missing for every feature
+    # that is an index or value feature in any sparse feature in the schema.
     for feature_path, leaf_array, _ in arrow_util.enumerate_arrays(
         input_table, weight_column=None, enumerate_leaves_only=True):
       if (feature_path in self._all_index_feature_paths or
           feature_path in self._all_value_feature_paths):
-        # If the column is a NullArray, skip it when populating the
-        # component_feature_ dicts. Features that are missing from those dicts
-        # are treated as entirely missing for the batch.
-        if not pa.types.is_null(leaf_array.type):
-          component_feature_value_list_lengths[
+        if pa.types.is_null(leaf_array.type):
+          # If the column is a NullArray, it is missing from the entire batch
+          # (missing features have value list lengths of 0).
+          feature_value_list_lengths[feature_path] = np.full(
+              batch_example_count, 0)
+          feature_is_missing[feature_path] = np.full(
+              batch_example_count, True)
+        else:
+          feature_value_list_lengths[
               feature_path] = arrow_util.primitive_array_to_numpy(
                   array_util.ListLengthsFromListArray(leaf_array))
-          component_feature_num_missing[feature_path] = leaf_array.null_count
+          feature_is_missing[
+              feature_path] = arrow_util.primitive_array_to_numpy(
+                  array_util.GetArrayNullBitmapAsByteArray(leaf_array))
 
     # Now create a partial sparse feature stats object for each sparse feature
-    # using the value list lengths and numbers missing information collected
+    # using the value list lengths and feature missing information collected
     # above.
     for feature_path in self._sparse_feature_component_paths:
       value_feature_path = self._sparse_feature_component_paths[
           feature_path].value_feature
       index_feature_paths = self._sparse_feature_component_paths[
           feature_path].index_features
-      missing_value_count = component_feature_num_missing.get(
-          value_feature_path)
+
+      # Create a filter identifying examples in which the entire sparse feature
+      # is missing since those examples should not be included in counting
+      # missing counts or length differences.
+      component_features_missing = np.array([
+          feature_is_missing.get(path, np.full(batch_example_count, True))
+          for path in itertools.chain([value_feature_path], index_feature_paths)
+      ])
+      entire_sparse_feature_missing = np.all(component_features_missing, axis=0)
+      num_examples_missing_sparse_feature = np.sum(
+          entire_sparse_feature_missing)
+
+      is_missing_value_feature = feature_is_missing.get(value_feature_path)
       # If this batch does not have the value feature at all,
       # missing_value_count is the number of examples in the batch.
       # Also populate the value list lengths for the value feature with all 0s
       # since a missing feature is considered to have a value list length of 0.
-      if missing_value_count is None:
+      if is_missing_value_feature is None:
         missing_value_count = batch_example_count
-        component_feature_value_list_lengths[value_feature_path] = np.full(
+        feature_value_list_lengths[value_feature_path] = np.full(
             batch_example_count, 0)
+      else:
+        missing_value_count = np.sum(is_missing_value_feature)
+      # Do not include examples that are entirely missing the sparse feature in
+      # the missing value count.
+      missing_value_count -= num_examples_missing_sparse_feature
+
       missing_index_counts = collections.Counter()
       min_length_diff = dict()
       max_length_diff = dict()
       for index_feature_path in index_feature_paths:
-        missing_index_count = component_feature_num_missing.get(
-            index_feature_path)
-        # If this batch does not have this index feature at all,
-        # missing_index_count for that index feature is the number of
-        # examples in the batch.
-        # Also populate the value list lengths for the index feature with all 0s
-        # since a missing feature is considered to have a value list length of
-        # 0.
-        if missing_index_count is None:
-          missing_index_counts[index_feature_path] = batch_example_count
-          component_feature_value_list_lengths[index_feature_path] = np.full(
+        is_missing_index_feature = feature_is_missing.get(index_feature_path)
+        if is_missing_index_feature is None:
+          # If this batch does not have this index feature at all,
+          # missing_index_count for that index feature is the number of
+          # examples in the batch.
+          missing_index_count = batch_example_count
+          # Populate the value list lengths for the index feature with all 0s
+          # since a missing feature is considered to have a value list length of
+          # 0.
+          feature_value_list_lengths[index_feature_path] = np.full(
               batch_example_count, 0)
         else:
-          missing_index_counts[index_feature_path] = missing_index_count
+          missing_index_count = np.sum(is_missing_index_feature)
+        # Do not include examples that are entirely missing the sparse feature
+        # in the missing value count.
+        missing_index_counts[index_feature_path] = (
+            missing_index_count - num_examples_missing_sparse_feature)
+
         length_differences = np.subtract(
-            component_feature_value_list_lengths[index_feature_path],
-            component_feature_value_list_lengths[value_feature_path])
-        min_length_diff[index_feature_path] = np.min(length_differences)
-        max_length_diff[index_feature_path] = np.max(length_differences)
+            feature_value_list_lengths[index_feature_path],
+            feature_value_list_lengths[value_feature_path])
+
+        # Do not include examples that are entirely missing the sparse feature
+        # in determining the min and max length differences.
+        filtered_length_differences = length_differences[
+            ~entire_sparse_feature_missing]
+        if filtered_length_differences.size != 0:
+          # If all examples in a batch are missing the sparse feature,
+          # filtered_length_differences will be empty.
+          min_length_diff[index_feature_path] = np.min(
+              filtered_length_differences)
+          max_length_diff[index_feature_path] = np.max(
+              filtered_length_differences)
 
       stats_for_feature = _PartialSparseFeatureStats(missing_value_count,
                                                      missing_index_counts,
