@@ -3,9 +3,24 @@
 
 ## Major Features and Improvements
 
+* Started depending on the CSV parsing / type inferring utilities provided
+  by `tfx-bsl` (since tfx-bsl 0.15.2). This also brings performance improvements
+  to the CSV decoder (~2x faster in decoding. Type inferring performance is not
+  affected).
+
+
 ## Bug Fixes and Other Changes
 
 ## Breaking Changes
+
+* Changed the behavior regarding to statistics over CSV data:
+
+  - Previously, if a CSV column was mixed with integers and empty strings, FLOAT
+    statistics will be collected for that column. A change was made so INT
+    statistics would be collected instead.
+
+* Removed `csv_decoder.DecodeCSVToDict` as `Dict[str, np.ndarray]` had no longer
+  been the internal data representation any more since 0.14.
 
 ## Deprecations
 

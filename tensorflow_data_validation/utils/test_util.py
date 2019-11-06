@@ -383,6 +383,10 @@ def make_arrow_tables_equal_fn(test: absltest.TestCase,
         test.assertEqual(len(actual_column.data.chunks),
                          len(expected_column.data.chunks))
         for j in range(len(expected_column.data.chunks)):
-          test.assertTrue(actual_column.data.chunk(j).equals(
-              expected_column.data.chunk(j)))
+          actual_chunk = actual_column.data.chunk(j)
+          expected_chunk = expected_column.data.chunk(j)
+          test.assertTrue(
+              actual_chunk.equals(expected_chunk),
+              '{} vs {}'.format(actual_chunk, expected_chunk))
+
   return _matcher

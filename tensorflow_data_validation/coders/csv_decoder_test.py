@@ -91,7 +91,7 @@ class CSVDecoderTest(absltest.TestCase):
     column_names = ['int_feature', 'float_feature', 'str_feature']
     expected_result = [
         pa.Table.from_arrays([
-            pa.array([[1.0], None], pa.list_(pa.float32())),
+            pa.array([[1], None], pa.list_(pa.int64())),
             pa.array([None, [12.34]], pa.list_(pa.float32())),
             pa.array([[b'hello'], None], pa.list_(pa.binary())),
         ], ['int_feature', 'float_feature', 'str_feature'])
@@ -324,7 +324,7 @@ class CSVDecoderTest(absltest.TestCase):
     column_names = ['int_feature', 'float_feature', 'str_feature']
     expected_result = [
         pa.Table.from_arrays([
-            pa.array([None, [1.0]], pa.list_(pa.float32())),
+            pa.array([None, [1]], pa.list_(pa.int64())),
             pa.array([None, [2.0]], pa.list_(pa.float32())),
             pa.array([None, [b'hello']], pa.list_(pa.binary())),
         ], ['int_feature', 'float_feature', 'str_feature'])
@@ -357,13 +357,13 @@ class CSVDecoderTest(absltest.TestCase):
 
   def test_csv_decoder_consider_blank_line(self):
     input_lines = ['',
-                   '1,2']
-    column_names = ['float_feature1', 'float_feature2']
+                   '1,2.0']
+    column_names = ['int_feature', 'float_feature']
     expected_result = [
         pa.Table.from_arrays([
-            pa.array([None, [1.0]], pa.list_(pa.float32())),
+            pa.array([None, [1]], pa.list_(pa.int64())),
             pa.array([None, [2.0]], pa.list_(pa.float32())),
-        ], ['float_feature1', 'float_feature2'])
+        ], ['int_feature', 'float_feature'])
     ]
 
     with beam.Pipeline() as p:
@@ -394,11 +394,11 @@ class CSVDecoderTest(absltest.TestCase):
   def test_csv_decoder_consider_blank_line_single_column(self):
     input_lines = ['',
                    '1']
-    column_names = ['float_feature']
+    column_names = ['int_feature']
     expected_result = [
         pa.Table.from_arrays([
-            pa.array([None, [1.0]], pa.list_(pa.float32())),
-        ], ['float_feature'])
+            pa.array([None, [1]], pa.list_(pa.int64())),
+        ], ['int_feature'])
     ]
 
     with beam.Pipeline() as p:
