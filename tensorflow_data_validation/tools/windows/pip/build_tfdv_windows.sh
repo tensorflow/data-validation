@@ -129,28 +129,20 @@ pip install setuptools --upgrade
 pip install wheel --upgrade
 pip freeze --all
 
-echo "Installing TFX-BSL at head"
-pushd tfx_bsl_at_head
-source "tfx_bsl/tools/windows/pip/build_tfx_bsl_windows.sh" \
-  || { echo "Failed to source build_tfx_bsl_windows.sh" >&2; exit 1; }
-
-(tfx_bsl::build_from_head_windows) && wheel=$(ls dist/*.whl) \
-  || { echo "Failed to build tfx_bsl."; exit 1; }
-
-pip install ${wheel}
-popd
-
 pip install "numpy>=1.16,<2"
-bazel run -c opt --cxxopt=-D_GLIBCXX_USE_CXX11_ABI=0 --copt=-DWIN32_LEAN_AND_MEAN tensorflow_data_validation:build_pip_package
-bazel test -c opt --cxxopt=-D_GLIBCXX_USE_CXX11_ABI=0 --copt=-DWIN32_LEAN_AND_MEAN tensorflow_data_validation/anomalies:all
+bazel run -c opt --copt=-DWIN32_LEAN_AND_MEAN tensorflow_data_validation:build_pip_package
+bazel test -c opt --copt=-DWIN32_LEAN_AND_MEAN tensorflow_data_validation/anomalies:all
 
 # Uninstall Cython (if installed) as Beam has issues with Cython installed.
 # TODO(b/130120997): Avoid installing Beam without Cython.
 pip uninstall -y Cython
 
-# Install TFDV and Tensorflow.
+# The ordering of the following installations is determined by the depencencies
+# and must not be changed. Otherwise the build-at-head version might get
+# overridden by released version.
+
+echo "Installing TFDV"
 pip install dist/*.whl
-pip install ${TENSORFLOW}
 
 # If running with tf-nightly, install TFT at head.
 if [[ "${TENSORFLOW}" == "tf-nightly" ]]; then
@@ -162,6 +154,19 @@ if [[ "${TENSORFLOW}" == "tf-nightly" ]]; then
   pip install ${TFT_WHEEL_PATH}
   popd # pop tft_at_head
 fi
+
+echo "Installing TFX-BSL at head"
+pushd tfx_bsl_at_head
+source "tfx_bsl/tools/windows/pip/build_tfx_bsl_windows.sh" \
+  || { echo "Failed to source build_tfx_bsl_windows.sh" >&2; exit 1; }
+
+(tfx_bsl::build_from_head_windows) && wheel=$(ls dist/*.whl) \
+  || { echo "Failed to build tfx_bsl."; exit 1; }
+
+pip install ${wheel}
+popd
+
+pip install ${TENSORFLOW}
 
 run_py_tests "tensorflow_data_validation" $@
 
