@@ -693,6 +693,163 @@ class SparseFeatureStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         sparse_feature_stats_generator.SparseFeatureStatsGenerator(schema))
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
+  def test_sparse_feature_generator_multiple_sparse_features(self):
+    batches = [
+        pa.Table.from_arrays([
+            pa.array(
+                [None, None, ['a', 'b'], ['a', 'b'], ['a', 'b'], None, None]),
+            pa.array([[1, 2], [1, 2], None, None, None, None, None]),
+            pa.array([[2, 4], [2, 4], [2, 4, 6], [2, 4, 6], [2, 4, 6], None,
+                      None]),
+            pa.array([None, None, None, None, None, ['a', 'b'], ['a', 'b']]),
+            pa.array([None, None, None, None, None, [2, 4], [2, 4]]),
+            pa.array([None, None, None, None, None, None, None],
+                     type=pa.null()),
+        ], [
+            'value_feature', 'index_feature1', 'index_feature2',
+            'other_value_feature', 'other_index_feature1',
+            'other_index_feature2'
+        ]),
+        pa.Table.from_arrays([
+            pa.array([None, None, None, None, None, ['a', 'b'], ['a', 'b']]),
+            pa.array([None, None, None, None, None, [2, 4], [2, 4]]),
+            pa.array([None, None, None, None, None, None, None], type=pa.null())
+        ], [
+            'other_value_feature', 'other_index_feature1',
+            'other_index_feature2'
+        ]),
+    ]
+    schema = text_format.Parse(
+        """
+        sparse_feature {
+          name: 'sparse_feature'
+          index_feature {
+            name: 'index_feature1'
+          }
+          index_feature {
+            name: 'index_feature2'
+          }
+          value_feature {
+            name: 'value_feature'
+          }
+        }
+        sparse_feature {
+          name: 'other_sparse_feature'
+          index_feature {
+            name: 'other_index_feature1'
+          }
+          index_feature {
+            name: 'other_index_feature2'
+          }
+          value_feature {
+            name: 'other_value_feature'
+          }
+        }
+        """, schema_pb2.Schema())
+    expected_result = {
+        types.FeaturePath(['sparse_feature']):
+            text_format.Parse(
+                """
+                path {
+                  step: 'sparse_feature'
+                }
+                custom_stats {
+                  name: 'missing_value'
+                  num: 2
+                }
+                custom_stats {
+                  name: 'missing_index'
+                  rank_histogram {
+                    buckets {
+                      label: 'index_feature1'
+                      sample_count: 3
+                    }
+                    buckets {
+                      label: 'index_feature2'
+                      sample_count: 0
+                    }
+                  }
+                }
+                custom_stats {
+                  name: 'max_length_diff'
+                  rank_histogram {
+                    buckets {
+                      label: 'index_feature1'
+                      sample_count: 2
+                    }
+                    buckets {
+                      label: 'index_feature2'
+                      sample_count: 2
+                    }
+                  }
+                }
+                custom_stats {
+                  name: 'min_length_diff'
+                  rank_histogram {
+                    buckets {
+                      label: 'index_feature1'
+                      sample_count: -2
+                    }
+                    buckets {
+                      label: 'index_feature2'
+                      sample_count: 1
+                    }
+                  }
+                }""", statistics_pb2.FeatureNameStatistics()),
+        types.FeaturePath(['other_sparse_feature']):
+            text_format.Parse(
+                """
+                path {
+                  step: 'other_sparse_feature'
+                }
+                custom_stats {
+                  name: 'missing_value'
+                  num: 0
+                }
+                custom_stats {
+                  name: 'missing_index'
+                  rank_histogram {
+                    buckets {
+                      label: 'other_index_feature1'
+                      sample_count: 0
+                    }
+                    buckets {
+                      label: 'other_index_feature2'
+                      sample_count: 4
+                    }
+                  }
+                }
+                custom_stats {
+                  name: 'max_length_diff'
+                  rank_histogram {
+                    buckets {
+                      label: 'other_index_feature1'
+                      sample_count: 0
+                    }
+                    buckets {
+                      label: 'other_index_feature2'
+                      sample_count: -2
+                    }
+                  }
+                }
+                custom_stats {
+                  name: 'min_length_diff'
+                  rank_histogram {
+                    buckets {
+                      label: 'other_index_feature1'
+                      sample_count: 0
+                    }
+                    buckets {
+                      label: 'other_index_feature2'
+                      sample_count: -2
+                    }
+                  }
+                }""", statistics_pb2.FeatureNameStatistics())
+    }
+    generator = (
+        sparse_feature_stats_generator.SparseFeatureStatsGenerator(schema))
+    self.assertCombinerOutputEqual(batches, generator, expected_result)
+
 
 if __name__ == '__main__':
   absltest.main()
