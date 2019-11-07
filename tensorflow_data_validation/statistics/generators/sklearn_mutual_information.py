@@ -62,11 +62,12 @@ def _remove_unsupported_feature_columns(examples_table: pa.Table,
   unsupported_columns = set()
   for f in multivalent_features:
     unsupported_columns.add(f.steps()[0])
-  for c in examples_table.columns:
+  for column_name, column in zip(examples_table.schema.names,
+                                 examples_table.itercolumns()):
     if (stats_util.get_feature_type_from_arrow_type(
-        types.FeaturePath([c.name]),
-        c.type) == statistics_pb2.FeatureNameStatistics.STRUCT):
-      unsupported_columns.add(c.name)
+        types.FeaturePath([column_name]),
+        column.type) == statistics_pb2.FeatureNameStatistics.STRUCT):
+      unsupported_columns.add(column_name)
   return examples_table.drop(unsupported_columns)
 
 
@@ -93,8 +94,9 @@ def _flatten_and_impute(examples_table: pa.Table,
   """
   num_rows = examples_table.num_rows
   result = {}
-  for feature_column in examples_table.itercolumns():
-    feature_path = types.FeaturePath([feature_column.name])
+  for column_name, feature_column in zip(
+      examples_table.schema.names, examples_table.itercolumns()):
+    feature_path = types.FeaturePath([column_name])
     # Assume we have only a single chunk.
     feature_array = feature_column.data.chunk(0)
     # to_pandas returns a readonly array. Create a copy as we will be imputing

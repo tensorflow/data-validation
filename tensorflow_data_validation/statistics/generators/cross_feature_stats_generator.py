@@ -117,8 +117,8 @@ class CrossFeatureStatsGenerator(stats_generator.CombinerStatsGenerator):
       self, examples_table: pa.Table) -> Dict[types.FeatureName, pd.DataFrame]:
     """Extracts univalent values for each feature along with parent indices."""
     result = {}
-    for feature_column in examples_table.itercolumns():
-      feature_name = feature_column.name
+    for feature_name, feature_column in zip(
+        examples_table.schema.names, examples_table.itercolumns()):
       if (self._features_needed is not None and
           feature_name not in self._features_needed):
         continue

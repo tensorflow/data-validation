@@ -378,8 +378,9 @@ def make_arrow_tables_equal_fn(test: absltest.TestCase,
     for i in range(len(expected_tables)):
       test.assertEqual(actual_tables[i].num_columns,
                        expected_tables[i].num_columns)
-      for expected_column in expected_tables[i].columns:
-        actual_column = actual_tables[i].column(expected_column.name)
+      for column_name, expected_column in zip(
+          expected_tables[i].schema.names, expected_tables[i].columns):
+        actual_column = actual_tables[i].column(column_name)
         test.assertEqual(len(actual_column.data.chunks),
                          len(expected_column.data.chunks))
         for j in range(len(expected_column.data.chunks)):

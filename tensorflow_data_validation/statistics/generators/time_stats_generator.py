@@ -299,7 +299,7 @@ class TimeStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
 
   def add_input(self, accumulator: _PartialTimeStats,
                 feature_path: types.FeaturePath,
-                feature_array: pa.Column) -> _PartialTimeStats:
+                feature_array: pa.Array) -> _PartialTimeStats:
     """Returns result of folding a batch of inputs into the current accumulator.
 
     Args:

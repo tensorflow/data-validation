@@ -298,10 +298,12 @@ def _filter_features(
   """
   column_names = set(table.schema.names)
   columns_to_select = []
+  column_names_to_select = []
   for feature_name in feature_whitelist:
     if feature_name in column_names:
-      columns_to_select.append(table.column(feature_name))
-  return pa.Table.from_arrays(columns_to_select)
+      columns_to_select.append(table.column(feature_name).data)
+      column_names_to_select.append(feature_name)
+  return pa.Table.from_arrays(columns_to_select, column_names_to_select)
 
 
 def _add_slice_key(
@@ -706,8 +708,9 @@ def generate_partial_statistics_in_memory(
 
   if options.feature_whitelist:
     whitelisted_columns = [
-        table.column(f) for f in options.feature_whitelist]
-    table = pa.Table.from_arrays(whitelisted_columns)
+        table.column(f).data for f in options.feature_whitelist]
+    table = pa.Table.from_arrays(
+        whitelisted_columns, list(options.feature_whitelist))
   for generator in stats_generators:
     result.append(
         generator.add_input(generator.create_accumulator(), table))

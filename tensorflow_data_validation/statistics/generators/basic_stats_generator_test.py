@@ -141,12 +141,14 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         [pa.Table.from_arrays([pa.array([[less_than_max_int_value]])], ['a'])] *
         2)
     generator = basic_stats_generator.BasicStatsGenerator()
-    with np.testing.assert_no_warnings():
-      accumulators = [
-          generator.add_input(generator.create_accumulator(), batch)
-          for batch in batches
-      ]
-      generator.merge_accumulators(accumulators)
+    old_nperr = np.geterr()
+    np.seterr(over='raise')
+    accumulators = [
+        generator.add_input(generator.create_accumulator(), batch)
+        for batch in batches
+    ]
+    generator.merge_accumulators(accumulators)
+    np.seterr(**old_nperr)
 
   def test_basic_stats_generator_handle_null_column(self):
     # Feature 'a' covers null coming before non-null.

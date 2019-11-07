@@ -79,6 +79,16 @@ BeamSlicedTable = beam.typehints.Tuple[BeamSliceKey, pa.Table]
 BeamCSVRecord = beam.typehints.Union[bytes, Text]
 BeamCSVCell = beam.typehints.Union[bytes, Text]
 
+# pa.Column has been removed since pyarrow 0.15. (Table.data returns a
+# ChunkedArray instead, but a ChunkedArray has all the methods that
+# pa.Column used to have for compatibility reasons.)
+# TODO(b/142894895): remove the version switch once tfx-bsl starts requiring
+# pyarrow>=0.15.
+if pa.__version__ >= "0.15":
+  ArrowColumn = pa.ChunkedArray
+else:
+  ArrowColumn = pa.Column
+
 
 @six.python_2_unicode_compatible
 class FeaturePath(object):

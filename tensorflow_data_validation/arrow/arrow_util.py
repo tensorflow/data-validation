@@ -153,8 +153,7 @@ def enumerate_arrays(
   weights = None
   if weight_column is not None:
     weights = _get_weight_feature(table, weight_column)
-  for column in table.columns:
-    column_name = column.name
+  for column_name, column in zip(table.schema.names, table.itercolumns()):
     # use "yield from" after PY 3.3.
     for e in _recursion_helper(
         types.FeaturePath([column_name]), column.data.chunk(0), weights):
