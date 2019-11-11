@@ -8,7 +8,7 @@ py_binary(
     name = "build_docs",
     srcs = ["build_docs.py"],
     python_version = "PY3",
-    srcs_version = "PY3",
+    srcs_version = "PY2AND3",
     deps = [
         "//third_party/py/absl:app",
         "//third_party/py/apache_beam:apache_beam_internal_deps",
