@@ -847,6 +847,43 @@ TEST(GetSchemaDiff, SparseFeatureNameCollision) {
                   FeatureStatisticsToProtoConfig(), expected_anomalies);
 }
 
+// Test feature missing from stats.
+TEST(GetSchemaDiff, SchemaMissingColumn) {
+  const Schema schema_proto =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
+        feature: {
+          name: 'f1'
+          type: INT
+          presence: { min_fraction: 1 }
+        })");
+
+  const DatasetFeatureStatistics empty_stats =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(features: {})");
+  Schema schema_deprecated = schema_proto;
+  DeprecateFeature(schema_deprecated.mutable_feature(0));
+  std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
+  expected_anomalies["f1"].new_schema = schema_deprecated;
+  expected_anomalies["f1"].expected_info_without_diff =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
+        path: { step: "f1" }
+        description: "Column is completely missing"
+        severity: WARNING
+        short_description: "Column dropped"
+        reason {
+          type: SCHEMA_MISSING_COLUMN
+          short_description: "Column dropped"
+          description: "Column is completely missing"
+        })");
+  TestFindChanges(schema_proto,
+                  DatasetStatsView(empty_stats, /*by_weight=*/false),
+                  ParseTextProtoOrDie<FeatureStatisticsToProtoConfig>(
+                      R"pb(severity_overrides: {
+                             type: SCHEMA_MISSING_COLUMN
+                             severity: WARNING
+                           })pb"),
+                  expected_anomalies);
+}
+
 TEST(SchemaAnomalyTest, CreateNewField) {
   // Empty schema proto.
   Schema baseline;

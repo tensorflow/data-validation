@@ -121,7 +121,7 @@ class SchemaAnomaly : public SchemaAnomalyBase {
 
   // Makes a note that the feature is missing. Deprecates the feature,
   // and leaves a description.
-  void ObserveMissing();
+  void ObserveMissing(const Schema::Updater& updater);
 
   void set_path(const Path& path) { path_ = path; }
 

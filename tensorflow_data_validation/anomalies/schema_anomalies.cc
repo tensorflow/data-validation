@@ -202,12 +202,12 @@ SchemaAnomaly& SchemaAnomaly::operator=(SchemaAnomaly&& schema_anomaly) {
   return *this;
 }
 
-void SchemaAnomaly::ObserveMissing() {
+void SchemaAnomaly::ObserveMissing(const Schema::Updater& updater) {
   const Description description = {
       tensorflow::metadata::v0::AnomalyInfo::SCHEMA_MISSING_COLUMN,
       kColumnDropped, "Column is completely missing"};
   descriptions_.push_back(description);
-  UpgradeSeverity(tensorflow::metadata::v0::AnomalyInfo::ERROR);
+  updater.UpdateSeverityForAnomaly(descriptions_, &severity_);
   schema_->DeprecateFeature(path_);
 }
 
@@ -403,8 +403,8 @@ tensorflow::Status SchemaAnomalies::FindChanges(
   TF_RETURN_IF_ERROR(InitSchema(&baseline));
   for (const Path& path : baseline.GetMissingPaths(statistics)) {
     TF_RETURN_IF_ERROR(GenericUpdate(
-        [](SchemaAnomaly* schema_anomaly) {
-          schema_anomaly->ObserveMissing();
+        [&updater](SchemaAnomaly* schema_anomaly) {
+          schema_anomaly->ObserveMissing(updater);
           return Status::OK();
         },
         path));
