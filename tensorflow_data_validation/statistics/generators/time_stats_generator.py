@@ -43,7 +43,6 @@ import re
 import numpy as np
 
 from tensorflow_data_validation import types
-from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import stats_util
@@ -323,14 +322,14 @@ class TimeStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
       def _maybe_get_utf8(val):
         return stats_util.maybe_get_utf8(val) if isinstance(val, bytes) else val
 
-      values = arrow_util.primitive_array_to_numpy(feature_array.flatten())
+      values = np.asarray(feature_array.flatten())
       maybe_utf8 = np.vectorize(_maybe_get_utf8, otypes=[np.object])(values)
       if not maybe_utf8.all():
         accumulator.invalidated = True
         return accumulator
       accumulator.update(maybe_utf8, feature_type)
     elif feature_type == statistics_pb2.FeatureNameStatistics.INT:
-      values = arrow_util.primitive_array_to_numpy(feature_array.flatten())
+      values = np.asarray(feature_array.flatten())
       accumulator.update(values, feature_type)
     else:
       accumulator.invalidated = True

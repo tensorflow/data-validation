@@ -32,7 +32,6 @@ import abc
 import numpy as np
 import six
 from tensorflow_data_validation import types
-from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import stats_util
@@ -198,7 +197,7 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
 
     is_non_utf_vec = np.vectorize(_is_non_utf8, otypes=[np.bool])
     classify_vec = np.vectorize(self._classifier.classify, otypes=[np.bool])
-    values = arrow_util.primitive_array_to_numpy(feature_array.flatten())
+    values = np.asarray(feature_array.flatten())
     if np.any(is_non_utf_vec(values)):
       accumulator.invalidate = True
       return accumulator

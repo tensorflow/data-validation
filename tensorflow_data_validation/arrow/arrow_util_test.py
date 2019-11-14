@@ -122,29 +122,5 @@ class EnumerateArraysTest(absltest.TestCase):
         np.testing.assert_array_equal(actual[1], v[1])
 
 
-class PrimitiveArrayToNumpyTest(absltest.TestCase):
-
-  def testNumberArrayShouldShareBuffer(self):
-    float_array = pa.array([1, 2, np.NaN], pa.float32())
-    np_array = arrow_util.primitive_array_to_numpy(float_array)
-    self.assertEqual(np_array.dtype, np.float32)
-    self.assertEqual(np_array.shape, (3,))
-    # Check that they share the same buffer.
-    self.assertEqual(np_array.ctypes.data, float_array.buffers()[1].address)
-
-  def testStringArray(self):
-    string_array = pa.array(["a", "b"], pa.utf8())
-    np_array = arrow_util.primitive_array_to_numpy(string_array)
-    self.assertEqual(np_array.dtype, np.object)
-    self.assertEqual(np_array.shape, (2,))
-    np.testing.assert_array_equal(np_array, [u"a", u"b"])
-
-  def testNumberArrayWithNone(self):
-    float_array = pa.array([1.0, 2.0, None], pa.float64())
-    np_array = arrow_util.primitive_array_to_numpy(float_array)
-    self.assertEqual(np_array.dtype, np.float64)
-    np.testing.assert_array_equal(np_array, [1.0, 2.0, np.NaN])
-
-
 if __name__ == "__main__":
   absltest.main()

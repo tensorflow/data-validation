@@ -475,8 +475,7 @@ class NumExamplesStatsGenerator(stats_generator.CombinerStatsGenerator):
     if self._weight_feature:
       weights_column = examples_table.column(self._weight_feature)
       for weight_array in weights_column.data.iterchunks():
-        accumulator[1] += np.sum(
-            arrow_util.primitive_array_to_numpy(weight_array.flatten()))
+        accumulator[1] += np.sum(np.asarray(weight_array.flatten()))
     return accumulator
 
   def merge_accumulators(self, accumulators: Iterable[List[float]]

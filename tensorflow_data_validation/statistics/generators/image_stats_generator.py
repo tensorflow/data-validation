@@ -39,7 +39,6 @@ import pandas as pd
 import six
 
 from tensorflow_data_validation import types
-from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.pyarrow_tf import tensorflow as tf
 from tensorflow_data_validation.statistics.generators import stats_generator
@@ -266,7 +265,7 @@ class ImageStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     # Consider using memoryview to avoid copying after upgrading to
     # arrow 0.12. Note that this would involve modifying the subsequent logic
     # to iterate over the values in a loop.
-    values = arrow_util.primitive_array_to_numpy(feature_array.flatten())
+    values = np.asarray(feature_array.flatten())
     accumulator.total_num_values += values.size
     image_formats = self._image_decoder.get_formats(values)
     valid_mask = ~pd.isnull(image_formats)

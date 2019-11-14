@@ -20,11 +20,12 @@ from __future__ import print_function
 
 import collections
 import functools
+
+import numpy as np
 import pandas as pd
 import six
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
-from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.utils import stats_util
 from tfx_bsl.arrow import array_util
@@ -121,8 +122,7 @@ def get_feature_value_slicer(
       column = table.column(feature_name)
       # Assume we have a single chunk.
       feature_array = column.data.chunk(0)
-      non_missing_values = arrow_util.primitive_array_to_numpy(
-          feature_array.flatten())
+      non_missing_values = np.asarray(feature_array.flatten())
       value_parent_indices = array_util.GetFlattenedArrayParentIndices(
           feature_array).to_numpy()
       # Create dataframe with feature value and parent index.

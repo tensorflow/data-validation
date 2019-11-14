@@ -64,27 +64,6 @@ def _get_weight_feature(input_table: pa.Table,
   return weights.to_numpy()
 
 
-def primitive_array_to_numpy(primitive_array: pa.Array) -> np.ndarray:
-  """Converts a primitive Arrow array to a numpy 1-D ndarray.
-
-  Copying is avoided as much as possible.
-
-  Args:
-    primitive_array: a primitive Arrow array.
-
-  Returns:
-    A 1-D ndarray of corresponding type (for string/binary arrays, the
-    corresponding numpy type is np.object (str, bytes or unicode)).
-  """
-  array_type = primitive_array.type
-  if (pa.types.is_binary(array_type) or
-      pa.types.is_string(array_type) or
-      primitive_array.null_count > 0):
-    # no free conversion.
-    return primitive_array.to_pandas()
-  return primitive_array.to_numpy()
-
-
 def enumerate_arrays(
     table: pa.Table, weight_column: Optional[Text], enumerate_leaves_only: bool
 ) -> Iterable[Tuple[types.FeaturePath, pa.Array, Optional[np.ndarray]]]:

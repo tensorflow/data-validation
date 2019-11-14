@@ -143,9 +143,8 @@ class _PartialCommonStats(object):
     if not feature_array:
       return
 
-    num_values = arrow_util.primitive_array_to_numpy(
-        array_util.ListLengthsFromListArray(feature_array))
-    none_mask = arrow_util.primitive_array_to_numpy(
+    num_values = np.asarray(array_util.ListLengthsFromListArray(feature_array))
+    none_mask = np.asarray(
         array_util.GetArrayNullBitmapAsByteArray(feature_array)).view(np.bool)
 
     self.num_non_missing += len(feature_array) - feature_array.null_count
@@ -242,7 +241,7 @@ class _PartialNumericStats(object):
     # Note: to_numpy will fail if flattened_value_array is empty.
     if not flattened_value_array:
       return
-    values = arrow_util.primitive_array_to_numpy(flattened_value_array)
+    values = np.asarray(flattened_value_array)
     nan_mask = np.isnan(values)
     self.num_nan += np.sum(nan_mask)
     non_nan_mask = ~nan_mask
@@ -263,7 +262,7 @@ class _PartialNumericStats(object):
     self.quantiles_summary = values_quantiles_combiner.add_input(
         self.quantiles_summary, [values_no_nan, np.ones_like(values_no_nan)])
     if weights is not None:
-      value_parent_indices = arrow_util.primitive_array_to_numpy(
+      value_parent_indices = np.asarray(
           array_util.GetFlattenedArrayParentIndices(feature_array))
       flat_weights = weights[value_parent_indices]
       flat_weights_no_nan = flat_weights[non_nan_mask]
@@ -308,8 +307,8 @@ class _PartialStringStats(object):
       def _len_after_conv(s):
         return len(str(s))
       self.total_bytes_length += np.sum(
-          np.vectorize(_len_after_conv, otypes=[np.int32])(
-              arrow_util.primitive_array_to_numpy(flattened_values_array)))
+          np.vectorize(_len_after_conv,
+                       otypes=[np.int32])(np.asarray(flattened_values_array)))
 
 
 class _PartialBasicStats(object):

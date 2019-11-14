@@ -32,7 +32,6 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 from tensorflow_data_validation import types
-from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import stats_util
 from tfx_bsl.arrow import array_util
@@ -132,15 +131,13 @@ class CrossFeatureStatsGenerator(stats_generator.CombinerStatsGenerator):
       # Assume we have only a single chunk.
       assert feature_column.data.num_chunks == 1
       feat_arr = feature_column.data.chunk(0)
-      value_lengths = arrow_util.primitive_array_to_numpy(
-          array_util.ListLengthsFromListArray(feat_arr))
+      value_lengths = np.asarray(array_util.ListLengthsFromListArray(feat_arr))
       univalent_parent_indices = set((value_lengths == 1).nonzero()[0])
       # If there are no univalent values, continue to the next feature.
       if not univalent_parent_indices:
         continue
-      non_missing_values = arrow_util.primitive_array_to_numpy(
-          feat_arr.flatten())
-      value_parent_indices = arrow_util.primitive_array_to_numpy(
+      non_missing_values = np.asarray(feat_arr.flatten())
+      value_parent_indices = np.asarray(
           array_util.GetFlattenedArrayParentIndices(feat_arr))
       if feature_type == statistics_pb2.FeatureNameStatistics.FLOAT:
         # Remove any NaN values if present.

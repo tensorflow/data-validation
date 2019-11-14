@@ -281,10 +281,10 @@ class SparseFeatureStatsGenerator(stats_generator.CombinerStatsGenerator):
               batch_example_count, True)
         else:
           feature_value_list_lengths[
-              feature_path] = arrow_util.primitive_array_to_numpy(
+              feature_path] = np.asarray(
                   array_util.ListLengthsFromListArray(leaf_array))
           feature_is_missing[
-              feature_path] = arrow_util.primitive_array_to_numpy(
+              feature_path] = np.asarray(
                   array_util.GetArrayNullBitmapAsByteArray(leaf_array))
 
     # Now create a partial sparse feature stats object for each sparse feature

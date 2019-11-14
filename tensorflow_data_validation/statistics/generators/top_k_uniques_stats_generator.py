@@ -219,10 +219,9 @@ def _to_topk_tuples(
       flattened_values = feature_array.flatten()
       if weights is not None and flattened_values:
         # Slow path: weighted uniques.
-        flattened_values_np = arrow_util.primitive_array_to_numpy(
-            flattened_values)
+        flattened_values_np = np.asarray(flattened_values)
         parent_indices = (
-            arrow_util.primitive_array_to_numpy(
+            np.asarray(
                 array_util.GetFlattenedArrayParentIndices(feature_array)))
         weights_ndarray = weights[parent_indices]
         for value, count, weight in _weighted_unique(
