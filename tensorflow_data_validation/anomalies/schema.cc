@@ -1074,7 +1074,7 @@ std::vector<Description> Schema::UpdateSparseFeature(
   return descriptions;
 }
 
-std::vector<Description> Schema::UpdateDatasetComparator(
+std::vector<Description> Schema::UpdateDatasetConstraints(
     const DatasetStatsView& dataset_stats_view) {
   std::vector<Description> descriptions;
   tensorflow::metadata::v0::DatasetConstraints* dataset_constraints =
@@ -1085,13 +1085,21 @@ std::vector<Description> Schema::UpdateDatasetComparator(
     for (const auto& comparator_type : all_comparator_types) {
       if (DatasetConstraintsHasComparator(*dataset_constraints,
                                           comparator_type)) {
-        std::vector<Description> description_updates =
+        std::vector<Description> comparator_description_updates =
             UpdateNumExamplesComparatorDirect(
                 dataset_stats_view, comparator_type,
                 GetNumExamplesComparator(dataset_constraints, comparator_type));
-        descriptions.insert(descriptions.end(), description_updates.begin(),
-                            description_updates.end());
+        descriptions.insert(descriptions.end(),
+                            comparator_description_updates.begin(),
+                            comparator_description_updates.end());
       }
+    }
+    if (dataset_constraints->has_min_examples_count()) {
+      std::vector<Description> min_examples_description_updates =
+          UpdateMinExamplesCount(dataset_stats_view, dataset_constraints);
+      descriptions.insert(descriptions.end(),
+                          min_examples_description_updates.begin(),
+                          min_examples_description_updates.end());
     }
   }
   return descriptions;

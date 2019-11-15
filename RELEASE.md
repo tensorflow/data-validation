@@ -13,6 +13,7 @@
 
 * Exclude examples in which the entire sparse feature is missing when
   calculating sparse feature statistics.
+* Validate min_examples_count dataset constraint.
 * Depends on `tensorflow-metadata>=0.15.1,<0.16`.
 
 ## Breaking Changes

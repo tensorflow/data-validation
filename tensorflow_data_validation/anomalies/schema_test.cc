@@ -1026,7 +1026,7 @@ TEST(SchemaTest, FindNumExamplesDrift) {
                }
              })");
   const std::vector<Description> result =
-      schema.UpdateDatasetComparator(training_view);
+      schema.UpdateDatasetConstraints(training_view);
 
   EXPECT_THAT(schema.GetSchema(), EqualsProto(expected_schema));
   // We're not particular about the description, just that there be one.
@@ -1067,7 +1067,34 @@ TEST(SchemaTest, FindNumExamplesChangeAcrossVersions) {
                }
              })");
   const std::vector<Description> result =
-      schema.UpdateDatasetComparator(training_view);
+      schema.UpdateDatasetConstraints(training_view);
+
+  EXPECT_THAT(schema.GetSchema(), EqualsProto(expected_schema));
+  // We're not particular about the description, just that there be one.
+  EXPECT_FALSE(result.empty());
+}
+
+TEST(SchemaTest, FindNumExamplesTooLow) {
+  const DatasetFeatureStatistics current =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(num_examples: 2)");
+
+  const tensorflow::metadata::v0::Schema schema_proto =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(
+          R"(dataset_constraints { min_examples_count: 3 })");
+  DatasetStatsView dataset_view = DatasetStatsView(
+      current,
+      /* by_weight= */ false,
+      /* environment= */ absl::nullopt, /* previous_span= */ nullptr,
+      /* serving= */ nullptr, /* previous_version= */ nullptr);
+
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(schema_proto));
+
+  tensorflow::metadata::v0::Schema expected_schema =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(
+          R"(dataset_constraints { min_examples_count: 2 })");
+  const std::vector<Description> result =
+      schema.UpdateDatasetConstraints(dataset_view);
 
   EXPECT_THAT(schema.GetSchema(), EqualsProto(expected_schema));
   // We're not particular about the description, just that there be one.

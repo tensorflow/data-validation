@@ -271,10 +271,9 @@ tensorflow::metadata::v0::AnomalyInfo SchemaAnomaly::GetAnomalyInfo(
 
 DatasetSchemaAnomaly::DatasetSchemaAnomaly() : SchemaAnomalyBase() {}
 
-void DatasetSchemaAnomaly::UpdateDatasetComparator(
-    const DatasetStatsView& dataset_stats_view) {
+void DatasetSchemaAnomaly::Update(const DatasetStatsView& dataset_stats_view) {
   const std::vector<Description> new_descriptions =
-      schema_->UpdateDatasetComparator(dataset_stats_view);
+      schema_->UpdateDatasetConstraints(dataset_stats_view);
   if (!new_descriptions.empty()) {
     UpgradeSeverity(tensorflow::metadata::v0::AnomalyInfo::ERROR);
   }
@@ -446,7 +445,7 @@ tensorflow::Status SchemaAnomalies::FindDatasetChanges(
     const DatasetStatsView& dataset_stats_view) {
   TF_RETURN_IF_ERROR(GenericDatasetUpdate(
       [&dataset_stats_view](DatasetSchemaAnomaly* dataset_schema_anomaly) {
-        dataset_schema_anomaly->UpdateDatasetComparator(dataset_stats_view);
+        dataset_schema_anomaly->Update(dataset_stats_view);
         return Status::OK();
       }));
   return Status::OK();

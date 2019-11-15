@@ -125,5 +125,23 @@ std::vector<Description> UpdateNumExamplesComparatorDirect(
   return descriptions;
 }
 
+std::vector<Description> UpdateMinExamplesCount(
+    const DatasetStatsView& stats,
+    tensorflow::metadata::v0::DatasetConstraints* dataset_constraints) {
+  std::vector<Description> descriptions;
+  if (dataset_constraints->has_min_examples_count()) {
+    const double num_present = stats.GetNumExamples();
+    if (num_present < dataset_constraints->min_examples_count()) {
+      dataset_constraints->set_min_examples_count(num_present);
+      descriptions.push_back(
+          {tensorflow::metadata::v0::AnomalyInfo::DATASET_LOW_NUM_EXAMPLES,
+           "Low num examples in dataset.",
+           absl::StrCat("The dataset has ", num_present,
+                        " examples, which is fewer than expected.")});
+    }
+  }
+  return descriptions;
+}
+
 }  // namespace data_validation
 }  // namespace tensorflow

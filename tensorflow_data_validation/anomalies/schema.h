@@ -160,8 +160,8 @@ class Schema {
   // (i.e., no FeatureNameStatistics).
   std::vector<Path> GetMissingPaths(const DatasetStatsView& dataset_stats);
 
-  // Updates a dataset comparator.
-  std::vector<Description> UpdateDatasetComparator(
+  // Updates dataset-level constraints.
+  std::vector<Description> UpdateDatasetConstraints(
       const DatasetStatsView& dataset_stats_view);
 
  private:

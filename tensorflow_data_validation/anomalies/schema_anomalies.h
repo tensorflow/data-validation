@@ -88,7 +88,7 @@ class DatasetSchemaAnomaly : public SchemaAnomalyBase {
  public:
   DatasetSchemaAnomaly();
 
-  void UpdateDatasetComparator(const DatasetStatsView& dataset_stats_view);
+  void Update(const DatasetStatsView& dataset_stats_view);
 };
 
 // SchemaAnomaly represents all the issues related to a single column.

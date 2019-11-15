@@ -146,6 +146,7 @@ TEST(SchemaAnomalies, FindChangesDatasetLevelChanges) {
 
   const Schema schema_proto = ParseTextProtoOrDie<Schema>(R"(
     dataset_constraints {
+      min_examples_count: 2
       num_examples_version_comparator {
         min_fraction_threshold: 1.0,
         max_fraction_threshold: 1.0
@@ -165,16 +166,22 @@ TEST(SchemaAnomalies, FindChangesDatasetLevelChanges) {
   testing::ExpectedAnomalyInfo expected_anomaly_info;
   expected_anomaly_info.expected_info_without_diff = ParseTextProtoOrDie<
       metadata::v0::AnomalyInfo>(R"(
-    description: "The ratio of num examples in the current dataset versus the previous version is 0.5 (up to six significant digits), which is below the threshold 1."
+    description: "The ratio of num examples in the current dataset versus the previous version is 0.5 (up to six significant digits), which is below the threshold 1. The dataset has 1 examples, which is fewer than expected."
     severity: ERROR,
-    short_description: "Low num examples in current dataset versus the previous version."
+    short_description: "Multiple errors"
     reason {
       type: COMPARATOR_LOW_NUM_EXAMPLES,
       short_description: "Low num examples in current dataset versus the previous version.",
       description: "The ratio of num examples in the current dataset versus the previous version is 0.5 (up to six significant digits), which is below the threshold 1."
+    }
+    reason {
+      type: DATASET_LOW_NUM_EXAMPLES,
+      short_description: "Low num examples in dataset.",
+      description: "The dataset has 1 examples, which is fewer than expected."
     })");
   expected_anomaly_info.new_schema =
       ParseTextProtoOrDie<Schema>(R"(dataset_constraints {
+                                       min_examples_count: 1
                                        num_examples_version_comparator {
                                          min_fraction_threshold: 0.5,
                                          max_fraction_threshold: 1.0

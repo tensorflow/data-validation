@@ -42,5 +42,10 @@ std::vector<Description> UpdateNumExamplesComparatorDirect(
     const DatasetStatsView& stats, DatasetComparatorType comparator_type,
     tensorflow::metadata::v0::NumericValueComparator* comparator);
 
+// Updates the min examples count from the dataset constraints.
+std::vector<Description> UpdateMinExamplesCount(
+    const DatasetStatsView& stats,
+    tensorflow::metadata::v0::DatasetConstraints* dataset_constraints);
+
 }  // namespace data_validation
 }  // namespace tensorflow
