@@ -15,7 +15,7 @@ def tf_data_validation_workspace():
     # Fetch tf.Metadata repo from GitHub.
     git_repository(
         name = "com_github_tensorflow_metadata",
-        commit = "54742efc540db1f0bf06a8649d7910041c56e663",
+        commit = "aa93a557e61cd8c8c9a2348809cf3a4717fe30ce",
         remote = "https://github.com/tensorflow/metadata.git",
     )
     # LINT.ThenChange(//third_party/py/tensorflow_data_validation/google/copy.bara.sky)

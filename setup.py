@@ -89,7 +89,7 @@ setup(
         'pyarrow>=0.14,<0.15',
         'six>=1.12,<2',
         'tensorflow>=1.15,<3',
-        'tensorflow-metadata>=0.15,<0.16',
+        'tensorflow-metadata>=0.15.1,<0.16',
         'tensorflow-transform>=0.15,<0.16',
         'tfx-bsl>=0.15.2,<0.17',
 
