@@ -307,6 +307,11 @@ class SparseFeatureStatsGenerator(stats_generator.CombinerStatsGenerator):
       num_examples_missing_sparse_feature = np.sum(
           entire_sparse_feature_missing)
 
+      # If all examples in the batch are missing the sparse feature, do not
+      # update the accumulator with the partial stats for that sparse feature.
+      if num_examples_missing_sparse_feature == batch_example_count:
+        continue
+
       is_missing_value_feature = feature_is_missing.get(value_feature_path)
       # If this batch does not have the value feature at all,
       # missing_value_count is the number of examples in the batch.
@@ -352,13 +357,14 @@ class SparseFeatureStatsGenerator(stats_generator.CombinerStatsGenerator):
         # in determining the min and max length differences.
         filtered_length_differences = length_differences[
             ~entire_sparse_feature_missing]
-        if filtered_length_differences.size != 0:
-          # If all examples in a batch are missing the sparse feature,
-          # filtered_length_differences will be empty.
-          min_length_diff[index_feature_path] = np.min(
-              filtered_length_differences)
-          max_length_diff[index_feature_path] = np.max(
-              filtered_length_differences)
+        # This generator should not get to this point if the current sparse
+        # feature is missing from all examples in the batch (which would cause
+        # filtered_length_differences to be empty).
+        assert filtered_length_differences.size != 0
+        min_length_diff[index_feature_path] = np.min(
+            filtered_length_differences)
+        max_length_diff[index_feature_path] = np.max(
+            filtered_length_differences)
 
       stats_for_feature = _PartialSparseFeatureStats(missing_value_count,
                                                      missing_index_counts,

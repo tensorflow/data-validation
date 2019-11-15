@@ -601,7 +601,7 @@ class SparseFeatureStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         sparse_feature_stats_generator.SparseFeatureStatsGenerator(schema))
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_sparse_feature_generator_missing_entire_sparse_feature(self):
+  def test_sparse_feature_generator_batch_missing_entire_sparse_feature(self):
     batches = [
         pa.Table.from_arrays([
             pa.array(
@@ -689,6 +689,32 @@ class SparseFeatureStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   }
                 }""", statistics_pb2.FeatureNameStatistics())
     }
+    generator = (
+        sparse_feature_stats_generator.SparseFeatureStatsGenerator(schema))
+    self.assertCombinerOutputEqual(batches, generator, expected_result)
+
+  def test_sparse_feature_generator_dataset_missing_entire_sparse_feature(self):
+    batches = [
+        pa.Table.from_arrays([
+            pa.array([['a']]),
+        ], ['other_feature']),
+    ]
+    schema = text_format.Parse(
+        """
+        sparse_feature {
+          name: 'sparse_feature'
+          index_feature {
+            name: 'index_feature1'
+          }
+          index_feature {
+            name: 'index_feature2'
+          }
+          value_feature {
+            name: 'value_feature'
+          }
+        }
+        """, schema_pb2.Schema())
+    expected_result = {}
     generator = (
         sparse_feature_stats_generator.SparseFeatureStatsGenerator(schema))
     self.assertCombinerOutputEqual(batches, generator, expected_result)
