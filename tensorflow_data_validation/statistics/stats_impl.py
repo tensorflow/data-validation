@@ -538,6 +538,9 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
   (https://issues.apache.org/jira/browse/BEAM-3737).
   """
 
+  __slots__ = ['_generators', '_desired_batch_size', '_combine_batch_size',
+               '_num_compacts', '_num_instances']
+
   # This needs to be large enough to allow for efficient merging of
   # accumulators in the individual stats generators, but shouldn't be too large
   # as it also acts as cap on the maximum memory usage of the computation.
@@ -559,12 +562,6 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
       self._desired_batch_size = constants.DEFAULT_DESIRED_INPUT_BATCH_SIZE
 
     # Metrics
-    self._combine_add_input_batch_size = beam.metrics.Metrics.distribution(
-        constants.METRICS_NAMESPACE, 'combine_add_input_batch_size')
-    self._combine_merge_accumulator_batch_size = (
-        beam.metrics.Metrics.distribution(
-            constants.METRICS_NAMESPACE,
-            'combine_merge_accumulator_batch_size'))
     self._combine_batch_size = beam.metrics.Metrics.distribution(
         constants.METRICS_NAMESPACE, 'combine_batch_size')
     self._num_compacts = beam.metrics.Metrics.counter(
@@ -610,7 +607,7 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
     """
     batch_size = accumulator.curr_batch_size
     if (force and batch_size > 0) or batch_size >= self._desired_batch_size:
-      self._combine_add_input_batch_size.update(batch_size)
+      self._combine_batch_size.update(batch_size)
       if len(accumulator.input_tables) == 1:
         arrow_table = accumulator.input_tables[0]
       else:
@@ -704,7 +701,6 @@ def generate_partial_statistics_in_memory(
     A list of accumulators containing partial statistics.
   """
   result = []
-
   if options.feature_whitelist:
     whitelisted_columns = [
         table.column(f).data for f in options.feature_whitelist]
@@ -713,7 +709,6 @@ def generate_partial_statistics_in_memory(
   for generator in stats_generators:
     result.append(
         generator.add_input(generator.create_accumulator(), table))
-
   return result
 
 

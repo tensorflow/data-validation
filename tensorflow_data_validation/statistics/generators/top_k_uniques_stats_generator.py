@@ -293,19 +293,21 @@ class _ComputeTopKUniquesStats(beam.PTransform):
             _to_topk_tuples,
             categorical_features=self._categorical_features,
             weight_feature=self._weight_feature)
-        | 'CombineCountsAndWeights' >> beam.CombinePerKey(sum_fn))
+        | 'CombineCountsAndWeights' >> beam.CombinePerKey(sum_fn)
+        | 'Rearrange' >> beam.MapTuple(lambda k, v: ((k[0], k[1]), (v, k[2]))))
+        # (slice_key, feature), (count_and_maybe_weight, value)
 
     top_k = top_k_tuples_combined
     if self._weight_feature is not None:
-      top_k |= 'Unweighted_DropWeights' >> beam.Map(lambda x: (x[0], x[1][0]))
-    # (slice_key, feature, v), c
-    top_k |= (
-        'Unweighted_Prepare' >>
-        beam.Map(lambda x: ((x[0][0], x[0][1]), (x[0][2], x[1])))
-        # (slice_key, feature), (v, c)
+      top_k |= 'Unweighted_DropWeightsAndRearrange' >> beam.MapTuple(
+          lambda k, v: (k, (v[0][0], v[1])))
+      # (slice_key, feature), (count, value)
+    top_k = (
+        top_k
         | 'Unweighted_TopK' >> beam.combiners.Top().PerKey(
-            max(self._num_top_values, self._num_rank_histogram_buckets),
-            key=lambda x: (x[1], x[0]))
+            max(self._num_top_values, self._num_rank_histogram_buckets))
+        | 'Unweighted_ToFeatureValueCount' >> beam.MapTuple(
+            lambda k, v: (k, [FeatureValueCount(t[1], t[0]) for t in v]))
         | 'Unweighted_ToProto' >> beam.Map(
             _make_dataset_feature_stats_proto_with_topk_for_single_feature,
             categorical_features=self._categorical_features,
@@ -315,7 +317,7 @@ class _ComputeTopKUniquesStats(beam.PTransform):
             num_rank_histogram_buckets=self._num_rank_histogram_buckets))
     uniques = (
         top_k_tuples_combined
-        | 'Uniques_DropValues' >> beam.Map(lambda x: (x[0][0], x[0][1]))
+        | 'Uniques_Keys' >> beam.Keys()
         | 'Uniques_CountPerFeatureName' >> beam.combiners.Count().PerElement()
         | 'Uniques_ConvertToSingleFeatureStats' >> beam.Map(
             _make_dataset_feature_stats_proto_with_uniques_for_single_feature,
@@ -325,13 +327,13 @@ class _ComputeTopKUniquesStats(beam.PTransform):
     if self._weight_feature is not None:
       weighted_top_k = (
           top_k_tuples_combined
-          | 'Weighted_DropCounts' >> beam.Map(lambda x: (x[0], x[1][1]))
-          | 'Weighted_Prepare' >>
-          # (slice_key, feature), (v, w)
-          beam.Map(lambda x: ((x[0][0], x[0][1]), (x[0][2], x[1])))
+          | 'Weighted_DropCountsAndRearrange'
+          >> beam.MapTuple(lambda k, v: (k, (v[0][1], v[1])))
+          # (slice_key, feature), (weight, value)
           | 'Weighted_TopK' >> beam.combiners.Top().PerKey(
-              max(self._num_top_values, self._num_rank_histogram_buckets),
-              key=lambda x: (x[1], x[0]))
+              max(self._num_top_values, self._num_rank_histogram_buckets))
+          | 'Weighted_ToFeatureValueCount' >> beam.MapTuple(
+              lambda k, v: (k, [FeatureValueCount(t[1], t[0]) for t in v]))
           | 'Weighted_ToProto' >> beam.Map(
               _make_dataset_feature_stats_proto_with_topk_for_single_feature,
               categorical_features=self._categorical_features,

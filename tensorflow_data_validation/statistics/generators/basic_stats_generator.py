@@ -610,21 +610,23 @@ def _update_tfdv_telemetry(
     type_str = statistics_pb2.FeatureNameStatistics.Type.Name(
         feature_type).lower()
     type_metrics = metrics[feature_type]
-    counter(constants.METRICS_NAMESPACE,
-            'num_' + type_str + '_feature_values').inc(int(
-                type_metrics.num_non_missing))
-    is_present = type_metrics.num_non_missing > 0
-    counter(constants.METRICS_NAMESPACE,
-            type_str + '_feature_values_min_count').inc(int(
-                type_metrics.min_value_count if is_present else -1))
-    counter(constants.METRICS_NAMESPACE,
-            type_str + '_feature_values_max_count').inc(int(
-                type_metrics.max_value_count if is_present else -1))
     counter(
         constants.METRICS_NAMESPACE,
-        type_str + '_feature_values_mean_count').inc(
-            int(type_metrics.total_num_values/type_metrics.num_non_missing)
-            if is_present else -1)
+        'num_' + type_str + '_feature_values').inc(
+            int(type_metrics.num_non_missing))
+    if type_metrics.num_non_missing > 0:
+      counter(
+          constants.METRICS_NAMESPACE,
+          type_str + '_feature_values_min_count').inc(
+              int(type_metrics.min_value_count))
+      counter(
+          constants.METRICS_NAMESPACE,
+          type_str + '_feature_values_max_count').inc(
+              int(type_metrics.max_value_count))
+      counter(
+          constants.METRICS_NAMESPACE,
+          type_str + '_feature_values_mean_count').inc(
+              int(type_metrics.total_num_values / type_metrics.num_non_missing))
 
 
 # Currently we construct the equi-width histogram by using the
