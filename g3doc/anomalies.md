@@ -433,6 +433,15 @@ condition(s) under which each anomaly type is detected.
         -   `num_examples` / previous statistics `num_examples` > comparator
             `max_fraction_threshold`
 
+-   `DATASET_NUM_EXAMPLES`
+
+    -   Schema Fields:
+        -   `schema.dataset_constraints.min_examples_count`
+    -   Statistics Fields:
+        -   `num_examples`*
+    -   Detection Condition:
+        -   `num_examples` < `dataset_constraints.min_examples_count`
+
 -   `UNKNOWN_TYPE`
 
     NOTE: There are various different reasons why an anomaly of `UNKNOWN_TYPE`
