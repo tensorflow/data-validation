@@ -14,6 +14,8 @@
 * Exclude examples in which the entire sparse feature is missing when
   calculating sparse feature statistics.
 * Validate min_examples_count dataset constraint.
+* Document the schema fields, statistics fields, and detection condition for
+  each anomaly type that TFDV detects.
 * Depends on `tensorflow-metadata>=0.15.1,<0.16`.
 
 ## Breaking Changes
