@@ -202,9 +202,10 @@ in the schema.
 ## Checking the data for errors
 
 Given a schema, it is possible to check whether a dataset conforms to the
-expectations set in the schema or whether there exist any data anomalies. You
-can check your data for errors (a) in the aggregate across an entire dataset by
-matching the statistics of the dataset against the schema, or (b) by checking
+expectations set in the schema or whether there exist any [data anomalies]
+(https://github.com/tensorflow/data-validation/blob/master/g3doc/anomalies.md).
+You can check your data for errors (a) in the aggregate across an entire dataset
+by matching the statistics of the dataset against the schema, or (b) by checking
 for errors on a per-example basis.
 
 ### Matching the statistics of the dataset against a schema

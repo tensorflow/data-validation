@@ -19,7 +19,8 @@ TF Data Validation includes:
      generation to describe expectations about data
      like required values, ranges, and vocabularies
 *    A schema viewer to help you inspect the schema.
-*    Anomaly detection to identify anomalies, such as missing features,
+*    Anomaly detection to identify [anomalies](https://github.com/tensorflow/data-validation/blob/master/g3doc/anomalies.md),
+     such as missing features,
      out-of-range values, or wrong feature types, to name a few.
 *    An anomalies viewer so that you can see what features have anomalies and
      learn more in order to correct them.
