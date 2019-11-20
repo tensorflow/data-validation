@@ -125,7 +125,7 @@ class CrossFeatureStatsGenerator(stats_generator.CombinerStatsGenerator):
           feature_name, feature_column.type)
       # Only consider crosses of numeric features.
       # TODO(zhuo): Support numeric features nested under structs.
-      if feature_type in (statistics_pb2.FeatureNameStatistics.STRING,
+      if feature_type in (None, statistics_pb2.FeatureNameStatistics.STRING,
                           statistics_pb2.FeatureNameStatistics.STRUCT):
         continue
       # Assume we have only a single chunk.

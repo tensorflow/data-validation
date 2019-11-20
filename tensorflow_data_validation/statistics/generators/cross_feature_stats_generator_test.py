@@ -38,7 +38,11 @@ class CrossFeatureStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     b2 = pa.Table.from_arrays([pa.array([[6.0], [10.0]]),
                                pa.array([[14.0], [16.0]]),
                                pa.array([[-1.0], [0]]),], ['a', 'b', 'c'])
-    batches = [b1, b2]
+    b3 = pa.Table.from_arrays([pa.array([None, None], type=pa.null()),
+                               pa.array([None, None], type=pa.null()),
+                               pa.array([None, None], type=pa.null()),],
+                              ['a', 'b', 'c'])
+    batches = [b1, b2, b3]
     expected_result = {
         ('a', 'b'): text_format.Parse(
             """
