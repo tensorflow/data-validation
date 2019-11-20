@@ -7,7 +7,8 @@
   by `tfx-bsl` (since tfx-bsl 0.15.2). This also brings performance improvements
   to the CSV decoder (~2x faster in decoding. Type inferring performance is not
   affected).
-
+* Compute bytes statistics for features of BYTES type. Avoid computing topk and
+  uniques for such features.
 
 ## Bug Fixes and Other Changes
 

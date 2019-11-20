@@ -197,6 +197,7 @@ def _weighted_unique(values: np.ndarray, weights: np.ndarray
 
 def _to_topk_tuples(
     sliced_table: Tuple[Text, pa.Table],
+    bytes_features: FrozenSet[types.FeaturePath],
     categorical_features: FrozenSet[types.FeaturePath],
     weight_feature: Optional[Text]
 ) -> Iterable[
@@ -211,6 +212,8 @@ def _to_topk_tuples(
       enumerate_leaves_only=True):
     feature_array_type = feature_array.type
     if pa.types.is_null(feature_array_type):
+      continue
+    if feature_path in bytes_features:
       continue
     if (feature_path in categorical_features or
         stats_util.get_feature_type_from_arrow_type(
@@ -257,6 +260,8 @@ class _ComputeTopKUniquesStats(beam.PTransform):
       num_rank_histogram_buckets: The number of buckets in the rank histogram
           for string features.
     """
+    self._bytes_features = set(
+        schema_util.get_bytes_features(schema) if schema else [])
     self._categorical_features = set(
         schema_util.get_categorical_numeric_features(schema) if schema else [])
     self._weight_feature = weight_feature
@@ -291,6 +296,7 @@ class _ComputeTopKUniquesStats(beam.PTransform):
         pcoll
         | 'ToTopKTuples' >> beam.FlatMap(
             _to_topk_tuples,
+            bytes_features=self._bytes_features,
             categorical_features=self._categorical_features,
             weight_feature=self._weight_feature)
         | 'CombineCountsAndWeights' >> beam.CombinePerKey(sum_fn)

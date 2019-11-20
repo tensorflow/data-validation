@@ -1220,6 +1220,65 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         num_quantiles_histogram_buckets=4, epsilon=0.001)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
+  def test_basic_stats_generator_with_bytes_features(self):
+
+    b1 = pa.Table.from_arrays([
+        pa.array([[b'x', b'y', b'z', b'w'], [b'qwe', b'abc']]),], ['b'])
+    b2 = pa.Table.from_arrays([pa.array([[b'ab']]),], ['b'])
+    batches = [b1, b2]
+    schema = text_format.Parse(
+        """
+        feature {
+          name: "b"
+          type: BYTES
+          image_domain { }
+        }
+        """, schema_pb2.Schema())
+    expected_result = {
+        types.FeaturePath(['b']): text_format.Parse(
+            """
+            path {
+              step: 'b'
+            }
+            type: BYTES
+            bytes_stats {
+              common_stats {
+                num_non_missing: 3
+                min_num_values: 1
+                max_num_values: 4
+                avg_num_values: 2.33333333
+                tot_num_values: 7
+                num_values_histogram {
+                  buckets {
+                    low_value: 1.0
+                    high_value: 2.0
+                    sample_count: 1.0
+                  }
+                  buckets {
+                    low_value: 2.0
+                    high_value: 4.0
+                    sample_count: 1.0
+                  }
+                  buckets {
+                    low_value: 4.0
+                    high_value: 4.0
+                    sample_count: 1.0
+                  }
+                  type: QUANTILES
+                }
+              }
+              avg_num_bytes: 1.71428571
+              min_num_bytes: 1
+              max_num_bytes: 3
+            }
+            """, statistics_pb2.FeatureNameStatistics()),
+    }
+    generator = basic_stats_generator.BasicStatsGenerator(
+        schema=schema,
+        num_values_histogram_buckets=3, num_histogram_buckets=3,
+        num_quantiles_histogram_buckets=4, epsilon=0.001)
+    self.assertCombinerOutputEqual(batches, generator, expected_result)
+
   def test_basic_stats_generator_categorical_feature(self):
     batches = [
         pa.Table.from_arrays([pa.array([[1, 5, 10], [0]])], ['c']),

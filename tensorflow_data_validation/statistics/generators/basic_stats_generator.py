@@ -311,15 +311,53 @@ class _PartialStringStats(object):
                        otypes=[np.int32])(np.asarray(flattened_values_array)))
 
 
+class _PartialBytesStats(object):
+  """Holds partial bytes statistics for a single feature."""
+
+  __slots__ = ['total_num_bytes', 'min_num_bytes', 'max_num_bytes']
+
+  def __init__(self):
+    # The total number of bytes of all the values for this feature.
+    self.total_num_bytes = 0
+    # The minimum number of bytes among all the values for this feature.
+    self.min_num_bytes = sys.maxsize
+    # The maximum number of bytes among all the values for this feature.
+    self.max_num_bytes = -sys.maxsize
+
+  def __iadd__(self, other: '_PartialBytesStats') -> '_PartialBytesStats':
+    """Merge two partial bytes statistics and return the merged statistics."""
+    self.total_num_bytes += other.total_num_bytes
+    self.min_num_bytes = min(self.min_num_bytes, other.min_num_bytes)
+    self.max_num_bytes = max(self.max_num_bytes, other.max_num_bytes)
+    return self
+
+  def update(self, feature_array: pa.Array) -> None:
+    """Update the partial bytes statistics using the input value."""
+    if pa.types.is_null(feature_array.type):
+      return
+    # Iterate through the value array and update the partial stats.'
+    flattened_values_array = feature_array.flatten()
+    if (pa.types.is_floating(flattened_values_array.type) or
+        pa.types.is_integer(flattened_values_array.type)):
+      raise ValueError('Bytes stats cannot be computed on INT/FLOAT features.')
+    if flattened_values_array:
+      num_bytes = array_util.GetElementLengths(
+          flattened_values_array).to_numpy()
+      self.min_num_bytes = min(self.min_num_bytes, np.min(num_bytes))
+      self.max_num_bytes = max(self.max_num_bytes, np.max(num_bytes))
+      self.total_num_bytes += np.sum(num_bytes)
+
+
 class _PartialBasicStats(object):
   """Holds partial statistics for a single feature."""
 
-  __slots__ = ['common_stats', 'numeric_stats', 'string_stats']
+  __slots__ = ['common_stats', 'numeric_stats', 'string_stats', 'bytes_stats']
 
   def __init__(self, has_weights: bool):
     self.common_stats = _PartialCommonStats(has_weights=has_weights)
     self.numeric_stats = _PartialNumericStats(has_weights=has_weights)
     self.string_stats = _PartialStringStats()
+    self.bytes_stats = _PartialBytesStats()
 
 
 def _make_common_stats_proto(
@@ -485,6 +523,18 @@ def _make_string_stats_proto(string_stats: _PartialStringStats,
   return result
 
 
+def _make_bytes_stats_proto(bytes_stats: _PartialBytesStats,
+                            total_num_values: int
+                           ) -> statistics_pb2.BytesStatistics:
+  """Convert the partial bytes statistics into BytesStatistics proto."""
+  result = statistics_pb2.BytesStatistics()
+  if total_num_values > 0:
+    result.avg_num_bytes = bytes_stats.total_num_bytes / total_num_values
+    result.min_num_bytes = bytes_stats.min_num_bytes
+    result.max_num_bytes = bytes_stats.max_num_bytes
+  return result
+
+
 def _make_feature_stats_proto(
     feature_path: types.FeaturePath,
     basic_stats: _PartialBasicStats,
@@ -494,7 +544,7 @@ def _make_feature_stats_proto(
     num_values_histogram_buckets: int,
     num_histogram_buckets: int,
     num_quantiles_histogram_buckets: int,
-    is_categorical: bool, has_weights: bool
+    is_bytes: bool, is_categorical: bool, has_weights: bool
 ) -> statistics_pb2.FeatureNameStatistics:
   """Convert the partial basic stats into a FeatureNameStatistics proto.
 
@@ -512,6 +562,7 @@ def _make_feature_stats_proto(
         NumericStatistics.histogram with equal-width buckets.
     num_quantiles_histogram_buckets: Number of buckets in a
         quantiles NumericStatistics.histogram.
+    is_bytes: A boolean indicating whether the feature is bytes.
     is_categorical: A boolean indicating whether the feature is categorical.
     has_weights: A boolean indicating whether a weight feature is specified.
 
@@ -528,6 +579,8 @@ def _make_feature_stats_proto(
   # to the stats proto to handle this case.
   if is_categorical:
     result.type = statistics_pb2.FeatureNameStatistics.INT
+  elif is_bytes:
+    result.type = statistics_pb2.FeatureNameStatistics.BYTES
   elif basic_stats.common_stats.type is None:
     # If a feature is completely missing, we assume the type to be STRING.
     result.type = statistics_pb2.FeatureNameStatistics.STRING
@@ -545,6 +598,13 @@ def _make_feature_stats_proto(
   # Copy the common stats into appropriate numeric/string stats.
   # If the type is not set, we currently wrap the common stats
   # within numeric stats.
+  if is_bytes:
+    # Construct bytes statistics proto.
+    bytes_stats_proto = _make_bytes_stats_proto(
+        basic_stats.bytes_stats, basic_stats.common_stats.total_num_values)
+    # Add the common stats into bytes stats.
+    bytes_stats_proto.common_stats.CopyFrom(common_stats_proto)
+    result.bytes_stats.CopyFrom(bytes_stats_proto)
   if (is_categorical or
       result.type == statistics_pb2.FeatureNameStatistics.STRING):
     # Construct string statistics proto.
@@ -680,6 +740,9 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
           consumption.
     """
     super(BasicStatsGenerator, self).__init__(name, schema)
+
+    self._bytes_features = set(
+        schema_util.get_bytes_features(schema) if schema else [])
     self._categorical_features = set(
         schema_util.get_categorical_numeric_features(schema) if schema else [])
     self._weight_feature = weight_feature
@@ -729,9 +792,10 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
                                             feature_array, feature_type,
                                             self._num_values_quantiles_combiner,
                                             weights)
-      is_categorical_feature = feature_path in self._categorical_features
-      if (is_categorical_feature or
-          feature_type == statistics_pb2.FeatureNameStatistics.STRING):
+      if feature_path in self._bytes_features:
+        stats_for_feature.bytes_stats.update(feature_array)
+      elif (feature_path in self._categorical_features or
+            feature_type == statistics_pb2.FeatureNameStatistics.STRING):
         stats_for_feature.string_stats.update(feature_array)
       elif feature_type in (statistics_pb2.FeatureNameStatistics.INT,
                             statistics_pb2.FeatureNameStatistics.FLOAT):
@@ -774,8 +838,10 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
           existing_stats.common_stats += basic_stats.common_stats
 
           if current_type is not None:
-            if (is_categorical or
-                current_type == statistics_pb2.FeatureNameStatistics.STRING):
+            if feature_path in self._bytes_features:
+              existing_stats.bytes_stats += basic_stats.bytes_stats
+            elif (is_categorical or
+                  current_type == statistics_pb2.FeatureNameStatistics.STRING):
               existing_stats.string_stats += basic_stats.string_stats
             elif current_type in (statistics_pb2.FeatureNameStatistics.INT,
                                   statistics_pb2.FeatureNameStatistics.FLOAT):
@@ -841,6 +907,7 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
           self._num_values_quantiles_combiner, self._values_quantiles_combiner,
           self._num_values_histogram_buckets, self._num_histogram_buckets,
           self._num_quantiles_histogram_buckets,
+          feature_path in self._bytes_features,
           feature_path in self._categorical_features,
           self._weight_feature is not None)
       # Copy the constructed FeatureNameStatistics proto into the

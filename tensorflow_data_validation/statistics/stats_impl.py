@@ -394,18 +394,13 @@ def _update_example_and_missing_count(
       continue
     common_stats = None
     which_oneof_stats = feature_stats.WhichOneof('stats')
-    if which_oneof_stats == 'num_stats':
-      common_stats = feature_stats.num_stats.common_stats
-    elif which_oneof_stats == 'struct_stats':
-      common_stats = feature_stats.struct_stats.common_stats
-    elif (which_oneof_stats == 'string_stats' or
-          which_oneof_stats == 'bytes_stats'):
-      common_stats = feature_stats.string_stats.common_stats
-    else:
+    if which_oneof_stats is None:
       # There are not common_stats for this feature (which can be the case when
       # generating only custom_stats for a sparse feature). In that case, simply
       # return without modifying the common stats or num_examples.
       return
+    else:
+      common_stats = getattr(feature_stats, which_oneof_stats).common_stats
     assert num_examples >= common_stats.num_non_missing, (
         'Total number of examples: {} is less than number of non missing '
         'examples: {} for feature {}.'.format(
@@ -436,6 +431,7 @@ def _make_dataset_feature_statistics_list_proto(
   result = statistics_pb2.DatasetFeatureStatisticsList()
 
   for stats_proto in stats_protos:
+
     # Add the input DatasetFeatureStatistics proto.
     new_stats_proto = result.datasets.add()
     new_stats_proto.CopyFrom(stats_proto)

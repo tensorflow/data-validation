@@ -357,6 +357,55 @@ class SchemaUtilTest(parameterized.TestCase):
     with self.assertRaisesRegexp(TypeError, 'should be a Schema proto'):
       _ = schema_util.write_schema_text({}, 'schema.pbtxt')
 
+  def test_get_bytes_features(self):
+    schema = text_format.Parse(
+        """
+        feature {
+          name: "fa"
+          type: BYTES
+          image_domain { }
+        }
+        feature {
+          name: "fb"
+          type: BYTES
+        }
+        feature {
+          name: "fc"
+          type: INT
+          int_domain { }
+        }
+        feature {
+          name: "fd"
+          type: FLOAT
+        }
+        feature {
+          name: "fe"
+          type: INT
+          bool_domain {
+            name: "fc_bool_domain"
+          }
+        }
+        feature {
+          name: "ff"
+          type: STRUCT
+          struct_domain {
+            feature {
+              name: "ff_fa"
+              type: BYTES
+              image_domain { }
+            }
+            feature {
+              name: "ff_fb"
+            }
+          }
+        }
+        """, schema_pb2.Schema())
+    self.assertEqual(
+        schema_util.get_bytes_features(schema), [
+            types.FeaturePath(['fa']),
+            types.FeaturePath(['ff', 'ff_fa'])
+        ])
+
   def test_get_categorical_numeric_features(self):
     schema = text_format.Parse(
         """

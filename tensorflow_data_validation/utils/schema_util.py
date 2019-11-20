@@ -224,6 +224,23 @@ def load_schema_text(input_path: bytes) -> schema_pb2.Schema:
   return schema
 
 
+def get_bytes_features(schema: schema_pb2.Schema) -> List[types.FeaturePath]:
+  """Get the list of features that should be treated as bytes.
+
+  Args:
+    schema: The schema for the data.
+
+  Returns:
+    A list of features that should be considered bytes.
+  """
+  bytes_features = []
+  for feature_path, feature in _get_all_leaf_features(schema):
+    domain_info = feature.WhichOneof('domain_info')
+    if domain_info == 'image_domain':
+      bytes_features.append(feature_path)
+  return bytes_features
+
+
 def is_categorical_feature(feature: schema_pb2.Feature):
   """Checks if the input feature is categorical."""
   if feature.type == schema_pb2.BYTES:

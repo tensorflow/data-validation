@@ -895,6 +895,94 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         add_default_slice_key_to_input=True,
         add_default_slice_key_to_output=True)
 
+  def test_topk_uniques_with_bytes_feature(self):
+    # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
+    # fb: 1 'a', 2 'b', 3 'c'
+    examples = [
+        pa.Table.from_arrays([
+            pa.array([['a', 'b', 'c', 'e'], None, ['a', 'c', 'd'],
+                      ['a', 'a', 'b', 'c', 'd'], None]),
+            pa.array([['a', 'c', 'c'], ['b'], None, None, ['b', 'c']])
+        ], ['fa', 'fb'])
+    ]
+
+    expected_result = [
+        text_format.Parse(
+            """
+      features {
+        path {
+          step: 'fa'
+        }
+        type: STRING
+        string_stats {
+          top_values {
+            value: 'a'
+            frequency: 4
+          }
+          top_values {
+            value: 'c'
+            frequency: 3
+          }
+          top_values {
+            value: 'd'
+            frequency: 2
+          }
+          top_values {
+            value: 'b'
+            frequency: 2
+          }
+          rank_histogram {
+            buckets {
+              low_rank: 0
+              high_rank: 0
+              label: "a"
+              sample_count: 4.0
+            }
+            buckets {
+              low_rank: 1
+              high_rank: 1
+              label: "c"
+              sample_count: 3.0
+            }
+            buckets {
+              low_rank: 2
+              high_rank: 2
+              label: "d"
+              sample_count: 2.0
+            }
+          }
+        }
+      }""", statistics_pb2.DatasetFeatureStatistics()),
+        text_format.Parse(
+            """
+    features {
+        path {
+          step: 'fa'
+        }
+        type: STRING
+        string_stats {
+          unique: 5
+        }
+      }""", statistics_pb2.DatasetFeatureStatistics()),
+    ]
+
+    schema = text_format.Parse(
+        """
+        feature {
+          name: "fb"
+          type: BYTES
+          image_domain { }
+        }
+        """, schema_pb2.Schema())
+    generator = top_k_uniques_stats_generator.TopKUniquesStatsGenerator(
+        schema=schema, num_top_values=4, num_rank_histogram_buckets=3)
+    self.assertSlicingAwareTransformOutputEqual(
+        examples,
+        generator,
+        expected_result,
+        add_default_slice_key_to_input=True,
+        add_default_slice_key_to_output=True)
+
   def test_topk_uniques_with_categorical_feature(self):
     examples = [
         pa.Table.from_arrays(
