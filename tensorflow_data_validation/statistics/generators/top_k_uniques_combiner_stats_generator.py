@@ -175,6 +175,8 @@ class TopKUniquesCombinerStatsGenerator(
         enumerate_leaves_only=True):
       feature_type = stats_util.get_feature_type_from_arrow_type(
           feature_path, leaf_array.type)
+      if feature_type is None:
+        continue
       # if it's not a categorical feature nor a string feature, we don't bother
       # with topk stats.
       if (feature_path in self._categorical_features or

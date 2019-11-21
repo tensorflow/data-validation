@@ -577,6 +577,8 @@ class TopKUniquesCombinerStatsGeneratorTest(
     batches = [
         pa.Table.from_arrays([pa.array([[12, 23, 34, 12], [45, 23]])], ['fa']),
         pa.Table.from_arrays([pa.array([[12, 12, 34, 45]])], ['fa']),
+        pa.Table.from_arrays(
+            [pa.array([None, None, None, None], type=pa.null())], ['fa']),
     ]
     expected_result = {
         types.FeaturePath(['fa']):

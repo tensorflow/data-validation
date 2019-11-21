@@ -17,7 +17,8 @@
 * Validate min_examples_count dataset constraint.
 * Document the schema fields, statistics fields, and detection condition for
   each anomaly type that TFDV detects.
-* Handle null array in cross feature stats generator.
+* Handle null array in cross feature stats generator and top-k & uniques
+  combiner stats generator.
 * Depends on `tensorflow-metadata>=0.15.1,<0.16`.
 
 ## Breaking Changes
