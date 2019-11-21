@@ -69,7 +69,7 @@ def _make_dataset_feature_stats_proto_with_uniques_for_single_feature(
     feature_path_to_value_count: Tuple[Tuple[types.SliceKey,
                                              FeaturePathTuple], int],
     categorical_features: Set[types.FeaturePath]
-) -> Tuple[types.SliceKey, bytes]:
+) -> Tuple[types.SliceKey, statistics_pb2.DatasetFeatureStatistics]:
   """Makes a DatasetFeatureStatistics proto with uniques stats for a feature."""
   (slice_key, feature_path_tuple), count = feature_path_to_value_count
   feature_path = types.FeaturePath(feature_path_tuple)
@@ -77,7 +77,7 @@ def _make_dataset_feature_stats_proto_with_uniques_for_single_feature(
   result.features.add().CopyFrom(
       _make_feature_stats_proto_with_uniques_stats(
           feature_path, count, feature_path in categorical_features))
-  return slice_key, result.SerializeToString()
+  return slice_key, result
 
 
 def make_feature_stats_proto_with_topk_stats(
@@ -151,11 +151,13 @@ def make_feature_stats_proto_with_topk_stats(
 
 
 def _make_dataset_feature_stats_proto_with_topk_for_single_feature(
-    feature_path_to_value_count_list: Tuple[
-        Tuple[types.SliceKey, FeaturePathTuple], List[FeatureValueCount]],
+    feature_path_to_value_count_list: Tuple[Tuple[types.SliceKey,
+                                                  FeaturePathTuple],
+                                            List[FeatureValueCount]],
     categorical_features: Set[types.FeaturePath], is_weighted_stats: bool,
     num_top_values: int, frequency_threshold: float,
-    num_rank_histogram_buckets: int) -> Tuple[types.SliceKey, bytes]:
+    num_rank_histogram_buckets: int
+) -> Tuple[types.SliceKey, statistics_pb2.DatasetFeatureStatistics]:
   """Makes a DatasetFeatureStatistics proto with top-k stats for a feature."""
   (slice_key, feature_path_tuple), value_count_list = (
       feature_path_to_value_count_list)
@@ -166,7 +168,7 @@ def _make_dataset_feature_stats_proto_with_topk_for_single_feature(
           feature_path, value_count_list, feature_path in categorical_features,
           is_weighted_stats, num_top_values, frequency_threshold,
           num_rank_histogram_buckets))
-  return slice_key, result.SerializeToString()
+  return slice_key, result
 
 
 def _weighted_unique(values: np.ndarray, weights: np.ndarray
@@ -301,7 +303,7 @@ class _ComputeTopKUniquesStats(beam.PTransform):
             weight_feature=self._weight_feature)
         | 'CombineCountsAndWeights' >> beam.CombinePerKey(sum_fn)
         | 'Rearrange' >> beam.MapTuple(lambda k, v: ((k[0], k[1]), (v, k[2]))))
-        # (slice_key, feature), (count_and_maybe_weight, value)
+    # (slice_key, feature), (count_and_maybe_weight, value)
 
     top_k = top_k_tuples_combined
     if self._weight_feature is not None:
@@ -349,16 +351,8 @@ class _ComputeTopKUniquesStats(beam.PTransform):
               num_rank_histogram_buckets=self._num_rank_histogram_buckets))
       result_protos.append(weighted_top_k)
 
-    def _deserialize_sliced_feature_stats_proto(entry):
-      feature_stats_proto = statistics_pb2.DatasetFeatureStatistics()
-      feature_stats_proto.ParseFromString(entry[1])
-      return entry[0], feature_stats_proto
     return (result_protos
-            | 'FlattenTopKUniquesFeatureStatsProtos' >> beam.Flatten()
-            # TODO(b/121152126): This deserialization stage is a workaround.
-            # Remove this once it is no longer needed.
-            | 'DeserializeTopKUniquesFeatureStatsProto' >>
-            beam.Map(_deserialize_sliced_feature_stats_proto))
+            | 'FlattenTopKUniquesFeatureStatsProtos' >> beam.Flatten())
 
 
 class TopKUniquesStatsGenerator(stats_generator.TransformStatsGenerator):
