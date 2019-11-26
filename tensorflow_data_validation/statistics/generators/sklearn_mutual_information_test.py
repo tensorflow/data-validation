@@ -114,6 +114,109 @@ class SkLearnMutualInformationTest(absltest.TestCase):
     self._assert_mi_output_equal(batch, expected, schema,
                                  types.FeaturePath(["label_key"]))
 
+  def test_mi_regression_with_null_array(self):
+    label_array = pa.array([
+        [0.1], [0.2], [0.8], [0.7], [0.2], [0.3], [0.9],
+        [0.4], [0.1], [0.0], [0.4], [0.6], [0.4], [0.8]])
+    # Random floats that do not map onto the label
+    terrible_feat_array = pa.array([
+        [0.4], [0.1], [0.4], [0.4], [0.8], [0.7], [0.2],
+        [0.1], [0.0], [0.4], [0.8], [0.2], [0.5], [0.1]])
+    null_array = pa.array([None] * 14, type=pa.null())
+    # Note: It is possible to get different results for py2 and py3, depending
+    # on the feature name used (e.g., if use 'empty_feature', the results
+    # differ). This might be due to the scikit learn function used to compute MI
+    # adding a small amount of noise to continuous features before computing MI.
+    batch = pa.Table.from_arrays(
+        [label_array, label_array, terrible_feat_array, null_array], [
+            "label_key", "perfect_feature", "terrible_feature",
+            "values_empty_feature"
+        ])
+
+    schema = text_format.Parse(
+        """
+        feature {
+          name: "values_empty_feature"
+          type: FLOAT
+          shape {
+            dim {
+              size: 1
+            }
+          }
+        }
+        feature {
+          name: "perfect_feature"
+          type: FLOAT
+          shape {
+            dim {
+              size: 1
+            }
+          }
+        }
+        feature {
+          name: "terrible_feature"
+          type: FLOAT
+          shape {
+            dim {
+              size: 1
+            }
+          }
+        }
+        feature {
+          name: "label_key"
+          type: FLOAT
+          shape {
+            dim {
+              size: 1
+            }
+          }
+        }
+        """, schema_pb2.Schema())
+
+    expected = text_format.Parse(
+        """
+        features {
+          path {
+            step: "perfect_feature"
+          }
+          custom_stats {
+            name: "sklearn_adjusted_mutual_information"
+            num: 1.0742656
+          }
+          custom_stats {
+            name: "sklearn_mutual_information"
+            num: 1.2277528
+          }
+        }
+        features {
+          path {
+            step: "terrible_feature"
+          }
+          custom_stats {
+            name: "sklearn_adjusted_mutual_information"
+            num: 0.0392891
+          }
+          custom_stats {
+            name: "sklearn_mutual_information"
+            num: 0.0392891
+          }
+        }
+        features {
+          path {
+            step: "values_empty_feature"
+          }
+          custom_stats {
+            name: "sklearn_adjusted_mutual_information"
+            num: 0.0
+          }
+          custom_stats {
+            name: "sklearn_mutual_information"
+            num: 0.0
+          }
+        }""", statistics_pb2.DatasetFeatureStatistics())
+    self._assert_mi_output_equal(batch, expected, schema,
+                                 types.FeaturePath(["label_key"]))
+
   def test_mi_regression_with_int_label_and_categorical_feature(self):
     label_array = pa.array([
         [0], [2], [0], [1], [2], [1], [1], [0], [2], [1], [0]])

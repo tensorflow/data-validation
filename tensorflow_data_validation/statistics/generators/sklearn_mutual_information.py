@@ -93,37 +93,45 @@ def _flatten_and_impute(examples_table: pa.Table,
   """
   num_rows = examples_table.num_rows
   result = {}
-  for column_name, feature_column in zip(
-      examples_table.schema.names, examples_table.itercolumns()):
+  for column_name, feature_column in zip(examples_table.schema.names,
+                                         examples_table.itercolumns()):
     feature_path = types.FeaturePath([column_name])
     # Assume we have only a single chunk.
     feature_array = feature_column.data.chunk(0)
-    # to_pandas returns a readonly array. Create a copy as we will be imputing
-    # the NaN values.
-    non_missing_values = np.copy(
-        np.asarray(feature_array.flatten()))
-    non_missing_parent_indices = np.asarray(
-        array_util.GetFlattenedArrayParentIndices(feature_array))
-    is_categorical_feature = feature_path in categorical_features
-    result_dtype = non_missing_values.dtype
-    if non_missing_parent_indices.size < num_rows and is_categorical_feature:
-      result_dtype = np.object
-    flattened_array = np.ndarray(shape=num_rows, dtype=result_dtype)
-    num_values = np.asarray(array_util.ListLengthsFromListArray(feature_array))
-    missing_parent_indices = np.where(num_values == 0)[0]
-    if feature_path in categorical_features:
-      imputation_fill_value = CATEGORICAL_FEATURE_IMPUTATION_FILL_VALUE
+    imputation_fill_value = (
+        CATEGORICAL_FEATURE_IMPUTATION_FILL_VALUE
+        if feature_path in categorical_features else sys.maxsize)
+    if pa.types.is_null(feature_array.type):
+      # If null array, impute all values.
+      imputed_values_array = np.full(
+          shape=num_rows,
+          fill_value=imputation_fill_value)
+      result[feature_path] = imputed_values_array
     else:
-      # Also impute any NaN values.
-      nan_mask = np.isnan(non_missing_values)
-      imputation_fill_value = sys.maxsize
-      if not np.all(nan_mask):
-        imputation_fill_value = non_missing_values[~nan_mask].max() * 10
-      non_missing_values[nan_mask.nonzero()[0]] = imputation_fill_value
-    flattened_array[non_missing_parent_indices] = non_missing_values
-    if missing_parent_indices.any():
-      flattened_array[missing_parent_indices] = imputation_fill_value
-    result[feature_path] = flattened_array
+      # to_pandas returns a readonly array. Create a copy as we will be imputing
+      # the NaN values.
+      non_missing_values = np.copy(
+          np.asarray(feature_array.flatten()))
+      non_missing_parent_indices = np.asarray(
+          array_util.GetFlattenedArrayParentIndices(feature_array))
+      is_categorical_feature = feature_path in categorical_features
+      result_dtype = non_missing_values.dtype
+      if non_missing_parent_indices.size < num_rows and is_categorical_feature:
+        result_dtype = np.object
+      flattened_array = np.ndarray(shape=num_rows, dtype=result_dtype)
+      num_values = np.asarray(
+          array_util.ListLengthsFromListArray(feature_array))
+      missing_parent_indices = np.where(num_values == 0)[0]
+      if feature_path not in categorical_features:
+        # Also impute any NaN values.
+        nan_mask = np.isnan(non_missing_values)
+        if not np.all(nan_mask):
+          imputation_fill_value = non_missing_values[~nan_mask].max() * 10
+        non_missing_values[nan_mask.nonzero()[0]] = imputation_fill_value
+      flattened_array[non_missing_parent_indices] = non_missing_values
+      if missing_parent_indices.any():
+        flattened_array[missing_parent_indices] = imputation_fill_value
+      result[feature_path] = flattened_array
   return result
 
 
