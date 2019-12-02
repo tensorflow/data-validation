@@ -341,13 +341,16 @@ def _merge_dataset_feature_stats_protos(
     for feature_stats_proto in stats_proto.features:
       feature_path = types.FeaturePath.from_proto(feature_stats_proto.path)
       if feature_path not in stats_per_feature:
-        stats_per_feature[feature_path] = feature_stats_proto
+        # Make a copy for the "cache" since we are modifying it in 'else' below.
+        new_feature_stats_proto = statistics_pb2.FeatureNameStatistics()
+        new_feature_stats_proto.CopyFrom(feature_stats_proto)
+        stats_per_feature[feature_path] = new_feature_stats_proto
       else:
         stats_for_feature = stats_per_feature[feature_path]
         # MergeFrom would concatenate repeated fields which is not what we want
         # for path.step.
         del stats_for_feature.path.step[:]
-        stats_per_feature[feature_path].MergeFrom(feature_stats_proto)
+        stats_for_feature.MergeFrom(feature_stats_proto)
 
   num_examples = None
   for feature_stats_proto in six.itervalues(stats_per_feature):
