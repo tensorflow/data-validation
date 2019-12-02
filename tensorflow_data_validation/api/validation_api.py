@@ -224,6 +224,11 @@ def validate_statistics(
        used, this function will validate the statistics corresponding to the
        default slice.
     schema: A Schema protocol buffer.
+       Note that TFDV does not currently support validation of the following
+       messages/fields in the Schema protocol buffer:
+       - FeaturePresenceWithinGroup
+       - Schema-level FloatDomain and IntDomain (validation is supported for
+         Feature-level FloatDomain and IntDomain)
     environment: An optional string denoting the validation environment.
         Must be one of the default environments specified in the schema.
         By default, validation assumes that all Examples in a pipeline adhere
