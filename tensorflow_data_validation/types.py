@@ -139,3 +139,6 @@ class FeaturePath(object):
 
   def __len__(self) -> int:
     return len(self._steps)
+
+  def __bool__(self) -> bool:
+    return bool(self._steps)

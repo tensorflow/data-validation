@@ -25,13 +25,13 @@ from tfx_bsl.arrow import array_util
 from typing import Iterable, Optional, Text, Tuple
 
 
-def _get_weight_feature(input_table: pa.Table,
-                        weight_feature: Text) -> np.ndarray:
+def get_weight_feature(input_table: pa.Table,
+                       weight_column: Text) -> np.ndarray:
   """Gets the weight column from the input table.
 
   Args:
     input_table: Input table.
-    weight_feature: Name of the weight feature.
+    weight_column: Name of the column containing the weight.
 
   Returns:
     A numpy array containing the weights of the examples in the input table.
@@ -42,17 +42,17 @@ def _get_weight_feature(input_table: pa.Table,
         single value for each example).
   """
   try:
-    weights = input_table.column(weight_feature).data.chunk(0)
+    weights = input_table.column(weight_column).data.chunk(0)
   except KeyError:
     raise ValueError('Weight feature "{}" not present in the input '
-                     'table.'.format(weight_feature))
+                     'table.'.format(weight_column))
 
   # Before flattening, check that there is a single value for each example.
   weight_lengths = array_util.ListLengthsFromListArray(weights).to_numpy()
   if not np.all(weight_lengths == 1):
     raise ValueError(
         'Weight feature "{}" must have exactly one value in each example.'
-        .format(weight_feature))
+        .format(weight_column))
   weights = weights.flatten()
   # Before converting to numpy view, check the type (cannot convert string and
   # binary arrays to numpy view).
@@ -60,8 +60,82 @@ def _get_weight_feature(input_table: pa.Table,
   if pa.types.is_string(weights_type) or pa.types.is_binary(weights_type):
     raise ValueError(
         'Weight feature "{}" must be of numeric type. Found {}.'.format(
-            weight_feature, weights_type))
-  return weights.to_numpy()
+            weight_column, weights_type))
+  return np.asarray(weights)
+
+
+def get_array(
+    table: pa.Table, query_path: types.FeaturePath,
+    weight_column: Optional[Text]) -> Tuple[pa.Array, Optional[np.ndarray]]:
+  """Retrieve a nested array (and optionally weights) from a table.
+
+  It assumes all the columns in `table` have only one chunk.
+  It assumes `table` contains only arrays of the following supported types:
+    - list<primitive>
+    - list<struct<[Ts]>> where Ts are the types of the fields in the struct
+      type, and they can only be one of the supported types
+      (recursion intended).
+
+  If the provided path refers to a leaf in the table, then a ListArray with a
+  primitive element type will be returned. If the provided path does not refer
+  to a leaf, a ListArray with a StructArray element type will be returned.
+
+  Args:
+    table: The Table whose arrays to be visited. It is assumed that the table
+      contains only one chunk.
+    query_path: The FeaturePath to lookup in the table.
+    weight_column: The name of the weight column, or None. The elements of
+      the weight column should be lists of numerics, and each list should
+      contain only one value.
+
+  Returns:
+    A tuple. The first term is the feature array and the second term is the
+    weight array for the feature array (i.e. weights[i] is the weight for
+    array[i]).
+
+  Raises:
+    ValueError: When the weight column is not a list array whose elements are
+      1-element lists.
+    KeyError: When the query_path is empty, or cannot be found in the table and
+      its nested struct arrays.
+  """
+
+  def _recursion_helper(
+      query_path: types.FeaturePath, array: pa.Array,
+      weights: Optional[np.ndarray]
+  ) -> Tuple[pa.Array, Optional[np.ndarray]]:
+    """Recursion helper."""
+    array_type = array.type
+    if (not query_path or not pa.types.is_list(array_type) or
+        not pa.types.is_struct(array_type.value_type)):
+      return array, weights
+    flat_struct_array = array.flatten()
+    flat_weights = None
+    if weights is not None:
+      flat_weights = weights[
+          array_util.GetFlattenedArrayParentIndices(array).to_numpy()]
+
+    step = query_path.steps()[0]
+    try:
+      child_array = flat_struct_array.field(step)
+    except KeyError:
+      raise KeyError('query_path step, {}, not in struct.'.format(step))
+    relative_path = types.FeaturePath(query_path.steps()[1:])
+    return _recursion_helper(relative_path, child_array, flat_weights)
+
+  if not query_path:
+    raise KeyError('query_path must be non-empty.')
+  column_name = query_path.steps()[0]
+  try:
+    array = table.column(column_name).data.chunk(0)
+  except KeyError:
+    raise KeyError('query_path step 0, {}, not in table.'.format(column_name))
+  array_path = types.FeaturePath(query_path.steps()[1:])
+
+  weights = None
+  if weight_column is not None:
+    weights = get_weight_feature(table, weight_column)
+  return _recursion_helper(array_path, array, weights)
 
 
 def enumerate_arrays(
@@ -69,7 +143,7 @@ def enumerate_arrays(
 ) -> Iterable[Tuple[types.FeaturePath, pa.Array, Optional[np.ndarray]]]:
   """Enumerates arrays in a Table.
 
-  It assumes all the columns in `table` has only one chunk.
+  It assumes all the columns in `table` have only one chunk.
   It assumes `table` contains only arrays of the following supported types:
     - list<primitive>
     - list<struct<[Ts]>> where Ts are the types of the fields in the struct
@@ -101,7 +175,7 @@ def enumerate_arrays(
 
   Raises:
     ValueError: When the weight column is not a list array whose elements are
-      not 1-element lists.
+      1-element lists.
   """
 
   def _recursion_helper(
@@ -131,7 +205,7 @@ def enumerate_arrays(
 
   weights = None
   if weight_column is not None:
-    weights = _get_weight_feature(table, weight_column)
+    weights = get_weight_feature(table, weight_column)
   for column_name, column in zip(table.schema.names, table.itercolumns()):
     # use "yield from" after PY 3.3.
     for e in _recursion_helper(
