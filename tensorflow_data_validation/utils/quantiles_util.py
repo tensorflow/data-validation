@@ -212,6 +212,10 @@ def generate_equi_width_buckets(quantiles: List[float],
   # the required number of buckets in the equi-width histogram.
   assert len(quantiles) > num_buckets
 
+  # Check if the quantiles array is sorted.
+  assert np.all(np.diff(quantiles) >= 0), (
+      'Quantiles output not sorted %r'  % ','.join(map(str, quantiles)))
+
   min_val, max_val = quantiles[0], quantiles[-1]
   # If all values of a feature are equal, have only a single bucket.
   if min_val == max_val:
@@ -234,6 +238,15 @@ def generate_equi_width_buckets(quantiles: List[float],
   # Iterate to create the first num_buckets - 1 buckets.
   bucket_boundaries = [min_val + (ix * width)
                        for ix in six.moves.range(num_buckets)]
+
+  # Assert min/max values of the bucket boundaries.
+  assert np.min(bucket_boundaries) == min_val, (
+      'Invalid bucket boundaries %r for quantiles output %r' %
+      ','.join(map(str, bucket_boundaries)), ','.join(map(str, quantiles)))
+  assert np.max(bucket_boundaries) <= max_val, (
+      'Invalid bucket boundaries %r for quantiles output %r' %
+      ','.join(map(str, bucket_boundaries)), ','.join(map(str, quantiles)))
+
   for (bucket_start, bucket_end) in zip(bucket_boundaries[:-1],
                                         bucket_boundaries[1:]):
     # Add carried over sample count to the current bucket.
