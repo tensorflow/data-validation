@@ -103,10 +103,11 @@ def make_feature_stats_proto_with_topk_stats(
   Returns:
     A FeatureNameStatistics proto containing the top-k stats.
   """
-  # Sort the top_k_value_count_list in descending order by count. Where
-  # multiple feature values have the same count, consider the feature with the
-  # 'larger' feature value to be larger for purposes of breaking the tie.
-  top_k_value_count_list.sort(
+  # Sort (a copy of) the top_k_value_count_list in descending order by count.
+  # Where multiple feature values have the same count, consider the feature with
+  # the 'larger' feature value to be larger for purposes of breaking the tie.
+  top_k_value_count_list = sorted(
+      top_k_value_count_list,
       key=lambda counts: (counts[1], counts[0]),
       reverse=True)
 
