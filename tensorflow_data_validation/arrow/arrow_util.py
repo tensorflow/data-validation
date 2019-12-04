@@ -105,10 +105,14 @@ def get_array(
       weights: Optional[np.ndarray]
   ) -> Tuple[pa.Array, Optional[np.ndarray]]:
     """Recursion helper."""
-    array_type = array.type
-    if (not query_path or not pa.types.is_list(array_type) or
-        not pa.types.is_struct(array_type.value_type)):
+    if not query_path:
       return array, weights
+    array_type = array.type
+    if (not pa.types.is_list(array_type) or
+        not pa.types.is_struct(array_type.value_type)):
+      raise KeyError('Cannot process query_path "{}" inside an array of type '
+                     '{}. Expecting a list<struct<...>>.'.format(query_path,
+                                                                 array_type))
     flat_struct_array = array.flatten()
     flat_weights = None
     if weights is not None:
@@ -119,7 +123,7 @@ def get_array(
     try:
       child_array = flat_struct_array.field(step)
     except KeyError:
-      raise KeyError('query_path step, {}, not in struct.'.format(step))
+      raise KeyError('query_path step "{}" not in struct.'.format(step))
     relative_path = types.FeaturePath(query_path.steps()[1:])
     return _recursion_helper(relative_path, child_array, flat_weights)
 
@@ -129,7 +133,7 @@ def get_array(
   try:
     array = table.column(column_name).data.chunk(0)
   except KeyError:
-    raise KeyError('query_path step 0, {}, not in table.'.format(column_name))
+    raise KeyError('query_path step 0 "{}" not in table.'.format(column_name))
   array_path = types.FeaturePath(query_path.steps()[1:])
 
   weights = None

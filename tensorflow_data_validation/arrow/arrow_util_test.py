@@ -115,7 +115,7 @@ class EnumerateArraysTest(parameterized.TestCase):
   def testGetArrayColumnMissing(self):
     with self.assertRaisesRegex(
         KeyError,
-        r"query_path step 0, x, not in table.*"):
+        r'query_path step 0 "x" not in table.*'):
       arrow_util.get_array(
           pa.Table.from_arrays(
               [pa.array([[1], [2]])], ["y"]),
@@ -124,10 +124,19 @@ class EnumerateArraysTest(parameterized.TestCase):
 
   def testGetArrayStepMissing(self):
     with self.assertRaisesRegex(KeyError,
-                                r"query_path step, ssf3, not in struct.*"):
+                                r'query_path step "ssf3" not in struct.*'):
       arrow_util.get_array(
           _INPUT_TABLE,
           query_path=types.FeaturePath(["f2", "sf2", "ssf3"]),
+          weight_column=None)
+
+  def testGetArraySubpathMissing(self):
+    with self.assertRaisesRegex(
+        KeyError,
+        r'Cannot process .* "sssf" inside .* list<item: list<item: int64>>.*'):
+      arrow_util.get_array(
+          _INPUT_TABLE,
+          query_path=types.FeaturePath(["f2", "sf2", "ssf1", "sssf"]),
           weight_column=None)
 
   @parameterized.named_parameters(
