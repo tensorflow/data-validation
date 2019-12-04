@@ -25,48 +25,61 @@ from tfx_bsl.arrow import array_util
 from typing import Iterable, Optional, Text, Tuple
 
 
-def get_weight_feature(input_table: pa.Table,
-                       weight_column: Text) -> np.ndarray:
-  """Gets the weight column from the input table.
+def get_broadcastable_column(input_table: pa.Table,
+                             column_name: Text,
+                             copy_array: Optional[bool] = False) -> np.ndarray:
+  """Gets a column from the input table, validating that it can be broadcast.
 
   Args:
     input_table: Input table.
-    weight_column: Name of the column containing the weight.
+    column_name: Name of the column to be retrieved and validated.
+      This column must refer to a ListArray in which each list has length 1.
+    copy_array: Whether to return a copy of the array, which can be used with
+      string types, or to return a zero-copy view of the arrow data, which can
+      only be used with numeric types.
 
   Returns:
-    A numpy array containing the weights of the examples in the input table.
+    A numpy array containing a flattened view of the broadcast column. It will
+    be a zero-copy view of the arrow array data if copy_array is False,
+    otherwise it will be copy.
 
   Raises:
-    ValueError: If the weight feature is not present in the input table or is
-        not a valid weight feature (must be of numeric type and have a
-        single value for each example).
+    ValueError: If the broadcast feature is not present in the input table or is
+        not a valid column. A valid column must have exactly one value per
+        example and be of a numeric type. If copy_array is True, the numeric
+        type constraint is relaxed.
   """
   try:
-    weights = input_table.column(weight_column).data.chunk(0)
+    column = input_table.column(column_name).data.chunk(0)
   except KeyError:
-    raise ValueError('Weight feature "{}" not present in the input '
-                     'table.'.format(weight_column))
+    raise ValueError('Column "{}" not present in the input table.'.format(
+        column_name))
 
   # Before flattening, check that there is a single value for each example.
-  weight_lengths = array_util.ListLengthsFromListArray(weights).to_numpy()
-  if not np.all(weight_lengths == 1):
+  column_lengths = array_util.ListLengthsFromListArray(column).to_numpy()
+  if not np.all(column_lengths == 1):
     raise ValueError(
-        'Weight feature "{}" must have exactly one value in each example.'
-        .format(weight_column))
-  weights = weights.flatten()
-  # Before converting to numpy view, check the type (cannot convert string and
-  # binary arrays to numpy view).
-  weights_type = weights.type
-  if pa.types.is_string(weights_type) or pa.types.is_binary(weights_type):
-    raise ValueError(
-        'Weight feature "{}" must be of numeric type. Found {}.'.format(
-            weight_column, weights_type))
-  return np.asarray(weights)
+        'Column "{}" must have exactly one value in each example.'.format(
+            column_name))
+  column = column.flatten()
+  if copy_array:
+    return column.to_pandas()
+  else:
+    # Before converting to numpy view, check the type (cannot convert string and
+    # binary arrays to numpy view).
+    column_type = column.type
+    if pa.types.is_string(column_type) or pa.types.is_binary(column_type):
+      raise ValueError(
+          'Column "{}" must be of numeric type. Found {}.'.format(
+              column_name, column_type))
+    return np.asarray(column)
 
 
 def get_array(
-    table: pa.Table, query_path: types.FeaturePath,
-    weight_column: Optional[Text]) -> Tuple[pa.Array, Optional[np.ndarray]]:
+    table: pa.Table,
+    query_path: types.FeaturePath,
+    broadcast_column_name: Optional[Text] = None,
+    copy_broadcast_column=False) -> Tuple[pa.Array, Optional[np.ndarray]]:
   """Retrieve a nested array (and optionally weights) from a table.
 
   It assumes all the columns in `table` have only one chunk.
@@ -84,18 +97,21 @@ def get_array(
     table: The Table whose arrays to be visited. It is assumed that the table
       contains only one chunk.
     query_path: The FeaturePath to lookup in the table.
-    weight_column: The name of the weight column, or None. The elements of
-      the weight column should be lists of numerics, and each list should
-      contain only one value.
+    broadcast_column_name: The name of a column to broadcast, or None. Each list
+      should contain exactly one value.
+    copy_broadcast_column: Whether to make an initial copy of the broadcast
+      column. If this is set to false (default), a zero-copy numpy view will be
+      used. If set to false, the column must be numeric.
 
   Returns:
     A tuple. The first term is the feature array and the second term is the
-    weight array for the feature array (i.e. weights[i] is the weight for
-    array[i]).
+    broadcast column array for the feature array (i.e. broadcast_column[i] is
+    the corresponding value for array[i]).
 
   Raises:
-    ValueError: When the weight column is not a list array whose elements are
-      1-element lists.
+    ValueError: When the broadcast column is not a list array or its elements
+      are not 1-element arrays. Or, if copy_broadcast_column is False, an error
+      will be raised if its elements are not of a numeric type.
     KeyError: When the query_path is empty, or cannot be found in the table and
       its nested struct arrays.
   """
@@ -136,10 +152,11 @@ def get_array(
     raise KeyError('query_path step 0 "{}" not in table.'.format(column_name))
   array_path = types.FeaturePath(query_path.steps()[1:])
 
-  weights = None
-  if weight_column is not None:
-    weights = get_weight_feature(table, weight_column)
-  return _recursion_helper(array_path, array, weights)
+  broadcast_column = None
+  if broadcast_column_name is not None:
+    broadcast_column = get_broadcastable_column(table, broadcast_column_name,
+                                                copy_broadcast_column)
+  return _recursion_helper(array_path, array, broadcast_column)
 
 
 def enumerate_arrays(
@@ -209,7 +226,7 @@ def enumerate_arrays(
 
   weights = None
   if weight_column is not None:
-    weights = get_weight_feature(table, weight_column)
+    weights = get_broadcastable_column(table, weight_column)
   for column_name, column in zip(table.schema.names, table.itercolumns()):
     # use "yield from" after PY 3.3.
     for e in _recursion_helper(

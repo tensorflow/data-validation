@@ -60,46 +60,53 @@ _FEATURES_TO_ARRAYS = {
 
 class EnumerateArraysTest(parameterized.TestCase):
 
-  def testGetWeightFeatureColumnMissing(self):
+  def testGetBroadcastableColumnNotFound(self):
     with self.assertRaisesRegex(
         ValueError,
-        r'Weight feature "w" not present in the input table\.'):
-      arrow_util.get_weight_feature(
+        r'Column "w" not present in the input table\.'):
+      arrow_util.get_broadcastable_column(
           pa.Table.from_arrays(
               [pa.array([[1], [2]]),
                pa.array([[1], [3]])], ["u", "v"]),
-          weight_column="w")
+          column_name="w")
 
-  def testGetWeightFeatureColumnMissingValue(self):
+  def testGetBroadcastableColumnMissingValue(self):
     with self.assertRaisesRegex(
         ValueError,
-        r'Weight feature "w" must have exactly one value in each example\.'):
-      arrow_util.get_weight_feature(
+        r'Column "w" must have exactly one value in each example\.'):
+      arrow_util.get_broadcastable_column(
           pa.Table.from_arrays(
               [pa.array([[1], [2]]),
                pa.array([[1], []])], ["v", "w"]),
-          weight_column="w")
+          column_name="w")
 
-  def testGetWeightFeatureTooManyValues(self):
+  def testGetBroadcastableColumnTooManyValues(self):
     with self.assertRaisesRegex(
         ValueError,
-        r'Weight feature "w" must have exactly one value in each example\.'):
-      arrow_util.get_weight_feature(
+        r'Column "w" must have exactly one value in each example\.'):
+      arrow_util.get_broadcastable_column(
           pa.Table.from_arrays(
               [pa.array([[1], [2, 3]]),
                pa.array([[1], [2, 2]])], ["v", "w"]),
-          weight_column="w")
+          column_name="w")
 
-  def testGetWeightFeatureStringValues(self):
+  def testGetBroadcastableColumnStringValuesNdarray(self):
     with self.assertRaisesRegex(
         ValueError,
-        r'Weight feature "w" must be of numeric type. Found .*\.'):
-      arrow_util.get_array(
+        r'Column "w" must be of numeric type. Found .*\.'):
+      arrow_util.get_broadcastable_column(
           pa.Table.from_arrays(
               [pa.array([[1], [2, 3]]),
                pa.array([["two"], ["two"]])], ["v", "w"]),
-          query_path=types.FeaturePath(["v"]),
-          weight_column="w")
+          column_name="w")
+
+  def testGetBroadcastableColumnCopyArray(self):
+    expected_arr = np.array(["two", "two"])
+    actual_arr = arrow_util.get_broadcastable_column(
+        pa.Table.from_arrays([pa.array([["two"], ["two"]])], ["string_col"]),
+        column_name="string_col",
+        copy_array=True)
+    np.testing.assert_array_equal(expected_arr, actual_arr)
 
   def testGetArrayEmptyPath(self):
     with self.assertRaisesRegex(
@@ -110,7 +117,7 @@ class EnumerateArraysTest(parameterized.TestCase):
               [pa.array([[1], [2, 3]]),
                pa.array([[1], [2, 2]])], ["v", "w"]),
           query_path=types.FeaturePath([]),
-          weight_column="w")
+          broadcast_column_name="w")
 
   def testGetArrayColumnMissing(self):
     with self.assertRaisesRegex(
@@ -120,7 +127,7 @@ class EnumerateArraysTest(parameterized.TestCase):
           pa.Table.from_arrays(
               [pa.array([[1], [2]])], ["y"]),
           query_path=types.FeaturePath(["x"]),
-          weight_column=None)
+          broadcast_column_name=None)
 
   def testGetArrayStepMissing(self):
     with self.assertRaisesRegex(KeyError,
@@ -128,7 +135,32 @@ class EnumerateArraysTest(parameterized.TestCase):
       arrow_util.get_array(
           _INPUT_TABLE,
           query_path=types.FeaturePath(["f2", "sf2", "ssf3"]),
-          weight_column=None)
+          broadcast_column_name=None)
+
+  def testGetArrayBroadcastString(self):
+    table = pa.Table.from_arrays([
+        pa.array([[{
+            "sf": [
+                {"ssf": [[1]]},
+                {"ssf": [[2]]},
+            ]
+        }], [{
+            "sf": [{
+                "ssf": [[3], [4]]
+            },]
+        }]]),
+        pa.array([["one"], ["two"]])
+    ], ["f", "w"])
+    feature = types.FeaturePath(["f", "sf", "ssf"])
+    actual_arr, actual_weights = arrow_util.get_array(
+        table, feature, broadcast_column_name="w", copy_broadcast_column=True)
+    expected_arr = pa.array([[[1]], [[2]], [[3], [4]]])
+    expected_weights = np.array(["one", "one", "two"])
+    self.assertTrue(
+        actual_arr.equals(expected_arr),
+        "\nfeature: {};\nexpected:\n{};\nactual:\n{}".format(
+            feature, expected_arr, actual_arr))
+    np.testing.assert_array_equal(expected_weights, actual_weights)
 
   def testGetArraySubpathMissing(self):
     with self.assertRaisesRegex(
@@ -137,13 +169,13 @@ class EnumerateArraysTest(parameterized.TestCase):
       arrow_util.get_array(
           _INPUT_TABLE,
           query_path=types.FeaturePath(["f2", "sf2", "ssf1", "sssf"]),
-          weight_column=None)
+          broadcast_column_name=None)
 
   @parameterized.named_parameters(
       ((str(f), f, expected) for (f, expected) in  _FEATURES_TO_ARRAYS.items()))
   def testGetArray(self, feature, expected):
     actual_arr, actual_weights = arrow_util.get_array(
-        _INPUT_TABLE, feature, weight_column="w")
+        _INPUT_TABLE, feature, broadcast_column_name="w")
     expected_arr, expected_weights = expected
     self.assertTrue(
         actual_arr.equals(expected_arr),
@@ -153,9 +185,9 @@ class EnumerateArraysTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       ((str(f), f, expected) for (f, expected) in  _FEATURES_TO_ARRAYS.items()))
-  def testGetArrayNoWeights(self, feature, expected):
+  def testGetArrayNoBroadcast(self, feature, expected):
     actual_arr, actual_weights = arrow_util.get_array(
-        _INPUT_TABLE, feature, weight_column=None)
+        _INPUT_TABLE, feature, broadcast_column_name=None)
     expected_arr, _ = expected
     self.assertTrue(
         actual_arr.equals(expected_arr),
