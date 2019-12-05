@@ -242,10 +242,10 @@ def generate_equi_width_buckets(quantiles: List[float],
   # Assert min/max values of the bucket boundaries.
   assert np.min(bucket_boundaries) == min_val, (
       'Invalid bucket boundaries %r for quantiles output %r' %
-      ','.join(map(str, bucket_boundaries)), ','.join(map(str, quantiles)))
+      (','.join(map(str, bucket_boundaries)), ','.join(map(str, quantiles))))
   assert np.max(bucket_boundaries) <= max_val, (
       'Invalid bucket boundaries %r for quantiles output %r' %
-      ','.join(map(str, bucket_boundaries)), ','.join(map(str, quantiles)))
+      (','.join(map(str, bucket_boundaries)), ','.join(map(str, quantiles))))
 
   for (bucket_start, bucket_end) in zip(bucket_boundaries[:-1],
                                         bucket_boundaries[1:]):
