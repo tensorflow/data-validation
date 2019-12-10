@@ -90,24 +90,6 @@ class EnumerateArraysTest(parameterized.TestCase):
                pa.array([[1], [2, 2]])], ["v", "w"]),
           column_name="w")
 
-  def testGetBroadcastableColumnStringValuesNdarray(self):
-    with self.assertRaisesRegex(
-        ValueError,
-        r'Column "w" must be of numeric type. Found .*\.'):
-      arrow_util.get_broadcastable_column(
-          pa.Table.from_arrays(
-              [pa.array([[1], [2, 3]]),
-               pa.array([["two"], ["two"]])], ["v", "w"]),
-          column_name="w")
-
-  def testGetBroadcastableColumnCopyArray(self):
-    expected_arr = np.array(["two", "two"])
-    actual_arr = arrow_util.get_broadcastable_column(
-        pa.Table.from_arrays([pa.array([["two"], ["two"]])], ["string_col"]),
-        column_name="string_col",
-        copy_array=True)
-    np.testing.assert_array_equal(expected_arr, actual_arr)
-
   def testGetArrayEmptyPath(self):
     with self.assertRaisesRegex(
         KeyError,
@@ -153,7 +135,7 @@ class EnumerateArraysTest(parameterized.TestCase):
     ], ["f", "w"])
     feature = types.FeaturePath(["f", "sf", "ssf"])
     actual_arr, actual_weights = arrow_util.get_array(
-        table, feature, broadcast_column_name="w", copy_broadcast_column=True)
+        table, feature, broadcast_column_name="w")
     expected_arr = pa.array([[[1]], [[2]], [[3], [4]]])
     expected_weights = np.array(["one", "one", "two"])
     self.assertTrue(
@@ -194,6 +176,19 @@ class EnumerateArraysTest(parameterized.TestCase):
         "\nfeature: {};\nexpected:\n{};\nactual:\n{}".format(
             feature, expected_arr, actual_arr))
     self.assertIsNone(actual_weights)
+
+  def testEnumerateArraysStringWeight(self):
+    # The arrow type of a string changes between py2 and py3 so we accept either
+    with self.assertRaisesRegex(
+        ValueError,
+        r'Weight column "w" must be of numeric type. Found (string|binary).*'):
+      for _ in arrow_util.enumerate_arrays(
+          pa.Table.from_arrays(
+              [pa.array([[1], [2, 3]]),
+               pa.array([["a"], ["b"]])], ["v", "w"]),
+          weight_column="w",
+          enumerate_leaves_only=True):
+        pass
 
   def testEnumerateArrays(self):
     for leaves_only, has_weights in itertools.combinations_with_replacement(

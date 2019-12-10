@@ -26,22 +26,16 @@ from typing import Iterable, Optional, Text, Tuple
 
 
 def get_broadcastable_column(input_table: pa.Table,
-                             column_name: Text,
-                             copy_array: Optional[bool] = False) -> np.ndarray:
+                             column_name: Text) -> pa.Array:
   """Gets a column from the input table, validating that it can be broadcast.
 
   Args:
     input_table: Input table.
     column_name: Name of the column to be retrieved and validated.
       This column must refer to a ListArray in which each list has length 1.
-    copy_array: Whether to return a copy of the array, which can be used with
-      string types, or to return a zero-copy view of the arrow data, which can
-      only be used with numeric types.
 
   Returns:
-    A numpy array containing a flattened view of the broadcast column. It will
-    be a zero-copy view of the arrow array data if copy_array is False,
-    otherwise it will be copy.
+    An arrow array containing a flattened view of the broadcast column.
 
   Raises:
     ValueError: If the broadcast feature is not present in the input table or is
@@ -61,25 +55,14 @@ def get_broadcastable_column(input_table: pa.Table,
     raise ValueError(
         'Column "{}" must have exactly one value in each example.'.format(
             column_name))
-  column = column.flatten()
-  if copy_array:
-    return column.to_pandas()
-  else:
-    # Before converting to numpy view, check the type (cannot convert string and
-    # binary arrays to numpy view).
-    column_type = column.type
-    if pa.types.is_string(column_type) or pa.types.is_binary(column_type):
-      raise ValueError(
-          'Column "{}" must be of numeric type. Found {}.'.format(
-              column_name, column_type))
-    return np.asarray(column)
+  return column.flatten()
 
 
 def get_array(
     table: pa.Table,
     query_path: types.FeaturePath,
-    broadcast_column_name: Optional[Text] = None,
-    copy_broadcast_column=False) -> Tuple[pa.Array, Optional[np.ndarray]]:
+    broadcast_column_name: Optional[Text] = None
+) -> Tuple[pa.Array, Optional[np.ndarray]]:
   """Retrieve a nested array (and optionally weights) from a table.
 
   It assumes all the columns in `table` have only one chunk.
@@ -99,9 +82,6 @@ def get_array(
     query_path: The FeaturePath to lookup in the table.
     broadcast_column_name: The name of a column to broadcast, or None. Each list
       should contain exactly one value.
-    copy_broadcast_column: Whether to make an initial copy of the broadcast
-      column. If this is set to false (default), a zero-copy numpy view will be
-      used. If set to false, the column must be numeric.
 
   Returns:
     A tuple. The first term is the feature array and the second term is the
@@ -154,8 +134,8 @@ def get_array(
 
   broadcast_column = None
   if broadcast_column_name is not None:
-    broadcast_column = get_broadcastable_column(table, broadcast_column_name,
-                                                copy_broadcast_column)
+    broadcast_column = np.asarray(
+        get_broadcastable_column(table, broadcast_column_name))
   return _recursion_helper(array_path, array, broadcast_column)
 
 
@@ -227,6 +207,12 @@ def enumerate_arrays(
   weights = None
   if weight_column is not None:
     weights = get_broadcastable_column(table, weight_column)
+    weight_type = weights.type
+    if pa.types.is_string(weight_type) or pa.types.is_binary(weight_type):
+      raise ValueError(
+          'Weight column "{}" must be of numeric type. Found {}.'.format(
+              weight_column, weight_type))
+    weights = np.asarray(weights)
   for column_name, column in zip(table.schema.names, table.itercolumns()):
     # use "yield from" after PY 3.3.
     for e in _recursion_helper(
