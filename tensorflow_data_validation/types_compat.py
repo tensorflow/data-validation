@@ -27,6 +27,7 @@ from apache_beam.typehints import Any, Dict, Generator, Iterable, Iterator, List
 # pylint: disable=invalid-name
 Callable = None
 FrozenSet = None
+Hashable = None
 Mapping = None
 Pattern = None
 Text = Any

@@ -53,10 +53,14 @@ from __future__ import division
 
 from __future__ import print_function
 
+import abc
 import apache_beam as beam
+import six
+
 from tensorflow_data_validation import types
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
-from typing import Iterable, Optional, Text, TypeVar
+from tensorflow_data_validation.statistics.generators import input_batch
+from typing import Any, Dict, Hashable, Iterable, Optional, Text, Tuple, TypeVar
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
@@ -200,6 +204,184 @@ class CombinerFeatureStatsGenerator(StatsGenerator):
       A proto representing the result of this stats generator.
     """
     raise NotImplementedError
+
+
+CONSTITUENT_ACCTYPE = TypeVar('CONSTITUENT_ACCTYPE')
+
+
+@six.add_metaclass(abc.ABCMeta)
+class ConstituentStatsGenerator(object):
+  """A stats generator meant to be used as a part of a composite generator.
+
+  A constituent stats generator facilitates sharing logic between several stats
+  generators. It is functionally identical to a beam.CombineFn, but it expects
+  add_input to be called with instances of InputBatch.
+  """
+
+  @classmethod
+  @abc.abstractmethod
+  def key(cls) -> Hashable:
+    """A class method which returns an ID for instances of this stats generator.
+
+    This method should take all the arguments to the __init__ method so that the
+    result of ConstituentStatsGenerator.key(*init_args) is identical to
+    ConstituentStatsGenerator(*init_args).key(). This allows a
+    CompositeStatsGenerator to construct a specific constituent generator in its
+    __init__, and then recover the corresonding output value in its
+    extract_composite_output method.
+
+    Returns:
+      A unique ID for instances of this stats generator class.
+    """
+
+  @abc.abstractmethod
+  def get_key(self) -> Hashable:
+    """Returns the ID of this specific generator.
+
+    Returns:
+      A unique ID for this stats generator class instance.
+    """
+
+  @abc.abstractmethod
+  def create_accumulator(self) -> CONSTITUENT_ACCTYPE:  # pytype: disable=invalid-annotation
+    """Returns a fresh, empty accumulator.
+
+    Returns:
+      An empty accumulator.
+    """
+
+  @abc.abstractmethod
+  def add_input(
+      self, accumulator: CONSTITUENT_ACCTYPE, batch: input_batch.InputBatch
+  ) -> CONSTITUENT_ACCTYPE:  # pytype: disable=invalid-annotation
+    """Returns result of folding a batch of inputs into accumulator.
+
+    Args:
+      accumulator: The current accumulator.
+      batch: An InputBatch which wraps an Arrow Table whose columns are features
+        and rows are examples. The columns are of type List<primitive> or Null
+        (If a feature's value is None across all the examples in the batch, its
+        corresponding column is of Null type).
+
+    Returns:
+      The accumulator after updating the statistics for the batch of inputs.
+    """
+
+  @abc.abstractmethod
+  def merge_accumulators(
+      self, accumulators: Iterable[CONSTITUENT_ACCTYPE]) -> CONSTITUENT_ACCTYPE:
+    """Merges several accumulators to a single accumulator value.
+
+    Args:
+      accumulators: The accumulators to merge.
+
+    Returns:
+      The merged accumulator.
+    """
+
+  @abc.abstractmethod
+  def extract_output(self, accumulator: CONSTITUENT_ACCTYPE) -> Any:  # pytype: disable=invalid-annotation
+    """Returns result of converting accumulator into the output value.
+
+    Args:
+      accumulator: The final accumulator value.
+
+    Returns:
+      The final output value which should be used by composite generators which
+      use this constituent generator.
+    """
+
+
+class CompositeStatsGenerator(CombinerStatsGenerator):
+  """A combiner generator built from ConstituentStatsGenerators.
+
+  Typical usage involves overriding the __init__, to provide a set of
+  constituent generators, and extract_composite_output, to process the outputs
+  of those constituent generators. As a toy example, consider:
+
+      class ExampleCompositeStatsGenerator(
+          stats_generator.CompositeStatsGenerator):
+
+        def __init__(self,
+                     schema: schema_pb2.Schema,
+                     name: Text = 'ExampleCompositeStatsGenerator'
+                     ) -> None:
+          # custom logic to build the set of relevant constituents
+          self._paths = [types.FeaturePath(['f1']), types.FeaturePath(['f2'])]
+          constituents = [CountMissingCombiner(p) for p in self._paths]
+
+          # call super class init with constituents
+          super(ExampleCompositeStatsGenerator, self).__init__(
+             name, constituents, schema)
+
+        def extract_composite_outputs(self, accumulator):
+          # custom logic to convert constituent outputs to stats proto
+          stats = statistics_pb2.DatasetFeatureStatistics()
+          for path in self._paths:
+            # lookup output from a particular combiner using the key() function,
+            # which typically takes the same args as __init__.
+            num_missing = accumulator[CountMissingCombiner.key(path)]
+            stats.features.add(path=path).custom_stats.add(
+                name='num_missing', num=count_missing)
+
+  This class is very similar to the SingleInputTupleCombineFn and adds two small
+  features:
+    1) The input value passed to add_inputs is wrapped in an InputBatch object
+       before being passed on to the constituent generators.
+    2) The API for providing constituents and retrieving their outputs is a dict
+       rather than a tuple, which makes it easier to keep track of which output
+       came from which constituent generator.
+  """
+
+  def __init__(self, name: Text,
+               constituents: Iterable[ConstituentStatsGenerator],
+               schema: Optional[schema_pb2.Schema]) -> None:
+    super(CompositeStatsGenerator, self).__init__(name, schema)
+    self._keys, self._constituents = zip(*(
+        (c.get_key(), c) for c in constituents))
+
+  def create_accumulator(self):
+    return [c.create_accumulator() for c in self._constituents]
+
+  def add_input(
+      self, accumulator: Iterable[CONSTITUENT_ACCTYPE],
+      input_arrow_table: pa.Table
+  ) -> Iterable[CONSTITUENT_ACCTYPE]:  # pytype: disable=invalid-annotation
+    batch = input_batch.InputBatch(input_arrow_table)
+    return [
+        c.add_input(a, batch) for c, a in zip(self._constituents, accumulator)
+    ]
+
+  def merge_accumulators(
+      self, accumulators: Iterable[Iterable[CONSTITUENT_ACCTYPE]]
+  ) -> Iterable[CONSTITUENT_ACCTYPE]:  # pytype: disable=invalid-annotation
+    return [
+        c.merge_accumulators(a)
+        for c, a in zip(self._constituents, zip(*accumulators))
+    ]
+
+  def extract_output(
+      self, accumulator: Tuple[CONSTITUENT_ACCTYPE]
+  ) -> statistics_pb2.FeatureNameStatistics:  # pytype: disable=invalid-annotation
+    return self.extract_composite_output(
+        dict(
+            zip(self._keys,
+                (c.extract_output(a)
+                 for c, a in zip(self._constituents, accumulator)))))
+
+  def extract_composite_output(
+      self, accumulator: Dict[Text,
+                              Any]) -> statistics_pb2.FeatureNameStatistics:
+    """Extracts output from a dict of outputs for each constituent combiner.
+
+    Args:
+      accumulator: A dict mapping from combiner keys to the corresponding output
+        for that combiner.
+
+    Returns:
+      A proto representing the result of this stats generator.
+    """
+    raise NotImplementedError()
 
 
 class TransformStatsGenerator(StatsGenerator):
