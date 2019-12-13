@@ -403,35 +403,12 @@ The TFDV
 [core API for computing data statistics](https://github.com/tensorflow/data-validation/tree/master/tensorflow_data_validation/api/stats_api.py)
 is a
 [Beam PTransform](https://beam.apache.org/contribute/ptransform-style-guide/)
-that takes a PCollection of input examples (a dict of feature names to numpy
-array of feature values), and outputs a PCollection containing a single
-`DatasetFeatureStatisticsList` protocol buffer. For example, if the input data
-has two examples:
+that takes a PCollection of batches of input examples (a batch of input examples
+is represented as an [Arrow](https://arrow.apache.org) table), and outputs a
+PCollection containing a single `DatasetFeatureStatisticsList` protocol buffer.
 
-[]()      | feature_a | feature_b
---------- | --------- | ---------
-Example1  | 1, 2, 3   | 'a', 'b'
-Example2  | 4, 5      | NULL
-
-Then the input to `tfdv.GenerateStatistics` PTransform should be a PCollection
-of dictionaries.
-
-```python
-[
-  # Example1
-  {
-    'feature_a': numpy.array([1, 2, 3]),
-    'feature_b': numpy.array(['a', 'b'])
-  },
-  # Example2
-  {
-    'feature_a': numpy.array([4, 5])
-  }
-]
-```
-
-Once you have implemented the custom data connector that transforms your input
-example into a dictionary, you need to connect it with the
+Once you have implemented the custom data connector that batches your
+input examples in an Arrow table, you need to connect it with the
 `tfdv.GenerateStatistics` API for computing the data statistics. Take `TFRecord`
 of `tf.train.Example`'s for example. We provide the
 [TFExampleDecoder](https://github.com/tensorflow/data-validation/tree/master/tensorflow_data_validation/coders/tf_example_decoder.py)
@@ -451,8 +428,8 @@ with beam.Pipeline() as p:
     p
     # 1. Read out the examples from input files.
     | 'ReadData' >> beam.io.ReadFromTFRecord(file_pattern=DATA_LOCATION)
-    # 2. Convert each example to a dict of feature name to numpy array of feature values.
-    | 'DecodeData' >> beam.Map(tfdv.TFExampleDecoder().decode)
+    # 2. Convert examples to Arrow tables, which represent example batches.
+    | 'DecodeData' >> tf_example_decoder.DecodeTFExample()
     # 3. Invoke TFDV `GenerateStatistics` API to compute the data statistics.
     | 'GenerateStatistics' >> tfdv.GenerateStatistics()
     # 4. Materialize the generated data statistics.
