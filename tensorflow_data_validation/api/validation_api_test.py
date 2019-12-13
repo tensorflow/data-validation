@@ -167,7 +167,7 @@ class ValidationApiTest(absltest.TestCase):
         datasets {
           num_examples: 7
           features: {
-            name: 'feature1'
+            path { step: 'feature1' }
             type: STRING
             string_stats: {
               common_stats: {
@@ -209,7 +209,7 @@ class ValidationApiTest(absltest.TestCase):
         datasets {
           num_examples: 6
           features: {
-            name: 'feature1'
+            path { step: 'feature1' }
             type: STRING
             string_stats: {
               common_stats: {
@@ -270,7 +270,7 @@ class ValidationApiTest(absltest.TestCase):
         datasets {
           num_examples: 6
           features: {
-            name: 'feature1'
+            path { step: 'feature1' }
             type: STRING
             string_stats: {
               common_stats: {
@@ -326,7 +326,7 @@ class ValidationApiTest(absltest.TestCase):
         datasets {
           num_examples: 7
           features: {
-            name: 'feature1'
+            path { step: 'feature1' }
             type: STRING
             string_stats: {
               common_stats: {
@@ -339,7 +339,7 @@ class ValidationApiTest(absltest.TestCase):
             }
           }
           features: {
-            name: 'feature2'
+            path { step: 'feature2' }
             type: STRING
             string_stats: {
               common_stats: {
@@ -352,7 +352,7 @@ class ValidationApiTest(absltest.TestCase):
             }
           }
           features: {
-            name: 'feature3'
+            path { step: 'feature3' }
             type: STRING
             string_stats: {
               common_stats: {
@@ -409,7 +409,7 @@ class ValidationApiTest(absltest.TestCase):
         datasets {
           num_examples: 7
           features: {
-            name: 'foo'
+            path { step: 'foo' }
             type: STRING
             string_stats: {
               common_stats: {
@@ -421,7 +421,7 @@ class ValidationApiTest(absltest.TestCase):
             }
           }
           features: {
-            name: 'xyz_query'
+            path { step: 'xyz_query' }
             type: STRING
             string_stats: {
               common_stats: {
@@ -485,7 +485,7 @@ class ValidationApiTest(absltest.TestCase):
           name: 'All Examples'
           num_examples: 7
           features: {
-            name: 'feature1'
+            path { step: 'feature1' }
             type: STRING
             string_stats: {
               common_stats: {
@@ -501,7 +501,7 @@ class ValidationApiTest(absltest.TestCase):
           name: 'feature1_testvalue'
           num_examples: 4
           features: {
-            name: 'feature1'
+            path { step: 'feature1' }
             type: STRING
             string_stats: {
               common_stats: {
@@ -553,15 +553,12 @@ class ValidationApiTest(absltest.TestCase):
 
   def _assert_equal_anomalies(self,
                               actual_anomalies,
-                              expected_anomalies,
-                              compare_path=False):
+                              expected_anomalies):
     # Check if the actual anomalies matches with the expected anomalies.
     for feature_name in expected_anomalies:
       self.assertIn(feature_name, actual_anomalies.anomaly_info)
-      # Doesn't compare the diff_regions and path fields.
+      # Doesn't compare the diff_regions.
       actual_anomalies.anomaly_info[feature_name].ClearField('diff_regions')
-      if not compare_path:
-        actual_anomalies.anomaly_info[feature_name].ClearField('path')
 
       self.assertEqual(actual_anomalies.anomaly_info[feature_name],
                        expected_anomalies[feature_name])
@@ -595,7 +592,7 @@ class ValidationApiTest(absltest.TestCase):
         datasets{
           num_examples: 10
           features {
-            name: 'annotated_enum'
+            path { step: 'annotated_enum' }
             type: STRING
             string_stats {
               common_stats {
@@ -619,6 +616,9 @@ class ValidationApiTest(absltest.TestCase):
         'annotated_enum':
             text_format.Parse(
                 """
+      path {
+        step: "annotated_enum"
+      }
       description: "Examples contain values missing from the schema: D (?). "
       severity: ERROR
       short_description: "Unexpected string values"
@@ -675,7 +675,7 @@ class ValidationApiTest(absltest.TestCase):
           name: 'All Examples'
           num_examples: 10
           features {
-            name: 'annotated_enum'
+            path { step: 'annotated_enum' }
             type: STRING
             string_stats {
               common_stats {
@@ -698,7 +698,7 @@ class ValidationApiTest(absltest.TestCase):
           name: 'other dataset'
           num_examples: 5
           features {
-            name: 'annotated_enum'
+            path { step: 'annotated_enum' }
             type: STRING
             string_stats {
               common_stats {
@@ -722,6 +722,9 @@ class ValidationApiTest(absltest.TestCase):
         'annotated_enum':
             text_format.Parse(
                 """
+      path {
+        step: "annotated_enum"
+      }
       description: "Examples contain values missing from the schema: D (?). "
       severity: ERROR
       short_description: "Unexpected string values"
@@ -812,7 +815,7 @@ class ValidationApiTest(absltest.TestCase):
         datasets{
           num_examples: 10
           features {
-            name: 'annotated_enum'
+            path { step: 'annotated_enum' }
             type: STRING
             string_stats {
               common_stats {
@@ -836,6 +839,9 @@ class ValidationApiTest(absltest.TestCase):
         'annotated_enum':
             text_format.Parse(
                 """
+      path {
+        step: "annotated_enum"
+      }
       description: "Examples contain values missing from the schema: D (?). "
       severity: ERROR
       short_description: "Unexpected string values"
@@ -853,6 +859,9 @@ class ValidationApiTest(absltest.TestCase):
 
   # pylint: disable=line-too-long
   _annotated_enum_anomaly_info = """
+            path {
+              step: "annotated_enum"
+            }
             description: "Examples contain values missing from the schema: b (?).  The Linfty distance between current and previous is 0.25 (up to six significant digits), above the threshold 0.01. The feature value with maximum difference is: b"
             severity: ERROR
             short_description: "Multiple errors"
@@ -868,6 +877,9 @@ class ValidationApiTest(absltest.TestCase):
             }"""
 
   _bar_anomaly_info = """
+            path {
+              step: "bar"
+            }
             short_description: "High Linfty distance between training and serving"
             description: "The Linfty distance between training and serving is 0.2 (up to six significant digits), above the threshold 0.1. The feature value with maximum difference is: a"
             severity: ERROR
@@ -883,7 +895,7 @@ class ValidationApiTest(absltest.TestCase):
         datasets {
           num_examples: 2
           features {
-            name: 'annotated_enum'
+            path { step: 'annotated_enum' }
             type: STRING
             string_stats {
               common_stats { num_non_missing: 2 num_missing: 0 max_num_values: 1 }
@@ -900,7 +912,7 @@ class ValidationApiTest(absltest.TestCase):
         datasets {
           num_examples: 4
           features {
-            name: 'annotated_enum'
+            path { step: 'annotated_enum' }
             type: STRING
             string_stats {
               common_stats { num_non_missing: 4 num_missing: 0 max_num_values: 1 }
@@ -938,7 +950,7 @@ class ValidationApiTest(absltest.TestCase):
         datasets {
           num_examples: 10
           features {
-            name: 'bar'
+            path { step: 'bar' }
             type: STRING
             string_stats {
               common_stats {
@@ -1002,7 +1014,7 @@ class ValidationApiTest(absltest.TestCase):
         datasets {
           num_examples: 1000
           features {
-            name: 'feature'
+            path { step: 'feature' }
             type: STRING
             string_stats {
               common_stats {
@@ -1038,6 +1050,9 @@ class ValidationApiTest(absltest.TestCase):
         'label':
             text_format.Parse(
                 """
+            path {
+              step: "label"
+            }
             description: "Column is completely missing"
             severity: ERROR
             short_description: "Column dropped"
@@ -1065,7 +1080,7 @@ class ValidationApiTest(absltest.TestCase):
         datasets {
           num_examples: 10
           features {
-            name: 'bar'
+            path { step: 'bar' }
             type: STRING
             string_stats {
               common_stats {
@@ -1081,7 +1096,7 @@ class ValidationApiTest(absltest.TestCase):
             }
           }
           features {
-            name: 'annotated_enum'
+            path { step: 'annotated_enum' }
             type: STRING
             string_stats {
               common_stats {
@@ -1102,7 +1117,7 @@ class ValidationApiTest(absltest.TestCase):
         datasets {
           num_examples: 10
           features {
-            name: 'annotated_enum'
+            path { step: 'annotated_enum' }
             type: STRING
             string_stats {
               common_stats {
@@ -1117,7 +1132,7 @@ class ValidationApiTest(absltest.TestCase):
             }
           }
           features {
-            name: 'bar'
+            path { step: 'bar' }
             type: STRING
             string_stats {
               common_stats {
@@ -1139,7 +1154,7 @@ class ValidationApiTest(absltest.TestCase):
         datasets {
           num_examples: 10
           features {
-            name: 'bar'
+            path { step: 'bar' }
             type: STRING
             string_stats {
               common_stats {
@@ -1155,7 +1170,7 @@ class ValidationApiTest(absltest.TestCase):
             }
           }
           features {
-            name: 'annotated_enum'
+            path { step: 'annotated_enum' }
             type: STRING
             string_stats {
               common_stats {
@@ -1213,7 +1228,7 @@ class ValidationApiTest(absltest.TestCase):
           name: 'All Examples'
           num_examples: 10
           features {
-            name: 'annotated_enum'
+            path { step: 'annotated_enum' }
             type: STRING
             string_stats {
               common_stats {
@@ -1235,7 +1250,7 @@ class ValidationApiTest(absltest.TestCase):
           name: 'All Examples'
           num_examples: 10
           features {
-            name: 'annotated_enum'
+            path { step: 'annotated_enum' }
             type: STRING
             string_stats {
               common_stats {
@@ -1254,7 +1269,7 @@ class ValidationApiTest(absltest.TestCase):
           name: "annotated_enum_b"
           num_examples: 1
           features {
-            name: 'annotated_enum'
+            path { step: 'annotated_enum' }
             type: STRING
             string_stats {
               common_stats {
@@ -1275,7 +1290,7 @@ class ValidationApiTest(absltest.TestCase):
           name: 'All Examples'
           num_examples: 10
           features {
-            name: 'annotated_enum'
+            path { step: 'annotated_enum' }
             type: STRING
             string_stats {
               common_stats {
@@ -1294,7 +1309,7 @@ class ValidationApiTest(absltest.TestCase):
           name: "annotated_enum_a"
           num_examples: 3
           features {
-            name: 'annotated_enum'
+            path { step: 'annotated_enum' }
             type: STRING
             string_stats {
               common_stats {
@@ -1471,7 +1486,7 @@ class ValidationApiTest(absltest.TestCase):
         datasets {
           num_examples: 10
           features {
-            name: 'bar'
+            path { step: 'bar' }
             type: STRING
             string_stats {
               common_stats {
@@ -1487,7 +1502,7 @@ class ValidationApiTest(absltest.TestCase):
             }
           }
           features {
-            name: 'annotated_enum'
+            path { step: 'annotated_enum' }
             type: STRING
             string_stats {
               common_stats {
@@ -1508,7 +1523,7 @@ class ValidationApiTest(absltest.TestCase):
         datasets {
           num_examples: 10
           features {
-            name: 'annotated_enum'
+            path { step: 'annotated_enum' }
             type: STRING
             string_stats {
               common_stats {
@@ -1523,7 +1538,7 @@ class ValidationApiTest(absltest.TestCase):
             }
           }
           features {
-            name: 'bar'
+            path { step: 'bar' }
             type: STRING
             string_stats {
               common_stats {
@@ -1545,7 +1560,7 @@ class ValidationApiTest(absltest.TestCase):
         datasets {
           num_examples: 10
           features {
-            name: 'bar'
+            path { step: 'bar' }
             type: STRING
             string_stats {
               common_stats {
@@ -1561,7 +1576,7 @@ class ValidationApiTest(absltest.TestCase):
             }
           }
           features {
-            name: 'annotated_enum'
+            path { step: 'annotated_enum' }
             type: STRING
             string_stats {
               common_stats {
@@ -1582,7 +1597,7 @@ class ValidationApiTest(absltest.TestCase):
         datasets {
           num_examples: 10
           features {
-            name: 'annotated_enum'
+            path { step: 'annotated_enum' }
             type: STRING
             string_stats {
               common_stats {
@@ -1597,7 +1612,7 @@ class ValidationApiTest(absltest.TestCase):
             }
           }
           features {
-            name: 'bar'
+            path { step: 'bar' }
             type: STRING
             string_stats {
               common_stats {
@@ -1653,7 +1668,7 @@ class ValidationApiTest(absltest.TestCase):
         datasets {
           num_examples: 10
           features {
-            name: 'bar'
+            path { step: 'bar' }
             type: STRING
             string_stats {
               common_stats {
@@ -1669,7 +1684,7 @@ class ValidationApiTest(absltest.TestCase):
             }
           }
           features {
-            name: 'annotated_enum'
+            path { step: 'annotated_enum' }
             type: STRING
             string_stats {
               common_stats {
@@ -1721,8 +1736,7 @@ class ValidationApiTest(absltest.TestCase):
         statistics,
         empty_schema,
         validation_options=vo)
-    self._assert_equal_anomalies(
-        anomalies, expected_anomalies, compare_path=True)
+    self._assert_equal_anomalies(anomalies, expected_anomalies)
   # pylint: enable=line-too-long
 
   def test_validate_instance(self):
@@ -1763,6 +1777,9 @@ class ValidationApiTest(absltest.TestCase):
         'annotated_enum':
             text_format.Parse(
                 """
+      path {
+        step: "annotated_enum"
+      }
       description: "Examples contain values missing from the schema: D "
         "(~100%). "
       severity: ERROR
@@ -1811,6 +1828,9 @@ class ValidationApiTest(absltest.TestCase):
         'annotated_enum':
             text_format.Parse(
                 """
+      path {
+        step: "annotated_enum"
+      }
       description: "Examples contain values missing from the schema: D "
         "(~100%). "
       severity: ERROR
@@ -1854,6 +1874,9 @@ class ValidationApiTest(absltest.TestCase):
         'label':
             text_format.Parse(
                 """
+            path {
+              step: "label"
+            }
             description: "Column is completely missing"
             severity: ERROR
             short_description: "Column dropped"
