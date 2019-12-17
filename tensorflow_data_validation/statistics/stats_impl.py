@@ -48,7 +48,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Text, Tuple
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
-
+# Test Copybara
 @beam.typehints.with_input_types(pa.Table)
 @beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatisticsList)
 class GenerateStatisticsImpl(beam.PTransform):
