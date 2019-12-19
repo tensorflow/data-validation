@@ -30,10 +30,12 @@ from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 _INPUT_TABLE = pa.Table.from_arrays([
     pa.array([[1], [2, 3]]),
     pa.array([[{
-        "sf1": [["a", "b"]]
+        "sf1": ["a", "b"]
     }], [{
         "sf2": [{
-            "ssf1": [[3], [4]]
+            "ssf1": [3]
+        }, {
+            "ssf1": [4]
         }]
     }]]),
     pa.array([[1.0], [2.0]])
@@ -42,19 +44,17 @@ _INPUT_TABLE = pa.Table.from_arrays([
 _FEATURES_TO_ARRAYS = {
     types.FeaturePath(["f1"]): (pa.array([[1], [2, 3]]), [1.0, 2.0]),
     types.FeaturePath(["w"]): (pa.array([[1.0], [2.0]]), [1.0, 2.0]),
-    types.FeaturePath(["f2"]): (pa.array([[{
-        "sf1": [["a", "b"]]
-    }], [{
-        "sf2": [{
-            "ssf1": [[3], [4]]
-        }]
-    }]]), [1.0, 2.0]),
+    types.FeaturePath(["f2"]): (
+        pa.array([
+            [{"sf1": ["a", "b"]}],
+            [{"sf2": [{"ssf1": [3]}, {"ssf1": [4]}]}]
+        ]), [1.0, 2.0]),
     types.FeaturePath(["f2", "sf1"]): (
-        pa.array([[["a", "b"]], None]), [1.0, 2.0]),
+        pa.array([["a", "b"], None]), [1.0, 2.0]),
     types.FeaturePath(["f2", "sf2"]): (
-        pa.array([None, [{"ssf1": [[3], [4]]}]]), [1.0, 2.0]),
+        pa.array([None, [{"ssf1": [3]}, {"ssf1": [4]}]]), [1.0, 2.0]),
     types.FeaturePath(["f2", "sf2", "ssf1"]): (
-        pa.array([[[3], [4]]]), [2.0]),
+        pa.array([[3], [4]]), [2.0, 2.0]),
 }
 
 
@@ -122,21 +122,22 @@ class EnumerateArraysTest(parameterized.TestCase):
   def testGetArrayBroadcastString(self):
     table = pa.Table.from_arrays([
         pa.array([[{
-            "sf": [
-                {"ssf": [[1]]},
-                {"ssf": [[2]]},
-            ]
+            "sf": [{
+                "ssf": [1]
+            }, {
+                "ssf": [2]
+            }]
         }], [{
             "sf": [{
-                "ssf": [[3], [4]]
-            },]
+                "ssf": [3, 4]
+            }]
         }]]),
         pa.array([["one"], ["two"]])
     ], ["f", "w"])
     feature = types.FeaturePath(["f", "sf", "ssf"])
     actual_arr, actual_weights = arrow_util.get_array(
         table, feature, broadcast_column_name="w")
-    expected_arr = pa.array([[[1]], [[2]], [[3], [4]]])
+    expected_arr = pa.array([[1], [2], [3, 4]])
     expected_weights = np.array(["one", "one", "two"])
     self.assertTrue(
         actual_arr.equals(expected_arr),
@@ -147,7 +148,7 @@ class EnumerateArraysTest(parameterized.TestCase):
   def testGetArraySubpathMissing(self):
     with self.assertRaisesRegex(
         KeyError,
-        r'Cannot process .* "sssf" inside .* list<item: list<item: int64>>.*'):
+        r'Cannot process .* "sssf" inside .* list<item: int64>.*'):
       arrow_util.get_array(
           _INPUT_TABLE,
           query_path=types.FeaturePath(["f2", "sf2", "ssf1", "sssf"]),
