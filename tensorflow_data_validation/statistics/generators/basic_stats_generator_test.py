@@ -133,6 +133,109 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         num_quantiles_histogram_buckets=4)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
+  def test_basic_stats_generator_infinity(self):
+    # input with two batches: first batch has two examples and second batch
+    # has a single example.
+    b1 = pa.Table.from_arrays([pa.array([[1.0, 2.0, np.inf, np.inf, -np.inf],
+                                         [3.0, 4.0, 5.0, -np.inf]])], ['a'])
+    b2 = pa.Table.from_arrays([pa.array([[1.0, np.inf, -np.inf]])], ['a'])
+    batches = [b1, b2]
+    expected_result = {
+        types.FeaturePath(['a']): text_format.Parse(
+            """
+            path {
+              step: 'a'
+            }
+            type: FLOAT
+            num_stats {
+              common_stats {
+                num_non_missing: 3
+                min_num_values: 3
+                max_num_values: 5
+                avg_num_values: 4.0
+                tot_num_values: 12
+                num_values_histogram {
+                  buckets {
+                    low_value: 3.0
+                    high_value: 3.0
+                    sample_count: 0.75
+                  }
+                  buckets {
+                    low_value: 3.0
+                    high_value: 4.0
+                    sample_count: 0.75
+                  }
+                  buckets {
+                    low_value: 4.0
+                    high_value: 5.0
+                    sample_count: 0.75
+                  }
+                  buckets {
+                    low_value: 5.0
+                    high_value: 5.0
+                    sample_count: 0.75
+                  }
+                  type: QUANTILES
+                }
+              }
+              mean: nan
+              num_zeros: 0
+              min: -inf
+              max: inf
+              median: 3.0
+              histograms {
+                buckets {
+                  low_value: -inf
+                  high_value: 2.0
+                  sample_count: 4.5
+                }
+                buckets {
+                  low_value: 2.0
+                  high_value: 3.0
+                  sample_count: 1.02
+                }
+                buckets {
+                  low_value: 3.0
+                  high_value: 4.0
+                  sample_count: 0.99
+                }
+                buckets {
+                  low_value: 4.0
+                  high_value: inf
+                  sample_count: 5.49
+                }
+                type: STANDARD
+              }
+              histograms {
+                buckets {
+                  low_value: -inf
+                  high_value: -inf
+                  sample_count: 3.0
+                }
+                buckets {
+                  low_value: -inf
+                  high_value: 3.0
+                  sample_count: 3.0
+                }
+                buckets {
+                  low_value: 3.0
+                  high_value: inf
+                  sample_count: 3.0
+                }
+                buckets {
+                  low_value: inf
+                  high_value: inf
+                  sample_count: 3.0
+                }
+                type: QUANTILES
+              }
+            }
+            """, statistics_pb2.FeatureNameStatistics())}
+    generator = basic_stats_generator.BasicStatsGenerator(
+        num_values_histogram_buckets=4, num_histogram_buckets=4,
+        num_quantiles_histogram_buckets=4)
+    self.assertCombinerOutputEqual(batches, generator, expected_result)
+
   def test_basic_stats_generator_no_runtime_warnings_close_to_max_int(self):
     # input has batches with values that are slightly smaller than the maximum
     # integer value.

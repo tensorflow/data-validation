@@ -173,9 +173,9 @@ class _PartialNumericStats(object):
   """Holds partial numeric statistics for a single feature."""
 
   __slots__ = ['sum', 'sum_of_squares', 'num_zeros', 'num_nan', 'min', 'max',
-               'quantiles_summary', 'has_weights', 'weighted_sum',
-               'weighted_sum_of_squares', 'weighted_total_num_values',
-               'weighted_quantiles_summary']
+               'finite_min', 'finite_max', 'quantiles_summary', 'has_weights',
+               'weighted_sum', 'weighted_sum_of_squares',
+               'weighted_total_num_values', 'weighted_quantiles_summary']
 
   def __init__(self, has_weights: bool):
     # Explicitly make the sum and the sum of squares to be float in order to
@@ -190,9 +190,13 @@ class _PartialNumericStats(object):
     # FLOAT features.
     self.num_nan = 0
     # The minimum value among all the values for this feature.
-    self.min = sys.maxsize
+    self.min = float('inf')
     # The maximum value among all the values for this feature.
-    self.max = -sys.maxsize
+    self.max = float('-inf')
+    # The minimum value among all the finite values for this feature.
+    self.finite_min = float('inf')
+    # The maximum value among all the finite values for this feature.
+    self.finite_max = float('-inf')
     # Summary of the quantiles for the values in this feature.
     self.quantiles_summary = None
 
@@ -217,6 +221,8 @@ class _PartialNumericStats(object):
     self.num_nan += other.num_nan
     self.min = min(self.min, other.min)
     self.max = max(self.max, other.max)
+    self.finite_min = min(self.finite_min, other.finite_min)
+    self.finite_max = max(self.finite_max, other.finite_max)
 
     assert self.has_weights == other.has_weights
     if self.has_weights:
@@ -246,6 +252,7 @@ class _PartialNumericStats(object):
     self.num_nan += np.sum(nan_mask)
     non_nan_mask = ~nan_mask
     values_no_nan = values[non_nan_mask]
+
     # We do this check to avoid failing in np.min/max with empty array.
     if values_no_nan.size == 0:
       return
@@ -256,8 +263,16 @@ class _PartialNumericStats(object):
         values_no_nan_as_double* values_no_nan_as_double)
     # Use np.minimum.reduce(values_no_nan, initial=self.min) once we upgrade
     # to numpy 1.16
-    self.min = min(self.min, np.min(values_no_nan))
-    self.max = max(self.max, np.max(values_no_nan))
+    curr_min = np.min(values_no_nan)
+    curr_max = np.max(values_no_nan)
+    self.min = min(self.min, curr_min)
+    self.max = max(self.max, curr_max)
+    if curr_min == float('-inf') or curr_max == float('inf'):
+      finite_values = values_no_nan[np.isfinite(values_no_nan)]
+      if finite_values.size > 0:
+        self.finite_min = min(self.finite_min, np.min(finite_values))
+        self.finite_max = max(self.finite_max, np.max(finite_values))
+
     self.num_zeros += values_no_nan.size - np.count_nonzero(values_no_nan)
     self.quantiles_summary = values_quantiles_combiner.add_input(
         self.quantiles_summary, [values_no_nan, np.ones_like(values_no_nan)])
@@ -455,7 +470,8 @@ def _make_numeric_stats_proto(
   # Construct the equi-width histogram from the quantiles and add it to the
   # numeric stats proto.
   std_histogram = quantiles_util.generate_equi_width_histogram(
-      quantiles, total_num_values, num_histogram_buckets)
+      quantiles, numeric_stats.finite_min, numeric_stats.finite_max,
+      total_num_values, num_histogram_buckets)
   std_histogram.num_nan = numeric_stats.num_nan
   new_std_histogram = result.histograms.add()
   new_std_histogram.CopyFrom(std_histogram)
@@ -495,8 +511,8 @@ def _make_numeric_stats_proto(
     # Construct the weighted equi-width histogram from the quantiles and
     # add it to the numeric stats proto.
     weighted_std_histogram = quantiles_util.generate_equi_width_histogram(
-        weighted_quantiles, numeric_stats.weighted_total_num_values,
-        num_histogram_buckets)
+        weighted_quantiles, numeric_stats.finite_min, numeric_stats.finite_max,
+        numeric_stats.weighted_total_num_values, num_histogram_buckets)
     weighted_std_histogram.num_nan = numeric_stats.num_nan
     weighted_numeric_stats_proto.histograms.extend([weighted_std_histogram])
 
@@ -756,6 +772,7 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
     num_buckets = max(
         self._num_quantiles_histogram_buckets,
         _NUM_QUANTILES_FACTOR_FOR_STD_HISTOGRAM * self._num_histogram_buckets)
+    assert num_buckets % self._num_quantiles_histogram_buckets == 0
     # Initialize quantiles combiner for histogram over feature values.
     self._values_quantiles_combiner = quantiles_util.QuantilesCombiner(
         num_buckets, epsilon, has_weights=True)

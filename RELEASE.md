@@ -19,6 +19,7 @@
   each anomaly type that TFDV detects.
 * Handle null array in cross feature stats generator, top-k & uniques
   combiner stats generator, and sklearn mutual information generator.
+* Handle infinity in basic stats generator.
 * Depends on `tensorflow-metadata>=0.15.2,<0.16`.
 
 ## Breaking Changes
