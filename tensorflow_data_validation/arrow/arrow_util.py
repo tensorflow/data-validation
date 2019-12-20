@@ -61,9 +61,9 @@ def get_broadcastable_column(input_table: pa.Table,
 def get_array(
     table: pa.Table,
     query_path: types.FeaturePath,
-    broadcast_column_name: Optional[Text] = None
+    return_example_indices: bool
 ) -> Tuple[pa.Array, Optional[np.ndarray]]:
-  """Retrieve a nested array (and optionally weights) from a table.
+  """Retrieve a nested array (and optionally example indices) from a table.
 
   It assumes all the columns in `table` have only one chunk.
   It assumes `table` contains only arrays of the following supported types:
@@ -80,29 +80,27 @@ def get_array(
     table: The Table whose arrays to be visited. It is assumed that the table
       contains only one chunk.
     query_path: The FeaturePath to lookup in the table.
-    broadcast_column_name: The name of a column to broadcast, or None. Each list
-      should contain exactly one value.
+    return_example_indices: Whether to return an additional array containing the
+      example indices of the elements in the array corresponding to the
+      query_path.
 
   Returns:
     A tuple. The first term is the feature array and the second term is the
-    broadcast column array for the feature array (i.e. broadcast_column[i] is
-    the corresponding value for array[i]).
+    example_indeices array for the feature array (i.e. array[i] came from the
+    example at row example_indices[i] in the table.).
 
   Raises:
-    ValueError: When the broadcast column is not a list array or its elements
-      are not 1-element arrays. Or, if copy_broadcast_column is False, an error
-      will be raised if its elements are not of a numeric type.
     KeyError: When the query_path is empty, or cannot be found in the table and
       its nested struct arrays.
   """
 
   def _recursion_helper(
       query_path: types.FeaturePath, array: pa.Array,
-      weights: Optional[np.ndarray]
+      example_indices: Optional[np.ndarray]
   ) -> Tuple[pa.Array, Optional[np.ndarray]]:
     """Recursion helper."""
     if not query_path:
-      return array, weights
+      return array, example_indices
     array_type = array.type
     if (not pa.types.is_list(array_type) or
         not pa.types.is_struct(array_type.value_type)):
@@ -110,9 +108,9 @@ def get_array(
                      '{}. Expecting a list<struct<...>>.'.format(query_path,
                                                                  array_type))
     flat_struct_array = array.flatten()
-    flat_weights = None
-    if weights is not None:
-      flat_weights = weights[
+    flat_indices = None
+    if example_indices is not None:
+      flat_indices = example_indices[
           array_util.GetFlattenedArrayParentIndices(array).to_numpy()]
 
     step = query_path.steps()[0]
@@ -121,7 +119,7 @@ def get_array(
     except KeyError:
       raise KeyError('query_path step "{}" not in struct.'.format(step))
     relative_path = types.FeaturePath(query_path.steps()[1:])
-    return _recursion_helper(relative_path, child_array, flat_weights)
+    return _recursion_helper(relative_path, child_array, flat_indices)
 
   if not query_path:
     raise KeyError('query_path must be non-empty.')
@@ -132,11 +130,9 @@ def get_array(
     raise KeyError('query_path step 0 "{}" not in table.'.format(column_name))
   array_path = types.FeaturePath(query_path.steps()[1:])
 
-  broadcast_column = None
-  if broadcast_column_name is not None:
-    broadcast_column = np.asarray(
-        get_broadcastable_column(table, broadcast_column_name))
-  return _recursion_helper(array_path, array, broadcast_column)
+  example_indices = np.arange(
+      table.num_rows) if return_example_indices else None
+  return _recursion_helper(array_path, array, example_indices)
 
 
 def enumerate_arrays(

@@ -61,7 +61,7 @@ class InputBatch(object):
     """
     try:
       array, _ = arrow_util.get_array(
-          self._table, path, broadcast_column_name=None)
+          self._table, path, return_example_indices=False)
       # GetArrayNullBitmapAsByteArray is only useful for non-null type arrays.
       if pa.types.is_null(array.type):
         return np.full(self._table.num_rows, True)
@@ -121,7 +121,7 @@ class InputBatch(object):
       return self._cache[key]
     try:
       array, _ = arrow_util.get_array(
-          self._table, path, broadcast_column_name=None)
+          self._table, path, return_example_indices=False)
       if pa.types.is_null(array.type):
         lengths = np.full(self._table.num_rows, 0)
       elif not pa.types.is_list(array.type):

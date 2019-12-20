@@ -38,23 +38,23 @@ _INPUT_TABLE = pa.Table.from_arrays([
             "ssf1": [4]
         }]
     }]]),
-    pa.array([[1.0], [2.0]])
+    pa.array([[0], [1]])
 ], ["f1", "f2", "w"])
 
 _FEATURES_TO_ARRAYS = {
-    types.FeaturePath(["f1"]): (pa.array([[1], [2, 3]]), [1.0, 2.0]),
-    types.FeaturePath(["w"]): (pa.array([[1.0], [2.0]]), [1.0, 2.0]),
+    types.FeaturePath(["f1"]): (pa.array([[1], [2, 3]]), [0, 1]),
+    types.FeaturePath(["w"]): (pa.array([[0], [1]]), [0, 1]),
     types.FeaturePath(["f2"]): (
         pa.array([
             [{"sf1": ["a", "b"]}],
             [{"sf2": [{"ssf1": [3]}, {"ssf1": [4]}]}]
-        ]), [1.0, 2.0]),
+        ]), [0, 1]),
     types.FeaturePath(["f2", "sf1"]): (
-        pa.array([["a", "b"], None]), [1.0, 2.0]),
+        pa.array([["a", "b"], None]), [0, 1]),
     types.FeaturePath(["f2", "sf2"]): (
-        pa.array([None, [{"ssf1": [3]}, {"ssf1": [4]}]]), [1.0, 2.0]),
+        pa.array([None, [{"ssf1": [3]}, {"ssf1": [4]}]]), [0, 1]),
     types.FeaturePath(["f2", "sf2", "ssf1"]): (
-        pa.array([[3], [4]]), [2.0, 2.0]),
+        pa.array([[3], [4]]), [1, 1]),
 }
 
 
@@ -95,21 +95,18 @@ class EnumerateArraysTest(parameterized.TestCase):
         KeyError,
         r"query_path must be non-empty.*"):
       arrow_util.get_array(
-          pa.Table.from_arrays(
-              [pa.array([[1], [2, 3]]),
-               pa.array([[1], [2, 2]])], ["v", "w"]),
+          pa.Table.from_arrays([pa.array([[1], [2, 3]])], ["v"]),
           query_path=types.FeaturePath([]),
-          broadcast_column_name="w")
+          return_example_indices=False)
 
   def testGetArrayColumnMissing(self):
     with self.assertRaisesRegex(
         KeyError,
         r'query_path step 0 "x" not in table.*'):
       arrow_util.get_array(
-          pa.Table.from_arrays(
-              [pa.array([[1], [2]])], ["y"]),
+          pa.Table.from_arrays([pa.array([[1], [2]])], ["y"]),
           query_path=types.FeaturePath(["x"]),
-          broadcast_column_name=None)
+          return_example_indices=False)
 
   def testGetArrayStepMissing(self):
     with self.assertRaisesRegex(KeyError,
@@ -117,9 +114,9 @@ class EnumerateArraysTest(parameterized.TestCase):
       arrow_util.get_array(
           _INPUT_TABLE,
           query_path=types.FeaturePath(["f2", "sf2", "ssf3"]),
-          broadcast_column_name=None)
+          return_example_indices=False)
 
-  def testGetArrayBroadcastString(self):
+  def testGetArrayReturnExampleIndices(self):
     table = pa.Table.from_arrays([
         pa.array([[{
             "sf": [{
@@ -135,15 +132,15 @@ class EnumerateArraysTest(parameterized.TestCase):
         pa.array([["one"], ["two"]])
     ], ["f", "w"])
     feature = types.FeaturePath(["f", "sf", "ssf"])
-    actual_arr, actual_weights = arrow_util.get_array(
-        table, feature, broadcast_column_name="w")
+    actual_arr, actual_indices = arrow_util.get_array(
+        table, feature, return_example_indices=True)
     expected_arr = pa.array([[1], [2], [3, 4]])
-    expected_weights = np.array(["one", "one", "two"])
+    expected_indices = np.array([0, 0, 1])
     self.assertTrue(
         actual_arr.equals(expected_arr),
         "\nfeature: {};\nexpected:\n{};\nactual:\n{}".format(
             feature, expected_arr, actual_arr))
-    np.testing.assert_array_equal(expected_weights, actual_weights)
+    np.testing.assert_array_equal(expected_indices, actual_indices)
 
   def testGetArraySubpathMissing(self):
     with self.assertRaisesRegex(
@@ -152,31 +149,31 @@ class EnumerateArraysTest(parameterized.TestCase):
       arrow_util.get_array(
           _INPUT_TABLE,
           query_path=types.FeaturePath(["f2", "sf2", "ssf1", "sssf"]),
-          broadcast_column_name=None)
+          return_example_indices=False)
 
   @parameterized.named_parameters(
       ((str(f), f, expected) for (f, expected) in  _FEATURES_TO_ARRAYS.items()))
   def testGetArray(self, feature, expected):
-    actual_arr, actual_weights = arrow_util.get_array(
-        _INPUT_TABLE, feature, broadcast_column_name="w")
-    expected_arr, expected_weights = expected
+    actual_arr, actual_indices = arrow_util.get_array(
+        _INPUT_TABLE, feature, return_example_indices=True)
+    expected_arr, expected_indices = expected
     self.assertTrue(
         actual_arr.equals(expected_arr),
         "\nfeature: {};\nexpected:\n{};\nactual:\n{}".format(
             feature, expected_arr, actual_arr))
-    np.testing.assert_array_equal(expected_weights, actual_weights)
+    np.testing.assert_array_equal(expected_indices, actual_indices)
 
   @parameterized.named_parameters(
       ((str(f), f, expected) for (f, expected) in  _FEATURES_TO_ARRAYS.items()))
   def testGetArrayNoBroadcast(self, feature, expected):
-    actual_arr, actual_weights = arrow_util.get_array(
-        _INPUT_TABLE, feature, broadcast_column_name=None)
+    actual_arr, actual_indices = arrow_util.get_array(
+        _INPUT_TABLE, feature, return_example_indices=False)
     expected_arr, _ = expected
     self.assertTrue(
         actual_arr.equals(expected_arr),
         "\nfeature: {};\nexpected:\n{};\nactual:\n{}".format(
             feature, expected_arr, actual_arr))
-    self.assertIsNone(actual_weights)
+    self.assertIsNone(actual_indices)
 
   def testEnumerateArraysStringWeight(self):
     # The arrow type of a string changes between py2 and py3 so we accept either
