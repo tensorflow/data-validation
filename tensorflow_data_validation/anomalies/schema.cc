@@ -78,7 +78,8 @@ std::set<tensorflow::metadata::v0::FeatureType> AllowedFeatureTypes(
     case Feature::kDomain:
       return {tensorflow::metadata::v0::BYTES};
     case Feature::kBoolDomain:
-      return {tensorflow::metadata::v0::INT, tensorflow::metadata::v0::BYTES};
+      return {tensorflow::metadata::v0::INT, tensorflow::metadata::v0::BYTES,
+              tensorflow::metadata::v0::FLOAT};
     case Feature::kIntDomain:
       return {tensorflow::metadata::v0::INT, tensorflow::metadata::v0::BYTES};
     case Feature::kFloatDomain:
@@ -202,7 +203,6 @@ tensorflow::Status Schema::UpdateFeature(
   *severity = tensorflow::metadata::v0::AnomalyInfo::UNKNOWN;
 
   Feature* feature = GetExistingFeature(feature_stats_view.GetPath());
-
   SparseFeature* sparse_feature =
       GetExistingSparseFeature(feature_stats_view.GetPath());
   if (sparse_feature != nullptr &&

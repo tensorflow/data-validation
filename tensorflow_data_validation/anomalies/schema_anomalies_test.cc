@@ -138,6 +138,157 @@ TEST(SchemaAnomalies, FindChangesCategoricalIntFeature) {
   }
 }
 
+TEST(SchemaAnomalies, FindChangesBooleanFloatFeature) {
+  const Schema initial = ParseTextProtoOrDie<Schema>(R"(
+    feature {
+      name: "a_float_outside_range"
+      value_count: { min: 1 max: 1 }
+      type: FLOAT
+      bool_domain {}
+    }
+    feature {
+      name: "a_float_with_nans"
+      value_count: { min: 1 max: 1 }
+      type: FLOAT
+      bool_domain {}
+    }
+    feature {
+      name: "a_float_between_0_and_1"
+      value_count: { min: 1 max: 1 }
+      type: FLOAT
+      bool_domain {}
+    })");
+
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        features: {
+          name: 'a_float_outside_range'
+          type: FLOAT
+          num_stats: {
+            common_stats: {
+              num_missing: 3
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 1
+              avg_num_values: 1
+            }
+            min: 0
+            max: 2.0
+            median: .5
+            histograms: {
+              buckets: { high_value: 0.4 sample_count: 200 }
+              buckets: { low_value: 1.8 high_value: 2.0 sample_count: 10 }
+              type: QUANTILES
+            }
+          }
+        }
+        features: {
+          name: 'a_float_with_nans'
+          type: FLOAT
+          num_stats: {
+            common_stats: {
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 1
+              avg_num_values: 1
+            }
+            min: 0
+            max: 1
+            histograms: {
+              num_nan: 3
+              buckets: { high_value: 1 }
+              buckets: { low_value: 0 high_value: 1 sample_count: 100 }
+              type: QUANTILES
+            }
+          }
+        }
+        features: {
+          name: 'a_float_between_0_and_1'
+          type: FLOAT
+          num_stats: {
+            common_stats: {
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 1
+              avg_num_values: 1
+            }
+            min: 0
+            max: 1
+            histograms: {
+              buckets: { high_value: 0.4 sample_count: 200 }
+              buckets: { low_value: 0.4 high_value: 0.7 sample_count: 10 }
+              buckets: { low_value: 0.7 high_value: 1 sample_count: 10 }
+              type: QUANTILES
+            }
+          }
+        })");
+  for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
+    std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
+    expected_anomalies["a_float_outside_range"].new_schema =
+        ParseTextProtoOrDie<Schema>(R"(
+          feature {
+            name: "a_float_outside_range"
+            value_count { min: 1 max: 1 }
+            type: FLOAT
+            float_domain { min: 0, max: 1 }
+          })");
+    expected_anomalies["a_float_with_nans"].new_schema =
+        ParseTextProtoOrDie<Schema>(R"(
+          feature {
+            name: "a_float_with_nans"
+            value_count { min: 1 max: 1 }
+            type: FLOAT
+            float_domain { min: 0, max: 1 }
+          })");
+    expected_anomalies["a_float_between_0_and_1"].new_schema =
+        ParseTextProtoOrDie<Schema>(R"(
+          feature {
+            name: "a_float_between_0_and_1"
+            value_count { min: 1 max: 1 }
+            type: FLOAT
+            float_domain { min: 0, max: 1 }
+          })");
+    expected_anomalies["a_float_outside_range"]
+        .expected_info_without_diff = ParseTextProtoOrDie<
+        tensorflow::metadata::v0::AnomalyInfo>(R"(
+      path { step: "a_float_outside_range" }
+      description: "Floats (such as 2) not in {0, 1}: converting to float_domain."
+      severity: ERROR
+      short_description: "Non-boolean values"
+      reason {
+        type: BOOL_TYPE_UNEXPECTED_FLOAT
+        short_description: "Non-boolean values"
+        description: "Floats (such as 2) not in {0, 1}: converting to float_domain."
+      })");
+    expected_anomalies["a_float_with_nans"]
+        .expected_info_without_diff = ParseTextProtoOrDie<
+        tensorflow::metadata::v0::AnomalyInfo>(R"(
+      path { step: "a_float_with_nans" }
+      description: "Floats (such as NaN) not in {0, 1}: converting to float_domain."
+      severity: ERROR
+      short_description: "Non-boolean values"
+      reason {
+        type: BOOL_TYPE_UNEXPECTED_FLOAT
+        short_description: "Non-boolean values"
+        description: "Floats (such as NaN) not in {0, 1}: converting to float_domain."
+      })");
+    expected_anomalies["a_float_between_0_and_1"]
+        .expected_info_without_diff = ParseTextProtoOrDie<
+        tensorflow::metadata::v0::AnomalyInfo>(R"(
+      path { step: "a_float_between_0_and_1" }
+      description: "Float values falling between 0 and 1: converting to float_domain."
+      severity: ERROR
+      short_description: "Non-boolean values"
+      reason {
+        type: BOOL_TYPE_UNEXPECTED_FLOAT
+        short_description: "Non-boolean values"
+        description: "Float values falling between 0 and 1: converting to float_domain."
+      })");
+    TestFindChanges(initial, DatasetStatsView(statistics, false), config,
+                    expected_anomalies);
+  }
+}
+
 TEST(SchemaAnomalies, FindChangesDatasetLevelChanges) {
   const DatasetFeatureStatistics stats =
       ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(num_examples: 1)");
