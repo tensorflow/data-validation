@@ -20,6 +20,7 @@
 * Handle null array in cross feature stats generator, top-k & uniques
   combiner stats generator, and sklearn mutual information generator.
 * Handle infinity in basic stats generator.
+* Set num_missing and num_examples correctly in the presence of sparse features.
 * Depends on `tensorflow-metadata>=0.15.2,<0.16`.
 
 ## Breaking Changes

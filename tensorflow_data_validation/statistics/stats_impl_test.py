@@ -1317,8 +1317,8 @@ GENERATE_STATS_TESTS = [
             'flat_sparse_feature',
         'tables': [
             pa.Table.from_arrays(
-                [pa.array([[1, 3, 5, 7]]),
-                 pa.array([['a', 'b', 'c', 'd']])],
+                [pa.array([None]),
+                 pa.array([None])],
                 ['value_feature', 'index_feature']),
             pa.Table.from_arrays(
                 [pa.array([[2, 4, 6, 8]]),
@@ -1348,36 +1348,37 @@ GENERATE_STATS_TESTS = [
                   type: INT
                   num_stats {
                     common_stats {
-                      num_non_missing: 3
+                      num_non_missing: 2
+                      num_missing: 1
                       min_num_values: 4
                       max_num_values: 4
                       avg_num_values: 4.0
-                      tot_num_values: 12
+                      tot_num_values: 8
                       num_values_histogram {
                         buckets {
                           low_value: 4.0
                           high_value: 4.0
-                          sample_count: 1.5
+                          sample_count: 1.0
                         }
                         buckets {
                           low_value: 4.0
                           high_value: 4.0
-                          sample_count: 1.5
+                          sample_count: 1.0
                         }
                         type: QUANTILES
                       }
                     }
-                    mean: 4.5
-                    std_dev: 2.6925824
+                    mean: 4.75
+                    std_dev: 2.8613808
                     num_zeros: 1
                     min: 0.0
                     max: 9.0
-                    median: 5.0
+                    median: 6.0
                     histograms {
                       buckets {
                         low_value: 0.0
                         high_value: 9.0
-                        sample_count: 12.0
+                        sample_count: 8.0
                       }
                       type: STANDARD
                     }
@@ -1385,7 +1386,7 @@ GENERATE_STATS_TESTS = [
                       buckets {
                         low_value: 0.0
                         high_value: 9.0
-                        sample_count: 12.0
+                        sample_count: 8.0
                       }
                       type: QUANTILES
                     }
@@ -1398,21 +1399,22 @@ GENERATE_STATS_TESTS = [
                   type: STRING
                   string_stats {
                     common_stats {
-                      num_non_missing: 3
+                      num_non_missing: 2
+                      num_missing: 1
                       min_num_values: 4
                       max_num_values: 4
                       avg_num_values: 4.0
-                      tot_num_values: 12
+                      tot_num_values: 8
                       num_values_histogram {
                         buckets {
                           low_value: 4.0
                           high_value: 4.0
-                          sample_count: 1.5
+                          sample_count: 1.0
                         }
                         buckets {
                           low_value: 4.0
                           high_value: 4.0
-                          sample_count: 1.5
+                          sample_count: 1.0
                         }
                         type: QUANTILES
                       }
@@ -1420,7 +1422,7 @@ GENERATE_STATS_TESTS = [
                     unique: 4
                     top_values {
                       value: "d"
-                      frequency: 3.0
+                      frequency: 2.0
                     }
                     avg_length: 1.0
                     rank_histogram {
@@ -1428,7 +1430,7 @@ GENERATE_STATS_TESTS = [
                         low_rank: 0
                         high_rank: 0
                         label: "d"
-                        sample_count: 3.0
+                        sample_count: 2.0
                       }
                     }
                   }

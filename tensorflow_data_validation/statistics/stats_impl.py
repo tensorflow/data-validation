@@ -400,10 +400,9 @@ def _update_example_and_missing_count(
     if which_oneof_stats is None:
       # There are not common_stats for this feature (which can be the case when
       # generating only custom_stats for a sparse feature). In that case, simply
-      # return without modifying the common stats or num_examples.
-      return
-    else:
-      common_stats = getattr(feature_stats, which_oneof_stats).common_stats
+      # continue without modifying the common stats.
+      continue
+    common_stats = getattr(feature_stats, which_oneof_stats).common_stats
     assert num_examples >= common_stats.num_non_missing, (
         'Total number of examples: {} is less than number of non missing '
         'examples: {} for feature {}.'.format(
