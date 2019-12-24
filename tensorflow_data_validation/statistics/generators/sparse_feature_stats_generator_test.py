@@ -714,7 +714,52 @@ class SparseFeatureStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
           }
         }
         """, schema_pb2.Schema())
-    expected_result = {}
+    # This is a semantically empty result which should not raise any anomalies.
+    expected_result = {
+        types.FeaturePath(['sparse_feature']):
+            text_format.Parse(
+                """
+                path {
+                  step: 'sparse_feature'
+                }
+                custom_stats {
+                  name: 'missing_value'
+                  num: 0
+                }
+                custom_stats {
+                  name: 'missing_index'
+                  rank_histogram {
+                    buckets {
+                      label: 'index_feature1'
+                    }
+                    buckets {
+                      label: 'index_feature2'
+                    }
+                  }
+                }
+                custom_stats {
+                  name: 'max_length_diff'
+                  rank_histogram {
+                    buckets {
+                      label: 'index_feature1'
+                    }
+                    buckets {
+                      label: 'index_feature2'
+                    }
+                  }
+                }
+                custom_stats {
+                  name: 'min_length_diff'
+                  rank_histogram {
+                    buckets {
+                      label: 'index_feature1'
+                    }
+                    buckets {
+                      label: 'index_feature2'
+                    }
+                  }
+                }""", statistics_pb2.FeatureNameStatistics())
+    }
     generator = (
         sparse_feature_stats_generator.SparseFeatureStatsGenerator(schema))
     self.assertCombinerOutputEqual(batches, generator, expected_result)
@@ -873,7 +918,8 @@ class SparseFeatureStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 }""", statistics_pb2.FeatureNameStatistics())
     }
     generator = (
-        sparse_feature_stats_generator.SparseFeatureStatsGenerator(schema))
+        sparse_feature_stats_generator.SparseFeatureStatsGenerator(
+            schema))
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
 
