@@ -65,6 +65,28 @@ condition(s) under which each anomaly type is detected.
             `feature.bool_domain.true_value` or
             `feature.bool_domain.false_value`
 
+-   `BOOL_TYPE_UNEXPECTED_FLOAT`
+
+    -   Schema Fields:
+        -   `feature.bool_domain`
+        -   `feature.type`
+    -   Statistics Fields:
+        -   `feature.num_stats.min`
+        -   `feature.num_stats.max`
+        -   `feature.num_stats.histograms.num_nan`
+        -   `feature.num_stats.histograms.buckets.low_value`
+        -   `feature.num_stats.histograms.buckets.high_value`
+    -   Detection Condition:
+        -   `feature.type` == `FLOAT` and
+        -   `feature.bool_domain` is specified and
+        -   `feature.num_stats.min` != 0 and `feature.num_stats.min` != 1 or \
+            `feature.num_stats.max` != 0 and `feature.num_stats.max` != 1 or \
+            `feature.num_stats.histograms.num_nan` > 0 or \
+            `feature.num_stats.histograms.buckets.low_value` < 0 or \
+            `feature.num_stats.histograms.buckets.high_value` > 1 or \
+            `feature.num_stats.histograms.buckets.low_value` > 0 and
+            `high_value` < 1
+
 -   `ENUM_TYPE_BYTES_NOT_STRING`
 
     -   Anomaly type not detected in TFDV
