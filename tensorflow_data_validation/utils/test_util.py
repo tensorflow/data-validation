@@ -306,11 +306,17 @@ class TransformStatsGeneratorTest(absltest.TestCase):
       def _equal(actual_results: List[
           Tuple[types.SliceKey, statistics_pb2.DatasetFeatureStatistics]]):
         """Matcher for comparing a list of DatasetFeatureStatistics protos."""
-        test.assertCountEqual(
-            [(k, _DatasetFeatureStatisticsComparatorWrapper(v))
-             for k, v in expected_results],
-            [(k, _DatasetFeatureStatisticsComparatorWrapper(v))
-             for k, v in actual_results])
+        if len(actual_results) == 1 and len(expected_results) == 1:
+          # If appropriate use proto matcher for better errors
+          test.assertEqual(expected_results[0][0], actual_results[0][0])
+          compare.assertProtoEqual(test, expected_results[0][1],
+                                   actual_results[0][1], normalize_numbers=True)
+        else:
+          test.assertCountEqual(
+              [(k, _DatasetFeatureStatisticsComparatorWrapper(v))
+               for k, v in expected_results],
+              [(k, _DatasetFeatureStatisticsComparatorWrapper(v))
+               for k, v in actual_results])
 
       return _equal
 
