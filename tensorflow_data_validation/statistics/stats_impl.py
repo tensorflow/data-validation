@@ -40,6 +40,7 @@ from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.statistics.generators import time_stats_generator
 from tensorflow_data_validation.statistics.generators import top_k_uniques_combiner_stats_generator
 from tensorflow_data_validation.statistics.generators import top_k_uniques_stats_generator
+from tensorflow_data_validation.statistics.generators import weighted_feature_stats_generator
 from tensorflow_data_validation.utils import slicing_util
 from tensorflow_data_validation.utils import stats_util
 from tfx_bsl.arrow import table_util
@@ -188,10 +189,16 @@ def get_generators(options: stats_options.StatsOptions,
             semantic_domain_feature_stats_generators,
             weight_feature=options.weight_feature,
             sample_rate=options.semantic_domain_stats_sample_rate))
-  if options.schema is not None and _schema_has_sparse_features(options.schema):
-    generators.append(
-        sparse_feature_stats_generator.SparseFeatureStatsGenerator(
-            options.schema))
+  if options.schema is not None:
+    if _schema_has_sparse_features(options.schema):
+      generators.append(
+          sparse_feature_stats_generator.SparseFeatureStatsGenerator(
+              options.schema))
+    if options.schema.weighted_feature:
+      generators.append(
+          weighted_feature_stats_generator.WeightedFeatureStatsGenerator(
+              options.schema))
+
   # Replace all CombinerFeatureStatsGenerator with a single
   # CombinerFeatureStatsWrapperGenerator.
   feature_generators = [
@@ -399,8 +406,8 @@ def _update_example_and_missing_count(
     which_oneof_stats = feature_stats.WhichOneof('stats')
     if which_oneof_stats is None:
       # There are not common_stats for this feature (which can be the case when
-      # generating only custom_stats for a sparse feature). In that case, simply
-      # continue without modifying the common stats.
+      # generating only custom_stats for a sparse or weighted feature). In that
+      # case, simply continue without modifying the common stats.
       continue
     common_stats = getattr(feature_stats, which_oneof_stats).common_stats
     assert num_examples >= common_stats.num_non_missing, (

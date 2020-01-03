@@ -1818,6 +1818,166 @@ GENERATE_STATS_TESTS = [
               }
             }""",
     },
+    {
+        'testcase_name': 'weighted_feature',
+        'tables': [
+            pa.Table.from_arrays(
+                [pa.array([[1], [3, 5, 7, 9], None]),
+                 pa.array([['a'], ['a', 'b', 'c', 'd'], None])],
+                ['weight', 'value']),
+            pa.Table.from_arrays(
+                [pa.array([[2, 4, 6, 8]]),
+                 pa.array([['a', 'b', 'c', 'd']])],
+                ['weight', 'value']),
+        ],
+        'options':
+            stats_options.StatsOptions(
+                num_top_values=1,
+                num_rank_histogram_buckets=1,
+                num_quantiles_histogram_buckets=1,
+                num_histogram_buckets=1,
+                num_values_histogram_buckets=2,
+                enable_semantic_domain_stats=False),
+        'expected_result_proto_text':
+            """
+              datasets {
+                num_examples: 4
+                features {
+                  path {
+                    step: "weight"
+                  }
+                  type: INT
+                  num_stats {
+                    common_stats {
+                      num_non_missing: 3
+                      num_missing: 1
+                      min_num_values: 1
+                      max_num_values: 4
+                      avg_num_values: 3.0
+                      tot_num_values: 9
+                      num_values_histogram {
+                        buckets {
+                          low_value: 1.0
+                          high_value: 4.0
+                          sample_count: 1.5
+                        }
+                        buckets {
+                          low_value: 4.0
+                          high_value: 4.0
+                          sample_count: 1.5
+                        }
+                        type: QUANTILES
+                      }
+                    }
+                    mean: 5
+                    std_dev: 2.5819889
+                    min: 1.0
+                    max: 9.0
+                    median: 5.0
+                    histograms {
+                      buckets {
+                        low_value: 1.0
+                        high_value: 9.0
+                        sample_count: 9.0
+                      }
+                      type: STANDARD
+                    }
+                    histograms {
+                      buckets {
+                        low_value: 1.0
+                        high_value: 9.0
+                        sample_count: 9.0
+                      }
+                      type: QUANTILES
+                    }
+                  }
+                }
+                features {
+                  path {
+                    step: "value"
+                  }
+                  type: STRING
+                  string_stats {
+                    common_stats {
+                      num_non_missing: 3
+                      num_missing: 1
+                      min_num_values: 1
+                      max_num_values: 4
+                      avg_num_values: 3.0
+                      tot_num_values: 9
+                      num_values_histogram {
+                        buckets {
+                          low_value: 1.0
+                          high_value: 4.0
+                          sample_count: 1.5
+                        }
+                        buckets {
+                          low_value: 4.0
+                          high_value: 4.0
+                          sample_count: 1.5
+                        }
+                        type: QUANTILES
+                      }
+                    }
+                    unique: 4
+                    top_values {
+                      value: "a"
+                      frequency: 3.0
+                    }
+                    avg_length: 1.0
+                    rank_histogram {
+                      buckets {
+                        low_rank: 0
+                        high_rank: 0
+                        label: "a"
+                        sample_count: 3.0
+                      }
+                    }
+                  }
+                }
+                features {
+                  path {
+                    step: "weighted_feature"
+                  }
+                  custom_stats {
+                    name: 'missing_value'
+                    num: 0
+                  }
+                  custom_stats {
+                    name: 'missing_weight'
+                    num: 0
+                  }
+                  custom_stats {
+                    name: 'min_weight_length_diff'
+                    num: 0
+                  }
+                  custom_stats {
+                    name: 'max_weight_length_diff'
+                    num: 0
+                  }
+                }
+              }
+              """,
+        'schema':
+            text_format.Parse(
+                """
+                feature {
+                  name: "value"
+                }
+                feature {
+                  name: "weight"
+                }
+                weighted_feature {
+                  name: "weighted_feature"
+                  feature {
+                    step: "value"
+                  }
+                  weight_feature {
+                    step: "weight"
+                  }
+                }
+              """, schema_pb2.Schema())
+    },
 ]
 
 
