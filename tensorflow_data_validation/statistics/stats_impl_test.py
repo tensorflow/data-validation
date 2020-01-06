@@ -2549,7 +2549,7 @@ class StatsImplTest(parameterized.TestCase):
       options.schema = schema
     with beam.Pipeline() as p:
       result = (
-          p | beam.Create(tables)
+          p | beam.Create(tables, reshuffle=False)
           | stats_impl.GenerateStatisticsImpl(options))
       util.assert_that(
           result,
@@ -2624,7 +2624,7 @@ class StatsImplTest(parameterized.TestCase):
     with beam.Pipeline() as p:
       result = (
           p
-          | beam.Create(sliced_tables)
+          | beam.Create(sliced_tables, reshuffle=False)
           | stats_impl.GenerateSlicedStatisticsImpl(options=options))
       # GenerateSlicedStatisticsImpl() does not add slice keys to the result
       # because is_slicing_enabled is not set to True (and no slice functions
@@ -2636,7 +2636,7 @@ class StatsImplTest(parameterized.TestCase):
 
     with beam.Pipeline() as p:
       result = (
-          p | beam.Create(sliced_tables)
+          p | beam.Create(sliced_tables, reshuffle=False)
           | stats_impl.GenerateSlicedStatisticsImpl(
               options=options, is_slicing_enabled=True))
       # GenerateSlicedStatisticsImpl() adds slice keys to the result because
@@ -2766,8 +2766,9 @@ class StatsImplTest(parameterized.TestCase):
           generators=[transform_stats_gen],
           num_values_histogram_buckets=2,
           enable_semantic_domain_stats=True)
-      result = (p | beam.Create(tables) |
-                stats_impl.GenerateStatisticsImpl(options))
+      result = (
+          p | beam.Create(tables, reshuffle=False)
+          | stats_impl.GenerateStatisticsImpl(options))
       util.assert_that(
           result,
           test_util.make_dataset_feature_stats_list_proto_equal_fn(
@@ -3081,12 +3082,14 @@ class StatsImplTest(parameterized.TestCase):
     ]
 
     p = beam.Pipeline()
-    _ = (p
-         | 'CreateBatches' >> beam.Create(tables)
-         | 'BasicStatsCombiner' >> beam.CombineGlobally(
-             stats_impl._CombinerStatsGeneratorsCombineFn(
-                 [basic_stats_generator.BasicStatsGenerator(),
-                  stats_impl.NumExamplesStatsGenerator()])))
+    _ = (
+        p
+        | 'CreateBatches' >> beam.Create(tables, reshuffle=False)
+        | 'BasicStatsCombiner' >> beam.CombineGlobally(
+            stats_impl._CombinerStatsGeneratorsCombineFn([
+                basic_stats_generator.BasicStatsGenerator(),
+                stats_impl.NumExamplesStatsGenerator()
+            ])))
 
     runner = p.run()
     runner.wait_until_finish()

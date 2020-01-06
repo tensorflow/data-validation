@@ -49,8 +49,9 @@ class CSVDecoderTest(absltest.TestCase):
     ]
 
     with beam.Pipeline() as p:
-      result = (p | beam.Create(input_lines) |
-                csv_decoder.DecodeCSV(column_names=column_names))
+      result = (
+          p | beam.Create(input_lines, reshuffle=False)
+          | csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
           test_util.make_arrow_tables_equal_fn(self, expected_result))
@@ -78,9 +79,11 @@ class CSVDecoderTest(absltest.TestCase):
     ]
 
     with beam.Pipeline() as p:
-      result = (p | beam.Create(input_lines) |
-                csv_decoder.DecodeCSV(column_names=column_names, schema=schema,
-                                      infer_type_from_schema=True))
+      result = (
+          p | beam.Create(input_lines, reshuffle=False) | csv_decoder.DecodeCSV(
+              column_names=column_names,
+              schema=schema,
+              infer_type_from_schema=True))
       util.assert_that(
           result,
           test_util.make_arrow_tables_equal_fn(self, expected_result))
@@ -98,8 +101,9 @@ class CSVDecoderTest(absltest.TestCase):
     ]
 
     with beam.Pipeline() as p:
-      result = (p | beam.Create(input_lines) |
-                csv_decoder.DecodeCSV(column_names=column_names))
+      result = (
+          p | beam.Create(input_lines, reshuffle=False)
+          | csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
           test_util.make_arrow_tables_equal_fn(self, expected_result))
@@ -116,8 +120,9 @@ class CSVDecoderTest(absltest.TestCase):
     ]
 
     with beam.Pipeline() as p:
-      result = (p | beam.Create(input_lines) |
-                csv_decoder.DecodeCSV(column_names=column_names))
+      result = (
+          p | beam.Create(input_lines, reshuffle=False)
+          | csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
           test_util.make_arrow_tables_equal_fn(self, expected_result))
@@ -134,8 +139,9 @@ class CSVDecoderTest(absltest.TestCase):
     ]
 
     with beam.Pipeline() as p:
-      result = (p | beam.Create(input_lines) |
-                csv_decoder.DecodeCSV(column_names=column_names))
+      result = (
+          p | beam.Create(input_lines, reshuffle=False)
+          | csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
           test_util.make_arrow_tables_equal_fn(self, expected_result))
@@ -152,8 +158,9 @@ class CSVDecoderTest(absltest.TestCase):
     ]
 
     with beam.Pipeline() as p:
-      result = (p | beam.Create(input_lines) |
-                csv_decoder.DecodeCSV(column_names=column_names))
+      result = (
+          p | beam.Create(input_lines, reshuffle=False)
+          | csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
           test_util.make_arrow_tables_equal_fn(self, expected_result))
@@ -172,8 +179,9 @@ class CSVDecoderTest(absltest.TestCase):
     ]
 
     with beam.Pipeline() as p:
-      result = (p | beam.Create(input_lines) |
-                csv_decoder.DecodeCSV(column_names=column_names))
+      result = (
+          p | beam.Create(input_lines, reshuffle=False)
+          | csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
           test_util.make_arrow_tables_equal_fn(self, expected_result))
@@ -190,8 +198,9 @@ class CSVDecoderTest(absltest.TestCase):
     ]
 
     with beam.Pipeline() as p:
-      result = (p | beam.Create(input_lines) |
-                csv_decoder.DecodeCSV(column_names=column_names))
+      result = (
+          p | beam.Create(input_lines, reshuffle=False)
+          | csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
           test_util.make_arrow_tables_equal_fn(self, expected_result))
@@ -208,9 +217,9 @@ class CSVDecoderTest(absltest.TestCase):
     ]
 
     with beam.Pipeline() as p:
-      result = (p | beam.Create(input_lines) |
-                csv_decoder.DecodeCSV(column_names=column_names,
-                                      delimiter=' '))
+      result = (
+          p | beam.Create(input_lines, reshuffle=False)
+          | csv_decoder.DecodeCSV(column_names=column_names, delimiter=' '))
       util.assert_that(
           result,
           test_util.make_arrow_tables_equal_fn(self, expected_result))
@@ -227,9 +236,9 @@ class CSVDecoderTest(absltest.TestCase):
     ]
 
     with beam.Pipeline() as p:
-      result = (p | beam.Create(input_lines) |
-                csv_decoder.DecodeCSV(column_names=column_names,
-                                      delimiter='\t'))
+      result = (
+          p | beam.Create(input_lines, reshuffle=False)
+          | csv_decoder.DecodeCSV(column_names=column_names, delimiter='\t'))
       util.assert_that(
           result,
           test_util.make_arrow_tables_equal_fn(self, expected_result))
@@ -244,8 +253,9 @@ class CSVDecoderTest(absltest.TestCase):
     ]
 
     with beam.Pipeline() as p:
-      result = (p | beam.Create(input_lines) |
-                csv_decoder.DecodeCSV(column_names=column_names))
+      result = (
+          p | beam.Create(input_lines, reshuffle=False)
+          | csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
           test_util.make_arrow_tables_equal_fn(self, expected_result))
@@ -260,8 +270,9 @@ class CSVDecoderTest(absltest.TestCase):
     ]
 
     with beam.Pipeline() as p:
-      result = (p | beam.Create(input_lines) |
-                csv_decoder.DecodeCSV(column_names=column_names))
+      result = (
+          p | beam.Create(input_lines, reshuffle=False)
+          | csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
           test_util.make_arrow_tables_equal_fn(self, expected_result))
@@ -277,8 +288,9 @@ class CSVDecoderTest(absltest.TestCase):
     ]
 
     with beam.Pipeline() as p:
-      result = (p | beam.Create(input_lines) |
-                csv_decoder.DecodeCSV(column_names=column_names))
+      result = (
+          p | beam.Create(input_lines, reshuffle=False)
+          | csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
           test_util.make_arrow_tables_equal_fn(self, expected_result))
@@ -294,8 +306,9 @@ class CSVDecoderTest(absltest.TestCase):
     ]
 
     with beam.Pipeline() as p:
-      result = (p | beam.Create(input_lines) |
-                csv_decoder.DecodeCSV(column_names=column_names))
+      result = (
+          p | beam.Create(input_lines, reshuffle=False)
+          | csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
           test_util.make_arrow_tables_equal_fn(self, expected_result))
@@ -312,8 +325,9 @@ class CSVDecoderTest(absltest.TestCase):
     ]
 
     with beam.Pipeline() as p:
-      result = (p | beam.Create(input_lines) |
-                csv_decoder.DecodeCSV(column_names=column_names))
+      result = (
+          p | beam.Create(input_lines, reshuffle=False)
+          | csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
           test_util.make_arrow_tables_equal_fn(self, expected_result))
@@ -331,8 +345,9 @@ class CSVDecoderTest(absltest.TestCase):
     ]
 
     with beam.Pipeline() as p:
-      result = (p | beam.Create(input_lines) |
-                csv_decoder.DecodeCSV(column_names=column_names))
+      result = (
+          p | beam.Create(input_lines, reshuffle=False)
+          | csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
           test_util.make_arrow_tables_equal_fn(self, expected_result))
@@ -349,8 +364,9 @@ class CSVDecoderTest(absltest.TestCase):
     ]
 
     with beam.Pipeline() as p:
-      result = (p | beam.Create(input_lines) |
-                csv_decoder.DecodeCSV(column_names=column_names))
+      result = (
+          p | beam.Create(input_lines, reshuffle=False)
+          | csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
           test_util.make_arrow_tables_equal_fn(self, expected_result))
@@ -367,9 +383,9 @@ class CSVDecoderTest(absltest.TestCase):
     ]
 
     with beam.Pipeline() as p:
-      result = (p | beam.Create(input_lines) |
-                csv_decoder.DecodeCSV(column_names=column_names,
-                                      skip_blank_lines=False))
+      result = (
+          p | beam.Create(input_lines, reshuffle=False) | csv_decoder.DecodeCSV(
+              column_names=column_names, skip_blank_lines=False))
       util.assert_that(
           result,
           test_util.make_arrow_tables_equal_fn(self, expected_result))
@@ -385,8 +401,9 @@ class CSVDecoderTest(absltest.TestCase):
     ]
 
     with beam.Pipeline() as p:
-      result = (p | beam.Create(input_lines) |
-                csv_decoder.DecodeCSV(column_names=column_names))
+      result = (
+          p | beam.Create(input_lines, reshuffle=False)
+          | csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
           test_util.make_arrow_tables_equal_fn(self, expected_result))
@@ -402,9 +419,9 @@ class CSVDecoderTest(absltest.TestCase):
     ]
 
     with beam.Pipeline() as p:
-      result = (p | beam.Create(input_lines) |
-                csv_decoder.DecodeCSV(column_names=column_names,
-                                      skip_blank_lines=False))
+      result = (
+          p | beam.Create(input_lines, reshuffle=False) | csv_decoder.DecodeCSV(
+              column_names=column_names, skip_blank_lines=False))
       util.assert_that(
           result,
           test_util.make_arrow_tables_equal_fn(self, expected_result))
@@ -414,8 +431,9 @@ class CSVDecoderTest(absltest.TestCase):
     expected_result = []
 
     with beam.Pipeline() as p:
-      result = (p | beam.Create(input_lines) |
-                csv_decoder.DecodeCSV(column_names=[]))
+      result = (
+          p | beam.Create(input_lines, reshuffle=False)
+          | csv_decoder.DecodeCSV(column_names=[]))
       util.assert_that(
           result,
           test_util.make_arrow_tables_equal_fn(self, expected_result))
@@ -428,8 +446,9 @@ class CSVDecoderTest(absltest.TestCase):
     with self.assertRaisesRegexp(
         ValueError, '.*Columns do not match specified csv headers.*'):
       with beam.Pipeline() as p:
-        result = (p | beam.Create(input_lines) |
-                  csv_decoder.DecodeCSV(column_names=column_names))
+        result = (
+            p | beam.Create(input_lines, reshuffle=False)
+            | csv_decoder.DecodeCSV(column_names=column_names))
         util.assert_that(
             result,
             test_util.make_arrow_tables_equal_fn(self, None))

@@ -65,9 +65,10 @@ class BatchUtilTest(absltest.TestCase):
     ]
 
     with beam.Pipeline() as p:
-      result = (p
-                | beam.Create(examples)
-                | batch_util.BatchExamplesToArrowTables(desired_batch_size=2))
+      result = (
+          p
+          | beam.Create(examples, reshuffle=False)
+          | batch_util.BatchExamplesToArrowTables(desired_batch_size=2))
       util.assert_that(
           result, test_util.make_arrow_tables_equal_fn(self, expected_tables))
 
@@ -137,10 +138,11 @@ class BatchUtilTest(absltest.TestCase):
     ]
 
     with beam.Pipeline() as p:
-      result = (p
-                | beam.Create(serialized_examples)
-                | batch_util.BatchSerializedExamplesToArrowTables(
-                    desired_batch_size=2))
+      result = (
+          p
+          | beam.Create(serialized_examples, reshuffle=False)
+          |
+          batch_util.BatchSerializedExamplesToArrowTables(desired_batch_size=2))
       util.assert_that(
           result, test_util.make_arrow_tables_equal_fn(self, expected_tables))
 
