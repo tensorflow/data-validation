@@ -86,7 +86,7 @@ setup(
         'apache-beam[gcp]>=2.16,<3',
         'numpy>=1.16,<2',
         'protobuf>=3.7,<4',
-        'pyarrow>=0.14,<0.15',
+        'pyarrow>=0.14',
         'six>=1.12,<2',
         'tensorflow>=1.15,<3',
         'tensorflow-metadata>=0.15.2,<0.16',

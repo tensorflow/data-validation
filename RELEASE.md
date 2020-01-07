@@ -23,6 +23,8 @@
 * Set num_missing and num_examples correctly in the presence of sparse features.
 * Compute weighted feature stats for all weighted features declared in schema.
 * Depends on `tensorflow-metadata>=0.15.2,<0.16`.
+* Depends on `pyarrow>=0.14` (removed the upper bound as it is determined
+  by `tfx-bsl`).
 
 ## Breaking Changes
 
