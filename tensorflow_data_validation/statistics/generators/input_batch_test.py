@@ -104,7 +104,7 @@ class InputBatchTest(absltest.TestCase):
 
   def test_all_null_mask_all_missing(self):
     batch = input_batch.InputBatch(
-        pa.Table.from_arrays([pa.array([None, [1]], type=pa.null())], ['f3']))
+        pa.Table.from_arrays([pa.array([None, None], type=pa.null())], ['f3']))
     path1 = types.FeaturePath(['f1'])
     path2 = types.FeaturePath(['f2'])
     expected_mask = np.array([True, True])
@@ -113,7 +113,7 @@ class InputBatchTest(absltest.TestCase):
 
   def test_all_null_mask_no_paths(self):
     batch = input_batch.InputBatch(
-        pa.Table.from_arrays([pa.array([None, [1]], type=pa.null())], ['f3']))
+        pa.Table.from_arrays([pa.array([None, None], type=pa.null())], ['f3']))
     with self.assertRaisesRegex(ValueError, r'Paths cannot be empty.*'):
       batch.all_null_mask()
 
