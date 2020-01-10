@@ -20,10 +20,9 @@ from __future__ import print_function
 
 from tensorflow_data_validation import types
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
+from tensorflow_data_validation.utils import io_util
 from typing import List, Set, Text, Tuple
 from google.protobuf import text_format
-# TODO(b/125849585): Update to import from TF directly.
-from tensorflow.python.lib.io import file_io  # pylint: disable=g-direct-tensorflow-import
 from tensorflow_metadata.proto.v0 import anomalies_pb2
 
 # LINT.IfChange
@@ -132,7 +131,7 @@ def write_anomalies_text(anomalies: anomalies_pb2.Anomalies,
         type(anomalies).__name__)
 
   anomalies_text = text_format.MessageToString(anomalies)
-  file_io.write_string_to_file(output_path, anomalies_text)
+  io_util.write_string_to_file(output_path, anomalies_text)
 
 
 def load_anomalies_text(input_path: Text) -> anomalies_pb2.Anomalies:
@@ -145,6 +144,6 @@ def load_anomalies_text(input_path: Text) -> anomalies_pb2.Anomalies:
     An Anomalies protocol buffer.
   """
   anomalies = anomalies_pb2.Anomalies()
-  anomalies_text = file_io.read_file_to_string(input_path)
+  anomalies_text = io_util.read_file_to_string(input_path)
   text_format.Parse(anomalies_text, anomalies)
   return anomalies

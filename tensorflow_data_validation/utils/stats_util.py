@@ -21,10 +21,10 @@ from __future__ import print_function
 import numpy as np
 from tensorflow_data_validation import types
 from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
+from tensorflow_data_validation.utils import io_util
 from typing import Dict, Optional, Text, Union
 from google.protobuf import text_format
 # TODO(b/125849585): Update to import from TF directly.
-from tensorflow.python.lib.io import file_io  # pylint: disable=g-direct-tensorflow-import
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
@@ -192,7 +192,7 @@ def write_stats_text(stats: statistics_pb2.DatasetFeatureStatisticsList,
         'DatasetFeatureStatisticsList proto.' % type(stats).__name__)
 
   stats_proto_text = text_format.MessageToString(stats)
-  file_io.write_string_to_file(output_path, stats_proto_text)
+  io_util.write_string_to_file(output_path, stats_proto_text)
 
 
 def load_stats_text(
@@ -207,7 +207,7 @@ def load_stats_text(
     A DatasetFeatureStatisticsList proto.
   """
   stats_proto = statistics_pb2.DatasetFeatureStatisticsList()
-  stats_text = file_io.read_file_to_string(input_path)
+  stats_text = io_util.read_file_to_string(input_path)
   text_format.Parse(stats_text, stats_proto)
   return stats_proto
 

@@ -21,9 +21,9 @@ from __future__ import print_function
 import logging
 import six
 from tensorflow_data_validation import types
+from tensorflow_data_validation.utils import io_util
 from typing import Iterable, List, Optional, Set, Tuple, Union
 from google.protobuf import text_format
-from tensorflow.python.lib.io import file_io
 from tensorflow_metadata.proto.v0 import schema_pb2
 
 
@@ -206,7 +206,7 @@ def write_schema_text(schema: schema_pb2.Schema, output_path: bytes) -> None:
                     type(schema).__name__)
 
   schema_text = text_format.MessageToString(schema)
-  file_io.write_string_to_file(output_path, schema_text)
+  io_util.write_string_to_file(output_path, schema_text)
 
 
 def load_schema_text(input_path: bytes) -> schema_pb2.Schema:
@@ -219,7 +219,7 @@ def load_schema_text(input_path: bytes) -> schema_pb2.Schema:
     A Schema protocol buffer.
   """
   schema = schema_pb2.Schema()
-  schema_text = file_io.read_file_to_string(input_path)
+  schema_text = io_util.read_file_to_string(input_path)
   text_format.Parse(schema_text, schema)
   return schema
 
