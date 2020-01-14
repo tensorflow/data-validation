@@ -101,13 +101,15 @@ def BatchSerializedExamplesToArrowTables(
 class _BatchDecodeExamplesDoFn(beam.DoFn):
   """A DoFn which batches input serialized examples into an arrow table."""
 
-  __slots__ = ["_decoder"]
-
   def __init__(self):
     self._decoder = None
+    self._example_size = beam.metrics.Metrics.counter(
+        constants.METRICS_NAMESPACE, "example_size")
 
   def setup(self):
     self._decoder = example_coder.ExamplesToRecordBatchDecoder()
 
   def process(self, batch: List[bytes]) -> Iterable[pa.Table]:
+    if batch:
+      self._example_size.inc(sum(map(len, batch)))
     yield pa.Table.from_batches([self._decoder.DecodeBatch(batch)])
