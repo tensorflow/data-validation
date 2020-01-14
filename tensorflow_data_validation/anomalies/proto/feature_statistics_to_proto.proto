@@ -18,7 +18,6 @@ syntax = "proto2";
 package tensorflow.data_validation;
 
 import "tensorflow_data_validation/anomalies/proto/validation_config.proto";
-import "tensorflow_metadata/proto/v0/anomalies.proto";
 import "tensorflow_metadata/proto/v0/path.proto";
 
 // Manual constraints on the automatic generation of a schema.
