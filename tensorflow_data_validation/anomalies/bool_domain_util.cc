@@ -265,7 +265,8 @@ std::vector<Description> UpdateBoolDomain(const FeatureStatsView& feature_stats,
                      kNonBooleanValues,
                      absl::StrCat("Float values > 1 not in {0, 1}: converting "
                                   "to float_domain.")}};
-          } else if (bucket.high_value() < 1 && bucket.low_value() > 0) {
+          } else if (histogram.type() == metadata::v0::Histogram::QUANTILES &&
+                     bucket.high_value() < 1 && bucket.low_value() > 0) {
             set_float_domain(numeric_statistics, feature);
             return {{tensorflow::metadata::v0::AnomalyInfo::
                          BOOL_TYPE_UNEXPECTED_FLOAT,

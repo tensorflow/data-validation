@@ -157,8 +157,16 @@ TEST(SchemaAnomalies, FindChangesBooleanFloatFeature) {
       value_count: { min: 1 max: 1 }
       type: FLOAT
       bool_domain {}
+    }
+    feature {
+      name: "an_okay_float"
+      value_count: { min: 1 max: 1 }
+      type: FLOAT
+      bool_domain {}
     })");
 
+  // Note: an_okay_float has histogram buckets between 0 and 1, but this is
+  // benign for a non-quantile histogram.
   const DatasetFeatureStatistics statistics =
       ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
         features: {
@@ -219,6 +227,25 @@ TEST(SchemaAnomalies, FindChangesBooleanFloatFeature) {
               buckets: { low_value: 0.4 high_value: 0.7 sample_count: 10 }
               buckets: { low_value: 0.7 high_value: 1 sample_count: 10 }
               type: QUANTILES
+            }
+          }
+        }
+        features: {
+          name: 'an_okay_float'
+          type: FLOAT
+          num_stats: {
+            common_stats: {
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 1
+              avg_num_values: 1
+            }
+            min: 0
+            max: 1
+            histograms: {
+              buckets: { high_value: 0.5 sample_count: 10 }
+              buckets: { low_value: 0.5 high_value: 0.7 sample_count: 10 }
+              buckets: { low_value: 0.7 high_value: 0.9 sample_count: 10 }
             }
           }
         })");
