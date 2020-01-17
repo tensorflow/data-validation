@@ -378,7 +378,6 @@ def validate_statistics_internal(
     environment = ''
 
   _check_for_unsupported_stats_fields(dataset_statistics, 'statistics')
-  _check_for_unsupported_schema_fields(schema)
 
   if previous_span_statistics is not None:
     if not isinstance(
@@ -467,13 +466,6 @@ def validate_statistics_internal(
   result = anomalies_pb2.Anomalies()
   result.ParseFromString(anomalies_proto_string)
   return result
-
-
-def _check_for_unsupported_schema_fields(schema: schema_pb2.Schema):
-  """Logs warnings when we encounter unsupported fields in the schema."""
-  if schema.sparse_feature:
-    logging.warning('The input schema has sparse features which'
-                    ' are currently not supported.')
 
 
 def _check_for_unsupported_stats_fields(
