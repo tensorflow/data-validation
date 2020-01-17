@@ -168,6 +168,7 @@ class Schema {
   using Feature = tensorflow::metadata::v0::Feature;
   using SparseFeature = tensorflow::metadata::v0::SparseFeature;
   using StringDomain = tensorflow::metadata::v0::StringDomain;
+  using WeightedFeature = tensorflow::metadata::v0::WeightedFeature;
   // Updates Schema given new data, but only on the columns specified.
   // If you have a new, previously unseen column on the list of columns to
   // consider, then config is used to create it.
@@ -226,11 +227,14 @@ class Schema {
   // values if necessary.
   StringDomain* GetStringDomain(const string& name);
 
-  // Gets an existing feature, and returns null if it doesn't exist.
+  // Gets an existing feature, or returns null if it doesn't exist.
   Feature* GetExistingFeature(const Path& path);
 
-  // Gets an existing sparse feature, and returns null if it doesn't exist.
+  // Gets an existing sparse feature, or returns null if it doesn't exist.
   SparseFeature* GetExistingSparseFeature(const Path& path);
+
+  // Gets an existing weighted feature, or returns null if it doesn't exist.
+  const WeightedFeature* GetExistingWeightedFeature(const Path& path) const;
 
   // Gets a new feature. Assumes that the feature does not already exist.
   Feature* GetNewFeature(const Path& path);

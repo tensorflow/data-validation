@@ -857,6 +857,59 @@ class ValidationApiTest(absltest.TestCase):
     anomalies = validation_api.validate_statistics(statistics, schema)
     self._assert_equal_anomalies(anomalies, expected_anomalies)
 
+  def test_validate_stats_weighted_feature(self):
+    # This test is not intended to verify the anomaly detection logic, but just
+    # ensure that the validation API will not fail on custom stats for weighted
+    # features.
+    schema = text_format.Parse(
+        """
+        feature {
+          name: "f"
+        }
+        feature {
+          name: "w"
+        }
+        weighted_feature {
+          name: "weighted_feature"
+          feature {
+            step: "f"
+          }
+          weight_feature {
+            step: "w"
+          }
+        }
+        """, schema_pb2.Schema())
+    statistics = text_format.Parse(
+        """
+        datasets {
+          num_examples: 10
+          features {
+            path { step: 'weighted_feature' }
+            custom_stats {
+              name: 'missing_weight'
+              num: 0.0
+            }
+            custom_stats {
+              name: 'missing_value'
+              num: 0.0
+            }
+            custom_stats {
+              name: 'min_weight_length_diff'
+              num: 0.0
+            }
+            custom_stats {
+              name: 'max_weight_length_diff'
+              num: 0.0
+            }
+          }
+        }
+        """, statistics_pb2.DatasetFeatureStatisticsList())
+    expected_anomalies = {}
+
+    # Validate the stats.
+    anomalies = validation_api.validate_statistics(statistics, schema)
+    self._assert_equal_anomalies(anomalies, expected_anomalies)
+
   # pylint: disable=line-too-long
   _annotated_enum_anomaly_info = """
             path {

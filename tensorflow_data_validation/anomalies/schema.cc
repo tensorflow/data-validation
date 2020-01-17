@@ -41,6 +41,7 @@ limitations under the License.
 #include "tensorflow/core/platform/protobuf.h"
 #include "tensorflow/core/platform/types.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
+#include "tensorflow_metadata/proto/v0/schema.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
 
 namespace tensorflow {
@@ -55,6 +56,7 @@ using ::tensorflow::metadata::v0::Feature;
 using ::tensorflow::metadata::v0::FeatureNameStatistics;
 using ::tensorflow::metadata::v0::SparseFeature;
 using ::tensorflow::metadata::v0::StringDomain;
+using ::tensorflow::metadata::v0::WeightedFeature;
 using PathProto = ::tensorflow::metadata::v0::Path;
 
 constexpr char kTrainingServingSkew[] = "Training/Serving skew";
@@ -205,6 +207,13 @@ tensorflow::Status Schema::UpdateFeature(
   Feature* feature = GetExistingFeature(feature_stats_view.GetPath());
   SparseFeature* sparse_feature =
       GetExistingSparseFeature(feature_stats_view.GetPath());
+  const WeightedFeature* weighted_feature =
+      GetExistingWeightedFeature(feature_stats_view.GetPath());
+  if (weighted_feature != nullptr) {
+    // TODO(b/141961105): Add validation logic for weighted features.
+    return Status::OK();
+  }
+
   if (sparse_feature != nullptr &&
       !::tensorflow::data_validation::SparseFeatureIsDeprecated(
           *sparse_feature)) {
@@ -554,7 +563,8 @@ tensorflow::metadata::v0::Schema Schema::GetSchema() const { return schema_; }
 
 bool Schema::FeatureExists(const Path& path) {
   return GetExistingFeature(path) != nullptr ||
-         GetExistingSparseFeature(path) != nullptr;
+         GetExistingSparseFeature(path) != nullptr ||
+         GetExistingWeightedFeature(path) != nullptr;
 }
 
 Feature* Schema::GetExistingFeature(const Path& path) {
@@ -595,6 +605,23 @@ SparseFeature* Schema::GetExistingSparseFeature(const Path& path) {
         parent_feature->mutable_struct_domain()->mutable_sparse_feature());
   }
 }
+
+const WeightedFeature* Schema::GetExistingWeightedFeature(
+    const Path& path) const {
+  CHECK(!path.empty());
+  if (path.size() != 1) {
+    // Weighted features are always top-level features with single-step paths.
+    return nullptr;
+  }
+  auto name = path.last_step();
+  for (const WeightedFeature& weighted_feature : schema_.weighted_feature()) {
+    if (weighted_feature.name() == name) {
+      return &weighted_feature;
+    }
+  }
+  return nullptr;
+}
+
 Feature* Schema::GetNewFeature(const Path& path) {
   CHECK(!path.empty());
   if (path.size() > 1) {
