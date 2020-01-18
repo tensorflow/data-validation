@@ -40,8 +40,7 @@ def get_broadcastable_column(input_table: pa.Table,
   Raises:
     ValueError: If the broadcast feature is not present in the input table or is
         not a valid column. A valid column must have exactly one value per
-        example and be of a numeric type. If copy_array is True, the numeric
-        type constraint is relaxed.
+        example and be of a numeric type.
   """
   try:
     column = input_table.column(column_name).data.chunk(0)
