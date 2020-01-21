@@ -83,15 +83,15 @@ setup(
     # six, and protobuf) with TF.
     install_requires=[
         'absl-py>=0.7,<0.9',
-        'apache-beam[gcp]>=2.16,<3',
+        'apache-beam[gcp]>=2.17,<3',
         'numpy>=1.16,<2',
         'protobuf>=3.7,<4',
-        'pyarrow>=0.14',
+        'pyarrow>=0.15',
         'six>=1.12,<2',
         'tensorflow>=1.15,<3',
-        'tensorflow-metadata>=0.21.0,<0.22',
-        'tensorflow-transform>=0.15,<0.16',
-        'tfx-bsl>=0.15.2,<0.17',
+        'tensorflow-metadata>=0.21,<0.22',
+        'tensorflow-transform>=0.21,<0.22',
+        'tfx-bsl>=0.21,<0.22',
 
         # Dependencies needed for visualization.
         # Note that we don't add a max version for IPython as it introduces a

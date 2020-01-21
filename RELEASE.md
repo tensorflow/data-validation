@@ -1,5 +1,6 @@
 <!-- mdlint off(HEADERS_TOO_MANY_H1) -->
-# Current version (not yet released; still in development)
+
+# Release 0.21.0
 
 ## Major Features and Improvements
 
@@ -14,19 +15,22 @@
 
 ## Bug Fixes and Other Changes
 
-* Exclude examples in which the entire sparse feature is missing when
-  calculating sparse feature statistics.
-* Validate min_examples_count dataset constraint.
-* Document the schema fields, statistics fields, and detection condition for
-  each anomaly type that TFDV detects.
-* Handle null array in cross feature stats generator, top-k & uniques
-  combiner stats generator, and sklearn mutual information generator.
-* Handle infinity in basic stats generator.
-* Set num_missing and num_examples correctly in the presence of sparse features.
-* Compute weighted feature stats for all weighted features declared in schema.
-* Depends on `tensorflow-metadata>=0.15.2,<0.16`.
-* Depends on `pyarrow>=0.14` (removed the upper bound as it is determined
-  by `tfx-bsl`).
+*   Exclude examples in which the entire sparse feature is missing when
+    calculating sparse feature statistics.
+*   Validate min_examples_count dataset constraint.
+*   Document the schema fields, statistics fields, and detection condition for
+    each anomaly type that TFDV detects.
+*   Handle null array in cross feature stats generator, top-k & uniques combiner
+    stats generator, and sklearn mutual information generator.
+*   Handle infinity in basic stats generator.
+*   Set num_missing and num_examples correctly in the presence of sparse
+    features.
+*   Compute weighted feature stats for all weighted features declared in schema.
+*   Depends on `tensorflow-metadata>=0.21.0,<0.22`.
+*   Depends on `pyarrow>=0.15` (removed the upper bound as it is determined by
+    `tfx-bsl`).
+*   Depends on `tfx-bsl>=0.21.0,<0.22`
+*   Depends on `apache-beam>=2.17,<3`
 
 ## Breaking Changes
 
