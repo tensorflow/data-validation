@@ -20,8 +20,6 @@
   affected).
 * Compute bytes statistics for features of BYTES type. Avoid computing topk and
   uniques for such features.
-* Added LiftStatsGenerator which computes lift between one feature (typically a
-  label) and all other categorical features.
 
 ## Bug Fixes and Other Changes
 
