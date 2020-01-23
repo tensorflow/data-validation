@@ -25,7 +25,7 @@ TF Data Validation includes:
 For instructions on using TFDV, see the
 [get started guide](https://github.com/tensorflow/data-validation/blob/master/g3doc/get_started.md)
 and try out the
-[example notebook](https://colab.research.google.com/github/tensorflow/tfx/blob/master/docs/tutorials/data_validation/chicago_taxi.ipynb).
+[example notebook](https://colab.research.google.com/github/tensorflow/tfx/blob/master/docs/tutorials/data_validation/tfdv_basic.ipynb).
 Some of the techniques implemented in TFDV are described in a
 [technical paper published in SysML'19](https://www.sysml.cc/doc/2019/167.pdf).
 
@@ -196,7 +196,7 @@ tag.
 ## Links
 
 *   [TensorFlow Data Validation Getting Started Guide](https://www.tensorflow.org/tfx/data_validation/get_started)
-*   [TensorFlow Data Validation Notebook](https://colab.research.google.com/github/tensorflow/tfx/blob/master/docs/tutorials/data_validation/chicago_taxi.ipynb)
+*   [TensorFlow Data Validation Notebook](https://colab.research.google.com/github/tensorflow/tfx/blob/master/docs/tutorials/data_validation/tfdv_basic.ipynb)
 *   [TensorFlow Data Validation API Documentation](https://www.tensorflow.org/tfx/data_validation/api_docs/python/tfdv)
 *   [TensorFlow Data Validation Blog Post](https://medium.com/tensorflow/introducing-tensorflow-data-validation-data-understanding-validation-and-monitoring-at-scale-d38e3952c2f0)
 *   [TensorFlow Data Validation PyPI](https://pypi.org/project/tensorflow-data-validation/)
