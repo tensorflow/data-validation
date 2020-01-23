@@ -88,8 +88,12 @@ setup(
         'protobuf>=3.7,<4',
         'pyarrow>=0.15',
         'six>=1.12,<2',
+        # LINT.IfChange
         'tensorflow>=1.15,<3',
+        # LINT.ThenChange(//third_party/py/tensorflow_data_validation/opensource_only/WORKSPACE)
+        # LINT.IfChange
         'tensorflow-metadata>=0.21,<0.22',
+        # LINT.ThenChange(//third_party/py/tensorflow_data_validation/opensource_only/workspace.bzl)
         'tensorflow-transform>=0.21,<0.22',
         'tfx-bsl>=0.21,<0.23',
 
