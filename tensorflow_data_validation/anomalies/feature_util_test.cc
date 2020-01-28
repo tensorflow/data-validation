@@ -38,6 +38,8 @@ using ::tensorflow::metadata::v0::FeatureComparator;
 using ::tensorflow::metadata::v0::FeatureNameStatistics;
 using ::tensorflow::metadata::v0::FeaturePresence;
 using ::tensorflow::metadata::v0::ValueCount;
+using ::tensorflow::metadata::v0::WeightedFeature;
+using ::tensorflow::metadata::v0::SparseFeature;
 using testing::AddWeightedStats;
 using testing::EqualsProto;
 using testing::ParseTextProtoOrDie;
@@ -64,43 +66,6 @@ Feature GetFeatureProtoOrDie(
              << schema_proto.DebugString();
 }
 
-// Construct a schema from a proto field, and then write it to a
-// DescriptorProto.
-struct FeatureIsDeprecatedTest {
-  Feature feature_proto;
-  bool is_deprecated;
-};
-
-Feature GetFeatureWithLifecycleStage(
-    const tensorflow::metadata::v0::LifecycleStage& lifecycle_stage) {
-  Feature feature;
-  feature.set_lifecycle_stage(lifecycle_stage);
-  return feature;
-}
-
-std::vector<FeatureIsDeprecatedTest> GetFeatureIsDeprecatedTests() {
-  return {
-      // Do not set deprecated and lifecycle_stage.
-      {ParseTextProtoOrDie<Feature>(""), false},
-      // Test the case where we have the "deprecated" field.
-      // Remove this once the "deprecated" field is deleted.
-      {ParseTextProtoOrDie<Feature>(R"(
-               deprecated: true
-               lifecycle_stage: PRODUCTION)"),
-       true},
-      {GetFeatureWithLifecycleStage(tensorflow::metadata::v0::DEPRECATED),
-       true},
-      {GetFeatureWithLifecycleStage(tensorflow::metadata::v0::ALPHA), true},
-      {GetFeatureWithLifecycleStage(tensorflow::metadata::v0::PLANNED), true},
-      {GetFeatureWithLifecycleStage(tensorflow::metadata::v0::DEBUG_ONLY),
-       true},
-      {GetFeatureWithLifecycleStage(tensorflow::metadata::v0::PRODUCTION),
-       false},
-      {GetFeatureWithLifecycleStage(tensorflow::metadata::v0::BETA), false},
-      {GetFeatureWithLifecycleStage(tensorflow::metadata::v0::UNKNOWN_STAGE),
-       false}};
-}
-
 TEST(FeatureUtilTest, ClearDomain) {
   Feature feature = ParseTextProtoOrDie<Feature>(R"(
           name: "bytes_feature"
@@ -115,12 +80,76 @@ TEST(FeatureUtilTest, ClearDomain) {
   EXPECT_EQ(feature.domain_info_case(), Feature::DOMAIN_INFO_NOT_SET);
 }
 
-TEST(FeatureUtilTest, FeatureIsDeprecated) {
-  for (const auto& test : GetFeatureIsDeprecatedTests()) {
-    EXPECT_EQ(FeatureIsDeprecated(test.feature_proto), test.is_deprecated)
-        << "Failed on  " << test.feature_proto.DebugString() << " expected "
+struct LifecycleStageIsDeprecatedTest {
+  metadata::v0::LifecycleStage stage;
+  bool is_deprecated;
+};
+
+std::vector<LifecycleStageIsDeprecatedTest>
+GetLifecycleStageIsDeprecatedTests() {
+  return {
+      {tensorflow::metadata::v0::DEPRECATED, true},
+      {tensorflow::metadata::v0::ALPHA, true},
+      {tensorflow::metadata::v0::PLANNED, true},
+      {tensorflow::metadata::v0::DEBUG_ONLY, true},
+      {tensorflow::metadata::v0::PRODUCTION, false},
+      {tensorflow::metadata::v0::BETA, false},
+      {tensorflow::metadata::v0::UNKNOWN_STAGE, false}};
+}
+
+TEST(FeatureUtilTest, LifecycleStageIsDeprecated) {
+  for (const auto& test : GetLifecycleStageIsDeprecatedTests()) {
+    EXPECT_EQ(LifecycleStageIsDeprecated(test.stage), test.is_deprecated)
+        << "Failed on stage: " << test.stage << " expected is_deprecated: "
         << test.is_deprecated;
   }
+}
+
+TEST(FeatureUtilTest, FeatureIsDeprecatedLifecycleStage) {
+  Feature feature;
+  feature.set_lifecycle_stage(metadata::v0::DEPRECATED);
+  EXPECT_TRUE(FeatureIsDeprecated(feature));
+}
+
+TEST(FeatureUtilTest, FeatureIsDeprecatedDeprecatedField) {
+  Feature feature;
+  feature.set_deprecated(true);
+  feature.set_lifecycle_stage(metadata::v0::PRODUCTION);
+  EXPECT_TRUE(FeatureIsDeprecated(feature));
+}
+
+TEST(FeatureUtilTest, FeatureIsDeprecatedEmpty) {
+  Feature feature;
+  EXPECT_FALSE(FeatureIsDeprecated(feature));
+}
+
+TEST(FeatureUtilTest, SparseFeatureIsDeprecatedLifecycleStage) {
+  SparseFeature feature;
+  feature.set_lifecycle_stage(metadata::v0::DEPRECATED);
+  EXPECT_TRUE(SparseFeatureIsDeprecated(feature));
+}
+
+TEST(FeatureUtilTest, SparseFeatureIsDeprecatedDeprecatedField) {
+  SparseFeature feature;
+  feature.set_deprecated(true);
+  feature.set_lifecycle_stage(metadata::v0::PRODUCTION);
+  EXPECT_TRUE(SparseFeatureIsDeprecated(feature));
+}
+
+TEST(FeatureUtilTest, SparseFeatureIsDeprecatedEmpty) {
+  SparseFeature feature;
+  EXPECT_FALSE(SparseFeatureIsDeprecated(feature));
+}
+
+TEST(FeatureUtilTest, WeightedFeatureIsDeprecatedLifecycleStage) {
+  WeightedFeature feature;
+  feature.set_lifecycle_stage(metadata::v0::DEPRECATED);
+  EXPECT_TRUE(WeightedFeatureIsDeprecated(feature));
+}
+
+TEST(FeatureUtilTest, WeightedFeatureIsDeprecatedEmpty) {
+  WeightedFeature feature;
+  EXPECT_FALSE(WeightedFeatureIsDeprecated(feature));
 }
 
 TEST(FeatureUtilTest,
@@ -244,14 +273,26 @@ TEST(FeatureUtilTest,
   EXPECT_EQ(actual_descriptions.size(), 0);
 }
 
-TEST(FeatureTypeTest, Deprecate) {
-  for (const auto& test : GetFeatureIsDeprecatedTests()) {
-    Feature to_modify = test.feature_proto;
-    DeprecateFeature(&to_modify);
-    EXPECT_TRUE(FeatureIsDeprecated(to_modify))
-        << "Failed to deprecate: " << test.feature_proto.DebugString()
-        << " produced " << to_modify.DebugString();
-  }
+// Confirm that the result of calling DeprecateFeature on a feature is
+// recognized as by FeatureIsDeprecated.
+TEST(FeatureTypeTest, DeprecateConsistency) {
+  Feature feature;
+  feature.set_lifecycle_stage(metadata::v0::PRODUCTION);
+  Feature deprecated = feature;
+  DeprecateFeature(&deprecated);
+  EXPECT_TRUE(FeatureIsDeprecated(deprecated))
+      << "Failed to deprecate: " << feature.DebugString()
+      << " produced " << deprecated.DebugString();
+}
+
+// Confirm that DeprecateFeature works on an empty feature.
+TEST(FeatureTypeTest, DeprecateConsistencyEmpty) {
+  Feature feature;
+  Feature deprecated = feature;
+  DeprecateFeature(&deprecated);
+  EXPECT_TRUE(FeatureIsDeprecated(deprecated))
+      << "Failed to deprecate: " << feature.DebugString()
+      << " produced " << deprecated.DebugString();
 }
 
 // Construct a schema from a proto field, and then write it to a

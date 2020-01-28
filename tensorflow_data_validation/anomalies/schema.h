@@ -234,7 +234,7 @@ class Schema {
   SparseFeature* GetExistingSparseFeature(const Path& path);
 
   // Gets an existing weighted feature, or returns null if it doesn't exist.
-  const WeightedFeature* GetExistingWeightedFeature(const Path& path) const;
+  WeightedFeature* GetExistingWeightedFeature(const Path& path);
 
   // Gets a new feature. Assumes that the feature does not already exist.
   Feature* GetNewFeature(const Path& path);
@@ -246,10 +246,16 @@ class Schema {
   // Validates the dataset_stats of a sparse feature:
   // - Ensures that referred features are either all present, or all absent.
   // - If they are present, they have the same length.
-  // If any of the validations fail it deprecates the sparse_feature.
-  // Note that TFDV doesn't generate sparse feature statistics currently.
+  // If any of the validations fails it deprecates the sparse_feature.
   std::vector<Description> UpdateSparseFeature(const FeatureStatsView& view,
                                                SparseFeature* sparse_feature);
+
+  // Validates the dataset_stats of a weighted feature:
+  // - Ensures that referred features are either all present, or all absent.
+  // - If they are present, they have the same length.
+  // If any of the validations fails it deprecates the weighted_feature.
+  std::vector<Description> UpdateWeightedFeature(
+      const FeatureStatsView& view, WeightedFeature* weighted_feature);
 
   // Gets existing dataset constraints, and returns null if it doesn't exist.
   ::tensorflow::metadata::v0::DatasetConstraints*

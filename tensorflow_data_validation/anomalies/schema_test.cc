@@ -20,6 +20,7 @@ limitations under the License.
 #include <vector>
 
 #include <gtest/gtest.h>
+#include "tensorflow_data_validation/anomalies/feature_util.h"
 #include "tensorflow_data_validation/anomalies/proto/validation_config.pb.h"
 #include "tensorflow_data_validation/anomalies/statistics_view_test_util.h"
 #include "tensorflow_data_validation/anomalies/test_schema_protos.h"
@@ -2282,6 +2283,214 @@ TEST(SchemaTest, Update) {
         value_count { min: 1 }
         type: BYTES
         presence { min_count: 1 })");
+  EXPECT_THAT(actual, EqualsProto(expected));
+}
+
+TEST(SchemaTest, UpdateWeightedNoAnomaly) {
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        features: {
+          name: "weighted_feature"
+          custom_stats { name: "missing_value" num: 0 }
+          custom_stats { name: "missing_weight" num: 0 }
+          custom_stats { name: "min_weight_length_diff" num: 0 }
+          custom_stats { name: "max_weight_length_diff" num: 0 }
+        })");
+  tensorflow::metadata::v0::Schema original =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
+        weighted_feature {
+          name: 'weighted_feature'
+          feature { step: 'value_feature' }
+          weight_feature { step: 'weight_feature' }
+        })");
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(original));
+  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
+                             FeatureStatisticsToProtoConfig()));
+  const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
+  tensorflow::metadata::v0::Schema expected = original;
+  EXPECT_THAT(actual, EqualsProto(expected));
+}
+
+TEST(SchemaTest, UpdateWeightedNameCollision) {
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        features: {
+          name: "existing_feature"
+          custom_stats { name: "missing_value" num: 0 }
+          custom_stats { name: "missing_weight" num: 0 }
+          custom_stats { name: "min_weight_length_diff" num: 0 }
+          custom_stats { name: "max_weight_length_diff" num: 0 }
+        })");
+  tensorflow::metadata::v0::Schema original =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
+        weighted_feature {
+          name: 'existing_feature'
+          feature { step: 'value_feature' }
+          weight_feature { step: 'weight_feature' }
+        }
+        feature: { name: 'existing_feature' type: INT })");
+
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(original));
+  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
+                             FeatureStatisticsToProtoConfig()));
+  const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
+
+  tensorflow::metadata::v0::Schema expected =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
+        weighted_feature {
+          name: 'existing_feature'
+          feature { step: 'value_feature' }
+          weight_feature { step: 'weight_feature' }
+          lifecycle_stage: DEPRECATED
+        }
+        feature: {
+          name: 'existing_feature'
+          type: INT
+          lifecycle_stage: DEPRECATED
+        })");
+  EXPECT_THAT(actual, EqualsProto(expected));
+}
+
+TEST(SchemaTest, UpdateWeightedSparseNameCollision) {
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        features: {
+          name: "existing_feature"
+          custom_stats { name: "missing_value" num: 0 }
+          custom_stats { name: "missing_value" num: 0 }
+          custom_stats { name: "missing_weight" num: 0 }
+          custom_stats { name: "min_weight_length_diff" num: 0 }
+          custom_stats { name: "max_weight_length_diff" num: 0 }
+          custom_stats {
+            name: "missing_index"
+            rank_histogram {
+              buckets { label: "index_feature1" sample_count: 0 }
+              buckets { label: "index_feature2" sample_count: 0 }
+            }
+          }
+          custom_stats {
+            name: "max_length_diff"
+            rank_histogram {
+              buckets { label: "index_feature1" sample_count: 0 }
+              buckets { label: "index_feature2" sample_count: 0 }
+            }
+          }
+          custom_stats {
+            name: "min_length_diff"
+            rank_histogram {
+              buckets { label: "index_feature1" sample_count: 0 }
+              buckets { label: "index_feature2" sample_count: 0 }
+            }
+          }
+        })");
+  tensorflow::metadata::v0::Schema original =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
+        weighted_feature {
+          name: 'existing_feature'
+          feature { step: 'value_feature' }
+          weight_feature { step: 'weight_feature' }
+        }
+        sparse_feature {
+          name: 'existing_feature'
+          index_feature { name: 'index_feature' }
+          value_feature { name: 'value_feature' }
+        })");
+
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(original));
+  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
+                             FeatureStatisticsToProtoConfig()));
+  const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
+
+  tensorflow::metadata::v0::Schema expected =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
+        weighted_feature {
+          name: 'existing_feature'
+          feature { step: 'value_feature' }
+          weight_feature { step: 'weight_feature' }
+          lifecycle_stage: DEPRECATED
+        }
+        sparse_feature {
+          name: 'existing_feature'
+          index_feature { name: 'index_feature' }
+          value_feature { name: 'value_feature' }
+          lifecycle_stage: DEPRECATED
+        })");
+  EXPECT_THAT(actual, EqualsProto(expected));
+}
+
+TEST(SchemaTest, UpdateWeightedSparseRegularNameCollision) {
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        features: {
+          name: "existing_feature"
+          custom_stats { name: "missing_value" num: 0 }
+          custom_stats { name: "missing_value" num: 0 }
+          custom_stats { name: "missing_weight" num: 0 }
+          custom_stats { name: "min_weight_length_diff" num: 0 }
+          custom_stats { name: "max_weight_length_diff" num: 0 }
+          custom_stats {
+            name: "missing_index"
+            rank_histogram {
+              buckets { label: "index_feature1" sample_count: 0 }
+              buckets { label: "index_feature2" sample_count: 0 }
+            }
+          }
+          custom_stats {
+            name: "max_length_diff"
+            rank_histogram {
+              buckets { label: "index_feature1" sample_count: 0 }
+              buckets { label: "index_feature2" sample_count: 0 }
+            }
+          }
+          custom_stats {
+            name: "min_length_diff"
+            rank_histogram {
+              buckets { label: "index_feature1" sample_count: 0 }
+              buckets { label: "index_feature2" sample_count: 0 }
+            }
+          }
+        })");
+  tensorflow::metadata::v0::Schema original =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
+        weighted_feature {
+          name: 'existing_feature'
+          feature { step: 'value_feature' }
+          weight_feature { step: 'weight_feature' }
+        }
+        sparse_feature {
+          name: 'existing_feature'
+          index_feature { name: 'index_feature' }
+          value_feature { name: 'value_feature' }
+        }
+        feature: { name: 'existing_feature' type: INT })");
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(original));
+  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
+                             FeatureStatisticsToProtoConfig()));
+  const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
+
+  tensorflow::metadata::v0::Schema expected =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
+        weighted_feature {
+          name: 'existing_feature'
+          feature { step: 'value_feature' }
+          weight_feature { step: 'weight_feature' }
+          lifecycle_stage: DEPRECATED
+        }
+        sparse_feature {
+          name: 'existing_feature'
+          index_feature { name: 'index_feature' }
+          value_feature { name: 'value_feature' }
+          lifecycle_stage: DEPRECATED
+        }
+        feature: {
+          name: 'existing_feature'
+          type: INT
+          lifecycle_stage: DEPRECATED
+        })");
   EXPECT_THAT(actual, EqualsProto(expected));
 }
 

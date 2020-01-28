@@ -1019,13 +1019,13 @@ TEST(GetSchemaDiff, SparseFeatureNameCollision) {
   expected_anomalies["existing_feature"].expected_info_without_diff =
       ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
         path: { step: "existing_feature" }
-        description: "Sparse feature name collision"
+        description: "Sparse feature name collision."
         severity: ERROR
         short_description: "Sparse feature name collision"
         reason {
           type: SPARSE_FEATURE_NAME_COLLISION
           short_description: "Sparse feature name collision"
-          description: "Sparse feature name collision"
+          description: "Sparse feature name collision."
         })");
   TestFindChanges(schema_proto,
                   DatasetStatsView(no_anomaly_stats, /* by_weight= */ false),

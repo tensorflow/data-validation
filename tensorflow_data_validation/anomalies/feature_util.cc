@@ -23,6 +23,7 @@ limitations under the License.
 #include "tensorflow/core/platform/logging.h"
 #include "tensorflow/core/platform/types.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
+#include "tensorflow_metadata/proto/v0/schema.pb.h"
 
 namespace tensorflow {
 namespace data_validation {
@@ -31,6 +32,7 @@ using absl::optional;
 using ::tensorflow::metadata::v0::Feature;
 using tensorflow::metadata::v0::FeatureComparator;
 using ::tensorflow::metadata::v0::SparseFeature;
+using ::tensorflow::metadata::v0::WeightedFeature;
 
 constexpr char kSuperfluousValues[] = "Superfluous values";
 constexpr char kMissingValues[] = "Missing values";
@@ -120,6 +122,22 @@ tensorflow::metadata::v0::FeatureComparator* GetFeatureComparator(
   }
 }
 
+bool LifecycleStageIsDeprecated(const metadata::v0::LifecycleStage stage) {
+  switch (stage) {
+    case tensorflow::metadata::v0::PLANNED:
+    case tensorflow::metadata::v0::ALPHA:
+    case tensorflow::metadata::v0::DEPRECATED:
+    case tensorflow::metadata::v0::DEBUG_ONLY:
+      return true;
+    case tensorflow::metadata::v0::UNKNOWN_STAGE:
+    case tensorflow::metadata::v0::BETA:
+    case tensorflow::metadata::v0::PRODUCTION:
+    default:
+      return false;
+  }
+}
+
+
 namespace {
 
 // Templated implementations for [Feature, SparseFeature].
@@ -136,18 +154,7 @@ bool FeatureTypeIsDeprecated(const T& feature) {
     return true;
   }
   if (feature.has_lifecycle_stage()) {
-    switch (feature.lifecycle_stage()) {
-      case tensorflow::metadata::v0::PLANNED:
-      case tensorflow::metadata::v0::ALPHA:
-      case tensorflow::metadata::v0::DEPRECATED:
-      case tensorflow::metadata::v0::DEBUG_ONLY:
-        return true;
-      case tensorflow::metadata::v0::UNKNOWN_STAGE:
-      case tensorflow::metadata::v0::BETA:
-      case tensorflow::metadata::v0::PRODUCTION:
-      default:
-        return false;
-    }
+    return LifecycleStageIsDeprecated(feature.lifecycle_stage());
   }
   return false;
 }
@@ -162,12 +169,20 @@ void DeprecateSparseFeature(SparseFeature* sparse_feature) {
   return DeprecateFeatureType(sparse_feature);
 }
 
+void DeprecateWeightedFeature(WeightedFeature* weighted_feature) {
+  return DeprecateFeatureType(weighted_feature);
+}
+
 bool FeatureIsDeprecated(const Feature& feature) {
   return FeatureTypeIsDeprecated(feature);
 }
 
 bool SparseFeatureIsDeprecated(const SparseFeature& sparse_feature) {
   return FeatureTypeIsDeprecated(sparse_feature);
+}
+
+bool WeightedFeatureIsDeprecated(const WeightedFeature& weighted_feature) {
+  return LifecycleStageIsDeprecated(weighted_feature.lifecycle_stage());
 }
 
 std::vector<Description> UpdateFeatureComparatorDirect(

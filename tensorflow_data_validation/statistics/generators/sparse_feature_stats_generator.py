@@ -39,6 +39,12 @@ from typing import Dict, Iterable, List, Text, Tuple, Union
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
+# LINT.IfChange(custom_stat_names)
+_MAX_LENGTH_DIFF_NAME = 'max_length_diff'
+_MIN_LENGTH_DIFF_NAME = 'min_length_diff'
+_MISSING_INDEX_NAME = 'missing_index'
+_MISSING_VALUE_NAME = 'missing_value'
+# LINT.ThenChange(../../anomalies/schema.cc:sparse_feature_custom_stat_names)
 
 # Named tuple containing the FeaturePaths for the value and index features
 # that comprise a given sparse feature.
@@ -132,7 +138,7 @@ class SparseFeatureStatsGenerator(stats_generator.CompositeStatsGenerator):
       required_paths = [value] + list(indices)
       feature_stats = stats.features.add(path=feature_path.to_proto())
       feature_stats.custom_stats.add(
-          name='missing_value',
+          name=_MISSING_VALUE_NAME,
           num=accumulator[count_missing_generator.CountMissingGenerator.key(
               value, required_paths)])
       index_features_num_missing_histogram = statistics_pb2.RankHistogram()
@@ -158,10 +164,10 @@ class SparseFeatureStatsGenerator(stats_generator.CompositeStatsGenerator):
         min_length_bucket.sample_count = min_diff
 
       feature_stats.custom_stats.add(
-          name='missing_index',
+          name=_MISSING_INDEX_NAME,
           rank_histogram=index_features_num_missing_histogram)
       feature_stats.custom_stats.add(
-          name='max_length_diff', rank_histogram=max_length_diff_histogram)
+          name=_MAX_LENGTH_DIFF_NAME, rank_histogram=max_length_diff_histogram)
       feature_stats.custom_stats.add(
-          name='min_length_diff', rank_histogram=min_length_diff_histogram)
+          name=_MIN_LENGTH_DIFF_NAME, rank_histogram=min_length_diff_histogram)
     return stats

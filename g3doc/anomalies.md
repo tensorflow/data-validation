@@ -464,6 +464,54 @@ condition(s) under which each anomaly type is detected.
     -   Detection Condition:
         -   `num_examples` < `dataset_constraints.min_examples_count`
 
+-   `WEIGHTED_FEATURE_MISSING_VALUE`
+
+    -   Schema Fields:
+        -   `weighted_feature.feature`
+    -   Statistics Fields:
+        -   `feature.custom_stats` with “missing_value” as name
+    -   Detection Condition:
+        -   `missing_value` custom stat != 0
+
+-   `WEIGHTED_FEATURE_MISSING_WEIGHT`
+
+    -   Schema Fields:
+        -   `weighted_feature.weight_feature`
+    -   Statistics Fields:
+        -   `feature.custom_stats` with “missing_weight” as name
+    -   Detection Condition:
+        -   `missing_weight` custom stat != 0
+
+-   `WEIGHTED_FEATURE_LENGTH_MISMATCH`
+
+    -   Schema Fields:
+        -   `weighted_feature.feature`
+        -   `weighted_feature.weight_feature`
+    -   Statistics Fields:
+        -   `feature.custom_stats` with "min_weighted_length_diff” or
+            "max_weight_length_diff" as name
+    -   Detection Condition:
+        -   `min_weight_length_diff` or `max_weight_length_diff` custom stat
+            != 0
+
+-   `WEIGHTED_FEATURE_NAME_COLLISION`
+
+    -   Schema Fields:
+        -   `weighted_feature.name`
+        -   `weighted_feature.lifecycle_stage`
+        -   `sparse_feature.name`
+        -   `sparse_feature.lifecycle_stage`
+        -   `feature.name`
+        -   `feature.lifecycle_stage`
+    -   Detection Condition:
+        -   `weighted_feature.lifecycle_stage` != `PLANNED`, `ALPHA`, `DEBUG`,
+            or`DEPRECATED` and either:
+          -   `feature.lifecycle_stage` != `PLANNED`, `ALPHA`, `DEBUG`, or
+              `DEPRECATED` and `weighted_feature.name` == `feature.name`
+          -   `sparse_feature.lifecycle_stage` != `PLANNED`, `ALPHA`, `DEBUG`,
+              or`DEPRECATED` and `weighted_feature.name` ==
+              `sparse_feature.name`
+
 -   `UNKNOWN_TYPE`
 
     NOTE: There are various different reasons why an anomaly of `UNKNOWN_TYPE`

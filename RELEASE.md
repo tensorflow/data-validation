@@ -5,6 +5,7 @@
 ## Major Features and Improvements
 
 ## Bug Fixes and Other Changes
+*   Do validation on weighted feature stats.
 
 ## Breaking Changes
 

@@ -47,6 +47,10 @@ tensorflow::metadata::v0::FeatureComparator* GetFeatureComparator(
     tensorflow::metadata::v0::Feature* feature,
     FeatureComparatorType comparator_type);
 
+// Translates a feature lifecycle enum into a boolean of whether a feature with
+// that lifecycle stage is considered depreacted.
+bool LifecycleStageIsDeprecated(const metadata::v0::LifecycleStage stage);
+
 // Updates comparator from the feature stats.
 // Note that if the "control" was missing, we have deprecated the column.
 std::vector<Description> UpdateFeatureComparatorDirect(
@@ -70,6 +74,10 @@ void DeprecateFeature(tensorflow::metadata::v0::Feature* feature);
 void DeprecateSparseFeature(
     tensorflow::metadata::v0::SparseFeature* sparse_feature);
 
+// Same as above for WeightedFeature.
+void DeprecateWeightedFeature(
+    tensorflow::metadata::v0::WeightedFeature* weighted_feature);
+
 // Tell if a feature is deprecated (i.e., ignored for data validation).
 // Note that a deprecated feature is a more relaxed constraint than a feature
 // not being present in the schema, as it also suppresses the unexpected column
@@ -88,6 +96,10 @@ bool FeatureIsDeprecated(const tensorflow::metadata::v0::Feature& feature);
 // Same as above for SparseFeature.
 bool SparseFeatureIsDeprecated(
     const tensorflow::metadata::v0::SparseFeature& sparse_feature);
+
+// Same as above for WeightedFeature.
+bool WeightedFeatureIsDeprecated(
+    const tensorflow::metadata::v0::WeightedFeature& weighted_feature);
 
 // Get the maximum allowed off the domain.
 double GetMaxOffDomain(const tensorflow::metadata::v0::DistributionConstraints&

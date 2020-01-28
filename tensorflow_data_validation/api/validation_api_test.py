@@ -858,24 +858,21 @@ class ValidationApiTest(absltest.TestCase):
     self._assert_equal_anomalies(anomalies, expected_anomalies)
 
   def test_validate_stats_weighted_feature(self):
-    # This test is not intended to verify the anomaly detection logic, but just
-    # ensure that the validation API will not fail on custom stats for weighted
-    # features.
     schema = text_format.Parse(
         """
         feature {
-          name: "f"
+          name: "value"
         }
         feature {
-          name: "w"
+          name: "weight"
         }
         weighted_feature {
           name: "weighted_feature"
           feature {
-            step: "f"
+            step: "value"
           }
           weight_feature {
-            step: "w"
+            step: "weight"
           }
         }
         """, schema_pb2.Schema())
@@ -887,24 +884,213 @@ class ValidationApiTest(absltest.TestCase):
             path { step: 'weighted_feature' }
             custom_stats {
               name: 'missing_weight'
-              num: 0.0
+              num: 1.0
             }
             custom_stats {
               name: 'missing_value'
-              num: 0.0
+              num: 2.0
             }
             custom_stats {
               name: 'min_weight_length_diff'
-              num: 0.0
+              num: 3.0
             }
             custom_stats {
               name: 'max_weight_length_diff'
-              num: 0.0
+              num: 4.0
             }
           }
         }
         """, statistics_pb2.DatasetFeatureStatisticsList())
-    expected_anomalies = {}
+    expected_anomalies = {
+        'weighted_feature':
+            text_format.Parse(
+                """
+      path {
+        step: "weighted_feature"
+      }
+      description: "Found 1 examples missing weight feature. Found 2 examples missing value feature. Mismatch between weight and value feature with min_weight_length_diff = 3 and max_weight_length_diff = 4."
+      severity: ERROR
+      short_description: "Multiple errors"
+      reason {
+        type: WEIGHTED_FEATURE_MISSING_WEIGHT
+        short_description: "Missing weight feature"
+        description: "Found 1 examples missing weight feature."
+      }
+      reason {
+        type: WEIGHTED_FEATURE_MISSING_VALUE
+        short_description: "Missing value feature"
+        description: "Found 2 examples missing value feature."
+      }
+      reason {
+        type: WEIGHTED_FEATURE_LENGTH_MISMATCH
+        short_description: "Length mismatch between value and weight feature"
+        description: "Mismatch between weight and value feature with min_weight_length_diff = 3 and max_weight_length_diff = 4."
+      }
+            """, anomalies_pb2.AnomalyInfo())
+    }
+
+    # Validate the stats.
+    anomalies = validation_api.validate_statistics(statistics, schema)
+    self._assert_equal_anomalies(anomalies, expected_anomalies)
+
+  def test_validate_stats_weighted_feature_name_collision(self):
+    schema = text_format.Parse(
+        """
+        feature {
+          name: "value"
+        }
+        feature {
+          name: "weight"
+        }
+        feature {
+          name: "colliding_feature"
+        }
+        weighted_feature {
+          name: "colliding_feature"
+          feature {
+            step: "value"
+          }
+          weight_feature {
+            step: "weight"
+          }
+        }
+        """, schema_pb2.Schema())
+    statistics = text_format.Parse(
+        """
+        datasets {
+          num_examples: 10
+          features {
+            path { step: 'colliding_feature' }
+            custom_stats {
+              name: 'missing_weight'
+              num: 1.0
+            }
+            custom_stats {
+              name: 'missing_value'
+              num: 2.0
+            }
+            custom_stats {
+              name: 'min_weight_length_diff'
+              num: 3.0
+            }
+            custom_stats {
+              name: 'max_weight_length_diff'
+              num: 4.0
+            }
+          }
+        }
+        """, statistics_pb2.DatasetFeatureStatisticsList())
+    expected_anomalies = {
+        'colliding_feature':
+            text_format.Parse(
+                """
+      path {
+        step: "colliding_feature"
+      }
+      description: "Weighted feature name collision."
+      severity: ERROR
+      short_description: "Weighted feature name collision"
+      reason {
+        type: WEIGHTED_FEATURE_NAME_COLLISION
+        short_description: "Weighted feature name collision"
+        description: "Weighted feature name collision."
+      }
+            """, anomalies_pb2.AnomalyInfo())
+    }
+
+    # Validate the stats.
+    anomalies = validation_api.validate_statistics(statistics, schema)
+    self._assert_equal_anomalies(anomalies, expected_anomalies)
+
+  def test_validate_stats_weighted_feature_sparse_feature_name_collision(self):
+    schema = text_format.Parse(
+        """
+        feature {
+          name: "value"
+        }
+        feature {
+          name: "weight"
+        }
+        feature {
+          name: "index"
+        }
+        weighted_feature {
+          name: "colliding_feature"
+          feature {
+            step: "value"
+          }
+          weight_feature {
+            step: "weight"
+          }
+        }
+        sparse_feature {
+          name: "colliding_feature"
+          value_feature {
+            name: "value"
+          }
+          index_feature {
+            name: "index"
+          }
+        }
+        """, schema_pb2.Schema())
+    statistics = text_format.Parse(
+        """
+        datasets {
+          num_examples: 10
+          features {
+            path { step: 'colliding_feature' }
+            custom_stats {
+              name: 'missing_weight'
+              num: 1.0
+            }
+            custom_stats {
+              name: 'missing_index'
+              num: 1.0
+            }
+            custom_stats {
+              name: 'missing_value'
+              num: 2.0
+            }
+            custom_stats {
+              name: 'missing_value'
+              num: 2.0
+            }
+            custom_stats {
+              name: 'min_length_diff'
+              num: 3.0
+            }
+            custom_stats {
+              name: 'min_weight_length_diff'
+              num: 3.0
+            }
+            custom_stats {
+              name: 'max_length_diff'
+              num: 4.0
+            }
+            custom_stats {
+              name: 'max_weight_length_diff'
+              num: 4.0
+            }
+          }
+        }
+        """, statistics_pb2.DatasetFeatureStatisticsList())
+    expected_anomalies = {
+        'colliding_feature':
+            text_format.Parse(
+                """
+      path {
+        step: "colliding_feature"
+      }
+      description: "Weighted feature name collision."
+      severity: ERROR
+      short_description: "Weighted feature name collision"
+      reason {
+        type: WEIGHTED_FEATURE_NAME_COLLISION
+        short_description: "Weighted feature name collision"
+        description: "Weighted feature name collision."
+      }
+            """, anomalies_pb2.AnomalyInfo())
+    }
 
     # Validate the stats.
     anomalies = validation_api.validate_statistics(statistics, schema)

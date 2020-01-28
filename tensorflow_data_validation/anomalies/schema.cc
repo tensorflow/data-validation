@@ -61,13 +61,19 @@ using PathProto = ::tensorflow::metadata::v0::Path;
 
 constexpr char kTrainingServingSkew[] = "Training/Serving skew";
 
-// Statistics generated.
-// Keep the following constants consistent with the constants used
-// when generating sparse feature statistics.
-static constexpr char kMissingValue[] = "missing_value";
-static constexpr char kMissingIndex[] = "missing_index";
+// LINT.IfChange(sparse_feature_custom_stat_names)
+static constexpr char kMissingSparseValue[] = "missing_value";
+static constexpr char kMissingSparseIndex[] = "missing_index";
 static constexpr char kMaxLengthDiff[] = "max_length_diff";
 static constexpr char kMinLengthDiff[] = "min_length_diff";
+// LINT.ThenChange(../statistics/generators/sparse_feature_stats_generator.py:custom_stat_names)
+
+// LINT.IfChange(weighted_feature_custom_stat_names)
+static constexpr char kMissingWeightedValue[] = "missing_value";
+static constexpr char kMissingWeight[] = "missing_weight";
+static constexpr char kMaxWeightLengthDiff[] = "max_weight_length_diff";
+static constexpr char kMinWeightLengthDiff[] = "min_weight_length_diff";
+// LINT.ThenChange(../statistics/generators/weighted_feature_stats_generator.py:custom_stat_names)
 
 template <typename Container>
 bool ContainsValue(const Container& a, const string& value) {
@@ -207,11 +213,31 @@ tensorflow::Status Schema::UpdateFeature(
   Feature* feature = GetExistingFeature(feature_stats_view.GetPath());
   SparseFeature* sparse_feature =
       GetExistingSparseFeature(feature_stats_view.GetPath());
-  const WeightedFeature* weighted_feature =
+  WeightedFeature* weighted_feature =
       GetExistingWeightedFeature(feature_stats_view.GetPath());
   if (weighted_feature != nullptr) {
-    // TODO(b/141961105): Add validation logic for weighted features.
-    return Status::OK();
+    if ((feature != nullptr || sparse_feature != nullptr) &&
+        !::tensorflow::data_validation::WeightedFeatureIsDeprecated(
+            *weighted_feature)) {
+      descriptions->push_back({tensorflow::metadata::v0::AnomalyInfo::
+                                   WEIGHTED_FEATURE_NAME_COLLISION,
+                               "Weighted feature name collision",
+                               "Weighted feature name collision."});
+      ::tensorflow::data_validation::DeprecateWeightedFeature(weighted_feature);
+      if (feature != nullptr) {
+        ::tensorflow::data_validation::DeprecateFeature(feature);
+      }
+      if (sparse_feature != nullptr) {
+        ::tensorflow::data_validation::DeprecateSparseFeature(sparse_feature);
+      }
+      updater.UpdateSeverityForAnomaly(*descriptions, severity);
+      return Status::OK();
+    } else {
+      *descriptions =
+          UpdateWeightedFeature(feature_stats_view, weighted_feature);
+      updater.UpdateSeverityForAnomaly(*descriptions, severity);
+      return Status::OK();
+    }
   }
 
   if (sparse_feature != nullptr &&
@@ -221,7 +247,7 @@ tensorflow::Status Schema::UpdateFeature(
         !::tensorflow::data_validation::FeatureIsDeprecated(*feature)) {
       descriptions->push_back(
           {tensorflow::metadata::v0::AnomalyInfo::SPARSE_FEATURE_NAME_COLLISION,
-           "Sparse feature name collision", "Sparse feature name collision"});
+           "Sparse feature name collision", "Sparse feature name collision."});
       ::tensorflow::data_validation::DeprecateSparseFeature(sparse_feature);
       ::tensorflow::data_validation::DeprecateFeature(feature);
       updater.UpdateSeverityForAnomaly(*descriptions, severity);
@@ -606,15 +632,15 @@ SparseFeature* Schema::GetExistingSparseFeature(const Path& path) {
   }
 }
 
-const WeightedFeature* Schema::GetExistingWeightedFeature(
-    const Path& path) const {
+WeightedFeature* Schema::GetExistingWeightedFeature(const Path& path) {
   CHECK(!path.empty());
   if (path.size() != 1) {
     // Weighted features are always top-level features with single-step paths.
     return nullptr;
   }
   auto name = path.last_step();
-  for (const WeightedFeature& weighted_feature : schema_.weighted_feature()) {
+  for (WeightedFeature& weighted_feature :
+       *schema_.mutable_weighted_feature()) {
     if (weighted_feature.name() == name) {
       return &weighted_feature;
     }
@@ -1056,13 +1082,13 @@ std::vector<Description> Schema::UpdateSparseFeature(
        view.custom_stats()) {
     const string& stat_name = custom_stat.name();
     // Stat names should be in-sync with the sparse_feature_stats_generator.
-    if (stat_name == kMissingValue && custom_stat.num() != 0) {
+    if (stat_name == kMissingSparseValue && custom_stat.num() != 0) {
       descriptions.push_back(
           {tensorflow::metadata::v0::AnomalyInfo::SPARSE_FEATURE_MISSING_VALUE,
            "Missing value feature",
            absl::StrCat("Found ", custom_stat.num(),
                         " examples missing value feature")});
-    } else if (stat_name == kMissingIndex) {
+    } else if (stat_name == kMissingSparseIndex) {
       for (const auto& bucket : custom_stat.rank_histogram().buckets()) {
         // This represents the index_feature name of this sparse feature.
         const string& index_feature_name = bucket.label();
@@ -1097,6 +1123,51 @@ std::vector<Description> Schema::UpdateSparseFeature(
   }
   if (!descriptions.empty()) {
     ::tensorflow::data_validation::DeprecateSparseFeature(sparse_feature);
+  }
+  return descriptions;
+}
+
+std::vector<Description> Schema::UpdateWeightedFeature(
+    const FeatureStatsView& view, WeightedFeature* weighted_feature) {
+  std::vector<Description> descriptions;
+  int min_weight_length_diff = 0;
+  int max_weight_length_diff = 0;
+  for (const tensorflow::metadata::v0::CustomStatistic& custom_stat :
+       view.custom_stats()) {
+    const string& stat_name = custom_stat.name();
+    // Stat names should be in-sync with the weighted_feature_stats_generator.
+    if (stat_name == kMissingWeightedValue && custom_stat.num() != 0) {
+      descriptions.push_back(
+          {tensorflow::metadata::v0::AnomalyInfo::
+               WEIGHTED_FEATURE_MISSING_VALUE,
+           "Missing value feature",
+           absl::StrCat("Found ", custom_stat.num(),
+                        " examples missing value feature.")});
+    } else if (stat_name == kMissingWeight && custom_stat.num() != 0) {
+      descriptions.push_back(
+          {tensorflow::metadata::v0::AnomalyInfo::
+               WEIGHTED_FEATURE_MISSING_WEIGHT,
+           "Missing weight feature",
+           absl::StrCat("Found ", custom_stat.num(),
+                        " examples missing weight feature.")});
+    } else if (stat_name == kMinWeightLengthDiff && custom_stat.num() != 0) {
+      min_weight_length_diff = custom_stat.num();
+    } else if (stat_name == kMaxWeightLengthDiff && custom_stat.num() != 0) {
+      max_weight_length_diff = custom_stat.num();
+    }
+  }
+  if (min_weight_length_diff != 0 || max_weight_length_diff != 0) {
+    descriptions.push_back(
+        {tensorflow::metadata::v0::AnomalyInfo::
+             WEIGHTED_FEATURE_LENGTH_MISMATCH,
+         "Length mismatch between value and weight feature",
+         absl::StrCat("Mismatch between weight and value feature with ",
+                      kMinWeightLengthDiff, " = ", min_weight_length_diff,
+                      " and ", kMaxWeightLengthDiff, " = ",
+                      max_weight_length_diff, ".")});
+  }
+  if (!descriptions.empty()) {
+    ::tensorflow::data_validation::DeprecateWeightedFeature(weighted_feature);
   }
   return descriptions;
 }

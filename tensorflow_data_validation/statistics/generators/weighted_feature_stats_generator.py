@@ -38,6 +38,13 @@ from typing import Any, Dict, Text
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
+# LINT.IfChange(custom_stat_names)
+_MAX_WEIGHT_LENGTH_DIFF_NAME = 'max_weight_length_diff'
+_MIN_WEIGHT_LENGTH_DIFF_NAME = 'min_weight_length_diff'
+_MISSING_WEIGHT_NAME = 'missing_weight'
+_MISSING_VALUE_NAME = 'missing_value'
+# LINT.ThenChange(../../anomalies/schema.cc:weighted_feature_custom_stat_names)
+
 
 class WeightedFeatureStatsGenerator(stats_generator.CompositeStatsGenerator):
   """Generates statistics for weighted features."""
@@ -82,19 +89,19 @@ class WeightedFeatureStatsGenerator(stats_generator.CompositeStatsGenerator):
           count_missing_generator.CountMissingGenerator.key(
               weight, required_paths)]
       feature_result.custom_stats.add(
-          name='missing_weight', num=weight_count_missing)
+          name=_MISSING_WEIGHT_NAME, num=weight_count_missing)
 
       value_count_missing = accumulator[
           count_missing_generator.CountMissingGenerator.key(
               value, required_paths)]
       feature_result.custom_stats.add(
-          name='missing_value', num=value_count_missing)
+          name=_MISSING_VALUE_NAME, num=value_count_missing)
 
       min_weight_length_diff, max_weight_length_diff = accumulator[
           length_diff_generator.LengthDiffGenerator.key(
               weight, value, required_paths)]
       feature_result.custom_stats.add(
-          name='min_weight_length_diff', num=min_weight_length_diff)
+          name=_MIN_WEIGHT_LENGTH_DIFF_NAME, num=min_weight_length_diff)
       feature_result.custom_stats.add(
-          name='max_weight_length_diff', num=max_weight_length_diff)
+          name=_MAX_WEIGHT_LENGTH_DIFF_NAME, num=max_weight_length_diff)
     return result
