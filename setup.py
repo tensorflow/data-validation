@@ -92,7 +92,7 @@ setup(
         'tensorflow>=1.15,<3',
         # LINT.ThenChange(//third_party/py/tensorflow_data_validation/opensource_only/WORKSPACE)
         # LINT.IfChange
-        'tensorflow-metadata>=0.21,<0.22',
+        'tensorflow-metadata>=0.21.1,<0.22',
         # LINT.ThenChange(//third_party/py/tensorflow_data_validation/opensource_only/workspace.bzl)
         'tensorflow-transform>=0.21,<0.22',
         'tfx-bsl>=0.21,<0.23',
