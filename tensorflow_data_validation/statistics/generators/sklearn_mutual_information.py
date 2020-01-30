@@ -258,7 +258,7 @@ class SkLearnMutualInformation(partitioned_stats_generator.PartitionedStatsFn):
     for i, (mi, shuffled_mi) in enumerate(
         zip(mi_per_feature, shuffled_mi_per_feature)):
       result[df.columns[i]] = {
-          MUTUAL_INFORMATION_KEY: mi,
+          MUTUAL_INFORMATION_KEY: mi.clip(min=0),
           ADJUSTED_MUTUAL_INFORMATION_KEY: mi - shuffled_mi
       }
     return result
