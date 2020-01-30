@@ -105,7 +105,8 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
                                 r'Boundaries cannot be applied to a '
                                 'categorical y_path.*'):
       lift_stats_generator.LiftStatsGenerator(
-          schema, y_path=types.FeaturePath(['string_y']),
+          schema=schema,
+          y_path=types.FeaturePath(['string_y']),
           y_boundaries=[1, 2, 3])
 
   def test_lift_int_y_with_no_boundaries(self):
@@ -124,7 +125,13 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
                                 r'Boundaries must be provided with a non-'
                                 'categorical y_path.*'):
       lift_stats_generator.LiftStatsGenerator(
-          schema, y_path=types.FeaturePath(['int_y']))
+          schema=schema, y_path=types.FeaturePath(['int_y']))
+
+  def test_lift_with_no_schema_or_x_path(self):
+    with self.assertRaisesRegex(ValueError,
+                                r'Either a schema or x_paths must be provided'):
+      lift_stats_generator.LiftStatsGenerator(
+          schema=None, y_path=types.FeaturePath(['int_y']))
 
   def test_lift_string_y(self):
     examples = [
@@ -1190,7 +1197,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         add_default_slice_key_to_input=True,
         add_default_slice_key_to_output=True)
 
-  def test_lift_provided_x(self):
+  def test_lift_provided_x_no_schema(self):
     examples = [
         pa.Table.from_arrays([
             pa.array([['a'], ['a'], ['b'], ['a']]),
@@ -1198,21 +1205,6 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
             pa.array([['cat'], ['dog'], ['cat'], ['dog']]),
         ], ['categorical_x1', 'categorical_x2', 'string_y']),
     ]
-    schema = text_format.Parse(
-        """
-        feature {
-          name: 'categorical_x1'
-          type: BYTES
-        }
-        feature {
-          name: 'categorical_x2'
-          type: BYTES
-        }
-        feature {
-          name: 'string_y'
-          type: BYTES
-        }
-        """, schema_pb2.Schema())
     expected_result = [
         text_format.Parse("""
             cross_features {
@@ -1261,7 +1253,8 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
             }""", statistics_pb2.DatasetFeatureStatistics()),
     ]
     generator = lift_stats_generator.LiftStatsGenerator(
-        schema=schema, y_path=types.FeaturePath(['string_y']),
+        schema=None,
+        y_path=types.FeaturePath(['string_y']),
         x_paths=[types.FeaturePath(['categorical_x1'])])
     self.assertSlicingAwareTransformOutputEqual(
         examples,

@@ -625,7 +625,8 @@ class _LiftStatsGenerator(beam.PTransform):
   (excluding y_path).
   """
 
-  def __init__(self, schema: schema_pb2.Schema, y_path: types.FeaturePath,
+  def __init__(self, y_path: types.FeaturePath,
+               schema: Optional[schema_pb2.Schema],
                x_paths: Optional[Iterable[types.FeaturePath]],
                y_boundaries: Optional[Iterable[float]], min_x_count: int,
                top_k_per_y: Optional[int], bottom_k_per_y: Optional[int],
@@ -633,9 +634,11 @@ class _LiftStatsGenerator(beam.PTransform):
     """Initializes a lift statistics generator.
 
     Args:
-      schema: A required schema for the dataset.
       y_path: The path to use as Y in the lift expression:
         lift = P(Y=y|X=x) / P(Y=y).
+     schema: An optional schema for the dataset. If not provided, x_paths must
+        be specified. If x_paths are not specified, the schema is used to
+        identify all categorical columns for which Lift should be computed.
       x_paths: An optional list of path to use as X in the lift expression:
         lift = P(Y=y|X=x) / P(Y=y). If None (default), all categorical features,
         exluding the feature passed as y_path, will be used.
@@ -660,23 +663,29 @@ class _LiftStatsGenerator(beam.PTransform):
     self._min_x_count = min_x_count
     self._top_k_per_y = top_k_per_y
     self._bottom_k_per_y = bottom_k_per_y
+    self._y_boundaries = (
+        np.array(sorted(set(y_boundaries))) if y_boundaries else None)
 
-    y_feature = schema_util.get_feature(schema, y_path)
-    y_is_categorical = schema_util.is_categorical_feature(y_feature)
-    if y_boundaries:
-      if y_is_categorical:
-        raise ValueError('Boundaries cannot be applied to a categorical y_path')
-      self._y_boundaries = np.array(sorted(set(y_boundaries)))
-    else:
-      if not y_is_categorical:
-        raise ValueError('Boundaries must be provided with a non-categorical '
-                         'y_path.')
-      self._y_boundaries = y_boundaries
-    if x_paths is None:
+    # If a schema is provided, we can do some additional validation of the
+    # provided y_feature and boundaries.
+    if self._schema is not None:
+      y_feature = schema_util.get_feature(self._schema, y_path)
+      y_is_categorical = schema_util.is_categorical_feature(y_feature)
+      if self._y_boundaries is not None:
+        if y_is_categorical:
+          raise ValueError(
+              'Boundaries cannot be applied to a categorical y_path')
+      else:
+        if not y_is_categorical:
+          raise ValueError('Boundaries must be provided with a non-categorical '
+                           'y_path.')
+    if x_paths is not None:
+      self._x_paths = x_paths
+    elif self._schema is not None:
       self._x_paths = (
           set(schema_util.get_categorical_features(schema)) - set([y_path]))
     else:
-      self._x_paths = x_paths
+      raise ValueError('Either a schema or x_paths must be provided.')
 
   def expand(self,
              sliced_tables: beam.pvalue.PCollection) -> beam.pvalue.PCollection:
@@ -710,8 +719,8 @@ class LiftStatsGenerator(stats_generator.TransformStatsGenerator):
   """A transform stats generator for computing lift between two features."""
 
   def __init__(self,
-               schema: schema_pb2.Schema,
                y_path: types.FeaturePath,
+               schema: Optional[schema_pb2.Schema] = None,
                x_paths: Optional[Iterable[types.FeaturePath]] = None,
                y_boundaries: Optional[Iterable[float]] = None,
                min_x_count: int = 0,
@@ -720,7 +729,7 @@ class LiftStatsGenerator(stats_generator.TransformStatsGenerator):
                name: Text = 'LiftStatsGenerator') -> None:
     super(LiftStatsGenerator, self).__init__(
         name,
-        ptransform=_LiftStatsGenerator(schema, y_path, x_paths, y_boundaries,
+        ptransform=_LiftStatsGenerator(y_path, schema, x_paths, y_boundaries,
                                        min_x_count, top_k_per_y, bottom_k_per_y,
                                        name),
         schema=schema)
