@@ -436,3 +436,43 @@ with beam.Pipeline() as p:
         coder=beam.coders.ProtoCoder(
             statistics_pb2.DatasetFeatureStatisticsList)))
 ```
+
+## Computing statistics over slices of data
+
+TFDV can be configured to compute statistics over slices of data. Slicing can be
+enabled by providing slicing functions which take in an Arrow table and output
+a sequence of tuples of form `(slice key, Arrow table)`. TFDV provides an easy
+way to
+[generate feature value based slicing functions](https://github.com/tensorflow/data-validation/blob/master/tensorflow_data_validation/utils/slicing_util.py#L47)
+which can be provided as part of `tfdv.StatsOptions` when computing statistics.
+
+When slicing is enabled, the output
+[DatasetFeatureStatisticsList](https://github.com/tensorflow/metadata/blob/master/tensorflow_metadata/proto/v0/statistics.proto#L36)
+proto contains multiple
+[DatasetFeatureStatistics](https://github.com/tensorflow/metadata/blob/master/tensorflow_metadata/proto/v0/statistics.proto#L41)
+protos, one for each slice. Each slice is identified by a unique name which is
+set as the
+[dataset name in the DatasetFeatureStatistics proto](https://github.com/tensorflow/metadata/blob/master/tensorflow_metadata/proto/v0/statistics.proto#L43).
+By default TFDV computes statistics for the overall dataset in addition to the
+configured slices.
+
+```python
+import tensorflow_data_validation as tfdv
+from tensorflow_data_validation.utils import slicing_util
+
+# Slice on country feature (i.e., every unique value of the feature).
+slice_fn1 = slicing_util.get_feature_value_slicer(features={'country': None})
+
+# Slice on the cross of country and state feature (i.e., every unique pair of
+# values of the cross).
+slice_fn2 = slicing_util.get_feature_value_slicer(
+    features={'country': None, 'state': None})
+
+# Slice on specific values of a feature.
+slice_fn3 = slicing_util.get_feature_value_slicer(
+    features={'age': [10, 50, 70]})
+
+stats_options = tfdv.StatsOptions(
+    slice_functions=[slice_fn1, slice_fn2, slice_fn3])
+
+```

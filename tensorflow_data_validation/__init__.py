@@ -60,6 +60,9 @@ from tensorflow_data_validation.utils.schema_util import load_schema_text
 from tensorflow_data_validation.utils.schema_util import set_domain
 from tensorflow_data_validation.utils.schema_util import write_schema_text
 
+# Import slicing utilities.
+from tensorflow_data_validation.utils.slicing_util import get_feature_value_slicer
+
 # Import stats lib.
 from tensorflow_data_validation.utils.stats_gen_lib import generate_statistics_from_csv
 from tensorflow_data_validation.utils.stats_gen_lib import generate_statistics_from_dataframe
