@@ -25,8 +25,8 @@ import sys
 from absl.testing import absltest
 import apache_beam as beam
 from apache_beam.testing import util
+import pyarrow as pa
 from tensorflow_data_validation.coders import csv_decoder
-from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.utils import test_util
 
 from google.protobuf import text_format

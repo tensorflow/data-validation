@@ -23,11 +23,11 @@ import tempfile
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
+import tensorflow as tf
 from tensorflow_data_validation import types
 from tensorflow_data_validation.api import validation_api
 from tensorflow_data_validation.coders import csv_decoder
 from tensorflow_data_validation.coders import tf_example_decoder
-from tensorflow_data_validation.pyarrow_tf import tensorflow as tf
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options as options
 from tensorflow_data_validation.utils import stats_gen_lib

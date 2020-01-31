@@ -19,7 +19,7 @@ from __future__ import division
 from __future__ import print_function
 
 from absl.testing import absltest
-from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
+import pyarrow as pa
 from tensorflow_data_validation.utils import slicing_util
 
 

@@ -20,8 +20,8 @@ from __future__ import print_function
 
 import apache_beam as beam
 import numpy as np
+import pyarrow as pa
 import six
-from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from typing import Callable, Dict, Iterable, List, Optional, Text, Tuple, Union
 
 from tensorflow_metadata.proto.v0 import path_pb2

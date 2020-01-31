@@ -23,10 +23,10 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
+import pyarrow as pa
 
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
-from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tfx_bsl.arrow import array_util
 from typing import Tuple
 

@@ -19,9 +19,9 @@ from __future__ import division
 
 from __future__ import print_function
 
+import pyarrow as pa
 import six
 from tensorflow_data_validation import types
-from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from typing import List
 
 

@@ -41,9 +41,9 @@ import collections
 import re
 
 import numpy as np
+import pyarrow as pa
 
 from tensorflow_data_validation import types
-from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import stats_util
 from typing import Iterable, Pattern, Text, Tuple

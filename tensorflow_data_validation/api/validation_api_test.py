@@ -24,10 +24,10 @@ from absl.testing import parameterized
 import apache_beam as beam
 from apache_beam.testing import util
 import numpy as np
+import pyarrow as pa
 from tensorflow_data_validation import types
 from tensorflow_data_validation.api import validation_api
 from tensorflow_data_validation.api import validation_options
-from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.types import FeaturePath
 from tensorflow_data_validation.utils import schema_util

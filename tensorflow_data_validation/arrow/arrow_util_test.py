@@ -22,10 +22,11 @@ import itertools
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
+import pyarrow as pa
 import six
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
-from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
+
 
 _INPUT_TABLE = pa.Table.from_arrays([
     pa.array([[1], [2, 3]]),

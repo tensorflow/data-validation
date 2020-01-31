@@ -17,7 +17,7 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
+import pyarrow as pa
 
 
 TF_EXAMPLE_DECODER_TESTS = [

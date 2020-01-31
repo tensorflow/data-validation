@@ -46,9 +46,9 @@ from __future__ import print_function
 
 import random
 import apache_beam as beam
+import pyarrow as pa
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
-from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options
 from typing import Generator

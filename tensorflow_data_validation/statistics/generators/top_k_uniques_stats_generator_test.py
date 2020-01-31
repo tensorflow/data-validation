@@ -19,9 +19,9 @@ from __future__ import division
 from __future__ import print_function
 
 from absl.testing import absltest
+import pyarrow as pa
 
 from tensorflow_data_validation import types
-from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import top_k_uniques_stats_generator
 from tensorflow_data_validation.utils import test_util
 

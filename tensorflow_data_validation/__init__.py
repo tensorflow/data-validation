@@ -18,7 +18,7 @@
 # pyarrow will cause those libraries to be loaded. This way the dynamic linker
 # wouldn't need to search for those libraries in the filesystem (
 # which is bound to fail).
-from tensorflow_data_validation import pyarrow_tf as _
+import pyarrow as _
 
 # Import stats API.
 from tensorflow_data_validation.api.stats_api import GenerateStatistics

@@ -19,9 +19,9 @@ from __future__ import division
 from __future__ import print_function
 
 import apache_beam as beam
+import pyarrow as pa
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
-from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.utils import batch_util
 from tfx_bsl.coders import csv_decoder as csv_decoder
 from typing import List, Iterable, Optional, Text

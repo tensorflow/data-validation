@@ -23,10 +23,10 @@ import functools
 
 import numpy as np
 import pandas as pd
+import pyarrow as pa
 import six
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
-from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.utils import stats_util
 from tfx_bsl.arrow import array_util
 from tfx_bsl.arrow import table_util

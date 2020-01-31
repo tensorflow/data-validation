@@ -22,12 +22,12 @@ from __future__ import print_function
 import logging
 import apache_beam as beam
 import pyarrow as pa
+import tensorflow as tf
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.anomalies.proto import validation_config_pb2
 from tensorflow_data_validation.anomalies.proto import validation_metadata_pb2
 from tensorflow_data_validation.api import validation_options as vo
-from tensorflow_data_validation.pyarrow_tf import tensorflow as tf
 from tensorflow_data_validation.pywrap import pywrap_tensorflow_data_validation
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options

@@ -20,10 +20,10 @@ from __future__ import division
 from __future__ import print_function
 
 import apache_beam as beam
+import pyarrow as pa
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import decoded_examples_to_arrow
-from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tfx_bsl.coders import example_coder
 from typing import Dict, List, Iterable, Optional, Text
 

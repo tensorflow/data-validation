@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests for basic statistics generator.
-"""
+"""Tests for basic statistics generator."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -22,9 +21,9 @@ from __future__ import print_function
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
+import pyarrow as pa
 import six
 from tensorflow_data_validation import types
-from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import basic_stats_generator
 from tensorflow_data_validation.utils import test_util
 

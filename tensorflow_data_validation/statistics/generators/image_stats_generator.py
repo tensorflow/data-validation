@@ -36,11 +36,11 @@ import functools
 import imghdr
 import numpy as np
 import pandas as pd
+import pyarrow as pa
 import six
+import tensorflow as tf
 
 from tensorflow_data_validation import types
-from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
-from tensorflow_data_validation.pyarrow_tf import tensorflow as tf
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import stats_util
 from typing import List, Iterable, Text

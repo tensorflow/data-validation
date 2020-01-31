@@ -18,8 +18,8 @@ from __future__ import print_function
 
 import os
 from absl.testing import absltest
+import tensorflow as tf
 
-from tensorflow_data_validation.pyarrow_tf import tensorflow as tf
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.utils import test_util
 from tensorflow_data_validation.utils import validation_lib

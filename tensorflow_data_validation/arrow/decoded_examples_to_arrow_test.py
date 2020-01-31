@@ -21,9 +21,9 @@ from __future__ import print_function
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
+import pyarrow as pa
 import six
 from tensorflow_data_validation.arrow import decoded_examples_to_arrow
-from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 
 
 _INVALID_INPUT_TEST_CASES = [

@@ -18,8 +18,8 @@ from __future__ import division
 
 from __future__ import print_function
 
+import pyarrow as pa
 from tensorflow_data_validation import types
-from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.utils import io_util
 from typing import List, Set, Text, Tuple
 from google.protobuf import text_format

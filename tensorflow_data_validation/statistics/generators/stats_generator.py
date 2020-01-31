@@ -55,10 +55,10 @@ from __future__ import print_function
 
 import abc
 import apache_beam as beam
+import pyarrow as pa
 import six
 
 from tensorflow_data_validation import types
-from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import input_batch
 from typing import Any, Dict, Hashable, Iterable, Optional, Text, Tuple, TypeVar
 from tensorflow_metadata.proto.v0 import schema_pb2

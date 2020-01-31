@@ -22,9 +22,9 @@ from absl.testing import parameterized
 import apache_beam as beam
 from apache_beam.testing import util
 import numpy as np
+import tensorflow as tf
 from tensorflow_data_validation.coders import tf_example_decoder
 from tensorflow_data_validation.coders import tf_example_decoder_test_data
-from tensorflow_data_validation.pyarrow_tf import tensorflow as tf
 from tensorflow_data_validation.utils import test_util
 
 from google.protobuf import text_format

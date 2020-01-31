@@ -21,7 +21,7 @@ import os
 from absl import flags
 from absl.testing import absltest
 from absl.testing import parameterized
-from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
+import pyarrow as pa
 from tensorflow_data_validation.utils import anomalies_util
 
 from google.protobuf import text_format

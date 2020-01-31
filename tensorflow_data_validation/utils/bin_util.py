@@ -21,8 +21,8 @@ from __future__ import print_function
 
 
 import numpy as np
+import pyarrow as pa
 
-from tensorflow_data_validation.pyarrow_tf import pyarrow as pa
 from typing import Iterable, List, Tuple
 
 
