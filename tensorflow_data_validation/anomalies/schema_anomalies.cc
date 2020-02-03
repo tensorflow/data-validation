@@ -344,7 +344,7 @@ tensorflow::Status SchemaAnomalies::FindChangesRecursively(
   Schema baseline;
   TF_RETURN_IF_ERROR(InitSchema(&baseline));
   if (baseline.FeatureExists(feature_stats_view.GetPath())) {
-    // TODO(martinz): Treat PLANNED separately.
+    // TODO(b/148407751): Treat PLANNED separately.
     if (baseline.FeatureIsDeprecated(feature_stats_view.GetPath())) {
       return Status::OK();
     }

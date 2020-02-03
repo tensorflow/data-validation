@@ -92,8 +92,6 @@ class DatasetSchemaAnomaly : public SchemaAnomalyBase {
 };
 
 // SchemaAnomaly represents all the issues related to a single column.
-// TODO(martinz): consider putting this inside SchemaAnomalies,
-// and making it private, or putting it in its own file.
 class SchemaAnomaly : public SchemaAnomalyBase {
  public:
   SchemaAnomaly();
@@ -156,7 +154,7 @@ class SchemaAnomalies {
   // that would allow the dataset to be valid. If fields_needed is set, then a
   // field that is not present in the schema will only be created if it is
   // present in that set.
-  // TODO(martinz): If a field is in features_needed, but not in statistics
+  // TODO(b/148408297): If a field is in features_needed, but not in statistics
   // or in the schema, then come up with a special kind of anomaly.
   tensorflow::Status FindChanges(
       const DatasetStatsView& statistics,

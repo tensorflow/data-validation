@@ -47,7 +47,6 @@ limitations under the License.
 namespace tensorflow {
 namespace data_validation {
 namespace {
-using ::absl::make_unique;
 using ::absl::optional;
 using ::tensorflow::Status;
 using ::tensorflow::errors::Internal;
@@ -519,7 +518,8 @@ std::vector<Path> Schema::GetMissingPaths(
   return paths_absent;
 }
 
-// TODO(martinz): currently, only looks at top-level features.
+// TODO(b/148406484): currently, only looks at top-level features.
+// Make this include lower level features as well.
 // See also b/114757721.
 std::map<string, std::set<Path>> Schema::EnumNameToPaths() const {
   std::map<string, std::set<Path>> result;
@@ -550,7 +550,7 @@ Status Schema::Update(const DatasetStatsView& dataset_stats,
   return Status::OK();
 }
 
-// TODO(114757721): expose this.
+// TODO(b/114757721): expose this.
 Status Schema::GetRelatedEnums(const DatasetStatsView& dataset_stats,
                                FeatureStatisticsToProtoConfig* config) {
   Schema schema;
@@ -703,8 +703,8 @@ bool Schema::IsExistenceRequired(
   return IsFeatureInEnvironment(feature, environment);
 }
 
-// TODO(martinz): Switch AnomalyInfo::Type from UNKNOWN_TYPE.
-// TODO(martinz): Handle missing FeatureType more elegantly, inferring it
+// TODO(b/148406400): Switch AnomalyInfo::Type from UNKNOWN_TYPE.
+// TODO(b/148406994): Handle missing FeatureType more elegantly, inferring it
 // when necessary.
 std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
   std::vector<Description> descriptions;
@@ -723,7 +723,7 @@ std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
   }
 
   if (!feature->has_type()) {
-    // TODO(martinz): UNKNOWN_TYPE means the anomaly type is unknown.
+    // TODO(b/148406400): UNKNOWN_TYPE means the anomaly type is unknown.
 
     if (feature->has_domain() || feature->has_string_domain()) {
       descriptions.push_back(
@@ -767,7 +767,7 @@ std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
                    feature->type())) {
     // Note that this clears the oneof field domain_info.
     ::tensorflow::data_validation::ClearDomain(feature);
-    // TODO(martinz): Give more detail here.
+    // TODO(b/148406400): Give more detail here.
     descriptions.push_back({tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
                             "The domain does not match the type"});
   }
@@ -880,8 +880,6 @@ std::vector<Description> Schema::UpdateFeatureInternal(
 
   // This is to cover the rare case where there is actually no examples with
   // this feature, but there is still a dataset_stats object.
-  // TODO(martinz): consider not returning a feature dataset_stats view for a
-  // path if the number present are zero.
   const bool feature_missing = view.GetNumPresent() == 0;
 
   // If the feature is missing, but should be present, create an anomaly.

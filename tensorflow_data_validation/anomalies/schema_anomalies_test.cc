@@ -642,8 +642,8 @@ TEST(Schema, FindChangesEmptySchemaProto) {
                   FeatureStatisticsToProtoConfig(), expected_anomalies);
 }
 
-// TODO(martinz): Figure out why there isn't a separate anomaly for the format
-// of the annotated_enum.
+// TODO(b/148410331): check if we removed BYTES from the annotated_enum schema,
+// it would fire an anomaly for that as well.
 TEST(Schema, FindChangesOnlyValidateSchemaFeatures) {
   const DatasetFeatureStatistics statistics =
       ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(

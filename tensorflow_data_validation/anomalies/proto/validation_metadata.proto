@@ -19,8 +19,8 @@ import "tensorflow_metadata/proto/v0/path.proto";
 
 package tensorflow.data_validation;
 
-// TODO(martinz): consider adding an environment.
-// TODO(martinz): consider adding a LifecycleStage.
+// TODO(b/148429669): consider adding an environment.
+// TODO(b/148429669): consider adding a LifecycleStage.
 message ReasonFeatureNeeded {
   // If there is an issue in creating the field, the comment should help
   // explain why.

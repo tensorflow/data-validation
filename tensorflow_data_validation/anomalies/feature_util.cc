@@ -47,11 +47,6 @@ ComparatorContext GetContext(FeatureComparatorType comparator_type) {
   }
 }
 
-// TODO(martinz): These functions show that the interface in
-// FeatureStatsView was "too cute", in that I might as well get the appropriate
-// control dataset view, and then get the right FeatureStatsView.
-// Should probably remove FeatureStatsView::GetServing and
-// FeatureStatsView::GetPrevious.
 bool HasControlDataset(const FeatureStatsView& stats,
                        FeatureComparatorType comparator_type) {
   switch (comparator_type) {
@@ -220,7 +215,6 @@ std::vector<Description> UpdateFeatureComparatorDirect(
     // If there is a control dataset, but that dataset does not contain
     // statistics for the feature at issue, generate a missing control data
     // anomaly.
-    // TODO(martinz): Consider clearing entire object.
     comparator->mutable_infinity_norm()->clear_threshold();
     return {
         {tensorflow::metadata::v0::AnomalyInfo::COMPARATOR_CONTROL_DATA_MISSING,
@@ -316,7 +310,7 @@ std::vector<Description> UpdatePresence(
         // such that floating point error can hide it. We treat this case
         // separately, and set a threshold that is numerically distant from
         // 1.0.
-        // TODO(martinz): update the anomaly type here to be unique.
+        // TODO(b/148429185): update the anomaly type here to be unique.
         presence->set_min_fraction(0.9999);
         descriptions.push_back(
             {tensorflow::metadata::v0::AnomalyInfo::

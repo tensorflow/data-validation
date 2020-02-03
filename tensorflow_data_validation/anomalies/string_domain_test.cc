@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-// TODO(martinz): These tests are kept as they were earlier, to ensure that
+// TODO(b/148430551): These tests are kept as they were earlier, to ensure that
 // there is no change in logic. Eventually, they should be renamed and modified
 // to test the current API better.
 #include "tensorflow_data_validation/anomalies/string_domain_util.h"

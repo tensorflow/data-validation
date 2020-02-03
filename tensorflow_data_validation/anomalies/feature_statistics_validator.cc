@@ -133,9 +133,6 @@ tensorflow::Status ValidateFeatureStatistics(
     result->set_data_missing(true);
   } else {
     SchemaAnomalies schema_anomalies(schema_proto);
-    // TODO(martinz): populate previous if possible. Make this happen as we
-    // complete the refactor to make FindChanges also FindDrift at the same
-    // time.
     std::shared_ptr<DatasetStatsView> previous_span =
         (prev_span_feature_statistics)
             ? std::make_shared<DatasetStatsView>(
