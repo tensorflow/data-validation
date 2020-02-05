@@ -5,7 +5,10 @@
 ## Major Features and Improvements
 
 ## Bug Fixes and Other Changes
-*   Do validation on weighted feature stats.
+* Do validation on weighted feature stats.
+* During schema inference, skip features which are missing common stats. This
+  makes schema inference work when the input stats are generated from some
+  pre-existing, unknown schema.
 
 ## Breaking Changes
 

@@ -551,6 +551,107 @@ class ValidationApiTest(absltest.TestCase):
                                  '.*statistics proto with one dataset.*'):
       _ = validation_api.infer_schema(statistics)
 
+  def test_infer_schema_composite_feature_stats(self):
+    statistics = text_format.Parse(
+        """
+        datasets {
+          num_examples: 4
+          features: {
+            path { step: 'value' }
+            type: STRING
+            string_stats: {
+              common_stats: {
+                num_non_missing: 2
+                num_missing: 2
+                min_num_values: 1
+                max_num_values: 1
+              }
+            }
+          }
+          features: {
+            path { step: 'weight' }
+            type: FLOAT
+            num_stats: {
+              common_stats: {
+                num_non_missing: 4
+                min_num_values: 1
+                max_num_values: 1
+              }
+            }
+          }
+          features: {
+            path { step: 'index' }
+            type: INT
+            num_stats: {
+              common_stats: {
+                num_non_missing: 4
+                min_num_values: 1
+                max_num_values: 1
+              }
+            }
+          }
+          features: {
+            path { step: 'weighted_feature' }
+            custom_stats {
+              name: 'missing_value'
+              num: 2
+            }
+          }
+          features: {
+            path { step: 'sparse_feature' }
+            custom_stats {
+              name: 'missing_value'
+              num: 2
+            }
+          }
+        }
+        """, statistics_pb2.DatasetFeatureStatisticsList())
+
+    expected_schema = text_format.Parse(
+        """
+        feature {
+          name: "value"
+          value_count: {
+            min: 1
+            max: 1
+          }
+          presence: {
+            min_count: 1
+          }
+          type: BYTES
+        }
+        feature {
+          name: "weight"
+          value_count: {
+            min: 1
+            max: 1
+          }
+          presence: {
+            min_fraction: 1
+            min_count: 1
+          }
+          type: FLOAT
+        }
+        feature {
+          name: "index"
+          value_count: {
+            min: 1
+            max: 1
+          }
+          presence: {
+            min_fraction: 1
+            min_count: 1
+          }
+          type: INT
+        }
+        """, schema_pb2.Schema())
+    validation_api._may_be_set_legacy_flag(expected_schema)
+
+    # Infer the schema from the stats.
+    actual_schema = validation_api.infer_schema(statistics,
+                                                infer_feature_shape=False)
+    self.assertEqual(actual_schema, expected_schema)
+
   def _assert_equal_anomalies(self,
                               actual_anomalies,
                               expected_anomalies):

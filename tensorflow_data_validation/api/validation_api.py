@@ -97,6 +97,11 @@ def infer_schema(
   # corresponds to the default slice.
   dataset_statistics = _get_default_dataset_statistics(statistics)
 
+  # dataset_statistics may include stats for composite features like
+  # SparseFeatures and WeightedFeatures. We cannot infer a useful schema from
+  # these stats, so we remove them at the start.
+  dataset_statistics = _remove_features_missing_common_stats(dataset_statistics)
+
   _check_for_unsupported_stats_fields(dataset_statistics, 'statistics')
 
   schema_proto_string = pywrap_tensorflow_data_validation.InferSchema(
@@ -466,6 +471,28 @@ def validate_statistics_internal(
   result = anomalies_pb2.Anomalies()
   result.ParseFromString(anomalies_proto_string)
   return result
+
+
+def _remove_features_missing_common_stats(
+    stats: statistics_pb2.DatasetFeatureStatistics
+) -> statistics_pb2.DatasetFeatureStatistics:
+  """Remove FeatureNameStatistics for feature paths missing common stats.
+
+  Args:
+    stats: The stats from which to remove features
+
+  Returns:
+    A version of the input stats with the feature paths removed.
+  """
+  valid_features = []
+  for feature in stats.features:
+    if (feature.HasField('num_stats') or feature.HasField('string_stats') or
+        feature.HasField('bytes_stats') or
+        feature.HasField('struct_stats')):
+      valid_features.append(feature)
+  del stats.features[:]
+  stats.features.extend(valid_features)
+  return stats
 
 
 def _check_for_unsupported_stats_fields(
