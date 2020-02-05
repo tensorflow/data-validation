@@ -35,6 +35,7 @@ from tensorflow_data_validation.coders.tf_example_decoder import DecodeTFExample
 from tensorflow_data_validation.coders.tf_example_decoder import TFExampleDecoder
 
 # Import stats generators.
+from tensorflow_data_validation.statistics.generators.lift_stats_generator import LiftStatsGenerator
 from tensorflow_data_validation.statistics.generators.stats_generator import CombinerStatsGenerator
 from tensorflow_data_validation.statistics.generators.stats_generator import TransformStatsGenerator
 
