@@ -247,6 +247,17 @@ condition(s) under which each anomaly type is detected.
 
     -   Anomaly type not detected in TFDV
 
+-   `FLOAT_TYPE_HAS_NAN`
+
+    -   Schema Fields:
+        -   `feature.float_domain.disallow_nan`
+    -   Statistics Fields:
+        -   `feature.type`
+        -   `feature.num_stats.histograms.num_nan`
+    -   Detection Condition:
+        -   `float_domain.disallow_nan is true` and
+        -   `feature.num_stats.histograms.num_nan > 0`
+
 -   `INT_TYPE_BIG_INT`
 
     -   Schema Fields:
@@ -491,8 +502,8 @@ condition(s) under which each anomaly type is detected.
         -   `feature.custom_stats` with "min_weighted_length_diff” or
             "max_weight_length_diff" as name
     -   Detection Condition:
-        -   `min_weight_length_diff` or `max_weight_length_diff` custom stat
-            != 0
+        -   `min_weight_length_diff` or `max_weight_length_diff` custom stat !=
+            0
 
 -   `WEIGHTED_FEATURE_NAME_COLLISION`
 
@@ -506,11 +517,11 @@ condition(s) under which each anomaly type is detected.
     -   Detection Condition:
         -   `weighted_feature.lifecycle_stage` != `PLANNED`, `ALPHA`, `DEBUG`,
             or`DEPRECATED` and either:
-          -   `feature.lifecycle_stage` != `PLANNED`, `ALPHA`, `DEBUG`, or
-              `DEPRECATED` and `weighted_feature.name` == `feature.name`
-          -   `sparse_feature.lifecycle_stage` != `PLANNED`, `ALPHA`, `DEBUG`,
-              or`DEPRECATED` and `weighted_feature.name` ==
-              `sparse_feature.name`
+            -   `feature.lifecycle_stage` != `PLANNED`, `ALPHA`, `DEBUG`, or
+                `DEPRECATED` and `weighted_feature.name` == `feature.name`
+            -   `sparse_feature.lifecycle_stage` != `PLANNED`, `ALPHA`, `DEBUG`,
+                or`DEPRECATED` and `weighted_feature.name` ==
+                `sparse_feature.name`
 
 -   `UNKNOWN_TYPE`
 

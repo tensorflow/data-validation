@@ -46,6 +46,7 @@
     `tfx-bsl`).
 *   Depends on `tfx-bsl>=0.21.0,<0.22`
 *   Depends on `apache-beam>=2.17,<3`
+*   Validate that float feature does not contain NaNs (if disallow_nan is True).
 
 ## Breaking Changes
 

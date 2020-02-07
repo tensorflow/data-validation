@@ -96,6 +96,44 @@ FloatIntervalResult GetFloatInterval(const FeatureStatsView& feature_stats) {
   }
 }
 
+// Check if there are NaNs in a float feature. If the domain indicates that
+// NaNs are disallowed, the presence of a NaN raises an anomaly.
+// TODO(askerryryan): Consider merging this logic with FloatIntervalResult.
+void CheckFloatNans(const FeatureStatsView& stats,
+                    UpdateSummary* update_summary,
+                    tensorflow::metadata::v0::FloatDomain* float_domain) {
+  bool has_nans = false;
+  if (!float_domain->disallow_nan()) {
+    return;
+  }
+  switch (stats.type()) {
+    case FeatureNameStatistics::FLOAT:
+      for (auto histogram : stats.num_stats().histograms()) {
+        if (histogram.num_nan() > 0) {
+          has_nans = true;
+          break;
+        }
+      }
+      break;
+    case FeatureNameStatistics::STRING:
+      for (const string& str : stats.GetStringValues()) {
+        float value;
+        if (absl::SimpleAtof(str, &value) && isnan(value)) {
+          has_nans = true;
+          break;
+        }
+      }
+      break;
+    default:
+      break;
+  }
+  if (has_nans) {
+    update_summary->descriptions.push_back(
+        {tensorflow::metadata::v0::AnomalyInfo::FLOAT_TYPE_HAS_NAN,
+         kInvalidValues, absl::StrCat("Float feature has NaN values.")});
+    float_domain->set_disallow_nan(false);
+  }
+}
 }  // namespace
 
 UpdateSummary UpdateFloatDomain(
@@ -103,10 +141,11 @@ UpdateSummary UpdateFloatDomain(
     tensorflow::metadata::v0::FloatDomain* float_domain) {
   UpdateSummary update_summary;
 
+  CheckFloatNans(stats, &update_summary, float_domain);
+
   const FloatIntervalResult result = GetFloatInterval(stats);
   if (result) {
-    const variant<FloatInterval, ExampleStringNotFloat> actual_result =
-        *result;
+    const variant<FloatInterval, ExampleStringNotFloat> actual_result = *result;
     if (holds_alternative<ExampleStringNotFloat>(actual_result)) {
       update_summary.descriptions.push_back(
           {tensorflow::metadata::v0::AnomalyInfo::FLOAT_TYPE_STRING_NOT_FLOAT,
@@ -118,8 +157,7 @@ UpdateSummary UpdateFloatDomain(
       return update_summary;
     }
     if (holds_alternative<FloatInterval>(actual_result)) {
-      const FloatInterval range =
-          *absl::get_if<FloatInterval>(&actual_result);
+      const FloatInterval range = *absl::get_if<FloatInterval>(&actual_result);
       if (float_domain->has_min() && range.min < float_domain->min()) {
         float_domain->set_min(range.min);
         update_summary.descriptions.push_back(
@@ -148,8 +186,8 @@ UpdateSummary UpdateFloatDomain(
 }
 
 bool IsFloatDomainCandidate(const FeatureStatsView& feature_stats) {
-  // We don't set float_domain by default unless we are trying to indicate that
-  // strings are actually floats.
+  // We don't set float_domain by default unless we are trying to indicate
+  // that strings are actually floats.
   if (feature_stats.type() != FeatureNameStatistics::STRING ||
       feature_stats.HasInvalidUTF8Strings()) {
     return false;

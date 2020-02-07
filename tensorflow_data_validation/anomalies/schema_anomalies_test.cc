@@ -89,6 +89,197 @@ TEST(SchemaAnomalies, FindChangesNoChanges) {
   }
 }
 
+TEST(SchemaAnomalies, FindNansInFloatDisallowNans) {
+  const Schema initial = ParseTextProtoOrDie<Schema>(R"(
+    feature {
+      name: "income"
+      presence: { min_count: 1 min_fraction: 1.0 }
+      value_count: { min: 1 max: 1 }
+      type: FLOAT
+      float_domain: { disallow_nan: true }
+    }
+    feature {
+      name: "string_encoded_float"
+      presence: { min_count: 1 }
+      value_count: { min: 1 max: 3 }
+      type: BYTES
+      float_domain: { disallow_nan: true }
+    }
+  )");
+
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        features: {
+          name: "income"
+          type: FLOAT
+          num_stats: {
+            common_stats: {
+              num_missing: 0
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 1
+              avg_num_values: 1
+            }
+            histograms: {
+              num_nan: 5
+              buckets: { high_value: 1 }
+              buckets: { low_value: 0 high_value: 1 sample_count: 100 }
+              type: QUANTILES
+            }
+            mean: .5
+            std_dev: .25
+            max: 1.0
+          }
+        }
+        features: {
+          name: "string_encoded_float"
+          type: STRING
+          string_stats: {
+            common_stats: {
+              num_missing: 10
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 3
+              avg_num_values: 1.5
+            }
+            rank_histogram: {
+              buckets: { label: "1.5" sample_count: 5 }
+              buckets: { label: "2.5" sample_count: 3 }
+              buckets: { label: "-1.5" sample_count: 15 }
+              buckets: { label: "NaN" sample_count: 20 }
+              buckets: { label: "0.5" sample_count: 10 }
+            }
+          }
+        })");
+  for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
+    std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
+    expected_anomalies["income"].new_schema = ParseTextProtoOrDie<Schema>(R"(
+      feature {
+        name: "income"
+        presence: { min_count: 1 min_fraction: 1.0 }
+        value_count: { min: 1 max: 1 }
+        type: FLOAT
+        float_domain: { disallow_nan: false }
+      })");
+    expected_anomalies["string_encoded_float"].new_schema =
+        ParseTextProtoOrDie<Schema>(R"(
+          feature {
+            name: "string_encoded_float"
+            presence: { min_count: 1 }
+            value_count: { min: 1 max: 3 }
+            type: BYTES
+            float_domain: { disallow_nan: true }
+          })");
+    expected_anomalies["income"].expected_info_without_diff =
+        ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
+          path { step: "income" }
+          description: "Float feature has NaN values."
+          severity: ERROR
+          short_description: "Invalid values"
+          reason {
+            type: FLOAT_TYPE_HAS_NAN
+            short_description: "Invalid values"
+            description: "Float feature has NaN values."
+          })");
+    expected_anomalies["string_encoded_float"].expected_info_without_diff =
+        ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
+          path { step: "string_encoded_float" }
+          description: "Float feature has NaN values."
+          severity: ERROR
+          short_description: "Invalid values"
+          reason {
+            type: FLOAT_TYPE_HAS_NAN
+            short_description: "Invalid values"
+            description: "Float feature has NaN values."
+          })");
+    TestFindChanges(initial, DatasetStatsView(statistics, false), config,
+                    expected_anomalies);
+  }
+}
+TEST(SchemaAnomalies, NansDisallowedNoNansFound) {
+  const Schema initial = ParseTextProtoOrDie<Schema>(R"(
+    feature {
+      name: "age"
+      presence: { min_count: 1 min_fraction: 1.0 }
+      value_count: { min: 1 max: 3 }
+      type: FLOAT
+      float_domain: { disallow_nan: true }
+    })");
+
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        features: {
+          name: "age"
+          type: FLOAT
+          num_stats: {
+            common_stats: {
+              num_missing: 10
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 3
+              avg_num_values: 1.5
+            }
+            histograms: {
+              num_nan: 0
+              buckets: { high_value: 67 sample_count: 50 }
+              buckets: { low_value: 15 high_value: 67 sample_count: 100 }
+              type: QUANTILES
+            }
+            mean: 20
+            std_dev: .25
+            max: 87
+          }
+        })");
+  for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
+    std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
+    TestFindChanges(initial, DatasetStatsView(statistics, false), config,
+                    std::map<string, testing::ExpectedAnomalyInfo>());
+  }
+}
+
+TEST(SchemaAnomalies, NansInFloatAllowed) {
+  // Nans in a float feature will not raises anomalies unless disallow_nan is
+  // True.
+  const Schema initial = ParseTextProtoOrDie<Schema>(R"(
+    feature {
+      name: "income"
+      presence: { min_count: 1 min_fraction: 1.0 }
+      value_count: { min: 1 max: 1 }
+      type: FLOAT
+      float_domain: { min: 0 max: 1 }
+    })");
+
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        features: {
+          name: "income"
+          type: FLOAT
+          num_stats: {
+            common_stats: {
+              num_missing: 0
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 1
+              avg_num_values: 1
+            }
+            histograms: {
+              num_nan: 5
+              buckets: { high_value: 1 }
+              buckets: { low_value: 0 high_value: 1 sample_count: 100 }
+              type: QUANTILES
+            }
+            mean: .5
+            std_dev: .25
+            max: 1.0
+          }
+        })");
+  for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
+    std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
+    TestFindChanges(initial, DatasetStatsView(statistics, false), config,
+                    std::map<string, testing::ExpectedAnomalyInfo>());
+  }
+}
+
 TEST(SchemaAnomalies, FindChangesCategoricalIntFeature) {
   const Schema initial = ParseTextProtoOrDie<Schema>(R"(
     feature {
