@@ -21,6 +21,7 @@ from __future__ import print_function
 import numpy as np
 import pyarrow as pa
 from tensorflow_data_validation import types
+from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.utils import io_util
 from typing import Dict, Optional, Text, Union
 from google.protobuf import text_format
@@ -90,17 +91,17 @@ def get_feature_type_from_arrow_type(
   """
   if pa.types.is_null(arrow_type):
     return None
-  if not pa.types.is_list(arrow_type):
-    raise TypeError('Expected feature column to be a List<primitive|struct> or '
-                    'null, but feature {} was {}.'
-                    .format(feature_path, arrow_type))
+  if not arrow_util.is_list_like(arrow_type):
+    raise TypeError('Expected feature column to be a '
+                    '(Large)List<primitive|struct> or null, but feature {} '
+                    'was {}.'.format(feature_path, arrow_type))
 
   value_type = arrow_type.value_type
   if pa.types.is_integer(value_type):
     return statistics_pb2.FeatureNameStatistics.INT
   elif pa.types.is_floating(value_type):
     return statistics_pb2.FeatureNameStatistics.FLOAT
-  elif pa.types.is_binary(value_type) or pa.types.is_unicode(value_type):
+  elif arrow_util.is_binary_like(value_type):
     return statistics_pb2.FeatureNameStatistics.STRING
   elif pa.types.is_struct(value_type):
     return statistics_pb2.FeatureNameStatistics.STRUCT

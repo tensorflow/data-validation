@@ -309,8 +309,7 @@ class _PartialStringStats(object):
       return
     # Iterate through the value array and update the partial stats.
     flattened_values_array = feature_array.flatten()
-    if pa.types.is_binary(flattened_values_array.type) or pa.types.is_unicode(
-        flattened_values_array.type):
+    if arrow_util.is_binary_like(flattened_values_array.type):
       # GetBinaryArrayTotalByteSize returns a Python long (to be compatible
       # with Python3). To make sure we do cheaper integer arithemetics in
       # Python2, we first convert it to int.

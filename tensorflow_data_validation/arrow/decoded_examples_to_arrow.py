@@ -22,6 +22,7 @@ from __future__ import print_function
 import pyarrow as pa
 import six
 from tensorflow_data_validation import types
+from tensorflow_data_validation.arrow import arrow_util
 from typing import List
 
 
@@ -74,15 +75,14 @@ def DecodedExamplesToTable(decoded_examples: List[types.Example]) -> pa.Table:
   for name, array in six.moves.zip(field_names, value_arrays):
     if pa.types.is_null(array.type):
       continue
-    if not pa.types.is_list(array.type):
+    if not arrow_util.is_list_like(array.type):
       raise TypeError("Expected list arrays for field {} but got {}".format(
           name, array.type))
     value_type = array.type.value_type
     if (not pa.types.is_integer(value_type) and
         not pa.types.is_floating(value_type) and
-        not pa.types.is_binary(value_type) and
-        not pa.types.is_null(value_type) and
-        not pa.types.is_string(value_type)):
+        not arrow_util.is_binary_like(value_type) and
+        not pa.types.is_null(value_type)):
       raise TypeError("Type not supported: {} {}".format(name, array.type))
 
   return pa.Table.from_arrays(value_arrays, field_names)

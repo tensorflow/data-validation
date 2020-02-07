@@ -124,7 +124,7 @@ class InputBatch(object):
           self._table, path, return_example_indices=False)
       if pa.types.is_null(array.type):
         lengths = np.full(self._table.num_rows, 0)
-      elif not pa.types.is_list(array.type):
+      elif not arrow_util.is_list_like(array.type):
         raise ValueError('Can only compute list lengths on list arrays, found '
                          '{}'.format(array.type))
       else:

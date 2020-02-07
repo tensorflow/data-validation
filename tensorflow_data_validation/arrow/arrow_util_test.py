@@ -61,6 +61,20 @@ _FEATURES_TO_ARRAYS = {
 
 class EnumerateArraysTest(parameterized.TestCase):
 
+  def testIsListLike(self):
+    for t in (pa.list_(pa.int64()), pa.large_list(pa.int64())):
+      self.assertTrue(arrow_util.is_list_like(t))
+
+    for t in (pa.binary(), pa.int64(), pa.large_string()):
+      self.assertFalse(arrow_util.is_list_like(t))
+
+  def testIsBinaryLike(self):
+    for t in (pa.binary(), pa.large_binary(), pa.string(), pa.large_string()):
+      self.assertTrue(arrow_util.is_binary_like(t))
+
+    for t in (pa.list_(pa.binary()), pa.large_list(pa.string())):
+      self.assertFalse(arrow_util.is_binary_like(t))
+
   def testGetBroadcastableColumnNotFound(self):
     with self.assertRaisesRegex(
         ValueError,

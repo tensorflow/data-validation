@@ -1105,18 +1105,24 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
 
   def test_basic_stats_generator_with_multiple_features(self):
 
+    # Test that columns of ListArray, LargeListArray can be handled. Also test
+    # that columns whose values are LargeBinaryArray can be handled.
     b1 = pa.Table.from_arrays([
-        pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]]),
-        pa.array([[b'x', b'y', b'z', b'w'], [b'qwe', b'abc']]),
+        pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]],
+                 type=pa.large_list(pa.float32())),
+        pa.array([[b'x', b'y', b'z', b'w'], [b'qwe', b'abc']],
+                 type=pa.list_(pa.large_binary())),
         pa.array([
             np.linspace(1, 1000, 1000, dtype=np.int32),
             np.linspace(1001, 2000, 1000, dtype=np.int32)
-        ]),
+        ],
+                 type=pa.list_(pa.int32())),
     ], ['a', 'b', 'c'])
     b2 = pa.Table.from_arrays([
-        pa.array([[1.0]]),
-        pa.array([[b'ab']]),
-        pa.array([np.linspace(2001, 3000, 1000, dtype=np.int32)]),
+        pa.array([[1.0]], type=pa.large_list(pa.float32())),
+        pa.array([[b'ab']], type=pa.list_(pa.large_binary())),
+        pa.array([np.linspace(2001, 3000, 1000, dtype=np.int32)],
+                 type=pa.list_(pa.int32())),
     ], ['a', 'b', 'c'])
 
     batches = [b1, b2]
@@ -1559,8 +1565,8 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
   def test_basic_stats_generator_column_not_list(self):
     batches = [pa.Table.from_arrays([pa.array([1, 2, 3])], ['a'])]
     generator = basic_stats_generator.BasicStatsGenerator()
-    with self.assertRaisesRegexp(TypeError,
-                                 'Expected feature column to be a List'):
+    with self.assertRaisesRegexp(
+        TypeError, r'Expected feature column to be a \(Large\)List'):
       self.assertCombinerOutputEqual(batches, generator, None)
 
   def test_basic_stats_generator_invalid_value_numpy_dtype(self):

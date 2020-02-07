@@ -57,6 +57,28 @@ def get_broadcastable_column(input_table: pa.Table,
   return column.flatten()
 
 
+def is_binary_like(data_type: pa.DataType) -> bool:
+  """Returns true if an Arrow type is binary-like.
+
+  Qualified types are {Large,}BinaryArray, {Large,}StringArray.
+
+  Args:
+    data_type: a pa.Array.
+
+  Returns:
+    bool.
+  """
+  return (pa.types.is_binary(data_type) or
+          pa.types.is_large_binary(data_type) or
+          pa.types.is_unicode(data_type) or
+          pa.types.is_large_unicode(data_type))
+
+
+def is_list_like(data_type: pa.DataType) -> bool:
+  """Returns true if an Arrow type is list-like."""
+  return pa.types.is_list(data_type) or pa.types.is_large_list(data_type)
+
+
 def get_array(
     table: pa.Table,
     query_path: types.FeaturePath,
@@ -101,11 +123,11 @@ def get_array(
     if not query_path:
       return array, example_indices
     array_type = array.type
-    if (not pa.types.is_list(array_type) or
+    if (not is_list_like(array_type) or
         not pa.types.is_struct(array_type.value_type)):
       raise KeyError('Cannot process query_path "{}" inside an array of type '
-                     '{}. Expecting a list<struct<...>>.'.format(query_path,
-                                                                 array_type))
+                     '{}. Expecting a (large_)list<struct<...>>.'.format(
+                         query_path, array_type))
     flat_struct_array = array.flatten()
     flat_indices = None
     if example_indices is not None:
@@ -180,8 +202,7 @@ def enumerate_arrays(
   ) -> Iterable[Tuple[types.FeaturePath, pa.Array, Optional[np.ndarray]]]:
     """Recursion helper."""
     array_type = array.type
-    if (pa.types.is_list(array_type) and
-        pa.types.is_struct(array_type.value_type)):
+    if is_list_like(array_type) and pa.types.is_struct(array_type.value_type):
       if not enumerate_leaves_only:
         yield (feature_path, array, weights)
       flat_struct_array = array.flatten()
@@ -203,7 +224,8 @@ def enumerate_arrays(
   if weight_column is not None:
     weights = get_broadcastable_column(table, weight_column)
     weight_type = weights.type
-    if pa.types.is_string(weight_type) or pa.types.is_binary(weight_type):
+    if (not pa.types.is_floating(weight_type) and
+        not pa.types.is_integer(weight_type)):
       raise ValueError(
           'Weight column "{}" must be of numeric type. Found {}.'.format(
               weight_column, weight_type))
