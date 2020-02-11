@@ -9,6 +9,7 @@
 * During schema inference, skip features which are missing common stats. This
   makes schema inference work when the input stats are generated from some
   pre-existing, unknown schema.
+* Fix facets visualization in Chrome >=M80.
 
 ## Breaking Changes
 
