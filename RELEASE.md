@@ -1,6 +1,6 @@
 <!-- mdlint off(HEADERS_TOO_MANY_H1) -->
 
-# Current version (not yet released; still in development)
+# Release 0.21.1
 
 ## Major Features and Improvements
 
@@ -10,6 +10,11 @@
   makes schema inference work when the input stats are generated from some
   pre-existing, unknown schema.
 * Fix facets visualization in Chrome >=M80.
+
+## Known Issues
+
+*   Running TFDV with Apache Beam 2.18 or 2.19 does not work on Windows. If you
+    are using TFDV on Windows, use Apache Beam 2.17.
 
 ## Breaking Changes
 
