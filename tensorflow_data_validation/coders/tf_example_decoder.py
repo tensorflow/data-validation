@@ -22,19 +22,7 @@ from __future__ import print_function
 import apache_beam as beam
 import pyarrow as pa
 from tensorflow_data_validation import constants
-from tensorflow_data_validation import types
 from tensorflow_data_validation.utils import batch_util
-from tfx_bsl.coders import example_coder
-
-
-# TODO(pachristopher): Deprecate this in 0.16.
-class TFExampleDecoder(object):
-  """A decoder for decoding TF examples into tf data validation datasets.
-  """
-
-  def decode(self, serialized_example_proto: bytes) -> types.Example:
-    """Decodes serialized tf.Example to tf data validation input dict."""
-    return example_coder.ExampleToNumpyDict(serialized_example_proto)
 
 
 @beam.ptransform_fn

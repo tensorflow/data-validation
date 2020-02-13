@@ -9,6 +9,7 @@
 ## Breaking Changes
 
 ## Deprecations
+TFExampleDecoder
 
 # Release 0.21.1
 

@@ -25,17 +25,12 @@ from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import decoded_examples_to_arrow
 from tfx_bsl.coders import example_coder
-from typing import Dict, List, Iterable, Optional, Text
+from tfx_bsl.tfxio import record_based_tfxio
+from typing import List, Iterable, Optional
 
 
-def GetBeamBatchKwargs(desired_batch_size: Optional[int]) -> Dict[Text, int]:
-  """Returns the kwargs to be passed to beam.BatchElements."""
-  if desired_batch_size is None:
-    return {}
-  return {
-      "min_batch_size": desired_batch_size,
-      "max_batch_size": desired_batch_size,
-  }
+# DEPRECATED. Use the TFXIO util instead.
+GetBeamBatchKwargs = record_based_tfxio.GetBatchElementsKwargs
 
 
 # TODO(pachristopher): Deprecate this.
@@ -65,7 +60,8 @@ def BatchExamplesToArrowTables(
   return (
       examples
       | "BatchBeamExamples" >>
-      beam.BatchElements(**GetBeamBatchKwargs(desired_batch_size))
+      beam.BatchElements(**record_based_tfxio.GetBatchElementsKwargs(
+          desired_batch_size))
       | "DecodeExamplesToTable" >>
       # pylint: disable=unnecessary-lambda
       beam.Map(lambda x: decoded_examples_to_arrow.DecodedExamplesToTable(x)))
@@ -92,7 +88,8 @@ def BatchSerializedExamplesToArrowTables(
   """
   return (examples
           | "BatchSerializedExamples" >>
-          beam.BatchElements(**GetBeamBatchKwargs(desired_batch_size))
+          beam.BatchElements(
+              **record_based_tfxio.GetBatchElementsKwargs(desired_batch_size))
           | "BatchDecodeExamples" >> beam.ParDo(_BatchDecodeExamplesDoFn()))
 
 

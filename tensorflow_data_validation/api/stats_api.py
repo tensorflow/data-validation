@@ -68,7 +68,7 @@ class GenerateStatistics(beam.PTransform):
     with beam.Pipeline(runner=...) as p:
       _ = (p
            | 'ReadData' >> beam.io.ReadFromTFRecord(data_location)
-           | 'DecodeData' >> beam.Map(TFExampleDecoder().decode)
+           | 'DecodeData' >> tfdv.DecodeTFExample()
            | 'GenerateStatistics' >> GenerateStatistics()
            | 'WriteStatsOutput' >> beam.io.WriteToTFRecord(
                output_path, shard_name_template='',

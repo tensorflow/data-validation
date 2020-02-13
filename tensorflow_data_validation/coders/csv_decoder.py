@@ -22,8 +22,8 @@ import apache_beam as beam
 import pyarrow as pa
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
-from tensorflow_data_validation.utils import batch_util
 from tfx_bsl.coders import csv_decoder as csv_decoder
+from tfx_bsl.tfxio import record_based_tfxio
 from typing import List, Iterable, Optional, Text
 
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -101,7 +101,8 @@ class DecodeCSV(beam.PTransform):
     # Do second pass to generate the in-memory dict representation.
     return (csv_lines
             | 'BatchCSVLines' >> beam.BatchElements(
-                **batch_util.GetBeamBatchKwargs(self._desired_batch_size))
+                **record_based_tfxio.GetBatchElementsKwargs(
+                    self._desired_batch_size))
             | 'BatchedCSVRowsToArrow' >> beam.ParDo(
                 _BatchedCSVRowsToArrow(skip_blank_lines=self._skip_blank_lines),
                 column_infos))

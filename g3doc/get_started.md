@@ -277,12 +277,16 @@ those examples.
 TFDV also provides the `validate_instance` function for identifying whether an
 individual example exhibits anomalies when matched against a schema. To use this
 function, the example must be a dict mapping feature names to numpy arrays of
-feature values. You can use the `TFExampleDecoder` to decode serialized
+feature values. You can use the the decoder in `tfx_bsl` to decode serialized
 `tf.train.Example`s into this format. For example:
 
 ```python
-   decoder = tfdv.TFExampleDecoder()
-   example = decoder.decode(serialized_tfexample)
+   import tensorflow_data_validation as tfdv
+   import tfx_bsl
+   import pyarrow as pa
+   decoder = tfx_bsl.coders.example_coder.ExamplesToRecordBatchDecoder()
+   example = pa.Table.from_batches(
+      [decoder.DecodeBatch([serialized_tfexample])])
    options = tfdv.StatsOptions(schema=schema)
    anomalies = tfdv.validate_instance(example, options)
 ```
@@ -408,7 +412,7 @@ Once you have implemented the custom data connector that batches your
 input examples in an Arrow table, you need to connect it with the
 `tfdv.GenerateStatistics` API for computing the data statistics. Take `TFRecord`
 of `tf.train.Example`'s for example. We provide the
-[TFExampleDecoder](https://github.com/tensorflow/data-validation/tree/master/tensorflow_data_validation/coders/tf_example_decoder.py)
+[DecodeTFExample](https://github.com/tensorflow/data-validation/tree/master/tensorflow_data_validation/coders/tf_example_decoder.py)
 data connector, and below is an example of how to connect it with the
 `tfdv.GenerateStatistics` API.
 
