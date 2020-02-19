@@ -6,6 +6,8 @@
 
 ## Bug Fixes and Other Changes
 
+*   Fix facets visualization.
+
 ## Breaking Changes
 
 ## Deprecations

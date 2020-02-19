@@ -230,15 +230,18 @@ def get_statistics_html(
   protostr = base64.b64encode(
       combined_statistics.SerializeToString()).decode('utf-8')
 
-  # pylint: disable=line-too-long
+  # pylint: disable=line-too-long,anomalous-backslash-in-string
   # Note that in the html template we currently assign a temporary id to the
   # facets element and then remove it once we have appended the serialized proto
   # string to the element. We do this to avoid any collision of ids when
   # displaying multiple facets output in the notebook.
+  #
+  # Note that a string literal including '</script>' in a <script> tag needs to
+  # escape it as <\/script> to avoid early closing the wrapping <script> tag.
   html_template = """<iframe id='facets-iframe' width="100%" height="500px"></iframe>
         <script>
         facets_iframe = document.getElementById('facets-iframe');
-        facets_html = '<script src="https://cdnjs.cloudflare.com/ajax/libs/webcomponentsjs/1.3.3/webcomponents-lite.js"></script><link rel="import" href="https://raw.githubusercontent.com/PAIR-code/facets/master/facets-dist/facets-jupyter.html"><facets-overview proto-input="protostr"></facets-overview>';
+        facets_html = '<script src="https://cdnjs.cloudflare.com/ajax/libs/webcomponentsjs/1.3.3/webcomponents-lite.js"><\/script><link rel="import" href="https://raw.githubusercontent.com/PAIR-code/facets/master/facets-dist/facets-jupyter.html"><facets-overview proto-input="protostr"></facets-overview>';
         facets_iframe.srcdoc = facets_html;
          facets_iframe.id = "";
          setTimeout(() => {
