@@ -1,6 +1,6 @@
 <!-- mdlint off(HEADERS_TOO_MANY_H1) -->
 
-# Current Version(Still Under Development)
+# Release 0.21.2
 
 ## Major Features and Improvements
 
@@ -11,7 +11,11 @@
 ## Breaking Changes
 
 ## Deprecations
-TFExampleDecoder
+
+*   `tfdv.TFExampleDecoder` has been removed. This legacy decoder converts
+    serialized `tf.Example` to a dict of numpy arrays, which is the legacy
+    input format (prior to Apache Arrow). TFDV has stopped accepting that format
+    since 0.14. Use `tfdv.DecodeTFExample` instead.
 
 # Release 0.21.1
 
