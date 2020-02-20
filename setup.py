@@ -82,6 +82,9 @@ setup(
     # Make sure to sync the versions of common dependencies (absl-py, numpy,
     # six, and protobuf) with TF.
     install_requires=[
+        # TODO(b/149841057): This is a workaround for broken avro-python3
+        # release. Remove once avro has a healthy release.
+        'avro-python3>=1.8.1,!=1.9.2.*,!=<2.0.0; python_version>="3.0"',
         'absl-py>=0.7,<0.9',
         'apache-beam[gcp]>=2.17,<3',
         'numpy>=1.16,<2',
