@@ -238,6 +238,13 @@ def generate_equi_width_buckets(quantiles: List[float],
     # the (+inf, +inf) buckets.
     last_bucket_count -= sample_count
 
+  # Cast finite boundaries from float32 to float64 to avoid precision errors.
+  # This error can happen when both min and max in the boundaries are valid
+  # float32 values, but when we compute (max-min) to compute the width it can
+  # result in an overflow.
+  # Example: min=-3.4e+38, max=3.4e+38
+  finite_values = np.array(finite_values, dtype=np.float64)
+
   # Check if the finite quantile boundaries are sorted.
   assert np.all(np.diff(finite_values) >= 0), (
       'Quantiles output not sorted %r'  % ','.join(map(str, finite_values)))
@@ -262,7 +269,7 @@ def generate_equi_width_buckets(quantiles: List[float],
 
 
 def _generate_equi_width_buckets_from_finite_boundaries(
-    quantiles: List[float], sample_count: float, num_buckets: int):
+    quantiles: np.ndarray, sample_count: float, num_buckets: int):
   """Generates equi width buckets from finite quantiles boundaries."""
 
   def _compute_count(start_index, end_index, start_pos):

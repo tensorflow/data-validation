@@ -193,6 +193,22 @@ _EQUI_WIDTH_BUCKETS_TESTS = [
             quantiles_util.Bucket(3.66666666, 5, 2.33333333)],
     },
     {
+        'testcase_name': 'finite_values_float_boundaries_float32_overflow',
+        'quantiles': list(np.array(
+            [-3.4e+38, 1.0, 2.0, 3.0, 4.0, 5.0, 3.4e+38], dtype=np.float32)),
+        'finite_min': 1,
+        'finite_max': 5,
+        'total_count': 6,
+        'num_buckets': 3,
+        'expected_buckets': [
+            quantiles_util.Bucket(
+                -3.3999999521443642e+38, -1.1333333173814546e+38, 0.66666666),
+            quantiles_util.Bucket(
+                -1.1333333173814546e+38, 1.133333317381455e+38, 4.66666666),
+            quantiles_util.Bucket(
+                1.133333317381455e+38, 3.3999999521443642e+38, 0.66666666)],
+    },
+    {
         'testcase_name': 'same_min_max',
         'quantiles': [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
         'finite_min': 1,
