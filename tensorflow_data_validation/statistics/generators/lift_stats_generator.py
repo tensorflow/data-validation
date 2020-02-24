@@ -133,21 +133,35 @@ def _get_example_value_presence(
     return None
 
   arr_flat = arr.flatten()
+  is_binary_like = arrow_util.is_binary_like(arr_flat.type)
+  assert boundaries is None or not is_binary_like, (
+      'Boundaries can only be applied to numeric columns')
+  if is_binary_like:
+    # use dictionary_encode so we can use np.unique on object arrays
+    dict_array = arr_flat.dictionary_encode()
+    arr_flat = dict_array.indices
+    arr_flat_dict = np.asarray(dict_array.dictionary)
   example_indices_flat = example_indices[
       array_util.GetFlattenedArrayParentIndices(arr).to_numpy()]
   if boundaries is not None:
     element_indices, bins = bin_util.bin_array(arr_flat, boundaries)
-    df = pd.DataFrame({
-        'example_indices': example_indices_flat[element_indices],
-        'values': bins
-    })
+    pairs = np.vstack([example_indices_flat[element_indices], bins])
   else:
-    df = pd.DataFrame({
-        'example_indices': example_indices_flat,
-        'values': np.asarray(arr_flat)
-    })
-  df_unique = df.drop_duplicates()
-  return df_unique.set_index('example_indices')['values']
+    pairs = np.vstack([example_indices_flat, np.asarray(arr_flat)])
+  if not pairs.size:
+    return None
+  # Deduplicate values which show up more than once in the same example. This
+  # makes P(X=x|Y=y) in the standard lift definition behave as
+  # P(x \in Xs | y \in Ys) if examples contain more than one value of X and Y.
+  unique_pairs = np.unique(pairs, axis=1)
+  example_indices = unique_pairs[0, :]
+  values = unique_pairs[1, :]
+  if is_binary_like:
+    # return binary like values a pd.Categorical wrapped in a Series. This makes
+    # subsqeuent operations like pd.Merge cheaper.
+    values = pd.Categorical.from_codes(values, categories=arr_flat_dict)
+  return pd.Series(values, name='values',
+                   index=pd.Index(example_indices, name='example_indices'))
 
 
 def _to_partial_copresence_counts(

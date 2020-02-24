@@ -19,6 +19,7 @@ from __future__ import division
 from __future__ import print_function
 
 from absl.testing import absltest
+import numpy as np
 import pandas as pd
 import pyarrow as pa
 
@@ -39,6 +40,21 @@ class GetExampleValuePresenceTest(absltest.TestCase):
         pa.array([[1], [1, 1], [1, 2], [2]]),
     ], ['x'])
     expected_series = pd.Series([1, 1, 1, 2, 2], name='values',
+                                index=pd.Index([0, 1, 2, 2, 3],
+                                               name='example_indices'))
+    pd.testing.assert_series_equal(
+        expected_series,
+        lift_stats_generator._get_example_value_presence(
+            t, types.FeaturePath(['x']), boundaries=None))
+
+  def test_example_value_presence_string_value(self):
+    t = pa.Table.from_arrays([
+        pa.array([['a'], ['a', 'a'], ['a', 'b'], ['b']]),
+    ], ['x'])
+    expected_cat = pd.Categorical.from_codes([0, 0, 0, 1, 1],
+                                             categories=['a', 'b'])
+    expected_series = pd.Series(expected_cat,
+                                name='values',
                                 index=pd.Index([0, 1, 2, 2, 3],
                                                name='example_indices'))
     pd.testing.assert_series_equal(
@@ -702,6 +718,64 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
     expected_result = []
     generator = lift_stats_generator.LiftStatsGenerator(
         schema=schema, y_path=types.FeaturePath(['string_y']))
+    self.assertSlicingAwareTransformOutputEqual(
+        examples,
+        generator,
+        expected_result,
+        add_default_slice_key_to_input=True,
+        add_default_slice_key_to_output=True)
+
+  def test_lift_missing_x_and_y(self):
+    examples = [
+        pa.Table.from_arrays([
+            # explicitly construct type to avoid treating as null type
+            pa.array([], type=pa.list_(pa.binary())),
+            pa.array([], type=pa.list_(pa.binary())),
+        ], ['categorical_x', 'string_y']),
+    ]
+    schema = text_format.Parse(
+        """
+        feature {
+          name: 'categorical_x'
+          type: BYTES
+        }
+        feature {
+          name: 'string_y'
+          type: BYTES
+        }
+        """, schema_pb2.Schema())
+    expected_result = []
+    generator = lift_stats_generator.LiftStatsGenerator(
+        schema=schema, y_path=types.FeaturePath(['string_y']))
+    self.assertSlicingAwareTransformOutputEqual(
+        examples,
+        generator,
+        expected_result,
+        add_default_slice_key_to_input=True,
+        add_default_slice_key_to_output=True)
+
+  def test_lift_float_y_is_nan(self):
+    # after calling bin_array, this is effectively an empty array.
+    examples = [
+        pa.Table.from_arrays([
+            pa.array([['a']]),
+            pa.array([[np.nan]]),
+        ], ['categorical_x', 'float_y']),
+    ]
+    schema = text_format.Parse(
+        """
+        feature {
+          name: 'categorical_x'
+          type: BYTES
+        }
+        feature {
+          name: 'float_y'
+          type: FLOAT
+        }
+        """, schema_pb2.Schema())
+    expected_result = []
+    generator = lift_stats_generator.LiftStatsGenerator(
+        schema=schema, y_path=types.FeaturePath(['float_y']), y_boundaries=[1])
     self.assertSlicingAwareTransformOutputEqual(
         examples,
         generator,

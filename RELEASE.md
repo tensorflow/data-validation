@@ -17,6 +17,7 @@
 ## Bug Fixes and Other Changes
 
 *   Fix facets visualization.
+*   Optimize LiftStatsGenerator for string features.
 
 ## Breaking Changes
 
