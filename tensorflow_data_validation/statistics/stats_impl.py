@@ -50,6 +50,14 @@ from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
+# The combiner accumulates tables from the upstream and merge them when certain
+# conditions are met. A merged table would allow better vectorized processing,
+# but we have to pay for copying and the RAM to contain the merged table.
+# If the total byte size of accumulated tables exceeds this threshold a merge
+# will be forced to avoid consuming too much memory.
+_MERGE_TABLE_BYTE_SIZE_THRESHOLD = 20 << 20  # 20MiB
+
+
 @beam.typehints.with_input_types(pa.Table)
 @beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatisticsList)
 class GenerateStatisticsImpl(beam.PTransform):
@@ -505,7 +513,8 @@ class NumExamplesStatsGenerator(stats_generator.CombinerStatsGenerator):
 class _CombinerStatsGeneratorsCombineFnAcc(object):
   """accumulator for _CombinerStatsGeneratorsCombineFn."""
 
-  __slots__ = ['partial_accumulators', 'input_tables', 'curr_batch_size']
+  __slots__ = ['partial_accumulators', 'input_tables', 'curr_batch_size',
+               'curr_byte_size']
 
   def __init__(self, partial_accumulators: List[Any]):
     # Partial accumulator states of the underlying CombinerStatsGenerators.
@@ -514,6 +523,8 @@ class _CombinerStatsGeneratorsCombineFnAcc(object):
     self.input_tables = []
     # Current batch size.
     self.curr_batch_size = 0
+    # Current total byte size of all the pa.Tables accumulated.
+    self.curr_byte_size = 0
 
 
 @beam.typehints.with_input_types(pa.Table)
@@ -544,7 +555,7 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
   """
 
   __slots__ = ['_generators', '_desired_batch_size', '_combine_batch_size',
-               '_num_compacts', '_num_instances']
+               '_combine_byte_size', '_num_compacts', '_num_instances']
 
   # This needs to be large enough to allow for efficient merging of
   # accumulators in the individual stats generators, but shouldn't be too large
@@ -569,6 +580,8 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
     # Metrics
     self._combine_batch_size = beam.metrics.Metrics.distribution(
         constants.METRICS_NAMESPACE, 'combine_batch_size')
+    self._combine_byte_size = beam.metrics.Metrics.distribution(
+        constants.METRICS_NAMESPACE, 'combine_byte_size')
     self._num_compacts = beam.metrics.Metrics.counter(
         constants.METRICS_NAMESPACE, 'num_compacts')
     self._num_instances = beam.metrics.Metrics.counter(
@@ -596,6 +609,20 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
     return _CombinerStatsGeneratorsCombineFnAcc(
         [g.create_accumulator() for g in self._generators])
 
+  def _should_do_batch(self, accumulator: _CombinerStatsGeneratorsCombineFnAcc,
+                       force: bool) -> bool:
+    curr_batch_size = accumulator.curr_batch_size
+    if force and curr_batch_size > 0:
+      return True
+
+    if curr_batch_size >= self._desired_batch_size:
+      return True
+
+    if accumulator.curr_byte_size >= _MERGE_TABLE_BYTE_SIZE_THRESHOLD:
+      return True
+
+    return False
+
   def _maybe_do_batch(
       self,
       accumulator: _CombinerStatsGeneratorsCombineFnAcc,
@@ -610,9 +637,9 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
       force: Force computation of stats even if accumulator has less examples
         than the batch size.
     """
-    batch_size = accumulator.curr_batch_size
-    if (force and batch_size > 0) or batch_size >= self._desired_batch_size:
-      self._combine_batch_size.update(batch_size)
+    if self._should_do_batch(accumulator, force):
+      self._combine_batch_size.update(accumulator.curr_batch_size)
+      self._combine_byte_size.update(accumulator.curr_byte_size)
       if len(accumulator.input_tables) == 1:
         arrow_table = accumulator.input_tables[0]
       else:
@@ -622,6 +649,7 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
           accumulator.partial_accumulators)
       del accumulator.input_tables[:]
       accumulator.curr_batch_size = 0
+      accumulator.curr_byte_size = 0
 
   def add_input(
       self, accumulator: _CombinerStatsGeneratorsCombineFnAcc,
@@ -630,6 +658,7 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
     accumulator.input_tables.append(input_table)
     num_rows = input_table.num_rows
     accumulator.curr_batch_size += num_rows
+    accumulator.curr_byte_size += table_util.TotalByteSize(input_table)
     self._maybe_do_batch(accumulator)
     self._num_instances.inc(num_rows)
     return accumulator
@@ -657,6 +686,7 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
       for acc in batched_accumulators:
         result.input_tables.extend(acc.input_tables)
         result.curr_batch_size += acc.curr_batch_size
+        result.curr_byte_size += acc.curr_byte_size
         self._maybe_do_batch(result)
         batched_partial_accumulators.append(acc.partial_accumulators)
 
