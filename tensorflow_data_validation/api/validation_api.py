@@ -22,6 +22,7 @@ from __future__ import print_function
 import logging
 import apache_beam as beam
 import pyarrow as pa
+import pandas as pd
 import tensorflow as tf
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
@@ -52,6 +53,17 @@ _GLOBAL_ONLY_ANOMALY_TYPES = set([
     anomalies_pb2.AnomalyInfo.NO_DATA_IN_SPAN,
 ])
 
+def preprocess_numerical_to_categorical_by_own_quantiles(
+    dataframe: pd.DataFrame,
+):
+  # TODO: refactor implementation from private project
+  return dataframe
+
+def preprocess_numerical_to_categorical_by_training_quantiles(
+    dataframe: pd.DataFrame,
+):
+  # TODO: refactor implementation from private project
+  return dataframe
 
 def infer_schema(
     statistics: statistics_pb2.DatasetFeatureStatisticsList,
