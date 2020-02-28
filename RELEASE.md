@@ -18,6 +18,7 @@
 
 *   Fix facets visualization.
 *   Optimize LiftStatsGenerator for string features.
+*   Make `_WeightedCounter` serializable.
 
 ## Breaking Changes
 

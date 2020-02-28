@@ -120,6 +120,9 @@ class _WeightedCounter(collections.defaultdict):
     for k, v in six.iteritems(other):
       self[k] += v
 
+  def __reduce__(self):
+    return type(self), (), None, None, iter(self.items())
+
 
 class TopKUniquesCombinerStatsGenerator(
     stats_generator.CombinerStatsGenerator):
