@@ -75,35 +75,44 @@ class EnumerateArraysTest(parameterized.TestCase):
     for t in (pa.list_(pa.binary()), pa.large_list(pa.string())):
       self.assertFalse(arrow_util.is_binary_like(t))
 
-  def testGetBroadcastableColumnNotFound(self):
+  def testGetWeightFeatureNotFound(self):
     with self.assertRaisesRegex(
         ValueError,
-        r'Column "w" not present in the input table\.'):
-      arrow_util.get_broadcastable_column(
+        r'Weight column "w" not present in the input table\.'):
+      arrow_util.get_weight_feature(
           pa.Table.from_arrays(
               [pa.array([[1], [2]]),
                pa.array([[1], [3]])], ["u", "v"]),
-          column_name="w")
+          weight_column="w")
 
-  def testGetBroadcastableColumnMissingValue(self):
+  def testGetWeightFeatureNullArray(self):
+    with self.assertRaisesRegex(ValueError, 'Weight column "w" cannot be '
+                                r'null\.'):
+      arrow_util.get_weight_feature(
+          pa.Table.from_arrays(
+              [pa.array([[1], [2]]),
+               pa.array([None, None])], ["v", "w"]),
+          weight_column="w")
+
+  def testGetWeightFeatureMissingValue(self):
     with self.assertRaisesRegex(
         ValueError,
-        r'Column "w" must have exactly one value in each example\.'):
-      arrow_util.get_broadcastable_column(
+        r'Weight column "w" must have exactly one value in each example\.'):
+      arrow_util.get_weight_feature(
           pa.Table.from_arrays(
               [pa.array([[1], [2]]),
                pa.array([[1], []])], ["v", "w"]),
-          column_name="w")
+          weight_column="w")
 
-  def testGetBroadcastableColumnTooManyValues(self):
+  def testGetWeightFeatureTooManyValues(self):
     with self.assertRaisesRegex(
         ValueError,
-        r'Column "w" must have exactly one value in each example\.'):
-      arrow_util.get_broadcastable_column(
+        r'Weight column "w" must have exactly one value in each example\.'):
+      arrow_util.get_weight_feature(
           pa.Table.from_arrays(
               [pa.array([[1], [2, 3]]),
                pa.array([[1], [2, 2]])], ["v", "w"]),
-          column_name="w")
+          weight_column="w")
 
   def testGetArrayEmptyPath(self):
     with self.assertRaisesRegex(

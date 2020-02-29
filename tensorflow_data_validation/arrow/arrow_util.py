@@ -25,36 +25,46 @@ from tfx_bsl.arrow import array_util
 from typing import Iterable, Optional, Text, Tuple
 
 
-def get_broadcastable_column(input_table: pa.Table,
-                             column_name: Text) -> pa.Array:
-  """Gets a column from the input table, validating that it can be broadcast.
+def get_weight_feature(input_table: pa.Table,
+                       weight_column: Text) -> np.ndarray:
+  """Gets the weight column from the input table.
 
   Args:
     input_table: Input table.
-    column_name: Name of the column to be retrieved and validated.
-      This column must refer to a ListArray in which each list has length 1.
+    weight_column: Name of the column containing the weight.
 
   Returns:
-    An arrow array containing a flattened view of the broadcast column.
+    A numpy array containing the weights of the examples in the input table.
 
   Raises:
-    ValueError: If the broadcast feature is not present in the input table or is
-        not a valid column. A valid column must have exactly one value per
-        example and be of a numeric type.
+    ValueError: If the weight feature is not present in the input table or is
+        not a valid weight feature (must be of numeric type and have a
+        single value for each example).
   """
   try:
-    column = input_table.column(column_name).data.chunk(0)
+    weights = input_table.column(weight_column).data.chunk(0)
   except KeyError:
-    raise ValueError('Column "{}" not present in the input table.'.format(
-        column_name))
+    raise ValueError('Weight column "{}" not present in the input '
+                     'table.'.format(weight_column))
 
+  if pa.types.is_null(weights.type):
+    raise ValueError('Weight column "{}" cannot be null.'.format(weight_column))
   # Before flattening, check that there is a single value for each example.
-  column_lengths = array_util.ListLengthsFromListArray(column).to_numpy()
-  if not np.all(column_lengths == 1):
+  weight_lengths = array_util.ListLengthsFromListArray(weights).to_numpy()
+  if not np.all(weight_lengths == 1):
     raise ValueError(
-        'Column "{}" must have exactly one value in each example.'.format(
-            column_name))
-  return column.flatten()
+        'Weight column "{}" must have exactly one value in each example.'
+        .format(weight_column))
+  flat_weights = weights.flatten()
+  # Before converting to numpy view, check the type (cannot convert string and
+  # binary arrays to numpy view).
+  flat_weights_type = flat_weights.type
+  if (not pa.types.is_floating(flat_weights_type) and
+      not pa.types.is_integer(flat_weights_type)):
+    raise ValueError(
+        'Weight column "{}" must be of numeric type. Found {}.'.format(
+            weight_column, flat_weights_type))
+  return np.asarray(flat_weights)
 
 
 def is_binary_like(data_type: pa.DataType) -> bool:
@@ -222,14 +232,7 @@ def enumerate_arrays(
 
   weights = None
   if weight_column is not None:
-    weights = get_broadcastable_column(table, weight_column)
-    weight_type = weights.type
-    if (not pa.types.is_floating(weight_type) and
-        not pa.types.is_integer(weight_type)):
-      raise ValueError(
-          'Weight column "{}" must be of numeric type. Found {}.'.format(
-              weight_column, weight_type))
-    weights = np.asarray(weights)
+    weights = get_weight_feature(table, weight_column)
   for column_name, column in zip(table.schema.names, table.itercolumns()):
     # use "yield from" after PY 3.3.
     for e in _recursion_helper(

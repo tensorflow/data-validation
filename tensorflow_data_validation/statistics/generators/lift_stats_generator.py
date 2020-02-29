@@ -60,6 +60,7 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 
 _XType = Union[Text, bytes]
 _YType = Union[Text, bytes, int]
+_CountType = Union[int, float]
 
 _SlicedYKey = typing.NamedTuple('_SlicedYKey', [('slice_key', types.SliceKey),
                                                 ('y', _YType)])
@@ -75,7 +76,7 @@ _SlicedXYKey = typing.NamedTuple('_SlicedXYKey', [('slice_key', types.SliceKey),
 _LiftSeriesKey = typing.NamedTuple('_LiftSeriesKey',
                                    [('slice_key', types.SliceKey),
                                     ('x_path', types.FeaturePath),
-                                    ('y', _YType), ('y_count', int)])
+                                    ('y', _YType), ('y_count', _CountType)])
 
 _SlicedFeatureKey = typing.NamedTuple('_SlicedFeatureKey',
                                       [('slice_key', types.SliceKey),
@@ -83,27 +84,32 @@ _SlicedFeatureKey = typing.NamedTuple('_SlicedFeatureKey',
 
 _ConditionalYRate = typing.NamedTuple('_ConditionalYRate',
                                       [('x_path', types.FeaturePath),
-                                       ('x', _XType), ('xy_count', int),
-                                       ('x_count', int)])
+                                       ('x', _XType), ('xy_count', _CountType),
+                                       ('x_count', _CountType)])
 
-_YRate = typing.NamedTuple('_YRate', [('y_count', int), ('example_count', int)])
+_YRate = typing.NamedTuple('_YRate', [('y_count', _CountType),
+                                      ('example_count', _CountType)])
 
 _LiftInfo = typing.NamedTuple('_LiftInfo', [('x', _XType), ('y', _YType),
-                                            ('lift', float), ('xy_count', int),
-                                            ('x_count', int), ('y_count', int)])
+                                            ('lift', float),
+                                            ('xy_count', _CountType),
+                                            ('x_count', _CountType),
+                                            ('y_count', _CountType)])
 
 _LiftValue = typing.NamedTuple('_LiftValue', [('x', _XType), ('lift', float),
-                                              ('xy_count', int),
-                                              ('x_count', int)])
+                                              ('xy_count', _CountType),
+                                              ('x_count', _CountType)])
 
 _LiftSeries = typing.NamedTuple('_LiftSeries',
-                                [('y', _YType), ('y_count', int),
+                                [('y', _YType), ('y_count', _CountType),
                                  ('lift_values', Iterable[_LiftValue])])
 
 
 def _get_example_value_presence(
     table: pa.Table, path: types.FeaturePath,
-    boundaries: Optional[Iterable[float]]) -> Optional[pd.Series]:
+    boundaries: Optional[Iterable[float]],
+    weight_column_name: Optional[Text]) -> Optional[pd.DataFrame]:
+
   """Returns information about which examples contained which values.
 
   This function treats all values for a given path within a single example
@@ -121,11 +127,16 @@ def _get_example_value_presence(
     path: The FeaturePath for which to fetch values.
     boundaries: Optionally, a set of bin boundaries to use for binning the array
       values.
+    weight_column_name: Optionally, a weight column to return in addition to the
+      value and example index.
 
   Returns:
-    A Pandas Series containing distinct pairs of array values and example
-    indices. The series values will be the array values, and the series index
-    values will be the example indices.
+    A Pandas DataFrame containing distinct pairs of array values and example
+    indices, along with the corresponding flattened example weights. The index
+    will be the example indices and the values will be stored in a column named
+    'values'. If weight_column_name is provided, a second column will be
+    returned containing the array values, and 'weights' containing the weights
+    for the example from which each value came.
   """
   arr, example_indices = arrow_util.get_array(
       table, path, return_example_indices=True)
@@ -141,34 +152,38 @@ def _get_example_value_presence(
     dict_array = arr_flat.dictionary_encode()
     arr_flat = dict_array.indices
     arr_flat_dict = np.asarray(dict_array.dictionary)
-  example_indices_flat = example_indices[
-      array_util.GetFlattenedArrayParentIndices(arr).to_numpy()]
+  parent_indices = array_util.GetFlattenedArrayParentIndices(arr).to_numpy()
+  example_indices_flat = example_indices[parent_indices]
   if boundaries is not None:
     element_indices, bins = bin_util.bin_array(arr_flat, boundaries)
-    pairs = np.vstack([example_indices_flat[element_indices], bins])
+    rows = np.vstack([example_indices_flat[element_indices], bins])
   else:
-    pairs = np.vstack([example_indices_flat, np.asarray(arr_flat)])
-  if not pairs.size:
+    rows = np.vstack([example_indices_flat, np.asarray(arr_flat)])
+  if not rows.size:
     return None
   # Deduplicate values which show up more than once in the same example. This
   # makes P(X=x|Y=y) in the standard lift definition behave as
   # P(x \in Xs | y \in Ys) if examples contain more than one value of X and Y.
-  unique_pairs = np.unique(pairs, axis=1)
-  example_indices = unique_pairs[0, :]
-  values = unique_pairs[1, :]
+  unique_rows = np.unique(rows, axis=1)
+  example_indices = unique_rows[0, :]
+  values = unique_rows[1, :]
   if is_binary_like:
     # return binary like values a pd.Categorical wrapped in a Series. This makes
     # subsqeuent operations like pd.Merge cheaper.
     values = pd.Categorical.from_codes(values, categories=arr_flat_dict)
-  return pd.Series(values, name='values',
-                   index=pd.Index(example_indices, name='example_indices'))
+  columns = {'example_indices': example_indices, 'values': values}
+  if weight_column_name:
+    weights = arrow_util.get_weight_feature(table, weight_column_name)
+    columns['weights'] = np.asarray(weights)[example_indices]
+  df = pd.DataFrame(columns)
+  return df.set_index('example_indices')
 
 
 def _to_partial_copresence_counts(
     sliced_table: types.SlicedTable, y_path: types.FeaturePath,
     x_paths: Iterable[types.FeaturePath],
-    y_boundaries: Optional[Iterable[float]]
-) -> Iterator[Tuple[_SlicedXYKey, int]]:
+    y_boundaries: Optional[Iterable[float]], weight_column_name: Optional[Text]
+) -> Iterator[Tuple[_SlicedXYKey, _CountType]]:
   """Yields per-(slice, path_x, x, y) counts of examples with x and y.
 
   This method generates the number of times a given pair of y- and x-values
@@ -182,61 +197,72 @@ def _to_partial_copresence_counts(
     x_paths: A set of x_paths for which to compute lift.
     y_boundaries: Optionally, a set of bin boundaries to use for binning y_path
       values.
+    weight_column_name: Optionally, a weight column to use for weighting
+      copresence counts by the example weight in which an X and Y value were
+      copresent.
 
   Yields:
     Tuples of the form (_SlicedXYKey(slice_key, x_path, x, y), count) for each
     combination of  x_path, x, and y  in the input table.
   """
   slice_key, table = sliced_table
-  y_series = _get_example_value_presence(table, y_path, y_boundaries)
-  if y_series is None:
+  y_df = _get_example_value_presence(table, y_path, y_boundaries,
+                                     weight_column_name)
+  if y_df is None:
     return
-  x_column, y_column = 'x', 'y'
   for x_path in x_paths:
-    x_series = _get_example_value_presence(table, x_path, boundaries=None)
-    if x_series is None:
+    x_df = _get_example_value_presence(
+        table, x_path, boundaries=None, weight_column_name=weight_column_name)
+    if x_df is None:
       continue
     # merge using inner join implicitly drops null entries.
     copresence_df = pd.merge(
-        x_series.rename(x_column),
-        y_series.rename(y_column),
-        how='inner',
-        left_index=True,
-        right_index=True)
-    copresence_counts = copresence_df.groupby([x_column, y_column]).size()
+        x_df, y_df, how='inner', left_index=True, right_index=True)
+    # pd.merge automatically appends '_x' and '_y' to the first and second join
+    # args respectively.
+    grouped = copresence_df.groupby(['values_x', 'values_y'], observed=True)
+    if weight_column_name:
+      copresence_counts = grouped['weights_x'].sum()
+    else:
+      copresence_counts = grouped.size()
     for (x, y), count in copresence_counts.items():
       yield _SlicedXYKey(slice_key=slice_key, x_path=x_path, x=x, y=y), count
 
 
-def _to_partial_y_counts(
-    sliced_table: types.SlicedTable, y_path: types.FeaturePath,
-    y_boundaries: Optional[Iterable[float]]
-) -> Iterator[Tuple[_SlicedYKey, int]]:
-  """Yields per-(slice, y) counts of the examples with y in y_path."""
+def _to_partial_counts(
+    sliced_table: types.SlicedTable, path: types.FeaturePath,
+    boundaries: Optional[Iterable[float]], weight_column_name: Optional[Text]
+) -> Iterator[Tuple[Tuple[types.SliceKey, Union[_XType, _YType]], _CountType]]:
+  """Yields per-(slice, value) counts of the examples with value in path."""
   slice_key, table = sliced_table
-  series = _get_example_value_presence(table, y_path, y_boundaries)
-  if series is None:
+  df = _get_example_value_presence(table, path, boundaries, weight_column_name)
+  if df is None:
     return
-  for y, y_count in series.value_counts().items():
-    yield _SlicedYKey(slice_key, y), y_count
+  for value, group in df.groupby('values'):
+    if weight_column_name:
+      count = group['weights'].sum()
+    else:
+      count = group['values'].size
+    yield (slice_key, value), count
 
 
 def _to_partial_x_counts(
-    sliced_table: types.SlicedTable,
-    x_paths: Iterable[types.FeaturePath]) -> Iterator[Tuple[_SlicedXKey, int]]:
+    sliced_table: types.SlicedTable, x_paths: Iterable[types.FeaturePath],
+    weight_column_name: Optional[Text]
+) -> Iterator[Tuple[_SlicedXKey, _CountType]]:
   """Yields per-(slice, x_path, x) counts of the examples with x in x_path."""
-  slice_key, table = sliced_table
   for x_path in x_paths:
-    series = _get_example_value_presence(table, x_path, boundaries=None)
-    if series is None:
-      continue
-    for x, x_count in series.value_counts().items():
+    for (slice_key, x), x_count in _to_partial_counts(
+        sliced_table,
+        x_path,
+        boundaries=None,
+        weight_column_name=weight_column_name):
       yield _SlicedXKey(slice_key, x_path, x), x_count
 
 
 def _make_dataset_feature_stats_proto(
-    lifts: Tuple[_SlicedFeatureKey, _LiftSeries],
-    y_path: types.FeaturePath, y_boundaries: Optional[np.ndarray]
+    lifts: Tuple[_SlicedFeatureKey, _LiftSeries], y_path: types.FeaturePath,
+    y_boundaries: Optional[np.ndarray], weighted_examples: bool
 ) -> Tuple[types.SliceKey, statistics_pb2.DatasetFeatureStatistics]:
   """Generates DatasetFeatureStatistics proto for a given x_path, y_path pair.
 
@@ -252,6 +278,9 @@ def _make_dataset_feature_stats_proto(
       P(Y=y).
     y_boundaries: Optionally, a set of bin boundaries used for binning y_path
       values.
+    weighted_examples: Whether lift is computed over weighted examples, in which
+      case the proto will output weighted counts (as floats) rather than simple
+      counts (as ints).
 
   Returns:
     The populated DatasetFeatureStatistics proto.
@@ -262,8 +291,11 @@ def _make_dataset_feature_stats_proto(
       path_x=key.x_path.to_proto(), path_y=y_path.to_proto())
   for lift_series in sorted(lift_series_list):
     lift_series_proto = (
-        cross_stats.categorical_cross_stats.lift.lift_series.add(
-            y_count=lift_series.y_count))
+        cross_stats.categorical_cross_stats.lift.lift_series.add())
+    if weighted_examples:
+      lift_series_proto.weighted_y_count = lift_series.y_count
+    else:
+      lift_series_proto.y_count = lift_series.y_count
     y = lift_series.y
     if y_boundaries is not None:
       low_value, high_value = bin_util.get_boundaries(y, y_boundaries)
@@ -280,9 +312,13 @@ def _make_dataset_feature_stats_proto(
     lift_values_sorted = sorted(lift_values_deduped.values(),
                                 key=lambda v: (-v.lift, v.x))
     for lift_value in lift_values_sorted:
-      lift_value_proto = lift_series_proto.lift_values.add(
-          lift=lift_value.lift, x_count=lift_value.x_count,
-          x_and_y_count=lift_value.xy_count)
+      lift_value_proto = lift_series_proto.lift_values.add(lift=lift_value.lift)
+      if weighted_examples:
+        lift_value_proto.weighted_x_count = lift_value.x_count
+        lift_value_proto.weighted_x_and_y_count = lift_value.xy_count
+      else:
+        lift_value_proto.x_count = lift_value.x_count
+        lift_value_proto.x_and_y_count = lift_value.xy_count
       x = lift_value.x
       if isinstance(x, six.string_types):
         lift_value_proto.x_string = x
@@ -293,9 +329,9 @@ def _make_dataset_feature_stats_proto(
 
 def _cross_join_y_keys(
     join_info: Tuple[types.SliceKey, Dict[Text, List[Any]]]
-    # TODO(b/147153346) fix annotation to include specific Dict value type:
-    # Union[_YKey, Tuple[_YType, Tuple[types.FeaturePath, _XType, int]]]
-) -> Iterator[Tuple[_SlicedXYKey, int]]:
+    # TODO(b/147153346) update dict value list element type annotation to:
+    # Union[_YKey, Tuple[_YType, Tuple[types.FeaturePath, _XType, _CountType]]]
+) -> Iterator[Tuple[_SlicedXYKey, _CountType]]:
   slice_key, join_args = join_info
   for x_path, x, _ in join_args['x_counts']:
     for y in join_args['y_keys']:
@@ -304,8 +340,8 @@ def _cross_join_y_keys(
 
 def _join_x_counts(
     join_info: Tuple[_SlicedXKey, Dict[Text, List[Any]]]
-    # TODO(b/147153346) fix annotation to include specific Dict value type:
-    # Union[int, Tuple[_YType, int]]
+    # TODO(b/147153346) update dict value list element type annotation to:
+    # Union[_CountType, Tuple[_YType, _CountType]]
 ) -> Iterator[Tuple[_SlicedYKey, _ConditionalYRate]]:
   """Joins x_count with all xy_counts for that x.
 
@@ -340,8 +376,8 @@ def _join_x_counts(
 
 def _join_example_counts(
     join_info: Tuple[types.SliceKey, Dict[Text, List[Any]]]
-    # TODO(b/147153346) fix annotation to include specific Dict value type:
-    # Union[int, Tuple[_YType, int]]
+    # TODO(b/147153346) update dict value list element type annotation to:
+    # Union[_CountType, Tuple[_YType, _CountType]]
 ) -> Iterator[Tuple[_SlicedYKey, _YRate]]:
   """Joins slice example count with all values of y within that slice.
 
@@ -369,7 +405,7 @@ def _join_example_counts(
 
 def _compute_lifts(
     join_info: Tuple[_SlicedYKey, Dict[Text, List[Any]]]
-    # TODO(b/147153346) fix annotation to include specific Dict value type:
+    # TODO(b/147153346) update dict value list element type annotation to:
     # List[Union[_YRate, _ConditionalYRate]]
 ) -> Iterator[Tuple[_SlicedFeatureKey, _LiftInfo]]:
   """Joins y_counts with all x-y pairs for that y and computes lift.
@@ -493,7 +529,7 @@ class _FilterLifts(beam.PTransform):
 
 # No typehint for input, since it's a multi-input PTransform for which Beam
 # doesn't yet support typehints (BEAM-3280).
-@beam.typehints.with_output_types(Tuple[_SlicedXYKey, int])
+@beam.typehints.with_output_types(Tuple[_SlicedXYKey, _CountType])
 class _GetPlaceholderCopresenceCounts(beam.PTransform):
   """A PTransform for computing all possible x-y pairs, to support 0 lifts."""
 
@@ -501,8 +537,8 @@ class _GetPlaceholderCopresenceCounts(beam.PTransform):
     self._x_paths = x_paths
     self._min_x_count = min_x_count
 
-  def expand(self,
-             x_counts_and_ys: Tuple[Tuple[_SlicedXKey, int], _SlicedYKey]):
+  def expand(self, x_counts_and_ys: Tuple[Tuple[_SlicedXKey, _CountType],
+                                          _SlicedYKey]):
     x_counts, y_keys = x_counts_and_ys
 
     # slice, y
@@ -531,11 +567,13 @@ class _GetPlaceholderCopresenceCounts(beam.PTransform):
 class _GetConditionalYRates(beam.PTransform):
   """A PTransform for computing the rate of each y value, given an x value."""
 
-  def __init__(self, y_path, y_boundaries, x_paths, min_x_count):
+  def __init__(self, y_path, y_boundaries, x_paths, min_x_count,
+               weight_column_name):
     self._y_path = y_path
     self._y_boundaries = y_boundaries
     self._x_paths = x_paths
     self._min_x_count = min_x_count
+    self._weight_column_name = weight_column_name
 
   def expand(self, sliced_tables_and_ys: Tuple[types.SlicedTable, _SlicedYKey]):
     sliced_tables, y_keys = sliced_tables_and_ys
@@ -545,7 +583,7 @@ class _GetConditionalYRates(beam.PTransform):
         sliced_tables
         | 'ToPartialCopresenceCounts' >> beam.FlatMap(
             _to_partial_copresence_counts, self._y_path, self._x_paths,
-            self._y_boundaries))
+            self._y_boundaries, self._weight_column_name))
 
     # Compute placerholder copresence counts.
     # partial_copresence_counts will only include x-y pairs that are present,
@@ -556,7 +594,7 @@ class _GetConditionalYRates(beam.PTransform):
     x_counts = (
         sliced_tables
         | 'ToPartialXCounts' >> beam.FlatMap(
-            _to_partial_x_counts, self._x_paths)
+            _to_partial_x_counts, self._x_paths, self._weight_column_name)
         | 'SumXCounts' >> beam.CombinePerKey(sum))
     if self._min_x_count:
       x_counts = x_counts | 'FilterXCounts' >> beam.Filter(
@@ -592,9 +630,10 @@ class _GetConditionalYRates(beam.PTransform):
 class _GetYRates(beam.PTransform):
   """A PTransform for computing the rate of each y value within each slice."""
 
-  def __init__(self, y_path, y_boundaries):
+  def __init__(self, y_path, y_boundaries, weight_column_name):
     self._y_path = y_path
     self._y_boundaries = y_boundaries
+    self._weight_column_name = weight_column_name
 
   def expand(self, sliced_tables):
     # slice, example_count
@@ -610,8 +649,9 @@ class _GetYRates(beam.PTransform):
     # slice, (y, y_count)
     y_counts = (
         sliced_tables
-        | 'ToPartialYCounts' >> beam.FlatMap(_to_partial_y_counts, self._y_path,
-                                             self._y_boundaries)
+        | 'ToPartialYCounts' >>
+        beam.FlatMap(_to_partial_counts, self._y_path, self._y_boundaries,
+                     self._weight_column_name)
         | 'SumYCounts' >> beam.CombinePerKey(sum)
         | 'MoveYToValue' >> beam.MapTuple(move_y_to_value))
 
@@ -644,7 +684,7 @@ class _LiftStatsGenerator(beam.PTransform):
                x_paths: Optional[Iterable[types.FeaturePath]],
                y_boundaries: Optional[Iterable[float]], min_x_count: int,
                top_k_per_y: Optional[int], bottom_k_per_y: Optional[int],
-               name: Text) -> None:
+               weight_column_name: Optional[Text], name: Text) -> None:
     """Initializes a lift statistics generator.
 
     Args:
@@ -663,12 +703,14 @@ class _LiftStatsGenerator(beam.PTransform):
         [0.1, 0.8) and [0.8, inf].
       min_x_count: The minimum number of examples in which a specific x value
         must appear, in order for its lift to be output.
-      top_k_per_y:  Optionally, the number of top x values per y value, ordered
+      top_k_per_y: Optionally, the number of top x values per y value, ordered
         by descending lift, for which to output lift. If both top_k_per_y and
         bottom_k_per_y are unset, all values will be output.
-      bottom_k_per_y:  Optionally, the number of bottom x values per y value,
+      bottom_k_per_y: Optionally, the number of bottom x values per y value,
         ordered by descending lift, for which to output lift. If both
         top_k_per_y and bottom_k_per_y are unset, all values will be output.
+      weight_column_name: Optionally, a weight column to use for converting
+        counts of x or y into weighted counts.
       name: An optional unique name associated with the statistics generator.
     """
     self._name = name
@@ -679,6 +721,7 @@ class _LiftStatsGenerator(beam.PTransform):
     self._bottom_k_per_y = bottom_k_per_y
     self._y_boundaries = (
         np.array(sorted(set(y_boundaries))) if y_boundaries else None)
+    self._weight_column_name = weight_column_name
 
     # If a schema is provided, we can do some additional validation of the
     # provided y_feature and boundaries.
@@ -705,16 +748,16 @@ class _LiftStatsGenerator(beam.PTransform):
              sliced_tables: beam.pvalue.PCollection) -> beam.pvalue.PCollection:
     # Compute P(Y=y)
     # _SlicedYKey(slice, y), _YRate(y_count, example_count)
-    y_rates = sliced_tables | 'GetYRates' >> _GetYRates(self._y_path,
-                                                        self._y_boundaries)
+    y_rates = sliced_tables | 'GetYRates' >> _GetYRates(
+        self._y_path, self._y_boundaries, self._weight_column_name)
     y_keys = y_rates | 'ExtractYKeys' >> beam.Keys()
 
     # Compute P(Y=y | X=x)
     # _SlicedYKey(slice, y), _ConditionalYRate(x_path, x, xy_count, x_count)
-    conditional_y_rates = (
-        (sliced_tables, y_keys)
-        | 'GetConditionalYRates' >> _GetConditionalYRates(
-            self._y_path, self._y_boundaries, self._x_paths, self._min_x_count))
+    conditional_y_rates = ((sliced_tables, y_keys)
+                           | 'GetConditionalYRates' >> _GetConditionalYRates(
+                               self._y_path, self._y_boundaries, self._x_paths,
+                               self._min_x_count, self._weight_column_name))
 
     return (
         {
@@ -726,7 +769,54 @@ class _LiftStatsGenerator(beam.PTransform):
         | 'FilterLifts' >> _FilterLifts(self._top_k_per_y, self._bottom_k_per_y)
         | 'GroupLiftsForOutput' >> beam.GroupByKey()
         | 'MakeProtos' >> beam.Map(_make_dataset_feature_stats_proto,
-                                   self._y_path, self._y_boundaries))
+                                   self._y_path, self._y_boundaries,
+                                   self._weight_column_name is not None))
+
+
+@beam.typehints.with_input_types(types.SlicedTable)
+@beam.typehints.with_output_types(Tuple[types.SliceKey,
+                                        statistics_pb2.DatasetFeatureStatistics]
+                                 )
+class _UnweightedAndWeightedLiftStatsGenerator(beam.PTransform):
+  """A PTransform to compute both unweighted and weighted lift.
+
+  This simply wraps the logic in _LiftStatsGenerator and, depending on the value
+  of weight_column_name, either calls it once to compute unweighted lift, or
+  twice to compute both the unweighted and weighted lift. The result will be a
+  PCollection of stats per slice, with possibly two stats protos for the same
+  slice: one for the unweighted lift and one for the weighted lift.
+  """
+
+  def __init__(self, weight_column_name: Optional[Text], **kwargs):
+    """Initializes a weighted lift statistics generator.
+
+    Args:
+      weight_column_name: Optionally, a weight column to use for converting
+        counts of x or y into weighted counts.
+      **kwargs: The set of args to be passed to _LiftStatsGenerator.
+    """
+    self._unweighted_generator = _LiftStatsGenerator(
+        weight_column_name=None, **kwargs)
+    self._weight_column_name = weight_column_name
+    if weight_column_name:
+      self._weighted_generator = _LiftStatsGenerator(
+          weight_column_name=weight_column_name, **kwargs)
+
+  def expand(self,
+             sliced_tables: beam.pvalue.PCollection) -> beam.pvalue.PCollection:
+    unweighted_protos = (
+        sliced_tables
+        | 'ComputeUnweightedLift' >> self._unweighted_generator)
+    if not self._weight_column_name:
+      # If no weight column name is given, only compute unweighted lift.
+      return unweighted_protos
+
+    weighted_protos = (
+        sliced_tables
+        | 'ComputeWeightedLift' >> self._weighted_generator)
+
+    return ((unweighted_protos, weighted_protos)
+            | 'MergeUnweightedAndWeightedProtos' >> beam.Flatten())
 
 
 class LiftStatsGenerator(stats_generator.TransformStatsGenerator):
@@ -740,10 +830,18 @@ class LiftStatsGenerator(stats_generator.TransformStatsGenerator):
                min_x_count: int = 0,
                top_k_per_y: Optional[int] = None,
                bottom_k_per_y: Optional[int] = None,
+               weight_column_name: Optional[Text] = None,
                name: Text = 'LiftStatsGenerator') -> None:
     super(LiftStatsGenerator, self).__init__(
         name,
-        ptransform=_LiftStatsGenerator(y_path, schema, x_paths, y_boundaries,
-                                       min_x_count, top_k_per_y, bottom_k_per_y,
-                                       name),
+        ptransform=_UnweightedAndWeightedLiftStatsGenerator(
+            weight_column_name=weight_column_name,
+            schema=schema,
+            y_path=y_path,
+            x_paths=x_paths,
+            y_boundaries=y_boundaries,
+            min_x_count=min_x_count,
+            top_k_per_y=top_k_per_y,
+            bottom_k_per_y=bottom_k_per_y,
+            name=name),
         schema=schema)

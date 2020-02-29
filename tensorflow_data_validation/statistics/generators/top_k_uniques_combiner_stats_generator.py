@@ -119,9 +119,6 @@ class _WeightedCounter(collections.defaultdict):
   def update(self, other: '_WeightedCounter') -> None:
     for k, v in six.iteritems(other):
       self[k] += v
-  
-  def __reduce__(self):
-    return type(self), (), None, None, iter(self.items())
 
   def __reduce__(self):
     return type(self), (), None, None, iter(self.items())

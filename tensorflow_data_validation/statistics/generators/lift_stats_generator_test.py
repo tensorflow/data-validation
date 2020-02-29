@@ -19,6 +19,7 @@ from __future__ import division
 from __future__ import print_function
 
 from absl.testing import absltest
+import apache_beam as beam
 import numpy as np
 import pandas as pd
 import pyarrow as pa
@@ -39,39 +40,43 @@ class GetExampleValuePresenceTest(absltest.TestCase):
     t = pa.Table.from_arrays([
         pa.array([[1], [1, 1], [1, 2], [2]]),
     ], ['x'])
-    expected_series = pd.Series([1, 1, 1, 2, 2], name='values',
-                                index=pd.Index([0, 1, 2, 2, 3],
-                                               name='example_indices'))
-    pd.testing.assert_series_equal(
-        expected_series,
+    expected_df = pd.DataFrame({'values': [1, 1, 1, 2, 2]},
+                               index=pd.Index([0, 1, 2, 2, 3],
+                                              name='example_indices'))
+    pd.testing.assert_frame_equal(
+        expected_df,
         lift_stats_generator._get_example_value_presence(
-            t, types.FeaturePath(['x']), boundaries=None))
+            t, types.FeaturePath(['x']), boundaries=None,
+            weight_column_name=None))
 
-  def test_example_value_presence_string_value(self):
+  def test_example_value_presence_weighted(self):
     t = pa.Table.from_arrays([
-        pa.array([['a'], ['a', 'a'], ['a', 'b'], ['b']]),
-    ], ['x'])
-    expected_cat = pd.Categorical.from_codes([0, 0, 0, 1, 1],
-                                             categories=['a', 'b'])
-    expected_series = pd.Series(expected_cat,
-                                name='values',
-                                index=pd.Index([0, 1, 2, 2, 3],
-                                               name='example_indices'))
-    pd.testing.assert_series_equal(
-        expected_series,
+        pa.array([[1], [1, 1], [1, 2], [2]]),
+        pa.array([[.5], [1.0], [1.5], [2.0]]),
+    ], ['x', 'w'])
+    expected_df = pd.DataFrame(
+        {
+            'values': [1, 1, 1, 2, 2],
+            'weights': [.5, 1.0, 1.5, 1.5, 2.0]
+        },
+        index=pd.Index([0, 1, 2, 2, 3], name='example_indices'))
+    pd.testing.assert_frame_equal(
+        expected_df,
         lift_stats_generator._get_example_value_presence(
-            t, types.FeaturePath(['x']), boundaries=None))
+            t, types.FeaturePath(['x']), boundaries=None,
+            weight_column_name='w'))
 
   def test_example_value_presence_none_value(self):
     t = pa.Table.from_arrays([
         pa.array([[1], None]),
     ], ['x'])
-    expected_series = pd.Series([1], name='values',
-                                index=pd.Index([0], name='example_indices'))
-    pd.testing.assert_series_equal(
-        expected_series,
+    expected_df = pd.DataFrame({'values': [1]},
+                               index=pd.Index([0], name='example_indices'))
+    pd.testing.assert_frame_equal(
+        expected_df,
         lift_stats_generator._get_example_value_presence(
-            t, types.FeaturePath(['x']), boundaries=None))
+            t, types.FeaturePath(['x']), boundaries=None,
+            weight_column_name=None))
 
   def test_example_value_presence_null_array(self):
     t = pa.Table.from_arrays([
@@ -79,7 +84,8 @@ class GetExampleValuePresenceTest(absltest.TestCase):
     ], ['x'])
     self.assertIsNone(
         lift_stats_generator._get_example_value_presence(
-            t, types.FeaturePath(['x']), boundaries=None))
+            t, types.FeaturePath(['x']), boundaries=None,
+            weight_column_name=None))
 
   def test_example_value_presence_struct_leaf(self):
     t = pa.Table.from_arrays([
@@ -93,13 +99,42 @@ class GetExampleValuePresenceTest(absltest.TestCase):
                 {'y': [1, 4]},
             ]
         ])], ['x'])
-    expected_series = pd.Series([1, 2, 3, 1, 4], name='values',
-                                index=pd.Index([0, 0, 0, 1, 1],
-                                               name='example_indices'))
-    pd.testing.assert_series_equal(
-        expected_series,
+    expected_df = pd.DataFrame({'values': [1, 2, 3, 1, 4]},
+                               index=pd.Index([0, 0, 0, 1, 1],
+                                              name='example_indices'))
+    pd.testing.assert_frame_equal(
+        expected_df,
         lift_stats_generator._get_example_value_presence(
-            t, types.FeaturePath(['x', 'y']), boundaries=None))
+            t, types.FeaturePath(['x', 'y']), boundaries=None,
+            weight_column_name=None))
+
+
+class ToPartialCopresenceCountsTest(absltest.TestCase):
+
+  def test_to_partial_copresence_counts_weighted(self):
+    t = pa.Table.from_arrays([
+        pa.array([[1], [2], [1]]),
+        pa.array([['a'], ['a'], ['b']]),
+        pa.array([[0.5], [0.5], [2.0]]),
+    ], ['x', 'y', 'w'])
+    x_path = types.FeaturePath(['x'])
+    expected_counts = [
+        (lift_stats_generator._SlicedXYKey('', x_path, x=1, y='a'), 0.5),
+        (lift_stats_generator._SlicedXYKey('', x_path, x=1, y='b'), 2.0),
+        (lift_stats_generator._SlicedXYKey('', x_path, x=2, y='a'), 0.5)
+    ]
+    for (expected_key, expected_count), (actual_key, actual_count) in zip(
+        expected_counts,
+        lift_stats_generator._to_partial_copresence_counts(
+            ('', t),
+            y_path=types.FeaturePath(['y']),
+            x_paths=[types.FeaturePath(['x'])],
+            y_boundaries=None,
+            weight_column_name='w')):
+      self.assertEqual(str(expected_key.x_path), str(actual_key.x_path))
+      self.assertEqual(expected_key.x, actual_key.x)
+      self.assertEqual(expected_key.y, actual_key.y)
+      self.assertEqual(expected_count, actual_count)
 
 
 class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
@@ -479,6 +514,197 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         expected_result,
         add_default_slice_key_to_input=True,
         add_default_slice_key_to_output=True)
+
+  def test_lift_weighted(self):
+    examples = [
+        pa.Table.from_arrays([
+            pa.array([['a'], ['a'], ['b'], ['a']]),
+            pa.array([['cat'], ['dog'], ['cat'], ['dog']]),
+            pa.array([[.5], [.5], [2], [1]]),
+        ], ['categorical_x', 'string_y', 'weight']),
+    ]
+    schema = text_format.Parse(
+        """
+        feature {
+          name: 'categorical_x'
+          type: BYTES
+        }
+        feature {
+          name: 'string_y'
+          type: BYTES
+        }
+        feature {
+          name: 'weight'
+          type: FLOAT
+        }
+        """, schema_pb2.Schema())
+    expected_results = [
+        text_format.Parse(
+            """
+            cross_features {
+              path_x {
+                step: "categorical_x"
+              }
+              path_y {
+                step: "string_y"
+              }
+              categorical_cross_stats {
+                lift {
+                  lift_series {
+                    y_string: "cat"
+                    weighted_y_count: 2.5
+                    lift_values {
+                      x_string: "b"
+                      lift: 1.6
+                      weighted_x_count: 2
+                      weighted_x_and_y_count: 2
+                    }
+                    lift_values {
+                      x_string: "a"
+                      lift: 0.4
+                      weighted_x_count: 2
+                      weighted_x_and_y_count: .5
+                    }
+                  }
+                  lift_series {
+                    y_string: "dog"
+                    weighted_y_count: 1.5
+                    lift_values {
+                      x_string: "a"
+                      lift: 2.0
+                      weighted_x_count: 2
+                      weighted_x_and_y_count: 1.5
+                    }
+                    lift_values {
+                      x_string: "b"
+                      lift: 0.0
+                      weighted_x_count: 2
+                      weighted_x_and_y_count: 0
+                    }
+                  }
+                }
+              }
+            }""", statistics_pb2.DatasetFeatureStatistics()),
+        text_format.Parse(
+            """
+            cross_features {
+              path_x {
+                step: "categorical_x"
+              }
+              path_y {
+                step: "string_y"
+              }
+              categorical_cross_stats {
+                lift {
+                  lift_series {
+                    y_string: "cat"
+                    y_count: 2
+                    lift_values {
+                      x_string: "b"
+                      lift: 2.0
+                      x_count: 1
+                      x_and_y_count: 1
+                    }
+                    lift_values {
+                      x_string: "a"
+                      lift: 0.6666667
+                      x_count: 3
+                      x_and_y_count: 1
+                    }
+                  }
+                  lift_series {
+                    y_string: "dog"
+                    y_count: 2
+                    lift_values {
+                      x_string: "a"
+                      lift: 1.3333333
+                      x_count: 3
+                      x_and_y_count: 2
+                    }
+                    lift_values {
+                      x_string: "b"
+                      x_count: 1
+                      x_and_y_count: 0
+                    }
+                  }
+                }
+              }
+            }""", statistics_pb2.DatasetFeatureStatistics()),
+    ]
+    generator = lift_stats_generator.LiftStatsGenerator(
+        schema=schema, y_path=types.FeaturePath(['string_y']),
+        weight_column_name='weight')
+    self.assertSlicingAwareTransformOutputEqual(
+        examples,
+        generator,
+        expected_results,
+        add_default_slice_key_to_input=True,
+        add_default_slice_key_to_output=True)
+
+  def test_lift_weighted_missing_weight(self):
+    examples = [
+        pa.Table.from_arrays([
+            pa.array([['a'], ['a']]),
+            pa.array([['cat'], ['dog']]),
+            pa.array([[], [1]]),
+        ], ['categorical_x', 'string_y', 'weight']),
+    ]
+    schema = text_format.Parse(
+        """
+        feature {
+          name: 'categorical_x'
+          type: BYTES
+        }
+        feature {
+          name: 'string_y'
+          type: BYTES
+        }
+        feature {
+          name: 'weight'
+          type: FLOAT
+        }
+        """, schema_pb2.Schema())
+    generator = lift_stats_generator.LiftStatsGenerator(
+        schema=schema, y_path=types.FeaturePath(['string_y']),
+        weight_column_name='weight')
+    examples = [(None, e) for e in examples]
+    with self.assertRaisesRegex(ValueError,
+                                r'Weight column "weight" must have exactly one '
+                                'value in each example.*'):
+      with beam.Pipeline() as p:
+        _ = p | beam.Create(examples) | generator.ptransform
+
+  def test_lift_weighted_weight_is_none(self):
+    examples = [
+        pa.Table.from_arrays([
+            pa.array([['a']]),
+            pa.array([['cat']]),
+            pa.array([None]),
+        ], ['categorical_x', 'string_y', 'weight']),
+    ]
+    schema = text_format.Parse(
+        """
+        feature {
+          name: 'categorical_x'
+          type: BYTES
+        }
+        feature {
+          name: 'string_y'
+          type: BYTES
+        }
+        feature {
+          name: 'weight'
+          type: FLOAT
+        }
+        """, schema_pb2.Schema())
+    generator = lift_stats_generator.LiftStatsGenerator(
+        schema=schema, y_path=types.FeaturePath(['string_y']),
+        weight_column_name='weight')
+    examples = [(None, e) for e in examples]
+    with self.assertRaisesRegex(ValueError,
+                                r'Weight column "weight" cannot be null.*'):
+      with beam.Pipeline() as p:
+        _ = p | beam.Create(examples) | generator.ptransform
 
   def test_lift_no_categorical_features(self):
     examples = [
