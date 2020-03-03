@@ -30,3 +30,5 @@ METRICS_NAMESPACE = 'tfx.DataValidation'
 # batch flushing, but shouldn't be too large as it also acts as cap on the
 # maximum memory usage of the computation.
 DEFAULT_DESIRED_INPUT_BATCH_SIZE = 1000
+
+NON_UTF8_PLACEHOLDER = '__BYTES_VALUE__'

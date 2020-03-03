@@ -6,6 +6,8 @@
 
 ## Bug Fixes and Other Changes
 
+*   Fix issue writing out string feature values in LiftStatsGenerator.
+
 ## Breaking Changes
 
 ## Deprecations

@@ -39,6 +39,7 @@ from __future__ import division
 
 from __future__ import print_function
 
+import logging
 import operator
 
 import apache_beam as beam
@@ -47,11 +48,13 @@ import pandas as pd
 import pyarrow as pa
 import six
 
+from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import bin_util
 from tensorflow_data_validation.utils import schema_util
+from tensorflow_data_validation.utils import stats_util
 from tfx_bsl.arrow import array_util
 import typing
 from typing import Any, Dict, Iterator, Iterable, List, Optional, Text, Tuple, Union
@@ -260,6 +263,16 @@ def _to_partial_x_counts(
       yield _SlicedXKey(slice_key, x_path, x), x_count
 
 
+def _get_unicode_value(value: Union[Text, bytes], path: types.FeaturePath):
+  value = stats_util.maybe_get_utf8(value)
+  # Check if we have a valid utf-8 string. If not, assign a placeholder.
+  if value is None:
+    logging.warning('Feature "%s" has bytes value "%s" which cannot be '
+                    'decoded as a UTF-8 string.', path, value)
+    value = constants.NON_UTF8_PLACEHOLDER
+  return value
+
+
 def _make_dataset_feature_stats_proto(
     lifts: Tuple[_SlicedFeatureKey, _LiftSeries], y_path: types.FeaturePath,
     y_boundaries: Optional[np.ndarray], weighted_examples: bool
@@ -301,8 +314,10 @@ def _make_dataset_feature_stats_proto(
       low_value, high_value = bin_util.get_boundaries(y, y_boundaries)
       lift_series_proto.y_bucket.low_value = low_value
       lift_series_proto.y_bucket.high_value = high_value
-    elif isinstance(y, six.string_types):
+    elif isinstance(y, six.text_type):
       lift_series_proto.y_string = y
+    elif isinstance(y, six.binary_type):
+      lift_series_proto.y_string = _get_unicode_value(y, y_path)
     else:
       lift_series_proto.y_int = y
 
@@ -320,8 +335,10 @@ def _make_dataset_feature_stats_proto(
         lift_value_proto.x_count = lift_value.x_count
         lift_value_proto.x_and_y_count = lift_value.xy_count
       x = lift_value.x
-      if isinstance(x, six.string_types):
+      if isinstance(x, six.text_type):
         lift_value_proto.x_string = x
+      elif isinstance(x, six.binary_type):
+        lift_value_proto.x_string = _get_unicode_value(x, key.x_path)
       else:
         lift_value_proto.x_int = x
   return key.slice_key, stats

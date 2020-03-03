@@ -29,6 +29,7 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 import six
+from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.statistics.generators import stats_generator
@@ -46,8 +47,6 @@ FeatureValueCount = collections.namedtuple('FeatureValueCount',
 # Pickling types.FeaturePath is slow, so we use tuples directly where pickling
 # happens frequently.
 FeaturePathTuple = Tuple[types.FeatureName]
-
-_INVALID_STRING = '__BYTES_VALUE__'
 
 
 def _make_feature_stats_proto_with_uniques_stats(
@@ -134,7 +133,7 @@ def make_feature_stats_proto_with_topk_stats(
       if value is None:
         logging.warning('Feature "%s" has bytes value "%s" which cannot be '
                         'decoded as a UTF-8 string.', feature_path, value)
-        value = _INVALID_STRING
+        value = constants.NON_UTF8_PLACEHOLDER
     elif not isinstance(value, six.text_type):
       value = str(value)
 

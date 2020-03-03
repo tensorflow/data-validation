@@ -259,6 +259,81 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         add_default_slice_key_to_input=True,
         add_default_slice_key_to_output=True)
 
+  def test_lift_bytes_x_and_y(self):
+    examples = [
+        pa.Table.from_arrays([
+            pa.array([[b'a'], [b'a'], [b'\x80abc'], [b'a']]),
+            pa.array([[b'cat'], [b'dog'], [b'cat'], [b'dog']]),
+        ], ['categorical_x', 'string_y']),
+    ]
+    schema = text_format.Parse(
+        """
+        feature {
+          name: 'categorical_x'
+          type: BYTES
+        }
+        feature {
+          name: 'string_y'
+          type: BYTES
+        }
+        """, schema_pb2.Schema())
+    expected_result = [
+        text_format.Parse(
+            """
+            cross_features {
+              path_x {
+                step: "categorical_x"
+              }
+              path_y {
+                step: "string_y"
+              }
+              categorical_cross_stats {
+                lift {
+                  lift_series {
+                    y_string: "cat"
+                    y_count: 2
+                    lift_values {
+                      x_string: "__BYTES_VALUE__"
+                      lift: 2.0
+                      x_count: 1
+                      x_and_y_count: 1
+                    }
+                    lift_values {
+                      x_string: "a"
+                      lift: 0.6666667
+                      x_count: 3
+                      x_and_y_count: 1
+                    }
+                  }
+                  lift_series {
+                    y_string: "dog"
+                    y_count: 2
+                    lift_values {
+                      x_string: "a"
+                      lift: 1.3333333
+                      x_count: 3
+                      x_and_y_count: 2
+                    }
+                    lift_values {
+                      x_string: "__BYTES_VALUE__"
+                      lift: 0.0
+                      x_count: 1
+                      x_and_y_count: 0
+                    }
+                  }
+                }
+              }
+            }""", statistics_pb2.DatasetFeatureStatistics()),
+    ]
+    generator = lift_stats_generator.LiftStatsGenerator(
+        schema=schema, y_path=types.FeaturePath(['string_y']))
+    self.assertSlicingAwareTransformOutputEqual(
+        examples,
+        generator,
+        expected_result,
+        add_default_slice_key_to_input=True,
+        add_default_slice_key_to_output=True)
+
   def test_lift_int_y(self):
     examples = [
         pa.Table.from_arrays([
