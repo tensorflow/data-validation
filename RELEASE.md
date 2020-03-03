@@ -1,12 +1,15 @@
 <!-- mdlint off(HEADERS_TOO_MANY_H1) -->
 
-# Current Version(still in development)
+# Release 0.21.3
 
 ## Major Features and Improvements
 
 ## Bug Fixes and Other Changes
 
 *   Fix issue writing out string feature values in LiftStatsGenerator.
+*   Requires 'apache-beam[gcp]>=2.17,<2.18'.
+*   Requires 'tensorflow-transform>=0.21.1,<0.22'.
+*   Requires 'tfx-bsl>=0.21.3,<0.23'.
 
 ## Breaking Changes
 

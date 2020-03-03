@@ -86,19 +86,19 @@ setup(
         # release. Remove once avro has a healthy release.
         'avro-python3>=1.8.1,!=1.9.2.*,!=<2.0.0; python_version>="3.0"',
         'absl-py>=0.7,<0.9',
-        'apache-beam[gcp]>=2.17,<=2.19',
+        'apache-beam[gcp]>=2.17,<2.18',
         'numpy>=1.16,<2',
         'protobuf>=3.7,<4',
         'pyarrow>=0.15',
         'six>=1.12,<2',
         # LINT.IfChange
-        'tensorflow>=1.15,<=2.1',
+        'tensorflow>=1.15,<3',
         # LINT.ThenChange(//third_party/py/tensorflow_data_validation/opensource_only/WORKSPACE)
         # LINT.IfChange
         'tensorflow-metadata>=0.21.1,<0.22',
         # LINT.ThenChange(//third_party/py/tensorflow_data_validation/opensource_only/workspace.bzl)
-        'tensorflow-transform>=0.21,<0.22',
-        'tfx-bsl>=0.21,<0.23',
+        'tensorflow-transform>=0.21.1,<0.22',
+        'tfx-bsl>=0.21.3,<0.23',
 
         # Dependencies needed for visualization.
         # Note that we don't add a max version for IPython as it introduces a
