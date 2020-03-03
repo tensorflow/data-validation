@@ -205,6 +205,36 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
     expected_result = [
         text_format.Parse(
             """
+            features {
+              custom_stats {
+                name: "Lift (Y=cat)"
+                rank_histogram {
+                  buckets {
+                    label: "b"
+                    sample_count: 2.0
+                  }
+                  buckets {
+                    label: "a"
+                    sample_count: 0.6666667
+                  }
+                }
+              }
+              custom_stats {
+                name: "Lift (Y=dog)"
+                rank_histogram {
+                  buckets {
+                    label: "a"
+                    sample_count: 1.3333333
+                  }
+                  buckets {
+                    label: "b"
+                  }
+                }
+              }
+              path {
+                step: "categorical_x"
+              }
+            }
             cross_features {
               path_x {
                 step: "categorical_x"
@@ -251,7 +281,9 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
             }""", statistics_pb2.DatasetFeatureStatistics()),
     ]
     generator = lift_stats_generator.LiftStatsGenerator(
-        schema=schema, y_path=types.FeaturePath(['string_y']))
+        schema=schema,
+        y_path=types.FeaturePath(['string_y']),
+        output_custom_stats=True)
     self.assertSlicingAwareTransformOutputEqual(
         examples,
         generator,
@@ -358,6 +390,36 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
     expected_result = [
         text_format.Parse(
             """
+            features {
+              custom_stats {
+                name: "Lift (Y=0)"
+                rank_histogram {
+                  buckets {
+                    label: "11"
+                    sample_count: 1.3333333
+                  }
+                  buckets {
+                    label: "22"
+                  }
+                }
+              }
+              custom_stats {
+                name: "Lift (Y=1)"
+                rank_histogram {
+                  buckets {
+                    label: "22"
+                    sample_count: 2.0
+                  }
+                  buckets {
+                    label: "11"
+                    sample_count: 0.6666667
+                  }
+                }
+              }
+              path {
+                step: "categorical_x"
+              }
+            }
             cross_features {
               path_x {
                 step: "categorical_x"
@@ -404,7 +466,9 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
             }""", statistics_pb2.DatasetFeatureStatistics()),
     ]
     generator = lift_stats_generator.LiftStatsGenerator(
-        schema=schema, y_path=types.FeaturePath(['int_y']))
+        schema=schema,
+        y_path=types.FeaturePath(['int_y']),
+        output_custom_stats=True)
     self.assertSlicingAwareTransformOutputEqual(
         examples,
         generator,
@@ -434,6 +498,36 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
     expected_result = [
         text_format.Parse(
             """
+            features {
+              custom_stats {
+                name: "Lift (Y=0)"
+                rank_histogram {
+                  buckets {
+                    label: "a"
+                    sample_count: 1.3333333
+                  }
+                  buckets {
+                    label: "b"
+                  }
+                }
+              }
+              custom_stats {
+                name: "Lift (Y=1)"
+                rank_histogram {
+                  buckets {
+                    label: "b"
+                    sample_count: 2.0
+                  }
+                  buckets {
+                    label: "a"
+                    sample_count: 0.6666667
+                  }
+                }
+              }
+              path {
+                step: "categorical_x"
+              }
+            }
             cross_features {
               path_x {
                 step: "categorical_x"
@@ -480,7 +574,9 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
             }""", statistics_pb2.DatasetFeatureStatistics()),
     ]
     generator = lift_stats_generator.LiftStatsGenerator(
-        schema=schema, y_path=types.FeaturePath(['bool_y']))
+        schema=schema,
+        y_path=types.FeaturePath(['bool_y']),
+        output_custom_stats=True)
     self.assertSlicingAwareTransformOutputEqual(
         examples,
         generator,
@@ -509,6 +605,48 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
     expected_result = [
         text_format.Parse(
             """
+            features {
+              custom_stats {
+                name: "Lift (Y=[-inf,2))"
+                rank_histogram {
+                  buckets {
+                    label: "a"
+                    sample_count: 1.3333333
+                  }
+                  buckets {
+                    label: "b"
+                  }
+                }
+              }
+              custom_stats {
+                name: "Lift (Y=[2,4))"
+                rank_histogram {
+                  buckets {
+                    label: "b"
+                    sample_count: 2.0
+                  }
+                  buckets {
+                    label: "a"
+                    sample_count: 0.6666667
+                  }
+                }
+              }
+              custom_stats {
+                name: "Lift (Y=[4,inf])"
+                rank_histogram {
+                  buckets {
+                    label: "a"
+                    sample_count: 1.3333333
+                  }
+                  buckets {
+                    label: "b"
+                  }
+                }
+              }
+              path {
+                step: "categorical_x"
+              }
+            }
             cross_features {
               path_x {
                 step: "categorical_x"
@@ -582,7 +720,8 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
     generator = lift_stats_generator.LiftStatsGenerator(
         schema=schema,
         y_path=types.FeaturePath(['float_y']),
-        y_boundaries=[2, 4])
+        y_boundaries=[2, 4],
+        output_custom_stats=True)
     self.assertSlicingAwareTransformOutputEqual(
         examples,
         generator,

@@ -275,7 +275,8 @@ def _get_unicode_value(value: Union[Text, bytes], path: types.FeaturePath):
 
 def _make_dataset_feature_stats_proto(
     lifts: Tuple[_SlicedFeatureKey, _LiftSeries], y_path: types.FeaturePath,
-    y_boundaries: Optional[np.ndarray], weighted_examples: bool
+    y_boundaries: Optional[np.ndarray], weighted_examples: bool,
+    output_custom_stats: bool
 ) -> Tuple[types.SliceKey, statistics_pb2.DatasetFeatureStatistics]:
   """Generates DatasetFeatureStatistics proto for a given x_path, y_path pair.
 
@@ -294,6 +295,7 @@ def _make_dataset_feature_stats_proto(
     weighted_examples: Whether lift is computed over weighted examples, in which
       case the proto will output weighted counts (as floats) rather than simple
       counts (as ints).
+    output_custom_stats: Whether to output custom stats for use with Facets.
 
   Returns:
     The populated DatasetFeatureStatistics proto.
@@ -302,6 +304,8 @@ def _make_dataset_feature_stats_proto(
   stats = statistics_pb2.DatasetFeatureStatistics()
   cross_stats = stats.cross_features.add(
       path_x=key.x_path.to_proto(), path_y=y_path.to_proto())
+  if output_custom_stats:
+    feature_stats = stats.features.add(path=key.x_path.to_proto())
   for lift_series in sorted(lift_series_list):
     lift_series_proto = (
         cross_stats.categorical_cross_stats.lift.lift_series.add())
@@ -310,16 +314,23 @@ def _make_dataset_feature_stats_proto(
     else:
       lift_series_proto.y_count = lift_series.y_count
     y = lift_series.y
+    y_display_val = y
     if y_boundaries is not None:
       low_value, high_value = bin_util.get_boundaries(y, y_boundaries)
       lift_series_proto.y_bucket.low_value = low_value
       lift_series_proto.y_bucket.high_value = high_value
+      y_display_fmt = '[{},{}]' if high_value == float('inf') else '[{},{})'
+      y_display_val = y_display_fmt.format(low_value, high_value)
     elif isinstance(y, six.text_type):
       lift_series_proto.y_string = y
     elif isinstance(y, six.binary_type):
       lift_series_proto.y_string = _get_unicode_value(y, y_path)
     else:
       lift_series_proto.y_int = y
+
+    if output_custom_stats:
+      hist = feature_stats.custom_stats.add(
+          name='Lift (Y={})'.format(y_display_val)).rank_histogram
 
     # dedupe possibly overlapping top_k and bottom_k x values.
     lift_values_deduped = {v.x: v for v in lift_series.lift_values}
@@ -341,6 +352,10 @@ def _make_dataset_feature_stats_proto(
         lift_value_proto.x_string = _get_unicode_value(x, key.x_path)
       else:
         lift_value_proto.x_int = x
+
+      if output_custom_stats:
+        hist.buckets.add(label=str(x), sample_count=lift_value.lift)
+
   return key.slice_key, stats
 
 
@@ -701,23 +716,24 @@ class _LiftStatsGenerator(beam.PTransform):
                x_paths: Optional[Iterable[types.FeaturePath]],
                y_boundaries: Optional[Iterable[float]], min_x_count: int,
                top_k_per_y: Optional[int], bottom_k_per_y: Optional[int],
-               weight_column_name: Optional[Text], name: Text) -> None:
+               weight_column_name: Optional[Text],
+               output_custom_stats: bool, name: Text) -> None:
     """Initializes a lift statistics generator.
 
     Args:
-      y_path: The path to use as Y in the lift expression:
-        lift = P(Y=y|X=x) / P(Y=y).
+      y_path: The path to use as Y in the lift expression: lift = P(Y=y|X=x) /
+        P(Y=y).
      schema: An optional schema for the dataset. If not provided, x_paths must
-        be specified. If x_paths are not specified, the schema is used to
-        identify all categorical columns for which Lift should be computed.
-      x_paths: An optional list of path to use as X in the lift expression:
-        lift = P(Y=y|X=x) / P(Y=y). If None (default), all categorical features,
+       be specified. If x_paths are not specified, the schema is used to
+       identify all categorical columns for which Lift should be computed.
+      x_paths: An optional list of path to use as X in the lift expression: lift
+        = P(Y=y|X=x) / P(Y=y). If None (default), all categorical features,
         exluding the feature passed as y_path, will be used.
       y_boundaries: An optional list of boundaries to be used for binning
         y_path. If provided with b boundaries, the binned values will be treated
         as a categorical feature with b+1 different values. For example, the
         y_boundaries value [0.1, 0.8] would lead to three buckets: [-inf, 0.1),
-        [0.1, 0.8) and [0.8, inf].
+          [0.1, 0.8) and [0.8, inf].
       min_x_count: The minimum number of examples in which a specific x value
         must appear, in order for its lift to be output.
       top_k_per_y: Optionally, the number of top x values per y value, ordered
@@ -728,6 +744,7 @@ class _LiftStatsGenerator(beam.PTransform):
         top_k_per_y and bottom_k_per_y are unset, all values will be output.
       weight_column_name: Optionally, a weight column to use for converting
         counts of x or y into weighted counts.
+      output_custom_stats: Whether to output custom stats for use with Facets.
       name: An optional unique name associated with the statistics generator.
     """
     self._name = name
@@ -736,6 +753,7 @@ class _LiftStatsGenerator(beam.PTransform):
     self._min_x_count = min_x_count
     self._top_k_per_y = top_k_per_y
     self._bottom_k_per_y = bottom_k_per_y
+    self._output_custom_stats = output_custom_stats
     self._y_boundaries = (
         np.array(sorted(set(y_boundaries))) if y_boundaries else None)
     self._weight_column_name = weight_column_name
@@ -787,7 +805,8 @@ class _LiftStatsGenerator(beam.PTransform):
         | 'GroupLiftsForOutput' >> beam.GroupByKey()
         | 'MakeProtos' >> beam.Map(_make_dataset_feature_stats_proto,
                                    self._y_path, self._y_boundaries,
-                                   self._weight_column_name is not None))
+                                   self._weight_column_name is not None,
+                                   self._output_custom_stats))
 
 
 @beam.typehints.with_input_types(types.SlicedTable)
@@ -848,6 +867,7 @@ class LiftStatsGenerator(stats_generator.TransformStatsGenerator):
                top_k_per_y: Optional[int] = None,
                bottom_k_per_y: Optional[int] = None,
                weight_column_name: Optional[Text] = None,
+               output_custom_stats: Optional[bool] = False,
                name: Text = 'LiftStatsGenerator') -> None:
     super(LiftStatsGenerator, self).__init__(
         name,
@@ -860,5 +880,6 @@ class LiftStatsGenerator(stats_generator.TransformStatsGenerator):
             min_x_count=min_x_count,
             top_k_per_y=top_k_per_y,
             bottom_k_per_y=bottom_k_per_y,
+            output_custom_stats=output_custom_stats,
             name=name),
         schema=schema)

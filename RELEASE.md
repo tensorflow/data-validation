@@ -4,6 +4,8 @@
 
 ## Major Features and Improvements
 
+*   Support visualizing feature value lift in facets visualization.
+
 ## Bug Fixes and Other Changes
 
 *   Fix issue writing out string feature values in LiftStatsGenerator.
