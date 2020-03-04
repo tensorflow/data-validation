@@ -314,7 +314,6 @@ def _make_dataset_feature_stats_proto(
     else:
       lift_series_proto.y_count = lift_series.y_count
     y = lift_series.y
-    y_display_val = y
     if y_boundaries is not None:
       low_value, high_value = bin_util.get_boundaries(y, y_boundaries)
       lift_series_proto.y_bucket.low_value = low_value
@@ -323,10 +322,14 @@ def _make_dataset_feature_stats_proto(
       y_display_val = y_display_fmt.format(low_value, high_value)
     elif isinstance(y, six.text_type):
       lift_series_proto.y_string = y
+      y_display_val = y
     elif isinstance(y, six.binary_type):
-      lift_series_proto.y_string = _get_unicode_value(y, y_path)
+      y_string = _get_unicode_value(y, y_path)
+      lift_series_proto.y_string = y_string
+      y_display_val = y_string
     else:
       lift_series_proto.y_int = y
+      y_display_val = str(y)
 
     if output_custom_stats:
       hist = feature_stats.custom_stats.add(
@@ -348,13 +351,17 @@ def _make_dataset_feature_stats_proto(
       x = lift_value.x
       if isinstance(x, six.text_type):
         lift_value_proto.x_string = x
+        x_display_val = x
       elif isinstance(x, six.binary_type):
-        lift_value_proto.x_string = _get_unicode_value(x, key.x_path)
+        x_string = _get_unicode_value(x, key.x_path)
+        lift_value_proto.x_string = x_string
+        x_display_val = x_string
       else:
         lift_value_proto.x_int = x
+        x_display_val = str(x)
 
       if output_custom_stats:
-        hist.buckets.add(label=str(x), sample_count=lift_value.lift)
+        hist.buckets.add(label=x_display_val, sample_count=lift_value.lift)
 
   return key.slice_key, stats
 
