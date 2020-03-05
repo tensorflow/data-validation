@@ -320,6 +320,74 @@ class SkLearnMutualInformationTest(absltest.TestCase):
     self._assert_mi_output_equal(batch, expected, schema,
                                  types.FeaturePath(["label_key"]))
 
+  def test_mi_classif_with_categorical_all_unique_labels(self):
+    label_array = pa.array([[0], [2], [0], [1], [2], [1], [1], [0], [2], [1],
+                            [0]])
+    # A categorical feature that maps directly on to the label.
+    perfect_feat_array = pa.array([["Red"], ["Blue"], ["Red"], ["Green"],
+                                   ["Blue"], ["Green"], ["Green"], ["Red"],
+                                   ["Blue"], ["Green"], ["Red"]])
+    # A categorical feature that has all values unique.
+    unique_feat_array = pa.array([["Red1"], ["Red2"], ["Red3"], ["Red4"],
+                                  ["Red5"], ["Red6"], ["Red7"], ["Red8"],
+                                  ["Red9"], ["Red10"], ["Red11"]])
+    batch = pa.Table.from_arrays(
+        [label_array, perfect_feat_array, unique_feat_array],
+        ["label_key", "perfect_feature", "unique_feat_array"])
+
+    schema = text_format.Parse(
+        """
+        feature {
+          name: "label_key"
+          type: INT
+          int_domain {
+            is_categorical: false
+          }
+          shape {
+            dim {
+              size: 1
+            }
+          }
+        }
+        feature {
+          name: "perfect_feature"
+          type: BYTES
+          shape {
+            dim {
+              size: 1
+            }
+          }
+        }
+        feature {
+          name: "unique_feat_array"
+          type: BYTES
+          shape {
+            dim {
+              size: 1
+            }
+          }
+        }
+        """, schema_pb2.Schema())
+    # Note that the MI is different from above since the label is declared as
+    # continuous feature.
+    expected = text_format.Parse(
+        """
+        features {
+          path {
+            step: "perfect_feature"
+          }
+          custom_stats {
+            name: 'sklearn_adjusted_mutual_information'
+            num: 1.7319986
+          }
+          custom_stats {
+            name: 'sklearn_mutual_information'
+            num: 1.7319986
+          }
+        }""", statistics_pb2.DatasetFeatureStatistics())
+    self._assert_mi_output_equal(batch, expected, schema,
+                                 types.FeaturePath(["label_key"]))
+
   def test_mi_with_imputed_categorical_feature(self):
     label_array = pa.array([[0], [2], [0], [1], [2], [1], [1]])
     # A categorical feature with missing values.

@@ -234,7 +234,7 @@ def get_bytes_features(schema: schema_pb2.Schema) -> List[types.FeaturePath]:
     A list of features that should be considered bytes.
   """
   bytes_features = []
-  for feature_path, feature in _get_all_leaf_features(schema):
+  for feature_path, feature in get_all_leaf_features(schema):
     domain_info = feature.WhichOneof('domain_info')
     if domain_info == 'image_domain':
       bytes_features.append(feature_path)
@@ -264,7 +264,7 @@ def get_categorical_numeric_features(
     A list of int features that should be considered categorical.
   """
   categorical_features = []
-  for feature_path, feature in _get_all_leaf_features(schema):
+  for feature_path, feature in get_all_leaf_features(schema):
     if feature.type == schema_pb2.INT and is_categorical_feature(feature):
       categorical_features.append(feature_path)
   return categorical_features
@@ -281,7 +281,7 @@ def get_categorical_features(schema: schema_pb2.Schema
     A set containing the names of all categorical features.
   """
   return {
-      feature_path for feature_path, feature in _get_all_leaf_features(schema)
+      feature_path for feature_path, feature in get_all_leaf_features(schema)
       if is_categorical_feature(feature)
   }
 
@@ -302,7 +302,7 @@ def get_multivalent_features(schema: schema_pb2.Schema
   # field set with a max value_count of 1.
   # pylint: disable=g-complex-comprehension
   return {
-      feature_path for feature_path, feature in _get_all_leaf_features(schema)
+      feature_path for feature_path, feature in get_all_leaf_features(schema)
       if not ((feature.shape and feature.shape.dim and
                len(feature.shape.dim) == feature.shape.dim[0].size == 1) or
               (feature.value_count and feature.value_count.max == 1))
@@ -319,7 +319,7 @@ def look_up_feature(
   return None
 
 
-def _get_all_leaf_features(
+def get_all_leaf_features(
     schema: schema_pb2.Schema
 ) -> List[Tuple[types.FeaturePath, schema_pb2.Feature]]:
   """Returns all leaf features in a schema."""

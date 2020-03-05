@@ -41,35 +41,6 @@ ADJUSTED_MUTUAL_INFORMATION_KEY = "sklearn_adjusted_mutual_information"
 CATEGORICAL_FEATURE_IMPUTATION_FILL_VALUE = "__missing_category__"
 
 
-def _remove_unsupported_feature_columns(examples_table: pa.Table,
-                                        schema: schema_pb2.Schema) -> pa.Table:
-  """Removes feature columns that contain unsupported values.
-
-  All feature columns that are multivalent are dropped since they are
-  not supported by sk-learn.
-
-  All columns of STRUCT type are also dropped.
-
-  Args:
-    examples_table: Arrow table containing a batch of examples.
-    schema: The schema for the data.
-
-  Returns:
-    Arrow table.
-  """
-  multivalent_features = schema_util.get_multivalent_features(schema)
-  unsupported_columns = set()
-  for f in multivalent_features:
-    unsupported_columns.add(f.steps()[0])
-  for column_name, column in zip(examples_table.schema.names,
-                                 examples_table.itercolumns()):
-    if (stats_util.get_feature_type_from_arrow_type(
-        types.FeaturePath([column_name]),
-        column.type) == statistics_pb2.FeatureNameStatistics.STRUCT):
-      unsupported_columns.add(column_name)
-  return examples_table.drop(unsupported_columns)
-
-
 def _flatten_and_impute(examples_table: pa.Table,
                         categorical_features: Set[types.FeaturePath]
                        ) -> Dict[types.FeaturePath, np.ndarray]:
@@ -164,9 +135,13 @@ class SkLearnMutualInformation(partitioned_stats_generator.PartitionedStatsFn):
     self._schema = schema
     self._categorical_features = schema_util.get_categorical_features(schema)
     assert schema_util.get_feature(self._schema, self._label_feature)
-    self._label_feature_is_categorical = (self._label_feature in
-                                          self._categorical_features)
+    self._label_feature_is_categorical = (
+        self._label_feature in self._categorical_features)
     self._seed = seed
+    self._schema_features = set([
+        feature_path for (feature_path,
+                          _) in schema_util.get_all_leaf_features(schema)
+    ])
 
     # Seed the RNG used for shuffling and for MI computations.
     np.random.seed(seed)
@@ -187,8 +162,8 @@ class SkLearnMutualInformation(partitioned_stats_generator.PartitionedStatsFn):
     Raises:
       ValueError: If label_feature contains unsupported data.
     """
-    examples_table = _remove_unsupported_feature_columns(examples_table,
-                                                         self._schema)
+    examples_table = self._remove_unsupported_feature_columns(
+        examples_table, self._schema)
 
     flattened_examples = _flatten_and_impute(examples_table,
                                              self._categorical_features)
@@ -281,10 +256,57 @@ class SkLearnMutualInformation(partitioned_stats_generator.PartitionedStatsFn):
       the input df is a categorical feature.
     """
     is_categorical_feature = [False for _ in df]
-
+    columns_to_drop = []
+    indices_to_drop = []
     for i, column in enumerate(df):
       if column in self._categorical_features:
-        # Encode categorical columns
-        df[column] = np.unique(df[column].values, return_inverse=True)[1]
+        # Encode categorical columns.
+        str_array = [(x.decode("utf-8", "replace") if isinstance(
+            x, bytes) else x) for x in df[column].values]
+        unique_elements, df[column] = np.unique(str_array, return_inverse=True)
         is_categorical_feature[i] = True
+        # Drop the categroical features that all its values are unique if the
+        # label is not categorical.
+        # Otherwise such feature will cause error during MI calculation.
+        if unique_elements.size == df[column].shape[
+            0] and not self._label_feature_is_categorical:
+          columns_to_drop.append(column)
+          indices_to_drop.append(i)
+    df.drop(columns_to_drop, axis=1, inplace=True)
+    is_categorical_feature = np.delete(is_categorical_feature, indices_to_drop)
     return is_categorical_feature
+
+  def _remove_unsupported_feature_columns(
+      self, examples_table: pa.Table, schema: schema_pb2.Schema) -> pa.Table:
+    """Removes feature columns that contain unsupported values.
+
+    All feature columns that are multivalent are dropped since they are
+    not supported by sk-learn.
+
+    All columns of STRUCT type are also dropped.
+
+    Args:
+      examples_table: Arrow table containing a batch of examples.
+      schema: The schema for the data.
+
+    Returns:
+      Arrow table.
+    """
+    table_columns = set(examples_table.schema.names)
+
+    multivalent_features = schema_util.get_multivalent_features(schema)
+    unsupported_columns = set()
+    for f in multivalent_features:
+      # Drop the column if they were in the examples.
+      if f.steps()[0] in table_columns:
+        unsupported_columns.add(f.steps()[0])
+    for column_name, column in zip(examples_table.schema.names,
+                                   examples_table.itercolumns()):
+      if (stats_util.get_feature_type_from_arrow_type(
+          types.FeaturePath([column_name]),
+          column.type) == statistics_pb2.FeatureNameStatistics.STRUCT):
+        unsupported_columns.add(column_name)
+      # Drop columns that were not in the schema.
+      if types.FeaturePath([column_name]) not in self._schema_features:
+        unsupported_columns.add(column_name)
+    return examples_table.drop(unsupported_columns)
