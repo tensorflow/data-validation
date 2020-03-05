@@ -6,6 +6,7 @@
 
 *   Add `label_feature` to `StatsOptions` and enable `LiftStatsGenerator` when
     `label_feature` and `schema` are provided.
+*   Add JSON serialization support for StatsOptions.
 
 ## Bug Fixes and Other Changes
 

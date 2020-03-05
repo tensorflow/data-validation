@@ -19,10 +19,13 @@ from __future__ import division
 
 from __future__ import print_function
 
+import copy
+import json
 import types as python_types
+
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
-from typing import List, Optional
+from typing import List, Optional, Text
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 
@@ -135,6 +138,38 @@ class StatsOptions(object):
     self.desired_batch_size = desired_batch_size
     self.enable_semantic_domain_stats = enable_semantic_domain_stats
     self.semantic_domain_stats_sample_rate = semantic_domain_stats_sample_rate
+
+  def to_json(self) -> Text:
+    """Convert from an object to JSON representation of the __dict__ attribute.
+
+    Custom generators and slice_functions are skipped, meaning that they will
+    not be used when running TFDV in a setting where the stats options have been
+    json-serialized, first. This will happen in the case where TFDV is run as a
+    TFX component.
+
+    Returns:
+      A JSON representation of a filtered version of __dict__.
+    """
+    options_dict = copy.copy(self.__dict__)
+    options_dict['_slice_functions'] = None
+    options_dict['_generators'] = None
+    return json.dumps(options_dict)
+
+  @classmethod
+  def from_json(cls, options_json: Text) -> 'StatsOptions':
+    """Construct an instance of stats options from a JSON representation.
+
+    Args:
+      options_json: A JSON representation of the __dict__ attribute of a
+        StatsOptions instance.
+
+    Returns:
+      A StatsOptions instance constructed by setting the __dict__ attribute to
+      the deserialized value of options_json.
+    """
+    options = cls()
+    options.__dict__ = json.loads(options_json)
+    return options
 
   @property
   def generators(self) -> Optional[List[stats_generator.StatsGenerator]]:

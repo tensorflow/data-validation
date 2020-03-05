@@ -17,9 +17,15 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import json
+
 from absl.testing import absltest
 from absl.testing import parameterized
+from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics import stats_options
+from tensorflow_data_validation.statistics.generators import lift_stats_generator
+from tensorflow_data_validation.utils import slicing_util
+
 
 INVALID_STATS_OPTIONS = [
     {
@@ -213,6 +219,61 @@ class StatsOptionsTest(parameterized.TestCase):
                          error_message):
     with self.assertRaisesRegexp(exception_type, error_message):
       stats_options.StatsOptions(**stats_options_kwargs)
+
+  def test_stats_options_to_json(self):
+    options = stats_options.StatsOptions(
+        generators=[
+            lift_stats_generator.LiftStatsGenerator(
+                schema=None,
+                y_path=types.FeaturePath(['label']),
+                x_paths=[types.FeaturePath(['feature'])])
+        ],
+        slice_functions=[slicing_util.get_feature_value_slicer({'b': None})])
+    options_json = options.to_json()
+    options_dict = json.loads(options_json)
+    self.assertIsNone(options_dict['_generators'])
+    self.assertIsNone(options_dict['_slice_functions'])
+
+  def test_stats_options_from_json(self):
+    options_json = """{
+      "_generators": null,
+      "_feature_whitelist": null,
+      "_schema": null,
+      "weight_feature": null,
+      "label_feature": null,
+      "_slice_functions": null,
+      "_sample_count": null,
+      "_sample_rate": null,
+      "num_top_values": 20,
+      "frequency_threshold": 1,
+      "weighted_frequency_threshold": 1.0,
+      "num_rank_histogram_buckets": 1000,
+      "_num_values_histogram_buckets": 10,
+      "_num_histogram_buckets": 10,
+      "_num_quantiles_histogram_buckets": 10,
+      "epsilon": 0.01,
+      "infer_type_from_schema": false,
+      "_desired_batch_size": null,
+      "enable_semantic_domain_stats": false,
+      "_semantic_domain_stats_sample_rate": null
+    }"""
+    actual_options = stats_options.StatsOptions.from_json(options_json)
+    expected_options_dict = stats_options.StatsOptions().__dict__
+    self.assertEqual(expected_options_dict, actual_options.__dict__)
+
+  def test_stats_options_json_round_trip(self):
+    options = stats_options.StatsOptions(
+        generators=[
+            lift_stats_generator.LiftStatsGenerator(
+                schema=None,
+                y_path=types.FeaturePath(['label']),
+                x_paths=[types.FeaturePath(['feature'])])
+        ],
+        slice_functions=[slicing_util.get_feature_value_slicer({'b': None})])
+    options_json = options.to_json()
+    options_from_json = stats_options.StatsOptions.from_json(options_json)
+    self.assertIsNone(options_from_json.generators)
+    self.assertIsNone(options_from_json.slice_functions)
 
 
 if __name__ == '__main__':
