@@ -41,6 +41,7 @@ class StatsOptions(object):
       generators: Optional[List[stats_generator.StatsGenerator]] = None,
       feature_whitelist: Optional[List[types.FeatureName]] = None,
       schema: Optional[schema_pb2.Schema] = None,
+      label_feature: Optional[types.FeatureName] = None,
       weight_feature: Optional[types.FeatureName] = None,
       slice_functions: Optional[List[types.SliceFunction]] = None,
       sample_count: Optional[int] = None,
@@ -67,6 +68,7 @@ class StatsOptions(object):
         statistics for.
       schema: An optional tensorflow_metadata Schema proto. Currently we use the
         schema to infer categorical and bytes features.
+      label_feature: An optional feature name which represents the label.
       weight_feature: An optional feature name whose numeric value represents
           the weight of an example.
       slice_functions: An optional list of functions that generate slice keys
@@ -116,6 +118,7 @@ class StatsOptions(object):
     self.generators = generators
     self.feature_whitelist = feature_whitelist
     self.schema = schema
+    self.label_feature = label_feature
     self.weight_feature = weight_feature
     self.slice_functions = slice_functions
     self.sample_count = sample_count

@@ -1980,6 +1980,250 @@ GENERATE_STATS_TESTS = [
     },
 ]
 
+GENERATE_STATS_NO_IN_MEMORY_TESTS = [
+    {
+        'testcase_name':
+            'label_feature',
+        'tables': [
+            pa.Table.from_arrays([
+                pa.array([[b'a'], [b'a'], [b'b'], [b'a']]),
+                pa.array([[b'cat'], [b'dog'], [b'cat'], [b'dog']]),
+            ], ['categorical_x', 'string_y']),
+        ],
+        'options':
+            stats_options.StatsOptions(label_feature='string_y'),
+        'expected_result_proto_text':
+            """
+            datasets {
+              num_examples: 4
+               cross_features {
+                 path_x { step: "categorical_x" }
+                 path_y { step: "string_y" }
+                 count: 4
+                 categorical_cross_stats {
+                 }
+               }
+              features {
+                path {
+                  step: "categorical_x"
+                }
+                type: STRING
+                custom_stats {
+                  name: "Lift (Y=cat)"
+                  rank_histogram {
+                    buckets {
+                      label: "b"
+                      sample_count: 2.0
+                    }
+                    buckets {
+                      label: "a"
+                      sample_count: 0.6666666666666666
+                    }
+                  }
+                }
+                custom_stats {
+                  name: "Lift (Y=dog)"
+                  rank_histogram {
+                    buckets {
+                      label: "a"
+                      sample_count: 1.3333333333333333
+                    }
+                    buckets {
+                      label: "b"
+                    }
+                  }
+                }
+                string_stats {
+                  common_stats {
+                    num_non_missing: 4
+                    min_num_values: 1
+                    max_num_values: 1
+                    avg_num_values: 1.0
+                    num_values_histogram {
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 0.4
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 0.4
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 0.4
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 0.4
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 0.4
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 0.4
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 0.4
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 0.4
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 0.4
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 0.4
+                      }
+                      type: QUANTILES
+                    }
+                    tot_num_values: 4
+                  }
+                  unique: 2
+                  top_values {
+                    value: "a"
+                    frequency: 3.0
+                  }
+                  top_values {
+                    value: "b"
+                    frequency: 1.0
+                  }
+                  avg_length: 1.0
+                  rank_histogram {
+                    buckets {
+                      label: "a"
+                      sample_count: 3.0
+                    }
+                    buckets {
+                      low_rank: 1
+                      high_rank: 1
+                      label: "b"
+                      sample_count: 1.0
+                    }
+                  }
+                }
+              }
+              features {
+                path {
+                  step: "string_y"
+                }
+                type: STRING
+                string_stats {
+                  common_stats {
+                    num_non_missing: 4
+                    min_num_values: 1
+                    max_num_values: 1
+                    avg_num_values: 1.0
+                    num_values_histogram {
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 0.4
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 0.4
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 0.4
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 0.4
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 0.4
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 0.4
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 0.4
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 0.4
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 0.4
+                      }
+                      buckets {
+                        low_value: 1.0
+                        high_value: 1.0
+                        sample_count: 0.4
+                      }
+                      type: QUANTILES
+                    }
+                    tot_num_values: 4
+                  }
+                  unique: 2
+                  top_values {
+                    value: "dog"
+                    frequency: 2.0
+                  }
+                  top_values {
+                    value: "cat"
+                    frequency: 2.0
+                  }
+                  avg_length: 3.0
+                  rank_histogram {
+                    buckets {
+                      label: "dog"
+                      sample_count: 2.0
+                    }
+                    buckets {
+                      low_rank: 1
+                      high_rank: 1
+                      label: "cat"
+                      sample_count: 2.0
+                    }
+                  }
+                }
+              }
+            }
+            """,
+        'schema':
+            text_format.Parse(
+                """
+            feature {
+              name: 'categorical_x'
+              type: BYTES
+            }
+            feature {
+              name: 'string_y'
+              type: BYTES
+            }
+            """, schema_pb2.Schema())
+    },
+]
 
 SLICING_TESTS = [
     {
@@ -2536,7 +2780,9 @@ SLICING_TESTS = [
 
 class StatsImplTest(parameterized.TestCase):
 
-  @parameterized.named_parameters(*(GENERATE_STATS_TESTS + SLICING_TESTS))
+  @parameterized.named_parameters(
+      *(GENERATE_STATS_TESTS + GENERATE_STATS_NO_IN_MEMORY_TESTS +
+        SLICING_TESTS))
   def test_stats_impl(self,
                       tables,
                       options,

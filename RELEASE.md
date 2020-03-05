@@ -1,5 +1,18 @@
 <!-- mdlint off(HEADERS_TOO_MANY_H1) -->
 
+# Current Version(Still in Development)
+
+## Major Features and Improvements
+
+*   Add `label_feature` to `StatsOptions` and enable `LiftStatsGenerator` when
+    `label_feature` and `schema` are provided.
+
+## Bug Fixes and Other Changes
+
+## Breaking Changes
+
+## Deprecations
+
 # Release 0.21.4
 
 ## Major Features and Improvements

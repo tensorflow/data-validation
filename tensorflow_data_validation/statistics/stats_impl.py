@@ -34,6 +34,7 @@ from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.statistics.generators import basic_stats_generator
 from tensorflow_data_validation.statistics.generators import image_stats_generator
+from tensorflow_data_validation.statistics.generators import lift_stats_generator
 from tensorflow_data_validation.statistics.generators import natural_language_stats_generator
 from tensorflow_data_validation.statistics.generators import sparse_feature_stats_generator
 from tensorflow_data_validation.statistics.generators import stats_generator
@@ -206,6 +207,15 @@ def get_generators(options: stats_options.StatsOptions,
       generators.append(
           weighted_feature_stats_generator.WeightedFeatureStatsGenerator(
               options.schema))
+    if options.label_feature and not in_memory:
+      # The LiftStatsGenerator is not a CombinerStatsGenerator and therefore
+      # cannot currenty be used for in_memory executions.
+      generators.append(
+          lift_stats_generator.LiftStatsGenerator(
+              y_path=types.FeaturePath([options.label_feature]),
+              schema=options.schema,
+              weight_column_name=options.weight_feature,
+              output_custom_stats=True))
 
   # Replace all CombinerFeatureStatsGenerator with a single
   # CombinerFeatureStatsWrapperGenerator.
