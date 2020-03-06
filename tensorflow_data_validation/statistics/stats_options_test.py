@@ -17,8 +17,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import json
-
 from absl.testing import absltest
 from absl.testing import parameterized
 from tensorflow_data_validation import types
@@ -26,6 +24,8 @@ from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.statistics.generators import lift_stats_generator
 from tensorflow_data_validation.utils import slicing_util
 
+from tensorflow.python.util.protobuf import compare  # pylint: disable=g-direct-tensorflow-import
+from tensorflow_metadata.proto.v0 import schema_pb2
 
 INVALID_STATS_OPTIONS = [
     {
@@ -220,19 +220,81 @@ class StatsOptionsTest(parameterized.TestCase):
     with self.assertRaisesRegexp(exception_type, error_message):
       stats_options.StatsOptions(**stats_options_kwargs)
 
-  def test_stats_options_to_json(self):
+  def test_stats_options_json_round_trip(self):
+    generators = [
+        lift_stats_generator.LiftStatsGenerator(
+            schema=None,
+            y_path=types.FeaturePath(['label']),
+            x_paths=[types.FeaturePath(['feature'])])
+    ]
+    feature_whitelist = ['a']
+    schema = schema_pb2.Schema(feature=[schema_pb2.Feature(name='f')])
+    label_feature = 'label'
+    weight_feature = 'weight'
+    slice_functions = [slicing_util.get_feature_value_slicer({'b': None})]
+    sample_rate = 0.01
+    num_top_values = 21
+    frequency_threshold = 2
+    weighted_frequency_threshold = 2.0
+    num_rank_histogram_buckets = 1001
+    num_values_histogram_buckets = 11
+    num_histogram_buckets = 11
+    num_quantiles_histogram_buckets = 11
+    epsilon = 0.02
+    infer_type_from_schema = True
+    desired_batch_size = 100
+    enable_semantic_domain_stats = True
+    semantic_domain_stats_sample_rate = 0.1
+
     options = stats_options.StatsOptions(
-        generators=[
-            lift_stats_generator.LiftStatsGenerator(
-                schema=None,
-                y_path=types.FeaturePath(['label']),
-                x_paths=[types.FeaturePath(['feature'])])
-        ],
-        slice_functions=[slicing_util.get_feature_value_slicer({'b': None})])
+        generators=generators,
+        feature_whitelist=feature_whitelist,
+        schema=schema,
+        label_feature=label_feature,
+        weight_feature=weight_feature,
+        slice_functions=slice_functions,
+        sample_rate=sample_rate,
+        num_top_values=num_top_values,
+        frequency_threshold=frequency_threshold,
+        weighted_frequency_threshold=weighted_frequency_threshold,
+        num_rank_histogram_buckets=num_rank_histogram_buckets,
+        num_values_histogram_buckets=num_values_histogram_buckets,
+        num_histogram_buckets=num_histogram_buckets,
+        num_quantiles_histogram_buckets=num_quantiles_histogram_buckets,
+        epsilon=epsilon,
+        infer_type_from_schema=infer_type_from_schema,
+        desired_batch_size=desired_batch_size,
+        enable_semantic_domain_stats=enable_semantic_domain_stats,
+        semantic_domain_stats_sample_rate=semantic_domain_stats_sample_rate)
+
     options_json = options.to_json()
-    options_dict = json.loads(options_json)
-    self.assertIsNone(options_dict['_generators'])
-    self.assertIsNone(options_dict['_slice_functions'])
+    options = stats_options.StatsOptions.from_json(options_json)
+
+    self.assertIsNone(options.generators)
+    self.assertEqual(feature_whitelist, options.feature_whitelist)
+    compare.assertProtoEqual(self, schema, options.schema)
+    self.assertEqual(label_feature, options.label_feature)
+    self.assertEqual(weight_feature, options.weight_feature)
+    self.assertIsNone(options.slice_functions)
+    self.assertEqual(sample_rate, options.sample_rate)
+    self.assertEqual(num_top_values, options.num_top_values)
+    self.assertEqual(frequency_threshold, options.frequency_threshold)
+    self.assertEqual(weighted_frequency_threshold,
+                     options.weighted_frequency_threshold)
+    self.assertEqual(num_rank_histogram_buckets,
+                     options.num_rank_histogram_buckets)
+    self.assertEqual(num_values_histogram_buckets,
+                     options.num_values_histogram_buckets)
+    self.assertEqual(num_histogram_buckets, options.num_histogram_buckets)
+    self.assertEqual(num_quantiles_histogram_buckets,
+                     options.num_quantiles_histogram_buckets)
+    self.assertEqual(epsilon, options.epsilon)
+    self.assertEqual(infer_type_from_schema, options.infer_type_from_schema)
+    self.assertEqual(desired_batch_size, options.desired_batch_size)
+    self.assertEqual(enable_semantic_domain_stats,
+                     options.enable_semantic_domain_stats)
+    self.assertEqual(semantic_domain_stats_sample_rate,
+                     options.semantic_domain_stats_sample_rate)
 
   def test_stats_options_from_json(self):
     options_json = """{
@@ -260,20 +322,6 @@ class StatsOptionsTest(parameterized.TestCase):
     actual_options = stats_options.StatsOptions.from_json(options_json)
     expected_options_dict = stats_options.StatsOptions().__dict__
     self.assertEqual(expected_options_dict, actual_options.__dict__)
-
-  def test_stats_options_json_round_trip(self):
-    options = stats_options.StatsOptions(
-        generators=[
-            lift_stats_generator.LiftStatsGenerator(
-                schema=None,
-                y_path=types.FeaturePath(['label']),
-                x_paths=[types.FeaturePath(['feature'])])
-        ],
-        slice_functions=[slicing_util.get_feature_value_slicer({'b': None})])
-    options_json = options.to_json()
-    options_from_json = stats_options.StatsOptions.from_json(options_json)
-    self.assertIsNone(options_from_json.generators)
-    self.assertIsNone(options_from_json.slice_functions)
 
 
 if __name__ == '__main__':

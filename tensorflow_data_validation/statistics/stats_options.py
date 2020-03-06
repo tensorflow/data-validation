@@ -27,6 +27,7 @@ from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
 from typing import List, Optional, Text
 
+from google.protobuf import json_format
 from tensorflow_metadata.proto.v0 import schema_pb2
 
 
@@ -145,7 +146,7 @@ class StatsOptions(object):
     Custom generators and slice_functions are skipped, meaning that they will
     not be used when running TFDV in a setting where the stats options have been
     json-serialized, first. This will happen in the case where TFDV is run as a
-    TFX component.
+    TFX component. The schema proto will be json_encoded.
 
     Returns:
       A JSON representation of a filtered version of __dict__.
@@ -153,6 +154,9 @@ class StatsOptions(object):
     options_dict = copy.copy(self.__dict__)
     options_dict['_slice_functions'] = None
     options_dict['_generators'] = None
+    if self.schema:
+      del options_dict['_schema']
+      options_dict['schema_json'] = json_format.MessageToJson(self.schema)
     return json.dumps(options_dict)
 
   @classmethod
@@ -167,8 +171,13 @@ class StatsOptions(object):
       A StatsOptions instance constructed by setting the __dict__ attribute to
       the deserialized value of options_json.
     """
+    options_dict = json.loads(options_json)
+    if 'schema_json' in options_dict:
+      options_dict['_schema'] = json_format.Parse(options_dict['schema_json'],
+                                                  schema_pb2.Schema())
+      del options_dict['schema_json']
     options = cls()
-    options.__dict__ = json.loads(options_json)
+    options.__dict__ = options_dict
     return options
 
   @property
