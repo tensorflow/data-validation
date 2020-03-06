@@ -87,7 +87,7 @@ BeamCSVCell = beam.typehints.Union[bytes, Text]
 if pa.__version__ >= "0.15":
   ArrowColumn = pa.ChunkedArray
 else:
-  ArrowColumn = pa.Column
+  ArrowColumn = pa.Column  # pytype: disable=module-attr
 
 
 @six.python_2_unicode_compatible
