@@ -185,7 +185,7 @@ def _get_example_value_presence(
 def _to_partial_copresence_counts(
     sliced_table: types.SlicedTable, y_path: types.FeaturePath,
     x_paths: Iterable[types.FeaturePath],
-    y_boundaries: Optional[Iterable[float]], weight_column_name: Optional[Text]
+    y_boundaries: Optional[np.ndarray], weight_column_name: Optional[Text]
 ) -> Iterator[Tuple[_SlicedXYKey, _CountType]]:
   """Yields per-(slice, path_x, x, y) counts of examples with x and y.
 
@@ -234,7 +234,7 @@ def _to_partial_copresence_counts(
 
 def _to_partial_counts(
     sliced_table: types.SlicedTable, path: types.FeaturePath,
-    boundaries: Optional[Iterable[float]], weight_column_name: Optional[Text]
+    boundaries: Optional[np.ndarray], weight_column_name: Optional[Text]
 ) -> Iterator[Tuple[Tuple[types.SliceKey, Union[_XType, _YType]], _CountType]]:
   """Yields per-(slice, value) counts of the examples with value in path."""
   slice_key, table = sliced_table
@@ -274,9 +274,9 @@ def _get_unicode_value(value: Union[Text, bytes], path: types.FeaturePath):
 
 
 def _make_dataset_feature_stats_proto(
-    lifts: Tuple[_SlicedFeatureKey, _LiftSeries], y_path: types.FeaturePath,
-    y_boundaries: Optional[np.ndarray], weighted_examples: bool,
-    output_custom_stats: bool
+    lifts: Tuple[_SlicedFeatureKey, Iterable[_LiftSeries]],
+    y_path: types.FeaturePath, y_boundaries: Optional[np.ndarray],
+    weighted_examples: bool, output_custom_stats: bool
 ) -> Tuple[types.SliceKey, statistics_pb2.DatasetFeatureStatistics]:
   """Generates DatasetFeatureStatistics proto for a given x_path, y_path pair.
 

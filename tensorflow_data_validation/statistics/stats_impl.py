@@ -118,7 +118,7 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
     """
     self._options = options
     self._is_slicing_enabled = (
-        is_slicing_enabled or self._options.slice_functions)
+        is_slicing_enabled or bool(self._options.slice_functions))
 
   def expand(self, dataset: beam.pvalue.PCollection) -> beam.pvalue.PCollection:
     # Handles generators by their type:

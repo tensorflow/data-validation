@@ -155,7 +155,7 @@ def _make_dataset_feature_stats_proto_with_topk_for_single_feature(
                                                   FeaturePathTuple],
                                             List[FeatureValueCount]],
     categorical_features: Set[types.FeaturePath], is_weighted_stats: bool,
-    num_top_values: int, frequency_threshold: float,
+    num_top_values: int, frequency_threshold: Union[int, float],
     num_rank_histogram_buckets: int
 ) -> Tuple[types.SliceKey, statistics_pb2.DatasetFeatureStatistics]:
   """Makes a DatasetFeatureStatistics proto with top-k stats for a feature."""
@@ -198,12 +198,12 @@ def _weighted_unique(values: np.ndarray, weights: np.ndarray
 
 
 def _to_topk_tuples(
-    sliced_table: Tuple[Text, pa.Table],
+    sliced_table: Tuple[types.SliceKey, pa.Table],
     bytes_features: FrozenSet[types.FeaturePath],
     categorical_features: FrozenSet[types.FeaturePath],
     weight_feature: Optional[Text]
 ) -> Iterable[
-    Tuple[Tuple[Text, FeaturePathTuple, Any],
+    Tuple[Tuple[types.SliceKey, FeaturePathTuple, Any],
           Union[int, Tuple[int, Union[int, float]]]]]:
   """Generates tuples for computing top-k and uniques from input tables."""
   slice_key, table = sliced_table

@@ -48,7 +48,6 @@ import random
 import apache_beam as beam
 import pyarrow as pa
 from tensorflow_data_validation import constants
-from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options
 from typing import Generator
@@ -122,8 +121,8 @@ class GenerateStatistics(beam.PTransform):
             stats_impl.GenerateStatisticsImpl(self._options))
 
 
-def _sample_at_rate(example: types.Example, sample_rate: float
-                   ) -> Generator[types.Example, None, None]:
+def _sample_at_rate(example: pa.Table, sample_rate: float
+                   ) -> Generator[pa.Table, None, None]:
   """Sample examples at input sampling rate."""
   # TODO(pachristopher): Revisit this to decide if we need to fix a seed
   # or add an optional seed argument.
