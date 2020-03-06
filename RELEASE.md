@@ -9,6 +9,7 @@
 *   Add JSON serialization support for StatsOptions.
 
 ## Bug Fixes and Other Changes
+*   Only requires `avro-python3>=1.8.1,!=1.9.2.*,<2.0.0` on Python 3.5 + MacOS
 
 ## Breaking Changes
 
