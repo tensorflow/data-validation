@@ -18,6 +18,8 @@ from __future__ import division
 
 from __future__ import print_function
 
+import traceback
+
 from absl.testing import absltest
 import apache_beam as beam
 from apache_beam.testing import util
@@ -47,19 +49,24 @@ def make_example_dict_equal_fn(
     """Matcher function for comparing the example dicts."""
     try:
       # Check number of examples.
-      test.assertEqual(len(actual), len(expected))
-
+      test.assertLen(actual, len(expected))
       for i in range(len(actual)):
         for key in actual[i]:
           # Check each feature value.
           if isinstance(expected[i][key], np.ndarray):
-            test.assertEqual(actual[i][key].dtype, expected[i][key].dtype)
+            test.assertEqual(
+                expected[i][key].dtype, actual[i][key].dtype,
+                'Expected dtype {}, found {} in actual[{}][{}]: {}'.format(
+                    expected[i][key].dtype, actual[i][key].dtype, i, key,
+                    actual[i][key]))
             np.testing.assert_equal(actual[i][key], expected[i][key])
           else:
-            test.assertEqual(actual[i][key], expected[i][key])
+            test.assertEqual(
+                expected[i][key], actual[i][key],
+                'Unexpected value of actual[{}][{}]'.format(i, key))
 
-    except AssertionError as e:
-      raise util.BeamAssertException('Failed assert: ' + str(e))
+    except AssertionError:
+      raise util.BeamAssertException(traceback.format_exc())
 
   return _matcher
 
@@ -81,8 +88,9 @@ def make_dataset_feature_stats_list_proto_equal_fn(
   def _matcher(actual: List[statistics_pb2.DatasetFeatureStatisticsList]):
     """Matcher function for comparing DatasetFeatureStatisticsList proto."""
     try:
-      test.assertEqual(len(actual), 1)
-      test.assertEqual(len(actual[0].datasets), len(expected_result.datasets))
+      test.assertLen(actual, 1,
+                     'Expected exactly one DatasetFeatureStatisticsList')
+      test.assertLen(actual[0].datasets, len(expected_result.datasets))
 
       sorted_actual_datasets = sorted(actual[0].datasets, key=lambda d: d.name)
       sorted_expected_datasets = sorted(expected_result.datasets,
@@ -92,8 +100,8 @@ def make_dataset_feature_stats_list_proto_equal_fn(
         assert_dataset_feature_stats_proto_equal(test,
                                                  sorted_actual_datasets[i],
                                                  sorted_expected_datasets[i])
-    except AssertionError as e:
-      raise util.BeamAssertException('Failed assert: ' + str(e))
+    except AssertionError:
+      raise util.BeamAssertException(traceback.format_exc())
 
   return _matcher
 
@@ -109,21 +117,21 @@ def assert_feature_proto_equal(
     expected: The expected feature proto.
   """
 
-  test.assertEqual(len(actual.custom_stats), len(expected.custom_stats))
+  test.assertLen(actual.custom_stats, len(expected.custom_stats))
   expected_custom_stats = {}
   for expected_custom_stat in expected.custom_stats:
     expected_custom_stats[expected_custom_stat.name] = expected_custom_stat
 
   for actual_custom_stat in actual.custom_stats:
-    test.assertTrue(actual_custom_stat.name in expected_custom_stats)
+    test.assertIn(actual_custom_stat.name, expected_custom_stats)
     expected_custom_stat = expected_custom_stats[actual_custom_stat.name]
     compare.assertProtoEqual(
-        test, actual_custom_stat, expected_custom_stat, normalize_numbers=True)
+        test, expected_custom_stat, actual_custom_stat, normalize_numbers=True)
   del actual.custom_stats[:]
   del expected.custom_stats[:]
 
   # Compare the rest of the proto without numeric custom stats
-  compare.assertProtoEqual(test, actual, expected, normalize_numbers=True)
+  compare.assertProtoEqual(test, expected, actual, normalize_numbers=True)
 
 
 def assert_dataset_feature_stats_proto_equal(
@@ -139,9 +147,14 @@ def assert_dataset_feature_stats_proto_equal(
     actual: The actual DatasetFeatureStatistics proto.
     expected: The expected DatasetFeatureStatistics proto.
   """
-  test.assertEqual(actual.name, expected.name)
-  test.assertEqual(actual.num_examples, expected.num_examples)
-  test.assertEqual(len(actual.features), len(expected.features))
+  test.assertEqual(
+      expected.name, actual.name, 'Expected name to be {}, found {} in '
+      'DatasetFeatureStatistics {}'.format(expected.name, actual.name, actual))
+  test.assertEqual(
+      expected.num_examples, actual.num_examples,
+      'Expected num_examples to be {}, found {} in DatasetFeatureStatsitics {}'
+      .format(expected.num_examples, actual.num_examples, actual))
+  test.assertLen(actual.features, len(expected.features))
 
   expected_features = {}
   for feature in expected.features:
@@ -382,13 +395,16 @@ def make_arrow_tables_equal_fn(test: absltest.TestCase,
     """Arrow tables matcher fn."""
     test.assertLen(actual_tables, len(expected_tables))
     for i in range(len(expected_tables)):
-      test.assertEqual(actual_tables[i].num_columns,
-                       expected_tables[i].num_columns)
+      test.assertEqual(
+          expected_tables[i].num_columns, actual_tables[i].num_columns,
+          'Expected {} columns, found {} in table {}'.format(
+              expected_tables[i].num_columns, actual_tables[i].num_columns,
+              actual_tables[i]))
       for column_name, expected_column in zip(
           expected_tables[i].schema.names, expected_tables[i].columns):
         actual_column = actual_tables[i].column(column_name)
-        test.assertEqual(len(actual_column.data.chunks),
-                         len(expected_column.data.chunks))
+        test.assertLen(actual_column.data.chunks,
+                       len(expected_column.data.chunks))
         for j in range(len(expected_column.data.chunks)):
           actual_chunk = actual_column.data.chunk(j)
           expected_chunk = expected_column.data.chunk(j)
