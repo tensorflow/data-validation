@@ -207,15 +207,6 @@ password:${TESTPYPI_PASSWORD}
 EOL
 }
 
-if [[ "${RELEASE}" = true ]]; then
-  # We are either releasing from a Git tag, or use current date as version.
-  if [[ -z "${RELEASE_GIT_TAG}" ]]; then
-    NIGHTLY_RELEASE_DATE=$(date +"%Y%m%d")
-  fi
-  tfdv::release_pypi_package || \
-    tfdv::die "Unable to Release the wheel to PyPi"
-fi
-
 function tfdv::release_pypi_package {
   # Upload build manifests to PyPI.
   #
@@ -252,3 +243,12 @@ function tfdv::release_pypi_package {
   set +e
   set +x
 }
+
+if [[ "${RELEASE}" = true ]]; then
+  # We are either releasing from a Git tag, or use current date as version.
+  if [[ -z "${RELEASE_GIT_TAG}" ]]; then
+    NIGHTLY_RELEASE_DATE=$(date +"%Y%m%d")
+  fi
+  tfdv::release_pypi_package || \
+    tfdv::die "Unable to Release the wheel to PyPi"
+fi
