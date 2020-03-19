@@ -263,11 +263,11 @@ statistics for the anomalous examples found. For example:
 
 ```python
    options = tfdv.StatsOptions(schema=schema)
-   anomalous_example_stats = tfdv.validate_tfexamples_in_tfrecord(
+   anomalous_example_stats = tfdv.validate_examples_in_tfrecord(
        data_location=input, stats_options=options)
 ```
 
-The `anomalous_example_stats` that `validate_tfexamples_in_tfrecord` returns is
+The `anomalous_example_stats` that `validate_examples_in_tfrecord` returns is
 a [DatasetFeatureStatisticsList](https://github.com/tensorflow/metadata/tree/master/tensorflow_metadata/proto/v0/statistics.proto)
 protocol buffer in which each dataset consists of the set of examples that
 exhibit a particular anomaly. You can use this to determine the number of
