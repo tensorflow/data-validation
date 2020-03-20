@@ -130,6 +130,7 @@ fi
 # Upgrade pip, setuptools and wheel packages.
 "${PYTHON_BIN_PATH}" -m pip install --upgrade pip
 pip install setuptools --upgrade
+pip install twine --upgrade
 pip install wheel --upgrade
 pip freeze --all
 
