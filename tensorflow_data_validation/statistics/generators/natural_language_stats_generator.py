@@ -43,6 +43,9 @@ _AVG_WORD_LENGTH_MIN = 2.5
 _AVG_WORD_LENGTH_MAX = 8
 _MIN_WORDS_PER_VALUE = 3
 _CROP_AT_LENGTH = 100
+# We crop the feature values as checking all the values is expensive for
+# features with high valency.
+_CROP_AT_VALUES = 100
 
 # NLStatsGenerator default initialization values.
 _MATCH_RATIO = 0.8
@@ -197,7 +200,7 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
 
     is_non_utf_vec = np.vectorize(_is_non_utf8, otypes=[np.bool])
     classify_vec = np.vectorize(self._classifier.classify, otypes=[np.bool])
-    values = np.asarray(feature_array.flatten())
+    values = np.asarray(feature_array.flatten().slice(0, _CROP_AT_VALUES))
     if np.any(is_non_utf_vec(values)):
       accumulator.invalidate = True
       return accumulator

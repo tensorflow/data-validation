@@ -6,6 +6,8 @@
 
 ## Bug Fixes and Other Changes
 
+*   Crop values in natural language stats generator.
+
 ## Breaking Changes
 
 ## Deprecations
