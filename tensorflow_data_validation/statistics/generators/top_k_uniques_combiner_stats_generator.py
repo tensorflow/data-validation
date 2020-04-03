@@ -170,10 +170,12 @@ class TopKUniquesCombinerStatsGenerator(
   def create_accumulator(self) -> Dict[types.FeatureName, _ValueCounts]:
     return {}
 
-  def add_input(self, accumulator: Dict[types.FeaturePath, _ValueCounts],
-                input_table: pa.Table) -> Dict[types.FeaturePath, _ValueCounts]:
+  def add_input(
+      self, accumulator: Dict[types.FeaturePath,
+                              _ValueCounts], input_record_batch: pa.RecordBatch
+  ) -> Dict[types.FeaturePath, _ValueCounts]:
     for feature_path, leaf_array, weights in arrow_util.enumerate_arrays(
-        input_table,
+        input_record_batch,
         weight_column=self._weight_feature,
         enumerate_leaves_only=True):
       feature_type = stats_util.get_feature_type_from_arrow_type(

@@ -10,6 +10,14 @@
 
 ## Breaking Changes
 
+*   `tfdv.validate_instances` and
+    `tfdv.api.validation_api.IdentifyAnomalousExamples` now takes
+    `pa.RecordBatch` as input instead of `pa.Table`.
+*   The `StatsGenerator` interface (and all its sub-classes) now takes
+    `pa.RecordBatch` as the input data instead of `pa.Table`.
+*   Custom slicing functions now accepts a `pa.RecordBatch` instead of
+    `pa.Table` as input and should output a tuple `(slice_key, record_batch)`.
+
 ## Deprecations
 
 # Release 0.21.5

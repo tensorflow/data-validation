@@ -36,12 +36,12 @@ from typing import Dict, Iterable, List, Text, Tuple
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
-def _assign_to_partition(sliced_table: types.SlicedTable,
+def _assign_to_partition(sliced_record_batch: types.SlicedRecordBatch,
                          num_partitions: int
-                        ) -> Tuple[Tuple[types.SliceKey, int], pa.Table]:
+                        ) -> Tuple[Tuple[types.SliceKey, int], pa.RecordBatch]:
   """Assigns an example to a partition key."""
-  slice_key, table = sliced_table
-  return (slice_key, np.random.randint(num_partitions)), table
+  slice_key, record_batch = sliced_record_batch
+  return (slice_key, np.random.randint(num_partitions)), record_batch
 
 
 def _get_partitioned_statistics_summary(
@@ -177,12 +177,13 @@ class PartitionedStatisticsAnalyzer(beam.CombineFn):
 
 
 def _process_partition(
-    partition: Tuple[Tuple[types.SliceKey, int], List[pa.Table]],
+    partition: Tuple[Tuple[types.SliceKey, int], List[pa.RecordBatch]],
     stats_fn: PartitionedStatsFn
 ) -> Tuple[types.SliceKey, statistics_pb2.DatasetFeatureStatistics]:
   """Process batches in a single partition."""
-  (slice_key, _), tables = partition
-  return slice_key, stats_fn.compute(table_util.MergeTables(tables))
+  (slice_key, _), record_batches = partition
+  return slice_key, stats_fn.compute(
+      table_util.MergeRecordBatches(record_batches))
 
 
 # Input type check is commented out, as beam python will fail the type check

@@ -51,15 +51,16 @@ from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
-# The combiner accumulates tables from the upstream and merge them when certain
-# conditions are met. A merged table would allow better vectorized processing,
-# but we have to pay for copying and the RAM to contain the merged table.
-# If the total byte size of accumulated tables exceeds this threshold a merge
-# will be forced to avoid consuming too much memory.
-_MERGE_TABLE_BYTE_SIZE_THRESHOLD = 20 << 20  # 20MiB
+# The combiner accumulates record batches from the upstream and merge them when
+# certain conditions are met. A merged record batch would allow better
+# vectorized processing, # but we have to pay for copying and the RAM to contain
+# the merged record batch. If the total byte size of accumulated record batches
+# exceeds this threshold a merge will be forced to avoid consuming too much
+# memory.
+_MERGE_RECORD_BATCH_BYTE_SIZE_THRESHOLD = 20 << 20  # 20MiB
 
 
-@beam.typehints.with_input_types(pa.Table)
+@beam.typehints.with_input_types(pa.RecordBatch)
 @beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatisticsList)
 class GenerateStatisticsImpl(beam.PTransform):
   """PTransform that applies a set of generators over input examples."""
@@ -97,7 +98,7 @@ class GenerateStatisticsImpl(beam.PTransform):
 # statistics over anomalous examples. Specifically, it is used to compute
 # statistics over examples found for each anomaly (i.e., the anomaly type
 # will be the slice key).
-@beam.typehints.with_input_types(types.BeamSlicedTable)
+@beam.typehints.with_input_types(types.BeamSlicedRecordBatch)
 @beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatisticsList)
 class GenerateSlicedStatisticsImpl(beam.PTransform):
   """PTransform that applies a set of generators to sliced input examples."""
@@ -310,25 +311,27 @@ def _schema_has_sparse_features(schema: schema_pb2.Schema) -> bool:
 
 
 def _filter_features(
-    table: pa.Table,
-    feature_whitelist: List[types.FeatureName]) -> pa.Table:
+    record_batch: pa.RecordBatch,
+    feature_whitelist: List[types.FeatureName]) -> pa.RecordBatch:
   """Removes features that are not whitelisted.
 
   Args:
-    table: Input Arrow table.
+    record_batch: Input Arrow RecordBatch.
     feature_whitelist: A set of feature names to whitelist.
 
   Returns:
-    An Arrow table containing only the whitelisted features of the input table.
+    An Arrow RecordBatch containing only the whitelisted features of the input.
   """
-  column_names = set(table.schema.names)
+  schema = record_batch.schema
+  column_names = set(schema.names)
   columns_to_select = []
   column_names_to_select = []
   for feature_name in feature_whitelist:
     if feature_name in column_names:
-      columns_to_select.append(table.column(feature_name).data)
+      columns_to_select.append(
+          record_batch.column(schema.get_field_index(feature_name)))
       column_names_to_select.append(feature_name)
-  return pa.Table.from_arrays(columns_to_select, column_names_to_select)
+  return pa.RecordBatch.from_arrays(columns_to_select, column_names_to_select)
 
 
 def _add_slice_key(
@@ -493,12 +496,12 @@ class NumExamplesStatsGenerator(stats_generator.CombinerStatsGenerator):
     return [0, 0]  # [num_examples, weighted_num_examples]
 
   def add_input(self, accumulator: List[float],
-                examples_table: pa.Table) -> List[float]:
-    accumulator[0] += examples_table.num_rows
+                examples: pa.RecordBatch) -> List[float]:
+    accumulator[0] += examples.num_rows
     if self._weight_feature:
-      weights_column = examples_table.column(self._weight_feature)
-      for weight_array in weights_column.data.iterchunks():
-        accumulator[1] += np.sum(np.asarray(weight_array.flatten()))
+      weights_column = examples.column(
+          examples.schema.get_field_index(self._weight_feature))
+      accumulator[1] += np.sum(np.asarray(weights_column.flatten()))
     return accumulator
 
   def merge_accumulators(self, accumulators: Iterable[List[float]]
@@ -523,21 +526,23 @@ class NumExamplesStatsGenerator(stats_generator.CombinerStatsGenerator):
 class _CombinerStatsGeneratorsCombineFnAcc(object):
   """accumulator for _CombinerStatsGeneratorsCombineFn."""
 
-  __slots__ = ['partial_accumulators', 'input_tables', 'curr_batch_size',
-               'curr_byte_size']
+  __slots__ = [
+      'partial_accumulators', 'input_record_batches', 'curr_batch_size',
+      'curr_byte_size'
+  ]
 
   def __init__(self, partial_accumulators: List[Any]):
     # Partial accumulator states of the underlying CombinerStatsGenerators.
     self.partial_accumulators = partial_accumulators
-    # Input tables to be processed.
-    self.input_tables = []
+    # Input record batches to be processed.
+    self.input_record_batches = []
     # Current batch size.
     self.curr_batch_size = 0
-    # Current total byte size of all the pa.Tables accumulated.
+    # Current total byte size of all the pa.RecordBatches accumulated.
     self.curr_byte_size = 0
 
 
-@beam.typehints.with_input_types(pa.Table)
+@beam.typehints.with_input_types(pa.RecordBatch)
 @beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatistics)
 class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
   """A beam.CombineFn wrapping a list of CombinerStatsGenerators with batching.
@@ -628,7 +633,7 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
     if curr_batch_size >= self._desired_batch_size:
       return True
 
-    if accumulator.curr_byte_size >= _MERGE_TABLE_BYTE_SIZE_THRESHOLD:
+    if accumulator.curr_byte_size >= _MERGE_RECORD_BATCH_BYTE_SIZE_THRESHOLD:
       return True
 
     return False
@@ -650,25 +655,26 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
     if self._should_do_batch(accumulator, force):
       self._combine_batch_size.update(accumulator.curr_batch_size)
       self._combine_byte_size.update(accumulator.curr_byte_size)
-      if len(accumulator.input_tables) == 1:
-        arrow_table = accumulator.input_tables[0]
+      if len(accumulator.input_record_batches) == 1:
+        record_batch = accumulator.input_record_batches[0]
       else:
-        arrow_table = table_util.MergeTables(accumulator.input_tables)
+        record_batch = table_util.MergeRecordBatches(
+            accumulator.input_record_batches)
       accumulator.partial_accumulators = self._for_each_generator(
-          lambda gen, gen_acc: gen.add_input(gen_acc, arrow_table),
+          lambda gen, gen_acc: gen.add_input(gen_acc, record_batch),
           accumulator.partial_accumulators)
-      del accumulator.input_tables[:]
+      del accumulator.input_record_batches[:]
       accumulator.curr_batch_size = 0
       accumulator.curr_byte_size = 0
 
   def add_input(
       self, accumulator: _CombinerStatsGeneratorsCombineFnAcc,
-      input_table: pa.Table
-      ) -> _CombinerStatsGeneratorsCombineFnAcc:
-    accumulator.input_tables.append(input_table)
-    num_rows = input_table.num_rows
+      input_record_batch: pa.RecordBatch
+  ) -> _CombinerStatsGeneratorsCombineFnAcc:
+    accumulator.input_record_batches.append(input_record_batch)
+    num_rows = input_record_batch.num_rows
     accumulator.curr_batch_size += num_rows
-    accumulator.curr_byte_size += table_util.TotalByteSize(input_table)
+    accumulator.curr_byte_size += table_util.TotalByteSize(input_record_batch)
     self._maybe_do_batch(accumulator)
     self._num_instances.inc(num_rows)
     return accumulator
@@ -694,7 +700,7 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
       # remaining examples, and extract_output() in the end will flush anyways.
       batched_partial_accumulators = []
       for acc in batched_accumulators:
-        result.input_tables.extend(acc.input_tables)
+        result.input_record_batches.extend(acc.input_record_batches)
         result.curr_batch_size += acc.curr_batch_size
         result.curr_byte_size += acc.curr_byte_size
         self._maybe_do_batch(result)
@@ -731,14 +737,13 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
 
 
 def generate_partial_statistics_in_memory(
-    table: pa.Table,
-    options: stats_options.StatsOptions,
+    record_batch: pa.RecordBatch, options: stats_options.StatsOptions,
     stats_generators: List[stats_generator.CombinerStatsGenerator]
 ) -> List[Any]:
   """Generates statistics for an in-memory list of examples.
 
   Args:
-    table: Arrow table.
+    record_batch: Arrow RecordBatch.
     options: Options for generating data statistics.
     stats_generators: A list of combiner statistics generators.
 
@@ -747,32 +752,35 @@ def generate_partial_statistics_in_memory(
   """
   result = []
   if options.feature_whitelist:
+    schema = record_batch.schema
     whitelisted_columns = [
-        table.column(f).data for f in options.feature_whitelist]
-    table = pa.Table.from_arrays(
-        whitelisted_columns, list(options.feature_whitelist))
+        record_batch.column(schema.get_field_index(f))
+        for f in options.feature_whitelist
+    ]
+    record_batch = pa.RecordBatch.from_arrays(whitelisted_columns,
+                                              list(options.feature_whitelist))
   for generator in stats_generators:
     result.append(
-        generator.add_input(generator.create_accumulator(), table))
+        generator.add_input(generator.create_accumulator(), record_batch))
   return result
 
 
 def generate_statistics_in_memory(
-    table: pa.Table,
+    record_batch: pa.RecordBatch,
     options: stats_options.StatsOptions = stats_options.StatsOptions()
 ) -> statistics_pb2.DatasetFeatureStatisticsList:
   """Generates statistics for an in-memory list of examples.
 
   Args:
-    table: Arrow table.
+    record_batch: Arrow RecordBatch.
     options: Options for generating data statistics.
 
   Returns:
     A DatasetFeatureStatisticsList proto.
   """
   stats_generators = get_generators(options, in_memory=True)  # type: List[stats_generator.CombinerStatsGenerator]
-  partial_stats = generate_partial_statistics_in_memory(
-      table, options, stats_generators)
+  partial_stats = generate_partial_statistics_in_memory(record_batch, options,
+                                                        stats_generators)
   return extract_statistics_output(partial_stats, stats_generators)
 
 
@@ -850,13 +858,13 @@ class CombinerFeatureStatsWrapperGenerator(
     return {}
 
   def add_input(self, wrapper_accumulator: WrapperAccumulator,
-                input_table: pa.Table) -> WrapperAccumulator:
+                input_record_batch: pa.RecordBatch) -> WrapperAccumulator:
     """Returns result of folding a batch of inputs into wrapper_accumulator.
 
     Args:
       wrapper_accumulator: The current wrapper accumulator.
-      input_table: An arrow table representing a batch of examples, which
-        should be added to the accumulator.
+      input_record_batch: An arrow RecordBatch representing a batch of examples,
+      which should be added to the accumulator.
 
     Returns:
       The wrapper_accumulator after updating the statistics for the batch of
@@ -866,7 +874,7 @@ class CombinerFeatureStatsWrapperGenerator(
       return wrapper_accumulator
 
     for feature_path, feature_array, _ in arrow_util.enumerate_arrays(
-        input_table,
+        input_record_batch,
         weight_column=self._weight_feature,
         enumerate_leaves_only=True):
       for index, generator in enumerate(self._feature_stats_generators):

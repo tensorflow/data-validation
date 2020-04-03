@@ -25,27 +25,28 @@ from tfx_bsl.arrow import array_util
 from typing import Iterable, Optional, Text, Tuple
 
 
-def get_weight_feature(input_table: pa.Table,
+def get_weight_feature(input_record_batch: pa.RecordBatch,
                        weight_column: Text) -> np.ndarray:
-  """Gets the weight column from the input table.
+  """Gets the weight column from the input record batch.
 
   Args:
-    input_table: Input table.
+    input_record_batch: Input record batch.
     weight_column: Name of the column containing the weight.
 
   Returns:
-    A numpy array containing the weights of the examples in the input table.
+    A numpy array containing the weights of the examples in the input
+    record_batch.
 
   Raises:
-    ValueError: If the weight feature is not present in the input table or is
-        not a valid weight feature (must be of numeric type and have a
-        single value for each example).
+    ValueError: If the weight feature is not present in the input record_batch
+    or is not a valid weight feature (must be of numeric type and have a
+    single value for each example).
   """
-  try:
-    weights = input_table.column(weight_column).data.chunk(0)
-  except KeyError:
+  weights_field_index = input_record_batch.schema.get_field_index(weight_column)
+  if weights_field_index < 0:
     raise ValueError('Weight column "{}" not present in the input '
-                     'table.'.format(weight_column))
+                     'record batch.'.format(weight_column))
+  weights = input_record_batch.column(weights_field_index)
 
   if pa.types.is_null(weights.type):
     raise ValueError('Weight column "{}" cannot be null.'.format(weight_column))
@@ -90,27 +91,26 @@ def is_list_like(data_type: pa.DataType) -> bool:
 
 
 def get_array(
-    table: pa.Table,
+    record_batch: pa.RecordBatch,
     query_path: types.FeaturePath,
     return_example_indices: bool
 ) -> Tuple[pa.Array, Optional[np.ndarray]]:
-  """Retrieve a nested array (and optionally example indices) from a table.
+  """Retrieve a nested array (and optionally example indices) from RecordBatch.
 
-  It assumes all the columns in `table` have only one chunk.
-  It assumes `table` contains only arrays of the following supported types:
+  It assumes `record_batch` contains only arrays of the following supported
+  types:
     - list<primitive>
     - list<struct<[Ts]>> where Ts are the types of the fields in the struct
       type, and they can only be one of the supported types
       (recursion intended).
 
-  If the provided path refers to a leaf in the table, then a ListArray with a
-  primitive element type will be returned. If the provided path does not refer
-  to a leaf, a ListArray with a StructArray element type will be returned.
+  If the provided path refers to a leaf in the record_batch, then a ListArray
+  with a primitive element type will be returned. If the provided path does not
+  refer to a leaf, a ListArray with a StructArray element type will be returned.
 
   Args:
-    table: The Table whose arrays to be visited. It is assumed that the table
-      contains only one chunk.
-    query_path: The FeaturePath to lookup in the table.
+    record_batch: The RecordBatch whose arrays to be visited.
+    query_path: The FeaturePath to lookup in the record_batch.
     return_example_indices: Whether to return an additional array containing the
       example indices of the elements in the array corresponding to the
       query_path.
@@ -118,11 +118,11 @@ def get_array(
   Returns:
     A tuple. The first term is the feature array and the second term is the
     example_indeices array for the feature array (i.e. array[i] came from the
-    example at row example_indices[i] in the table.).
+    example at row example_indices[i] in the record_batch.).
 
   Raises:
-    KeyError: When the query_path is empty, or cannot be found in the table and
-      its nested struct arrays.
+    KeyError: When the query_path is empty, or cannot be found in the
+    record_batch and its nested struct arrays.
   """
 
   def _recursion_helper(
@@ -155,40 +155,41 @@ def get_array(
   if not query_path:
     raise KeyError('query_path must be non-empty.')
   column_name = query_path.steps()[0]
-  try:
-    array = table.column(column_name).data.chunk(0)
-  except KeyError:
-    raise KeyError('query_path step 0 "{}" not in table.'.format(column_name))
+  field_index = record_batch.schema.get_field_index(column_name)
+  if field_index < 0:
+    raise KeyError('query_path step 0 "{}" not in record batch.'
+                   .format(column_name))
+  array = record_batch.column(field_index)
   array_path = types.FeaturePath(query_path.steps()[1:])
 
   example_indices = np.arange(
-      table.num_rows) if return_example_indices else None
+      record_batch.num_rows) if return_example_indices else None
   return _recursion_helper(array_path, array, example_indices)
 
 
 def enumerate_arrays(
-    table: pa.Table, weight_column: Optional[Text], enumerate_leaves_only: bool
+    record_batch: pa.RecordBatch,
+    weight_column: Optional[Text],
+    enumerate_leaves_only: bool
 ) -> Iterable[Tuple[types.FeaturePath, pa.Array, Optional[np.ndarray]]]:
-  """Enumerates arrays in a Table.
+  """Enumerates arrays in a RecordBatch.
 
-  It assumes all the columns in `table` have only one chunk.
-  It assumes `table` contains only arrays of the following supported types:
+  It assumes `record_batch` contains only arrays of the following supported
+  types:
     - list<primitive>
     - list<struct<[Ts]>> where Ts are the types of the fields in the struct
       type, and they can only be one of the supported types
       (recursion intended).
 
-  It enumerates each column (i.e. array, because there is only one chunk) in
-  the table (also see `enumerate_leaves_only`) If an array is of type
-  list<struct<[Ts]>>, then it flattens the outermost list, then enumerates the
-  array of each field in the result struct<[Ts]> array, and continues
-  recursively. The weights get "aligned" automatically in this process,
-  therefore weights, the third term in the returned tuple always has array[i]'s
-  weight being weights[i].
+  It enumerates each column in the record_batch (also see
+  `enumerate_leaves_only`). If an array is of type list<struct<[Ts]>>, then it
+  flattens the outermost list, then enumerates the array of each field in the
+  result struct<[Ts]> array, and continues recursively. The weights get
+  "aligned" automatically in this process, therefore weights, the third term in
+  the returned tuple always has array[i]'s weight being weights[i].
 
   Args:
-    table: The Table whose arrays to be visited. It is assumed that the table
-      contains only one chunk.
+    record_batch: The RecordBatch whose arrays to be visited.
     weight_column: The name of the weight column, or None. The elements of
       the weight column should be lists of numerics, and each list should
       contain only one value.
@@ -232,9 +233,25 @@ def enumerate_arrays(
 
   weights = None
   if weight_column is not None:
-    weights = get_weight_feature(table, weight_column)
-  for column_name, column in zip(table.schema.names, table.itercolumns()):
+    weights = get_weight_feature(record_batch, weight_column)
+  for column_name, column in zip(record_batch.schema.names,
+                                 record_batch.columns):
     # use "yield from" after PY 3.3.
     for e in _recursion_helper(
-        types.FeaturePath([column_name]), column.data.chunk(0), weights):
+        types.FeaturePath([column_name]), column, weights):
       yield e
+
+
+# TODO(zhuo): remove this after the public APIs start accepting pa.RecordBatch.
+def table_to_record_batch(table: pa.Table) -> pa.RecordBatch:
+  """Converts a pa.Table to a pa.RecordBatch."""
+  columns = []
+  for column_name, chunked_array in zip(
+      table.column_names, table.itercolumns()):
+    if chunked_array.num_chunks != 1:
+      raise ValueError(
+          'Expected every column in the input table to have exactly one chunk, '
+          'but column {} had {}'.format(column_name, chunked_array.num_chunks))
+    columns.append(chunked_array.chunk(0))
+
+  return pa.record_batch(columns, schema=table.schema)

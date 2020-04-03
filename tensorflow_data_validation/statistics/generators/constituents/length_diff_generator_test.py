@@ -54,7 +54,7 @@ class LengthDiffGeneratorTest(absltest.TestCase):
 
   def test_length_diff_generator_positive_min_max(self):
     batch = input_batch.InputBatch(
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[1, 2, 3], None, [1]]),
             pa.array([[1], None, []]),
             pa.array([[1], None, [1]])
@@ -71,7 +71,7 @@ class LengthDiffGeneratorTest(absltest.TestCase):
 
   def test_length_diff_generator_negative_min_max(self):
     batch = input_batch.InputBatch(
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[1, 2, 3], None, [1]]),
             pa.array([[1], None, []]),
             pa.array([[1], None, [1]])
@@ -87,7 +87,7 @@ class LengthDiffGeneratorTest(absltest.TestCase):
 
   def test_length_diff_generator_both_null(self):
     batch = input_batch.InputBatch(
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([None, None, None]),
             pa.array([None, None, None]),
             pa.array([[1], [1], [1]])
@@ -103,7 +103,7 @@ class LengthDiffGeneratorTest(absltest.TestCase):
 
   def test_length_diff_generator_both_missing(self):
     batch = input_batch.InputBatch(
-        pa.Table.from_arrays([pa.array([[1], [1], [1]])], ['required']))
+        pa.RecordBatch.from_arrays([pa.array([[1], [1], [1]])], ['required']))
     path1 = types.FeaturePath(['f1'])
     path2 = types.FeaturePath(['f2'])
     required_path = types.FeaturePath('required')
@@ -115,7 +115,7 @@ class LengthDiffGeneratorTest(absltest.TestCase):
 
   def test_length_diff_generator_required_missing(self):
     batch = input_batch.InputBatch(
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[1, 2, 3], None, [1]]),
             pa.array([[1], None, []]),
             pa.array([None, None, None])

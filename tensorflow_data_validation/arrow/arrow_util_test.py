@@ -28,7 +28,7 @@ from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
 
 
-_INPUT_TABLE = pa.Table.from_arrays([
+_INPUT_RECORD_BATCH = pa.RecordBatch.from_arrays([
     pa.array([[1], [2, 3]]),
     pa.array([[{
         "sf1": ["a", "b"]
@@ -78,9 +78,9 @@ class EnumerateArraysTest(parameterized.TestCase):
   def testGetWeightFeatureNotFound(self):
     with self.assertRaisesRegex(
         ValueError,
-        r'Weight column "w" not present in the input table\.'):
+        r'Weight column "w" not present in the input record batch\.'):
       arrow_util.get_weight_feature(
-          pa.Table.from_arrays(
+          pa.RecordBatch.from_arrays(
               [pa.array([[1], [2]]),
                pa.array([[1], [3]])], ["u", "v"]),
           weight_column="w")
@@ -89,7 +89,7 @@ class EnumerateArraysTest(parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, 'Weight column "w" cannot be '
                                 r'null\.'):
       arrow_util.get_weight_feature(
-          pa.Table.from_arrays(
+          pa.RecordBatch.from_arrays(
               [pa.array([[1], [2]]),
                pa.array([None, None])], ["v", "w"]),
           weight_column="w")
@@ -99,7 +99,7 @@ class EnumerateArraysTest(parameterized.TestCase):
         ValueError,
         r'Weight column "w" must have exactly one value in each example\.'):
       arrow_util.get_weight_feature(
-          pa.Table.from_arrays(
+          pa.RecordBatch.from_arrays(
               [pa.array([[1], [2]]),
                pa.array([[1], []])], ["v", "w"]),
           weight_column="w")
@@ -109,7 +109,7 @@ class EnumerateArraysTest(parameterized.TestCase):
         ValueError,
         r'Weight column "w" must have exactly one value in each example\.'):
       arrow_util.get_weight_feature(
-          pa.Table.from_arrays(
+          pa.RecordBatch.from_arrays(
               [pa.array([[1], [2, 3]]),
                pa.array([[1], [2, 2]])], ["v", "w"]),
           weight_column="w")
@@ -119,16 +119,16 @@ class EnumerateArraysTest(parameterized.TestCase):
         KeyError,
         r"query_path must be non-empty.*"):
       arrow_util.get_array(
-          pa.Table.from_arrays([pa.array([[1], [2, 3]])], ["v"]),
+          pa.RecordBatch.from_arrays([pa.array([[1], [2, 3]])], ["v"]),
           query_path=types.FeaturePath([]),
           return_example_indices=False)
 
   def testGetArrayColumnMissing(self):
     with self.assertRaisesRegex(
         KeyError,
-        r'query_path step 0 "x" not in table.*'):
+        r'query_path step 0 "x" not in record batch.*'):
       arrow_util.get_array(
-          pa.Table.from_arrays([pa.array([[1], [2]])], ["y"]),
+          pa.RecordBatch.from_arrays([pa.array([[1], [2]])], ["y"]),
           query_path=types.FeaturePath(["x"]),
           return_example_indices=False)
 
@@ -136,12 +136,12 @@ class EnumerateArraysTest(parameterized.TestCase):
     with self.assertRaisesRegex(KeyError,
                                 r'query_path step "ssf3" not in struct.*'):
       arrow_util.get_array(
-          _INPUT_TABLE,
+          _INPUT_RECORD_BATCH,
           query_path=types.FeaturePath(["f2", "sf2", "ssf3"]),
           return_example_indices=False)
 
   def testGetArrayReturnExampleIndices(self):
-    table = pa.Table.from_arrays([
+    record_batch = pa.RecordBatch.from_arrays([
         pa.array([[{
             "sf": [{
                 "ssf": [1]
@@ -157,7 +157,7 @@ class EnumerateArraysTest(parameterized.TestCase):
     ], ["f", "w"])
     feature = types.FeaturePath(["f", "sf", "ssf"])
     actual_arr, actual_indices = arrow_util.get_array(
-        table, feature, return_example_indices=True)
+        record_batch, feature, return_example_indices=True)
     expected_arr = pa.array([[1], [2], [3, 4]])
     expected_indices = np.array([0, 0, 1])
     self.assertTrue(
@@ -171,7 +171,7 @@ class EnumerateArraysTest(parameterized.TestCase):
         KeyError,
         r'Cannot process .* "sssf" inside .* list<item: int64>.*'):
       arrow_util.get_array(
-          _INPUT_TABLE,
+          _INPUT_RECORD_BATCH,
           query_path=types.FeaturePath(["f2", "sf2", "ssf1", "sssf"]),
           return_example_indices=False)
 
@@ -179,7 +179,7 @@ class EnumerateArraysTest(parameterized.TestCase):
       ((str(f), f, expected) for (f, expected) in  _FEATURES_TO_ARRAYS.items()))
   def testGetArray(self, feature, expected):
     actual_arr, actual_indices = arrow_util.get_array(
-        _INPUT_TABLE, feature, return_example_indices=True)
+        _INPUT_RECORD_BATCH, feature, return_example_indices=True)
     expected_arr, expected_indices = expected
     self.assertTrue(
         actual_arr.equals(expected_arr),
@@ -191,7 +191,7 @@ class EnumerateArraysTest(parameterized.TestCase):
       ((str(f), f, expected) for (f, expected) in  _FEATURES_TO_ARRAYS.items()))
   def testGetArrayNoBroadcast(self, feature, expected):
     actual_arr, actual_indices = arrow_util.get_array(
-        _INPUT_TABLE, feature, return_example_indices=False)
+        _INPUT_RECORD_BATCH, feature, return_example_indices=False)
     expected_arr, _ = expected
     self.assertTrue(
         actual_arr.equals(expected_arr),
@@ -205,7 +205,7 @@ class EnumerateArraysTest(parameterized.TestCase):
         ValueError,
         r'Weight column "w" must be of numeric type. Found (string|binary).*'):
       for _ in arrow_util.enumerate_arrays(
-          pa.Table.from_arrays(
+          pa.RecordBatch.from_arrays(
               [pa.array([[1], [2, 3]]),
                pa.array([["a"], ["b"]])], ["v", "w"]),
           weight_column="w",
@@ -217,7 +217,7 @@ class EnumerateArraysTest(parameterized.TestCase):
         [True, False], 2):
       actual_results = {}
       for feature_path, feature_array, weights in arrow_util.enumerate_arrays(
-          _INPUT_TABLE, "w" if has_weights else None, leaves_only):
+          _INPUT_RECORD_BATCH, "w" if has_weights else None, leaves_only):
         actual_results[feature_path] = (feature_array, weights)
 
       expected_results = {}

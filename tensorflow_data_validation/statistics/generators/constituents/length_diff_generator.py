@@ -13,12 +13,12 @@
 # limitations under the License.
 """A generator for computing the min/max list length diffs between two paths.
 
-This stats generator is useful for ensuring that two separate paths in a table
-have equal list lengths for all the rows in which they appear. It also supports
-restricting these comparison to rows in which all of the `required_paths` are
-non-null. This prevents rows in which both the `left_path` and `right_path` are
-missing from contributing the length diff 0 (0 - 0) to the accumulated min and
-max.
+This stats generator is useful for ensuring that two separate paths in a record
+batch have equal list lengths for all the rows in which they appear. It also
+supports restricting these comparison to rows in which all of the
+`required_paths` are non-null. This prevents rows in which both the `left_path`
+and `right_path` are missing from contributing the length diff 0 (0 - 0) to the
+accumulated min and max.
 """
 
 from __future__ import absolute_import
@@ -105,11 +105,11 @@ class LengthDiffGenerator(stats_generator.ConstituentStatsGenerator):
     try:
       left_lengths = batch.list_lengths(self._left_path)
     except KeyError:
-      left_lengths = np.full(batch.table.num_rows, 0)
+      left_lengths = np.full(batch.record_batch.num_rows, 0)
     try:
       right_lengths = batch.list_lengths(self._right_path)
     except KeyError:
-      right_lengths = np.full(batch.table.num_rows, 0)
+      right_lengths = np.full(batch.record_batch.num_rows, 0)
     diffs = left_lengths - right_lengths
 
     if self._required_paths:

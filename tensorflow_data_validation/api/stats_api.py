@@ -48,6 +48,7 @@ import random
 import apache_beam as beam
 import pyarrow as pa
 from tensorflow_data_validation import constants
+from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options
 from typing import Generator
@@ -97,6 +98,10 @@ class GenerateStatistics(beam.PTransform):
     # Sample input data if sample_count option is provided.
     # TODO(b/117229955): Consider providing an option to write the sample
     # to a file.
+    # TODO(zhuo): clean this up once public APIs are changed to accept
+    # PCollection[RecordBatch].
+    dataset |= 'ArrowTableToRecordBatch' >> beam.Map(
+        arrow_util.table_to_record_batch)
     if self._options.sample_count is not None:
       # TODO(pachristopher): Consider moving the sampling logic to decoders.
       # beam.combiners.Sample.FixedSizeGlobally returns a

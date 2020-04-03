@@ -91,7 +91,7 @@ def remove_anomaly_types(
 
 
 def anomalies_slicer(
-    unused_example: pa.Table,
+    unused_example: pa.RecordBatch,
     anomalies: anomalies_pb2.Anomalies) -> types.SliceKeysList:
   """Returns slice keys for an example based on the given Anomalies proto.
 

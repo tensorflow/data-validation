@@ -57,8 +57,9 @@ SliceKeysList = List[SliceKey]
 # Type of the tuple containing an input example along with the slice key.
 SlicedExample = Tuple[SliceKey, Example]
 
-# Type of the tuple containing an input arrow table along with the slice key.
-SlicedTable = Tuple[SliceKey, pa.Table]
+# Type of the tuple containing an input arrow record batch along with the slice
+# key.
+SlicedRecordBatch = Tuple[SliceKey, pa.RecordBatch]
 
 # Type of the function that is used to generate a list of slice keys for a given
 # example. This function should take the form: slice_fn(example, **kwargs) ->
@@ -75,19 +76,9 @@ BeamFeatureName = beam.typehints.Union[bytes, Text]
 BeamExample = beam.typehints.Dict[BeamFeatureName, beam.typehints
                                   .Optional[np.ndarray]]
 BeamSliceKey = beam.typehints.Optional[beam.typehints.Union[bytes, Text]]
-BeamSlicedTable = beam.typehints.Tuple[BeamSliceKey, pa.Table]
+BeamSlicedRecordBatch = beam.typehints.Tuple[BeamSliceKey, pa.RecordBatch]
 BeamCSVRecord = beam.typehints.Union[bytes, Text]
 BeamCSVCell = beam.typehints.Union[bytes, Text]
-
-# pa.Column has been removed since pyarrow 0.15. (Table.data returns a
-# ChunkedArray instead, but a ChunkedArray has all the methods that
-# pa.Column used to have for compatibility reasons.)
-# TODO(b/142894895): remove the version switch once tfx-bsl starts requiring
-# pyarrow>=0.15.
-if pa.__version__ >= "0.15":
-  ArrowColumn = pa.ChunkedArray
-else:
-  ArrowColumn = pa.Column  # pytype: disable=module-attr
 
 
 @six.python_2_unicode_compatible

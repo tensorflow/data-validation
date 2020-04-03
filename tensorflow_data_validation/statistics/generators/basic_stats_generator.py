@@ -785,9 +785,10 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
   # values are lists representing a batch of examples) into the accumulator.
   def add_input(
       self, accumulator: Dict[types.FeaturePath, _PartialBasicStats],
-      examples_table: pa.Table) -> Dict[types.FeaturePath, _PartialBasicStats]:
+      examples: pa.RecordBatch
+      ) -> Dict[types.FeaturePath, _PartialBasicStats]:
     for feature_path, feature_array, weights in arrow_util.enumerate_arrays(
-        examples_table,
+        examples,
         weight_column=self._weight_feature,
         enumerate_leaves_only=False):
       stats_for_feature = accumulator.get(feature_path)

@@ -444,9 +444,9 @@ with beam.Pipeline() as p:
 ## Computing statistics over slices of data
 
 TFDV can be configured to compute statistics over slices of data. Slicing can be
-enabled by providing slicing functions which take in an Arrow table and output
-a sequence of tuples of form `(slice key, Arrow table)`. TFDV provides an easy
-way to
+enabled by providing slicing functions which take in an Arrow `RecordBatch` and
+output a sequence of tuples of form `(slice key, record batch)`. TFDV provides
+an easy way to
 [generate feature value based slicing functions](https://github.com/tensorflow/data-validation/blob/master/tensorflow_data_validation/utils/slicing_util.py#L47)
 which can be provided as part of `tfdv.StatsOptions` when computing statistics.
 

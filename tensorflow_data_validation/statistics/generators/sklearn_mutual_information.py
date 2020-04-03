@@ -41,10 +41,10 @@ ADJUSTED_MUTUAL_INFORMATION_KEY = "sklearn_adjusted_mutual_information"
 CATEGORICAL_FEATURE_IMPUTATION_FILL_VALUE = "__missing_category__"
 
 
-def _flatten_and_impute(examples_table: pa.Table,
+def _flatten_and_impute(examples: pa.RecordBatch,
                         categorical_features: Set[types.FeaturePath]
                        ) -> Dict[types.FeaturePath, np.ndarray]:
-  """Flattens and imputes the values in the input Arrow table.
+  """Flattens and imputes the values in the input Arrow RecordBatch.
 
   Replaces missing values with CATEGORICAL_FEATURE_IMPUTATION_FILL_VALUE
   for categorical features and 10*max(feature_values) for numeric features.
@@ -54,7 +54,7 @@ def _flatten_and_impute(examples_table: pa.Table,
   unexpected float arithmetic errors.
 
   Args:
-    examples_table: Arrow table containing a batch of examples where all
+    examples: Arrow RecordBatch containing a batch of examples where all
       features are univalent.
     categorical_features: Set of categorical feature names.
 
@@ -62,13 +62,11 @@ def _flatten_and_impute(examples_table: pa.Table,
     A Dict[FeaturePath, np.ndarray] where the key is the feature path and the
     value is a 1D numpy array corresponding to the feature values.
   """
-  num_rows = examples_table.num_rows
+  num_rows = examples.num_rows
   result = {}
-  for column_name, feature_column in zip(examples_table.schema.names,
-                                         examples_table.itercolumns()):
+  for column_name, feature_array in zip(examples.schema.names,
+                                        examples.columns):
     feature_path = types.FeaturePath([column_name])
-    # Assume we have only a single chunk.
-    feature_array = feature_column.data.chunk(0)
     imputation_fill_value = (
         CATEGORICAL_FEATURE_IMPUTATION_FILL_VALUE
         if feature_path in categorical_features else sys.maxsize)
@@ -146,12 +144,12 @@ class SkLearnMutualInformation(partitioned_stats_generator.PartitionedStatsFn):
     # Seed the RNG used for shuffling and for MI computations.
     np.random.seed(seed)
 
-  def compute(self, examples_table: pa.Table
+  def compute(self, examples: pa.RecordBatch
              ) -> statistics_pb2.DatasetFeatureStatistics:
     """Computes MI and AMI between all valid features and labels.
 
     Args:
-      examples_table: Arrow table containing a batch of examples.
+      examples: Arrow RecordBatch containing a batch of examples.
 
     Returns:
       DatasetFeatureStatistics proto containing AMI and MI for each valid
@@ -162,10 +160,9 @@ class SkLearnMutualInformation(partitioned_stats_generator.PartitionedStatsFn):
     Raises:
       ValueError: If label_feature contains unsupported data.
     """
-    examples_table = self._remove_unsupported_feature_columns(
-        examples_table, self._schema)
+    examples = self._remove_unsupported_feature_columns(examples, self._schema)
 
-    flattened_examples = _flatten_and_impute(examples_table,
+    flattened_examples = _flatten_and_impute(examples,
                                              self._categorical_features)
     if self._label_feature not in flattened_examples:
       raise ValueError("Label column contains unsupported data.")
@@ -277,7 +274,8 @@ class SkLearnMutualInformation(partitioned_stats_generator.PartitionedStatsFn):
     return is_categorical_feature
 
   def _remove_unsupported_feature_columns(
-      self, examples_table: pa.Table, schema: schema_pb2.Schema) -> pa.Table:
+      self, examples: pa.RecordBatch, schema: schema_pb2.Schema
+      ) -> pa.RecordBatch:
     """Removes feature columns that contain unsupported values.
 
     All feature columns that are multivalent are dropped since they are
@@ -286,22 +284,22 @@ class SkLearnMutualInformation(partitioned_stats_generator.PartitionedStatsFn):
     All columns of STRUCT type are also dropped.
 
     Args:
-      examples_table: Arrow table containing a batch of examples.
+      examples: Arrow RecordBatch containing a batch of examples.
       schema: The schema for the data.
 
     Returns:
-      Arrow table.
+      Arrow RecordBatch.
     """
-    table_columns = set(examples_table.schema.names)
+    columns = set(examples.schema.names)
 
     multivalent_features = schema_util.get_multivalent_features(schema)
     unsupported_columns = set()
     for f in multivalent_features:
       # Drop the column if they were in the examples.
-      if f.steps()[0] in table_columns:
+      if f.steps()[0] in columns:
         unsupported_columns.add(f.steps()[0])
-    for column_name, column in zip(examples_table.schema.names,
-                                   examples_table.itercolumns()):
+    for column_name, column in zip(examples.schema.names,
+                                   examples.columns):
       if (stats_util.get_feature_type_from_arrow_type(
           types.FeaturePath([column_name]),
           column.type) == statistics_pb2.FeatureNameStatistics.STRUCT):
@@ -309,4 +307,13 @@ class SkLearnMutualInformation(partitioned_stats_generator.PartitionedStatsFn):
       # Drop columns that were not in the schema.
       if types.FeaturePath([column_name]) not in self._schema_features:
         unsupported_columns.add(column_name)
-    return examples_table.drop(unsupported_columns)
+
+    supported_columns = []
+    supported_column_names = []
+    for column_name, column in zip(examples.schema.names,
+                                   examples.columns):
+      if column_name not in unsupported_columns:
+        supported_columns.append(column)
+        supported_column_names.append(column_name)
+
+    return pa.RecordBatch.from_arrays(supported_columns, supported_column_names)

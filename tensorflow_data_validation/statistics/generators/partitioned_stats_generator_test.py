@@ -47,21 +47,25 @@ class AssignToPartitionTest(absltest.TestCase):
     """
 
     np.random.seed(TEST_SEED)
-    tables = [pa.Table.from_arrays([pa.array([x])], ['a'])
-              for x in np.random.randint(0, 3, (4500, 1))]
-    tables = [(constants.DEFAULT_SLICE_KEY, table) for table in tables]
+    record_batches = [
+        pa.RecordBatch.from_arrays([pa.array([x])], ['a'])
+        for x in np.random.randint(0, 3, (4500, 1))
+    ]
+    record_batches = [(constants.DEFAULT_SLICE_KEY, record_batch)
+                      for record_batch in record_batches]
     num_partitions = 3
 
     # The i,jth value of result represents the number of examples with value j
     # assigned to partition i.
     result = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
 
-    partitioned_tables = [
-        partitioned_stats_generator._assign_to_partition(table,
-                                                         num_partitions)
-        for table in tables]
-    for (unused_slice_key, partition_key), table in partitioned_tables:
-      result[partition_key][table.column('a').to_pylist()[0][0]] += 1
+    partitioned_record_batches = [
+        partitioned_stats_generator._assign_to_partition(
+            record_batch, num_partitions) for record_batch in record_batches
+    ]
+    for (unused_slice_key,
+         partition_key), record_batch in partitioned_record_batches:
+      result[partition_key][record_batch.column(0).to_pylist()[0][0]] += 1
 
     for partition in result:
       for count in partition:
@@ -262,64 +266,64 @@ class NonStreamingCustomStatsGeneratorTest(
     # itself are included in sklearn_mutual_information_test.
 
     # fa is categorical, fb is numeric, fc is multivalent and fd has null values
-    self.tables = [
-        pa.Table.from_arrays([
+    self.record_batches = [
+        pa.RecordBatch.from_arrays([
             pa.array([['Red']]),
             pa.array([[1.0]]),
             pa.array([[1, 3, 1]]),
             pa.array([[0.4]]),
             pa.array([['Label']]),
         ], ['fa', 'fb', 'fc', 'fd', 'label_key']),
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['Green']]),
             pa.array([[2.2]]),
             pa.array([[2, 6]]),
             pa.array([[0.4]]),
             pa.array([['Label']]),
         ], ['fa', 'fb', 'fc', 'fd', 'label_key']),
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['Blue']]),
             pa.array([[3.3]]),
             pa.array([[4, 6]]),
             pa.array([[0.3]]),
             pa.array([['Label']]),
         ], ['fa', 'fb', 'fc', 'fd', 'label_key']),
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['Green']]),
             pa.array([[1.3]]),
             pa.array([None]),
             pa.array([[0.2]]),
             pa.array([['Label']]),
         ], ['fa', 'fb', 'fc', 'fd', 'label_key']),
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['Red']]),
             pa.array([[1.2]]),
             pa.array([[1]]),
             pa.array([[0.3]]),
             pa.array([['Label']]),
         ], ['fa', 'fb', 'fc', 'fd', 'label_key']),
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['Blue']]),
             pa.array([[0.5]]),
             pa.array([[3, 2]]),
             pa.array([[0.4]]),
             pa.array([['Label']]),
         ], ['fa', 'fb', 'fc', 'fd', 'label_key']),
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['Blue']]),
             pa.array([[1.3]]),
             pa.array([[1, 4]]),
             pa.array([[1.7]]),
             pa.array([['Label']]),
         ], ['fa', 'fb', 'fc', 'fd', 'label_key']),
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['Green']]),
             pa.array([[2.3]]),
             pa.array([[0]]),
             pa.array([[np.NaN]], type=pa.list_(pa.float64())),
             pa.array([['Label']]),
         ], ['fa', 'fb', 'fc', 'fd', 'label_key']),
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['Green']]),
             pa.array([[0.3]]),
             pa.array([[3]]),
@@ -395,17 +399,17 @@ class NonStreamingCustomStatsGeneratorTest(
         batch_size=1,
         name='NonStreaming Mutual Information')
     self.assertSlicingAwareTransformOutputEqual(
-        self.tables,
+        self.record_batches,
         generator,
         expected_result,
         add_default_slice_key_to_input=True,
         add_default_slice_key_to_output=True)
 
   def test_sklearn_mi_with_slicing(self):
-    sliced_tables = []
+    sliced_record_batches = []
     for slice_key in ['slice1', 'slice2']:
-      for table in self.tables:
-        sliced_tables.append((slice_key, table))
+      for record_batch in self.record_batches:
+        sliced_record_batches.append((slice_key, record_batch))
 
     expected_result = [
         ('slice1',
@@ -431,8 +435,8 @@ class NonStreamingCustomStatsGeneratorTest(
         max_examples_per_partition=1000,
         batch_size=1,
         name='NonStreaming Mutual Information')
-    self.assertSlicingAwareTransformOutputEqual(sliced_tables, generator,
-                                                expected_result)
+    self.assertSlicingAwareTransformOutputEqual(sliced_record_batches,
+                                                generator, expected_result)
 
 
 if __name__ == '__main__':

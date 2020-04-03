@@ -198,18 +198,18 @@ def _weighted_unique(values: np.ndarray, weights: np.ndarray
 
 
 def _to_topk_tuples(
-    sliced_table: Tuple[types.SliceKey, pa.Table],
+    sliced_record_batch: Tuple[types.SliceKey, pa.RecordBatch],
     bytes_features: FrozenSet[types.FeaturePath],
     categorical_features: FrozenSet[types.FeaturePath],
     weight_feature: Optional[Text]
 ) -> Iterable[
     Tuple[Tuple[types.SliceKey, FeaturePathTuple, Any],
           Union[int, Tuple[int, Union[int, float]]]]]:
-  """Generates tuples for computing top-k and uniques from input tables."""
-  slice_key, table = sliced_table
+  """Generates tuples for computing top-k and uniques from the input."""
+  slice_key, record_batch = sliced_record_batch
 
   for feature_path, feature_array, weights in arrow_util.enumerate_arrays(
-      table,
+      record_batch,
       weight_column=weight_feature,
       enumerate_leaves_only=True):
     feature_array_type = feature_array.type
