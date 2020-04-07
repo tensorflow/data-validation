@@ -285,8 +285,7 @@ feature values. You can use the the decoder in `tfx_bsl` to decode serialized
    import tfx_bsl
    import pyarrow as pa
    decoder = tfx_bsl.coders.example_coder.ExamplesToRecordBatchDecoder()
-   example = pa.Table.from_batches(
-      [decoder.DecodeBatch([serialized_tfexample])])
+   example = decoder.DecodeBatch([serialized_tfexample])
    options = tfdv.StatsOptions(schema=schema)
    anomalies = tfdv.validate_instance(example, options)
 ```
@@ -405,11 +404,12 @@ The TFDV
 is a
 [Beam PTransform](https://beam.apache.org/contribute/ptransform-style-guide/)
 that takes a PCollection of batches of input examples (a batch of input examples
-is represented as an [Arrow](https://arrow.apache.org) table), and outputs a
-PCollection containing a single `DatasetFeatureStatisticsList` protocol buffer.
+is represented as an [Arrow](https://arrow.apache.org) RecordBatch), and outputs
+a PCollection containing a single `DatasetFeatureStatisticsList` protocol
+buffer.
 
 Once you have implemented the custom data connector that batches your
-input examples in an Arrow table, you need to connect it with the
+input examples in an Arrow RecordBatch, you need to connect it with the
 `tfdv.GenerateStatistics` API for computing the data statistics. Take `TFRecord`
 of `tf.train.Example`'s for example. We provide the
 [DecodeTFExample](https://github.com/tensorflow/data-validation/tree/master/tensorflow_data_validation/coders/tf_example_decoder.py)
@@ -429,7 +429,8 @@ with beam.Pipeline() as p:
     p
     # 1. Read out the examples from input files.
     | 'ReadData' >> beam.io.ReadFromTFRecord(file_pattern=DATA_LOCATION)
-    # 2. Convert examples to Arrow tables, which represent example batches.
+    # 2. Convert examples to Arrow RecordBatches, which represent example
+    #    batches.
     | 'DecodeData' >> tf_example_decoder.DecodeTFExample()
     # 3. Invoke TFDV `GenerateStatistics` API to compute the data statistics.
     | 'GenerateStatistics' >> tfdv.GenerateStatistics()

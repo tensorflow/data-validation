@@ -36,7 +36,6 @@ import tensorflow as tf
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.api import stats_api
-from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.arrow import decoded_examples_to_arrow
 from tensorflow_data_validation.coders import csv_decoder
 from tensorflow_data_validation.coders import tf_example_decoder
@@ -304,10 +303,10 @@ def _generate_partial_statistics_from_df(
       j += 1
   if schema.feature:
     stats_options_modified.schema = schema
-  table = decoded_examples_to_arrow.DecodedExamplesToTable(inmemory_dicts)
+  record_batch = decoded_examples_to_arrow.DecodedExamplesToRecordBatch(
+      inmemory_dicts)
   return stats_impl.generate_partial_statistics_in_memory(
-      arrow_util.table_to_record_batch(table),
-      stats_options_modified, stats_generators)
+      record_batch, stats_options_modified, stats_generators)
 
 
 def get_csv_header(data_location: Text,

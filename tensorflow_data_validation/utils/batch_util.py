@@ -36,55 +36,51 @@ GetBeamBatchKwargs = record_based_tfxio.GetBatchElementsKwargs
 # TODO(pachristopher): Deprecate this.
 @beam.ptransform_fn
 @beam.typehints.with_input_types(types.BeamExample)
-@beam.typehints.with_output_types(pa.Table)
-def BatchExamplesToArrowTables(
+@beam.typehints.with_output_types(pa.RecordBatch)
+def BatchExamplesToArrowRecordBatches(
     examples: beam.pvalue.PCollection,
     desired_batch_size: Optional[int] = constants
     .DEFAULT_DESIRED_INPUT_BATCH_SIZE
 ) -> beam.pvalue.PCollection:
-  """Batches example dicts into Arrow tables.
+  """Batches example dicts into Arrow record batches.
 
   Args:
     examples: A PCollection of example dicts.
-    desired_batch_size: Batch size. The output Arrow tables will have as many
-      rows as the `desired_batch_size`.
+    desired_batch_size: Batch size. The output Arrow record batches will have as
+      many rows as the `desired_batch_size`.
 
   Returns:
-    A PCollection of Arrow tables.
+    A PCollection of Arrow record batches.
   """
-  # DecodedExamplesToTable should be called within a lambda function instead of
-  # specifying the function name in beam.Map for the reasons discussed in
-  # b/143648957.
-  # TODO(b/131315065): Remove the comment above when the CSV decoder no longer
-  # uses BatchExamplesToArrowTables.
   return (
       examples
       | "BatchBeamExamples" >>
       beam.BatchElements(**record_based_tfxio.GetBatchElementsKwargs(
           desired_batch_size))
-      | "DecodeExamplesToTable" >>
+      | "DecodeExamplesToRecordBatch" >>
       # pylint: disable=unnecessary-lambda
-      beam.Map(lambda x: decoded_examples_to_arrow.DecodedExamplesToTable(x)))
+      beam.Map(
+          lambda x: decoded_examples_to_arrow.DecodedExamplesToRecordBatch(x)))
       # pylint: enable=unnecessary-lambda
 
 
 @beam.ptransform_fn
 @beam.typehints.with_input_types(bytes)
-@beam.typehints.with_output_types(pa.Table)
-def BatchSerializedExamplesToArrowTables(
+@beam.typehints.with_output_types(pa.RecordBatch)
+def BatchSerializedExamplesToArrowRecordBatches(
     examples: beam.pvalue.PCollection,
     desired_batch_size: Optional[int] = constants
     .DEFAULT_DESIRED_INPUT_BATCH_SIZE
 ) -> beam.pvalue.PCollection:
-  """Batches serialized examples into Arrow tables.
+  """Batches serialized examples into Arrow record batches.
 
   Args:
     examples: A PCollection of serialized tf.Examples.
-    desired_batch_size: Batch size. The output Arrow tables will have as many
-      rows as the `desired_batch_size`.
+    desired_batch_size: Batch size. The output Arrow record batches will have as
+      many rows as the `desired_batch_size`.
 
   Returns:
-    A PCollection of Arrow tables.
+    A PCollection of Arrow record batches.
   """
   return (examples
           | "BatchSerializedExamples" >>
@@ -94,9 +90,9 @@ def BatchSerializedExamplesToArrowTables(
 
 
 @beam.typehints.with_input_types(List[bytes])
-@beam.typehints.with_output_types(pa.Table)
+@beam.typehints.with_output_types(pa.RecordBatch)
 class _BatchDecodeExamplesDoFn(beam.DoFn):
-  """A DoFn which batches input serialized examples into an arrow table."""
+  """A DoFn which batches serialized examples into an arrow record batch."""
 
   def __init__(self):
     self._decoder = None
@@ -106,7 +102,7 @@ class _BatchDecodeExamplesDoFn(beam.DoFn):
   def setup(self):
     self._decoder = example_coder.ExamplesToRecordBatchDecoder()
 
-  def process(self, batch: List[bytes]) -> Iterable[pa.Table]:
+  def process(self, batch: List[bytes]) -> Iterable[pa.RecordBatch]:
     if batch:
       self._example_size.inc(sum(map(len, batch)))
-    yield pa.Table.from_batches([self._decoder.DecodeBatch(batch)])
+    yield self._decoder.DecodeBatch(batch)

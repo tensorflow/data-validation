@@ -10,6 +10,10 @@
 
 ## Breaking Changes
 
+*   `tfdv.GenerateStatistics` now accepts a PCollection of `pa.RecordBatch`
+    instead of `pa.Table`.
+*   All the TFDV coders now output a PCollection of `pa.RecordBatch` instead of
+    a PCollection of `pa.Table`.
 *   `tfdv.validate_instances` and
     `tfdv.api.validation_api.IdentifyAnomalousExamples` now takes
     `pa.RecordBatch` as input instead of `pa.Table`.

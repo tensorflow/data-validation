@@ -26,7 +26,6 @@ from apache_beam.options.pipeline_options import PipelineOptions
 import tensorflow as tf
 from tensorflow_data_validation import types
 from tensorflow_data_validation.api import validation_api
-from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.coders import csv_decoder
 from tensorflow_data_validation.coders import tf_example_decoder
 from tensorflow_data_validation.statistics import stats_impl
@@ -93,7 +92,6 @@ def validate_examples_in_tfrecord(
         | 'ReadData' >> beam.io.ReadFromTFRecord(file_pattern=data_location)
         | 'DecodeData' >> tf_example_decoder.DecodeTFExample(
             desired_batch_size=1)
-        | 'TableToRecordBatch' >> beam.Map(arrow_util.table_to_record_batch)
         | 'DetectAnomalies' >>
         validation_api.IdentifyAnomalousExamples(stats_options)
         |
@@ -182,7 +180,6 @@ def validate_examples_in_csv(
             schema=stats_options.schema,
             infer_type_from_schema=stats_options.infer_type_from_schema,
             desired_batch_size=1)
-        | 'TableToRecordBatch' >> beam.Map(arrow_util.table_to_record_batch)
         | 'DetectAnomalies' >>
         validation_api.IdentifyAnomalousExamples(stats_options)
         |

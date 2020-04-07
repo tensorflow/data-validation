@@ -41,7 +41,7 @@ class CSVDecoderTest(absltest.TestCase):
                    '5,12.34,world']
     column_names = ['int_feature', 'float_feature', 'str_feature']
     expected_result = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[1], [5]], pa.list_(pa.int64())),
             pa.array([[2.0], [12.34]], pa.list_(pa.float32())),
             pa.array([[b'hello'], [b'world']], pa.list_(pa.binary())),
@@ -54,7 +54,7 @@ class CSVDecoderTest(absltest.TestCase):
           | csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
-          test_util.make_arrow_tables_equal_fn(self, expected_result))
+          test_util.make_arrow_record_batches_equal_fn(self, expected_result))
 
   def test_csv_decoder_with_schema(self):
     input_lines = ['1,1,2.0,hello',
@@ -69,13 +69,15 @@ class CSVDecoderTest(absltest.TestCase):
         feature { name: "str_feature" type: BYTES }
         """, schema_pb2.Schema())
     expected_result = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[1], [5]], pa.list_(pa.float32())),
             pa.array([[1], [5]], pa.list_(pa.int64())),
             pa.array([[2.0], [12.34]], pa.list_(pa.float32())),
             pa.array([[b'hello'], [b'world']], pa.list_(pa.binary())),
-        ], ['int_feature_parsed_as_float', 'int_feature',
-            'float_feature', 'str_feature'])
+        ], [
+            'int_feature_parsed_as_float', 'int_feature', 'float_feature',
+            'str_feature'
+        ])
     ]
 
     with beam.Pipeline() as p:
@@ -86,14 +88,14 @@ class CSVDecoderTest(absltest.TestCase):
               infer_type_from_schema=True))
       util.assert_that(
           result,
-          test_util.make_arrow_tables_equal_fn(self, expected_result))
+          test_util.make_arrow_record_batches_equal_fn(self, expected_result))
 
   def test_csv_decoder_missing_values(self):
     input_lines = ['1,,hello',
                    ',12.34,']
     column_names = ['int_feature', 'float_feature', 'str_feature']
     expected_result = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[1], None], pa.list_(pa.int64())),
             pa.array([None, [12.34]], pa.list_(pa.float32())),
             pa.array([[b'hello'], None], pa.list_(pa.binary())),
@@ -106,14 +108,14 @@ class CSVDecoderTest(absltest.TestCase):
           | csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
-          test_util.make_arrow_tables_equal_fn(self, expected_result))
+          test_util.make_arrow_record_batches_equal_fn(self, expected_result))
 
   def test_csv_decoder_with_int_and_float_in_same_column(self):
     input_lines = ['2,1.5',
                    '1.5,2']
     column_names = ['float_feature1', 'float_feature2']
     expected_result = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[2.0], [1.5]], pa.list_(pa.float32())),
             pa.array([[1.5], [2.0]], pa.list_(pa.float32())),
         ], ['float_feature1', 'float_feature2'])
@@ -125,14 +127,14 @@ class CSVDecoderTest(absltest.TestCase):
           | csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
-          test_util.make_arrow_tables_equal_fn(self, expected_result))
+          test_util.make_arrow_record_batches_equal_fn(self, expected_result))
 
   def test_csv_decoder_with_int_and_string_in_same_column(self):
     input_lines = ['2,abc',
                    'abc,2']
     column_names = ['str_feature1', 'str_feature2']
     expected_result = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[b'2'], [b'abc']], pa.list_(pa.binary())),
             pa.array([[b'abc'], [b'2']], pa.list_(pa.binary())),
         ], ['str_feature1', 'str_feature2'])
@@ -144,14 +146,14 @@ class CSVDecoderTest(absltest.TestCase):
           | csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
-          test_util.make_arrow_tables_equal_fn(self, expected_result))
+          test_util.make_arrow_record_batches_equal_fn(self, expected_result))
 
   def test_csv_decoder_with_float_and_string_in_same_column(self):
     input_lines = ['2.3,abc',
                    'abc,2.3']
     column_names = ['str_feature1', 'str_feature2']
     expected_result = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[b'2.3'], [b'abc']], pa.list_(pa.binary())),
             pa.array([[b'abc'], [b'2.3']], pa.list_(pa.binary())),
         ], ['str_feature1', 'str_feature2'])
@@ -163,17 +165,18 @@ class CSVDecoderTest(absltest.TestCase):
           | csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
-          test_util.make_arrow_tables_equal_fn(self, expected_result))
+          test_util.make_arrow_record_batches_equal_fn(self, expected_result))
 
   def test_csv_decoder_with_unicode(self):
     input_lines = [u'1,שקרכלשהו,22.34,text field']
     column_names = ['int_feature', 'unicode_feature',
                     'float_feature', 'str_feature']
     expected_result = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[1]], pa.list_(pa.int64())),
             pa.array([[22.34]], pa.list_(pa.float32())),
-            pa.array([[u'שקרכלשהו'.encode('utf-8')]], pa.list_(pa.binary())),
+            pa.array([[u'שקרכלשהו'.encode('utf-8')]],
+                     pa.list_(pa.binary())),
             pa.array([[b'text field']], pa.list_(pa.binary())),
         ], ['int_feature', 'float_feature', 'unicode_feature', 'str_feature'])
     ]
@@ -184,14 +187,14 @@ class CSVDecoderTest(absltest.TestCase):
           | csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
-          test_util.make_arrow_tables_equal_fn(self, expected_result))
+          test_util.make_arrow_record_batches_equal_fn(self, expected_result))
 
   def test_csv_decoder_csv_record_with_quotes(self):
     input_lines = ['1,"ab,cd,ef"',
                    '5,"wx,xy,yz"']
     column_names = ['int_feature', 'str_feature']
     expected_result = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[1], [5]], pa.list_(pa.int64())),
             pa.array([[b'ab,cd,ef'], [b'wx,xy,yz']], pa.list_(pa.binary())),
         ], ['int_feature', 'str_feature'])
@@ -203,14 +206,14 @@ class CSVDecoderTest(absltest.TestCase):
           | csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
-          test_util.make_arrow_tables_equal_fn(self, expected_result))
+          test_util.make_arrow_record_batches_equal_fn(self, expected_result))
 
   def test_csv_decoder_with_space_delimiter(self):
     input_lines = ['1 "ab,cd,ef"',
                    '5 "wx,xy,yz"']
     column_names = ['int_feature', 'str_feature']
     expected_result = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[1], [5]], pa.list_(pa.int64())),
             pa.array([[b'ab,cd,ef'], [b'wx,xy,yz']], pa.list_(pa.binary())),
         ], ['int_feature', 'str_feature'])
@@ -222,14 +225,14 @@ class CSVDecoderTest(absltest.TestCase):
           | csv_decoder.DecodeCSV(column_names=column_names, delimiter=' '))
       util.assert_that(
           result,
-          test_util.make_arrow_tables_equal_fn(self, expected_result))
+          test_util.make_arrow_record_batches_equal_fn(self, expected_result))
 
   def test_csv_decoder_with_tab_delimiter(self):
     input_lines = ['1\t"this is a \ttext"',
                    '5\t']
     column_names = ['int_feature', 'str_feature']
     expected_result = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[1], [5]], pa.list_(pa.int64())),
             pa.array([[b'this is a \ttext'], None], pa.list_(pa.binary())),
         ], ['int_feature', 'str_feature'])
@@ -241,13 +244,13 @@ class CSVDecoderTest(absltest.TestCase):
           | csv_decoder.DecodeCSV(column_names=column_names, delimiter='\t'))
       util.assert_that(
           result,
-          test_util.make_arrow_tables_equal_fn(self, expected_result))
+          test_util.make_arrow_record_batches_equal_fn(self, expected_result))
 
   def test_csv_decoder_negative_values(self):
     input_lines = ['-34', '45']
     column_names = ['feature']
     expected_result = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[-34], [45]], pa.list_(pa.int64())),
         ], ['feature'])
     ]
@@ -258,13 +261,13 @@ class CSVDecoderTest(absltest.TestCase):
           | csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
-          test_util.make_arrow_tables_equal_fn(self, expected_result))
+          test_util.make_arrow_record_batches_equal_fn(self, expected_result))
 
   def test_csv_decoder_int64_max(self):
     input_lines = ['34', str(sys.maxsize)]
     column_names = ['feature']
     expected_result = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[34], [sys.maxsize]], pa.list_(pa.int64())),
         ], ['feature'])
     ]
@@ -275,13 +278,13 @@ class CSVDecoderTest(absltest.TestCase):
           | csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
-          test_util.make_arrow_tables_equal_fn(self, expected_result))
+          test_util.make_arrow_record_batches_equal_fn(self, expected_result))
 
   def test_csv_decoder_large_int_categorical_pos(self):
     input_lines = ['34', str(sys.maxsize+1)]
     column_names = ['feature']
     expected_result = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[b'34'], [str(sys.maxsize + 1).encode('utf-8')]],
                      pa.list_(pa.binary())),
         ], ['feature'])
@@ -293,13 +296,13 @@ class CSVDecoderTest(absltest.TestCase):
           | csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
-          test_util.make_arrow_tables_equal_fn(self, expected_result))
+          test_util.make_arrow_record_batches_equal_fn(self, expected_result))
 
   def test_csv_decoder_large_int_categorical_neg(self):
     input_lines = ['34', str(-(sys.maxsize+2))]
     column_names = ['feature']
     expected_result = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[b'34'], [str(-(sys.maxsize + 2)).encode('utf-8')]],
                      pa.list_(pa.binary())),
         ], ['feature'])
@@ -311,13 +314,13 @@ class CSVDecoderTest(absltest.TestCase):
           | csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
-          test_util.make_arrow_tables_equal_fn(self, expected_result))
+          test_util.make_arrow_record_batches_equal_fn(self, expected_result))
 
   def test_csv_decoder_large_int_categorical_pos_and_neg(self):
     input_lines = [str(sys.maxsize+1), str(-(sys.maxsize+2))]
     column_names = ['feature']
     expected_result = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[str(sys.maxsize + 1).encode('utf-8')],
                       [str(-(sys.maxsize + 2)).encode('utf-8')]],
                      pa.list_(pa.binary())),
@@ -330,14 +333,14 @@ class CSVDecoderTest(absltest.TestCase):
           | csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
-          test_util.make_arrow_tables_equal_fn(self, expected_result))
+          test_util.make_arrow_record_batches_equal_fn(self, expected_result))
 
   def test_csv_decoder_empty_row(self):
     input_lines = [',,',
                    '1,2.0,hello']
     column_names = ['int_feature', 'float_feature', 'str_feature']
     expected_result = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([None, [1]], pa.list_(pa.int64())),
             pa.array([None, [2.0]], pa.list_(pa.float32())),
             pa.array([None, [b'hello']], pa.list_(pa.binary())),
@@ -350,14 +353,14 @@ class CSVDecoderTest(absltest.TestCase):
           | csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
-          test_util.make_arrow_tables_equal_fn(self, expected_result))
+          test_util.make_arrow_record_batches_equal_fn(self, expected_result))
 
   def test_csv_decoder_skip_blank_line(self):
     input_lines = ['',
                    '1,2']
     column_names = ['int_feature1', 'int_feature2']
     expected_result = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[1]], pa.list_(pa.int64())),
             pa.array([[2]], pa.list_(pa.int64())),
         ], ['int_feature1', 'int_feature2'])
@@ -369,14 +372,14 @@ class CSVDecoderTest(absltest.TestCase):
           | csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
-          test_util.make_arrow_tables_equal_fn(self, expected_result))
+          test_util.make_arrow_record_batches_equal_fn(self, expected_result))
 
   def test_csv_decoder_consider_blank_line(self):
     input_lines = ['',
                    '1,2.0']
     column_names = ['int_feature', 'float_feature']
     expected_result = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([None, [1]], pa.list_(pa.int64())),
             pa.array([None, [2.0]], pa.list_(pa.float32())),
         ], ['int_feature', 'float_feature'])
@@ -388,14 +391,14 @@ class CSVDecoderTest(absltest.TestCase):
               column_names=column_names, skip_blank_lines=False))
       util.assert_that(
           result,
-          test_util.make_arrow_tables_equal_fn(self, expected_result))
+          test_util.make_arrow_record_batches_equal_fn(self, expected_result))
 
   def test_csv_decoder_skip_blank_line_single_column(self):
     input_lines = ['',
                    '1']
     column_names = ['int_feature']
     expected_result = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[1]], pa.list_(pa.int64())),
         ], ['int_feature'])
     ]
@@ -406,14 +409,14 @@ class CSVDecoderTest(absltest.TestCase):
           | csv_decoder.DecodeCSV(column_names=column_names))
       util.assert_that(
           result,
-          test_util.make_arrow_tables_equal_fn(self, expected_result))
+          test_util.make_arrow_record_batches_equal_fn(self, expected_result))
 
   def test_csv_decoder_consider_blank_line_single_column(self):
     input_lines = ['',
                    '1']
     column_names = ['int_feature']
     expected_result = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([None, [1]], pa.list_(pa.int64())),
         ], ['int_feature'])
     ]
@@ -424,7 +427,7 @@ class CSVDecoderTest(absltest.TestCase):
               column_names=column_names, skip_blank_lines=False))
       util.assert_that(
           result,
-          test_util.make_arrow_tables_equal_fn(self, expected_result))
+          test_util.make_arrow_record_batches_equal_fn(self, expected_result))
 
   def test_csv_decoder_empty_csv(self):
     input_lines = []
@@ -436,7 +439,7 @@ class CSVDecoderTest(absltest.TestCase):
           | csv_decoder.DecodeCSV(column_names=[]))
       util.assert_that(
           result,
-          test_util.make_arrow_tables_equal_fn(self, expected_result))
+          test_util.make_arrow_record_batches_equal_fn(self, expected_result))
 
   def test_csv_decoder_invalid_row(self):
     input_lines = ['1,2.0,hello',
@@ -450,8 +453,7 @@ class CSVDecoderTest(absltest.TestCase):
             p | beam.Create(input_lines, reshuffle=False)
             | csv_decoder.DecodeCSV(column_names=column_names))
         util.assert_that(
-            result,
-            test_util.make_arrow_tables_equal_fn(self, None))
+            result, test_util.make_arrow_record_batches_equal_fn(self, None))
 
 
 if __name__ == '__main__':

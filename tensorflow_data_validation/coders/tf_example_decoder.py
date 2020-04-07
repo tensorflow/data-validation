@@ -27,22 +27,22 @@ from tensorflow_data_validation.utils import batch_util
 
 @beam.ptransform_fn
 @beam.typehints.with_input_types(bytes)
-@beam.typehints.with_output_types(pa.Table)
+@beam.typehints.with_output_types(pa.RecordBatch)
 def DecodeTFExample(
     examples: beam.pvalue.PCollection,
     desired_batch_size: int = constants.DEFAULT_DESIRED_INPUT_BATCH_SIZE
 ) -> beam.pvalue.PCollection:  # pylint: disable=invalid-name
-  """Decodes serialized TF examples into Arrow tables.
+  """Decodes serialized TF examples into Arrow RecordBatches.
 
   Args:
     examples: A PCollection of strings representing serialized TF examples.
-    desired_batch_size: Batch size. The output Arrow tables will have as many
-      rows as the `desired_batch_size`.
+    desired_batch_size: Batch size. The output Arrow RecordBatches will have as
+    many rows as the `desired_batch_size`.
 
   Returns:
     A PCollection of Arrow tables.
   """
   return (examples
-          | 'BatchSerializedExamplesToArrowTables' >>
-          batch_util.BatchSerializedExamplesToArrowTables(
+          | 'BatchSerializedExamplesToArrowRecordBatches' >>
+          batch_util.BatchSerializedExamplesToArrowRecordBatches(
               desired_batch_size=desired_batch_size))

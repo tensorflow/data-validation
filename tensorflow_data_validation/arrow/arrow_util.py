@@ -241,17 +241,3 @@ def enumerate_arrays(
         types.FeaturePath([column_name]), column, weights):
       yield e
 
-
-# TODO(zhuo): remove this after the public APIs start accepting pa.RecordBatch.
-def table_to_record_batch(table: pa.Table) -> pa.RecordBatch:
-  """Converts a pa.Table to a pa.RecordBatch."""
-  columns = []
-  for column_name, chunked_array in zip(
-      table.column_names, table.itercolumns()):
-    if chunked_array.num_chunks != 1:
-      raise ValueError(
-          'Expected every column in the input table to have exactly one chunk, '
-          'but column {} had {}'.format(column_name, chunked_array.num_chunks))
-    columns.append(chunked_array.chunk(0))
-
-  return pa.record_batch(columns, schema=table.schema)

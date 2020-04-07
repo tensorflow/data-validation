@@ -50,7 +50,7 @@ BEAM_TF_EXAMPLE_DECODER_TESTS = [
             }
           }
         ''',
-        'decoded_table': pa.Table.from_arrays([
+        'decoded_record_batch': pa.RecordBatch.from_arrays([
             pa.array([[0]], pa.list_(pa.int64())),
             pa.array([[1, 2, 3]], pa.list_(pa.int64())),
             pa.array([[4.0]], pa.list_(pa.float32())),

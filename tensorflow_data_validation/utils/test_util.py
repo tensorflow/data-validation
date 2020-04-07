@@ -388,28 +388,30 @@ class CombinerFeatureStatsGeneratorTest(absltest.TestCase):
         self, result, expected_result, normalize_numbers=True)
 
 
-def make_arrow_tables_equal_fn(test: absltest.TestCase,
-                               expected_tables: List[pa.Table]):
-  """Makes a matcher function for comparing arrow tables."""
-  def _matcher(actual_tables):
-    """Arrow tables matcher fn."""
-    test.assertLen(actual_tables, len(expected_tables))
-    for i in range(len(expected_tables)):
+def make_arrow_record_batches_equal_fn(
+    test: absltest.TestCase, expected_record_batches: List[pa.RecordBatch]):
+  """Makes a matcher function for comparing arrow record batches."""
+
+  def _matcher(actual_record_batches):
+    """Arrow record batches matcher fn."""
+    test.assertLen(actual_record_batches, len(expected_record_batches))
+    for i in range(len(expected_record_batches)):
+      actual_record_batch = actual_record_batches[i]
+      expected_record_batch = expected_record_batches[i]
       test.assertEqual(
-          expected_tables[i].num_columns, actual_tables[i].num_columns,
-          'Expected {} columns, found {} in table {}'.format(
-              expected_tables[i].num_columns, actual_tables[i].num_columns,
-              actual_tables[i]))
+          expected_record_batch.num_columns,
+          actual_record_batch.num_columns,
+          'Expected {} columns, found {} in record_batch {}'.format(
+              expected_record_batch.num_columns,
+              actual_record_batch.num_columns, actual_record_batch))
       for column_name, expected_column in zip(
-          expected_tables[i].schema.names, expected_tables[i].columns):
-        actual_column = actual_tables[i].column(column_name)
-        test.assertLen(actual_column.data.chunks,
-                       len(expected_column.data.chunks))
-        for j in range(len(expected_column.data.chunks)):
-          actual_chunk = actual_column.data.chunk(j)
-          expected_chunk = expected_column.data.chunk(j)
-          test.assertTrue(
-              actual_chunk.equals(expected_chunk),
-              '{} vs {}'.format(actual_chunk, expected_chunk))
+          expected_record_batch.schema.names, expected_record_batch.columns):
+        field_index = actual_record_batch.schema.get_field_index(column_name)
+        test.assertGreaterEqual(
+            field_index, 0, 'Unable to find column {}'.format(column_name))
+        actual_column = actual_record_batch.column(field_index)
+        test.assertTrue(
+            actual_column.equals(expected_column),
+            '{}: {} vs {}'.format(column_name, actual_column, expected_column))
 
   return _matcher

@@ -52,25 +52,28 @@ class BatchUtilTest(absltest.TestCase):
             'c': np.array(['d', 'e', 'f'])
         }
     ]
-    expected_tables = [
-        pa.Table.from_arrays(
-            [pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]],
-                      type=pa.list_(pa.float32())),
-             pa.array([['a', 'b', 'c', 'e'], None])], ['a', 'b']),
-        pa.Table.from_arrays(
-            [pa.array([['d', 'e', 'f'], ['a', 'b', 'c']]),
-             pa.array([[10, 20, 30], None], type=pa.list_(pa.int64()))
-            ], ['b', 'd']),
-        pa.Table.from_arrays([pa.array([['d', 'e', 'f']])], ['c']),
+    expected_record_batches = [
+        pa.RecordBatch.from_arrays([
+            pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]], type=pa.list_(
+                pa.float32())),
+            pa.array([['a', 'b', 'c', 'e'], None])
+        ], ['a', 'b']),
+        pa.RecordBatch.from_arrays([
+            pa.array([['d', 'e', 'f'], ['a', 'b', 'c']]),
+            pa.array([[10, 20, 30], None], type=pa.list_(pa.int64()))
+        ], ['b', 'd']),
+        pa.RecordBatch.from_arrays([pa.array([['d', 'e', 'f']])], ['c']),
     ]
 
     with beam.Pipeline() as p:
       result = (
           p
           | beam.Create(examples, reshuffle=False)
-          | batch_util.BatchExamplesToArrowTables(desired_batch_size=2))
+          | batch_util.BatchExamplesToArrowRecordBatches(desired_batch_size=2))
       util.assert_that(
-          result, test_util.make_arrow_tables_equal_fn(self, expected_tables))
+          result,
+          test_util.make_arrow_record_batches_equal_fn(self,
+                                                       expected_record_batches))
 
   def test_batch_serialized_examples(self):
     examples = [
@@ -122,19 +125,19 @@ class BatchUtilTest(absltest.TestCase):
         text_format.Merge(example_pbtxt, tf.train.Example()).SerializeToString()
         for example_pbtxt in examples
     ]
-    expected_tables = [
-        pa.Table.from_arrays(
-            [pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]],
-                      type=pa.list_(pa.float32())),
-             pa.array([['a', 'b', 'c', 'e'], None], type=pa.list_(pa.binary()))
-            ], ['a', 'b']),
-        pa.Table.from_arrays(
-            [pa.array([['d', 'e', 'f'], ['a', 'b', 'c']],
-                      type=pa.list_(pa.binary())),
-             pa.array([[10, 20, 30], None], type=pa.list_(pa.int64()))
-            ], ['b', 'd']),
-        pa.Table.from_arrays([pa.array([['d', 'e', 'f']],
-                                       type=pa.list_(pa.binary()))], ['c']),
+    expected_record_batches = [
+        pa.RecordBatch.from_arrays([
+            pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]], type=pa.list_(
+                pa.float32())),
+            pa.array([['a', 'b', 'c', 'e'], None], type=pa.list_(pa.binary()))
+        ], ['a', 'b']),
+        pa.RecordBatch.from_arrays([
+            pa.array([['d', 'e', 'f'], ['a', 'b', 'c']],
+                     type=pa.list_(pa.binary())),
+            pa.array([[10, 20, 30], None], type=pa.list_(pa.int64()))
+        ], ['b', 'd']),
+        pa.RecordBatch.from_arrays(
+            [pa.array([['d', 'e', 'f']], type=pa.list_(pa.binary()))], ['c']),
     ]
 
     with beam.Pipeline() as p:
@@ -142,9 +145,12 @@ class BatchUtilTest(absltest.TestCase):
           p
           | beam.Create(serialized_examples, reshuffle=False)
           |
-          batch_util.BatchSerializedExamplesToArrowTables(desired_batch_size=2))
+          batch_util.BatchSerializedExamplesToArrowRecordBatches(
+              desired_batch_size=2))
       util.assert_that(
-          result, test_util.make_arrow_tables_equal_fn(self, expected_tables))
+          result,
+          test_util.make_arrow_record_batches_equal_fn(self,
+                                                       expected_record_batches))
 
 
 if __name__ == '__main__':

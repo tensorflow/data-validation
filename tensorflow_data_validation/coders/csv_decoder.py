@@ -33,9 +33,9 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 # TODO(b/111831548): Add support for a secondary delimiter to parse
 # value lists.
 @beam.typehints.with_input_types(types.BeamCSVRecord)
-@beam.typehints.with_output_types(pa.Table)
+@beam.typehints.with_output_types(pa.RecordBatch)
 class DecodeCSV(beam.PTransform):
-  """Decodes CSV records into Arrow tables.
+  """Decodes CSV records into Arrow RecordBatches.
 
   Currently we assume each column in the input CSV has only a single value.
   """
@@ -60,8 +60,8 @@ class DecodeCSV(beam.PTransform):
       infer_type_from_schema: A boolean to indicate whether the feature types
         should be inferred from the schema. If set to True, an input schema must
         be provided.
-      desired_batch_size: Batch size. The output Arrow tables will have as many
-        rows as the `desired_batch_size`.
+      desired_batch_size: Batch size. The output Arrow RecordBatches will have
+        as many rows as the `desired_batch_size`.
     """
     if not isinstance(column_names, list):
       raise TypeError('column_names is of type %s, should be a list' %
@@ -110,9 +110,9 @@ class DecodeCSV(beam.PTransform):
 
 @beam.typehints.with_input_types(List[List[csv_decoder.CSVCell]],
                                  List[csv_decoder.ColumnInfo])
-@beam.typehints.with_output_types(pa.Table)
+@beam.typehints.with_output_types(pa.RecordBatch)
 class _BatchedCSVRowsToArrow(beam.DoFn):
-  """DoFn to convert a batch of csv rows to a pa.Table."""
+  """DoFn to convert a batch of csv rows to a pa.RecordBatch."""
 
   __slots__ = [
       '_skip_blank_lines', '_column_handlers', '_column_arrow_types',
@@ -145,8 +145,9 @@ class _BatchedCSVRowsToArrow(beam.DoFn):
     self._column_arrow_types = column_arrow_types
     self._column_names = [c.name for c in column_infos]
 
-  def process(self, batch: List[List[types.CSVCell]],
-              column_infos: List[csv_decoder.ColumnInfo]) -> Iterable[pa.Table]:
+  def process(
+      self, batch: List[List[types.CSVCell]],
+      column_infos: List[csv_decoder.ColumnInfo]) -> Iterable[pa.RecordBatch]:
     if self._column_names is None:
       self._process_column_infos(column_infos)
 
@@ -168,7 +169,7 @@ class _BatchedCSVRowsToArrow(beam.DoFn):
         pa.array(l, type=t) for l, t in
         zip(values_list_by_column, self._column_arrow_types)
     ]
-    yield pa.Table.from_arrays(arrow_arrays, self._column_names)
+    yield pa.RecordBatch.from_arrays(arrow_arrays, self._column_names)
 
 
 def _get_feature_types_from_schema(
