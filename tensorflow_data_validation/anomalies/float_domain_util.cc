@@ -108,7 +108,7 @@ void CheckFloatNans(const FeatureStatsView& stats,
   }
   switch (stats.type()) {
     case FeatureNameStatistics::FLOAT:
-      for (auto histogram : stats.num_stats().histograms()) {
+      for (const auto& histogram : stats.num_stats().histograms()) {
         if (histogram.num_nan() > 0) {
           has_nans = true;
           break;
