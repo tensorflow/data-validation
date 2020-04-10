@@ -197,14 +197,20 @@ def _weighted_unique(values: np.ndarray, weights: np.ndarray
       gb['value'].tolist(), gb['count'].tolist(), gb['weight'].tolist())
 
 
+# TODO(b/152929669): Disable Beam annotations support due to failure in:
+# //third_party/py/tensorflow_data_validation/statistics:stats_impl_test.python3
+# //third_party/py/tensorflow_data_validation/statistics/generators:top_k_uniques_stats_generator_test.python3
+# ValueError: Number of components does not match number of coders.
+#
+# Since @beam.typehints.no_annotations is not available yet, part of the output
+# type is put in quotes, which currently makes Beam ignore the hint.
 def _to_topk_tuples(
     sliced_record_batch: Tuple[types.SliceKey, pa.RecordBatch],
     bytes_features: FrozenSet[types.FeaturePath],
     categorical_features: FrozenSet[types.FeaturePath],
     weight_feature: Optional[Text]
-) -> Iterable[
-    Tuple[Tuple[types.SliceKey, FeaturePathTuple, Any],
-          Union[int, Tuple[int, Union[int, float]]]]]:
+) -> Iterable['Tuple[Tuple[types.SliceKey, FeaturePathTuple, Any],'
+              'Union[int, Tuple[int, Union[int, float]]]]']:
   """Generates tuples for computing top-k and uniques from the input."""
   slice_key, record_batch = sliced_record_batch
 
