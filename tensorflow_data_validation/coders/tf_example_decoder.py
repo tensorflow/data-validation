@@ -40,7 +40,7 @@ def DecodeTFExample(
     many rows as the `desired_batch_size`.
 
   Returns:
-    A PCollection of Arrow tables.
+    A PCollection of Arrow RecordBatches.
   """
   return (examples
           | 'BatchSerializedExamplesToArrowRecordBatches' >>
