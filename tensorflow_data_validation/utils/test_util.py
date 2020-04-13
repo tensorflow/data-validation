@@ -336,10 +336,11 @@ class TransformStatsGeneratorTest(absltest.TestCase):
     if add_default_slice_key_to_input:
       examples = [(None, e) for e in examples]
     if add_default_slice_key_to_output:
-      expected_results = [(None, p)
-                          for p in expected_results]
+      expected_results = [(None, p) for p in expected_results]
 
-    with beam.Pipeline() as p:
+    options = beam.options.pipeline_options.PipelineOptions(
+        runtime_type_check=True)
+    with beam.Pipeline(options=options) as p:
       result = p | beam.Create(examples) | generator.ptransform
       util.assert_that(result, _make_result_matcher(self, expected_results))
 

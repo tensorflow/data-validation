@@ -102,7 +102,7 @@ class FeaturePath(object):
   def from_proto(path_proto: path_pb2.Path):
     return FeaturePath(path_proto.step)
 
-  def steps(self) -> Tuple[FeatureName]:
+  def steps(self) -> Tuple[FeatureName, ...]:
     return self._steps
 
   def parent(self) -> "FeaturePath":
