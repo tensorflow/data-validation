@@ -510,9 +510,11 @@ class SkLearnMutualInformationTest(absltest.TestCase):
           }
         }
         """, schema_pb2.Schema())
-    with self.assertRaisesRegexp(ValueError, "Found array with 0 sample"):
-      sklearn_mutual_information.SkLearnMutualInformation(
-          types.FeaturePath(["label_key"]), schema, TEST_SEED).compute(batch)
+
+    expected = text_format.Parse("""""",
+                                 statistics_pb2.DatasetFeatureStatistics())
+    self._assert_mi_output_equal(batch, expected, schema,
+                                 types.FeaturePath(["label_key"]))
 
   def test_mi_with_missing_label_key(self):
     batch = pa.RecordBatch.from_arrays(

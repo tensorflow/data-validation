@@ -211,6 +211,9 @@ class SkLearnMutualInformation(partitioned_stats_generator.PartitionedStatsFn):
           copy=False,
           random_state=seed)
     else:
+      # Skip if sample size is smaller than the default value of n_neighbors.
+      if df.values.shape[0] < 4:
+        return result
       mi_per_feature = mutual_info_regression(
           df.values,
           labels,
@@ -258,8 +261,10 @@ class SkLearnMutualInformation(partitioned_stats_generator.PartitionedStatsFn):
     for i, column in enumerate(df):
       if column in self._categorical_features:
         # Encode categorical columns.
-        str_array = [(x.decode("utf-8", "replace") if isinstance(
-            x, bytes) else x) for x in df[column].values]
+        str_array = [(
+            x.decode("utf-8", "replace") if isinstance(x, bytes) else
+            (x if x is not None else CATEGORICAL_FEATURE_IMPUTATION_FILL_VALUE))
+                     for x in df[column].values]
         unique_elements, df[column] = np.unique(str_array, return_inverse=True)
         is_categorical_feature[i] = True
         # Drop the categroical features that all its values are unique if the
