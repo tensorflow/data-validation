@@ -90,7 +90,7 @@ Status ValidateFeatureStatistics(
     metadata::v0::Anomalies* result);
 
 // Similar to the above, but takes all the proto parameters as serialized
-// strings. This method is called by the Python code using SWIG.
+// strings. This method is called by the Python code using PyBind11.
 Status ValidateFeatureStatisticsWithSerializedInputs(
     const string& feature_statistics_proto_string,
     const string& schema_proto_string, const string& environment,

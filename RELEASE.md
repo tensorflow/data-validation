@@ -7,6 +7,7 @@
 ## Bug Fixes and Other Changes
 
 *   Crop values in natural language stats generator.
+*   Switch to using PyBind11 instead of SWIG for wrapping C++ libraries.
 
 ## Breaking Changes
 

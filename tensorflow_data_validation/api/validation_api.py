@@ -28,7 +28,7 @@ from tensorflow_data_validation import types
 from tensorflow_data_validation.anomalies.proto import validation_config_pb2
 from tensorflow_data_validation.anomalies.proto import validation_metadata_pb2
 from tensorflow_data_validation.api import validation_options as vo
-from tensorflow_data_validation.pywrap import pywrap_tensorflow_data_validation
+from tensorflow_data_validation.pywrap.tensorflow_data_validation_extension import validation as pywrap_tensorflow_data_validation
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.utils import anomalies_util
