@@ -24,30 +24,27 @@ from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tfx_bsl.coders import csv_decoder as csv_decoder
 from tfx_bsl.tfxio import record_based_tfxio
-from typing import List, Iterable, Optional, Text
+from typing import List, Optional, Text, Union
 
 from tensorflow_metadata.proto.v0 import schema_pb2
-from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
-# TODO(b/111831548): Add support for a secondary delimiter to parse
-# value lists.
 @beam.typehints.with_input_types(types.BeamCSVRecord)
 @beam.typehints.with_output_types(pa.RecordBatch)
 class DecodeCSV(beam.PTransform):
-  """Decodes CSV records into Arrow RecordBatches.
+  """Decodes CSV records into Arrow RecordBatches."""
 
-  Currently we assume each column in the input CSV has only a single value.
-  """
-
-  def __init__(self,
-               column_names: List[types.FeatureName],
-               delimiter: Text = ',',
-               skip_blank_lines: bool = True,
-               schema: Optional[schema_pb2.Schema] = None,
-               infer_type_from_schema: bool = False,
-               desired_batch_size: Optional[int] = constants
-               .DEFAULT_DESIRED_INPUT_BATCH_SIZE):
+  def __init__(
+      self,
+      column_names: List[types.FeatureName],
+      delimiter: Text = ',',
+      skip_blank_lines: bool = True,
+      schema: Optional[schema_pb2.Schema] = None,
+      infer_type_from_schema: bool = False,
+      desired_batch_size: Optional[int] = constants
+      .DEFAULT_DESIRED_INPUT_BATCH_SIZE,
+      multivalent_columns_names: Optional[List[types.FeatureName]] = None,
+      secondary_delimiter: Optional[Union[Text, bytes]] = None):
     """Initializes the CSV decoder.
 
     Args:
@@ -62,6 +59,9 @@ class DecodeCSV(beam.PTransform):
         be provided.
       desired_batch_size: Batch size. The output Arrow RecordBatches will have
         as many rows as the `desired_batch_size`.
+      multivalent_columns_names: Name of column that can contain multiple
+        values.
+      secondary_delimiter: Delimiter used for parsing multivalent columns.
     """
     if not isinstance(column_names, list):
       raise TypeError('column_names is of type %s, should be a list' %
@@ -72,6 +72,8 @@ class DecodeCSV(beam.PTransform):
     self._schema = schema
     self._infer_type_from_schema = infer_type_from_schema
     self._desired_batch_size = desired_batch_size
+    self._multivalent_columns_names = multivalent_columns_names
+    self._secondary_delimiter = secondary_delimiter
 
   def expand(self, lines: beam.pvalue.PCollection):
     """Decodes the input CSV records into an in-memory dict representation.
@@ -96,80 +98,21 @@ class DecodeCSV(beam.PTransform):
           csv_lines | 'InferColumnTypes' >> beam.CombineGlobally(
               csv_decoder.ColumnTypeInferrer(
                   column_names=self._column_names,
-                  skip_blank_lines=self._skip_blank_lines)))
+                  skip_blank_lines=self._skip_blank_lines,
+                  multivalent_columns=self._multivalent_columns_names,
+                  secondary_delimiter=self._secondary_delimiter)))
 
     # Do second pass to generate the in-memory dict representation.
-    return (csv_lines
-            | 'BatchCSVLines' >> beam.BatchElements(
-                **record_based_tfxio.GetBatchElementsKwargs(
-                    self._desired_batch_size))
-            | 'BatchedCSVRowsToArrow' >> beam.ParDo(
-                _BatchedCSVRowsToArrow(skip_blank_lines=self._skip_blank_lines),
-                column_infos))
-
-
-@beam.typehints.with_input_types(List[List[csv_decoder.CSVCell]],
-                                 List[csv_decoder.ColumnInfo])
-@beam.typehints.with_output_types(pa.RecordBatch)
-class _BatchedCSVRowsToArrow(beam.DoFn):
-  """DoFn to convert a batch of csv rows to a pa.RecordBatch."""
-
-  __slots__ = [
-      '_skip_blank_lines', '_column_handlers', '_column_arrow_types',
-      '_column_names'
-  ]
-
-  def __init__(self, skip_blank_lines: bool):
-    self._skip_blank_lines = skip_blank_lines
-    self._column_handlers = None
-    self._column_names = None
-    self._column_arrow_types = None
-
-  def _process_column_infos(self, column_infos: List[csv_decoder.ColumnInfo]):
-    column_handlers = []
-    column_arrow_types = []
-    for c in column_infos:
-      if c.type == statistics_pb2.FeatureNameStatistics.INT:
-        column_handlers.append(lambda v: (int(v),))
-        column_arrow_types.append(pa.list_(pa.int64()))
-      elif c.type == statistics_pb2.FeatureNameStatistics.FLOAT:
-        column_handlers.append(lambda v: (float(v),))
-        column_arrow_types.append(pa.list_(pa.float32()))
-      elif c.type == statistics_pb2.FeatureNameStatistics.STRING:
-        column_handlers.append(lambda v: (v,))
-        column_arrow_types.append(pa.list_(pa.binary()))
-      else:
-        column_handlers.append(lambda _: None)
-        column_arrow_types.append(pa.null())
-    self._column_handlers = column_handlers
-    self._column_arrow_types = column_arrow_types
-    self._column_names = [c.name for c in column_infos]
-
-  def process(
-      self, batch: List[List[types.CSVCell]],
-      column_infos: List[csv_decoder.ColumnInfo]) -> Iterable[pa.RecordBatch]:
-    if self._column_names is None:
-      self._process_column_infos(column_infos)
-
-    values_list_by_column = [[] for _ in self._column_handlers]
-    for csv_row in batch:
-      if not csv_row:
-        if not self._skip_blank_lines:
-          for l in values_list_by_column:
-            l.append(None)
-        continue
-      if len(csv_row) != len(self._column_handlers):
-        raise ValueError('Encountered a row of unexpected number of columns')
-
-      for value, handler, values_list in (
-          zip(csv_row, self._column_handlers, values_list_by_column)):
-        values_list.append(handler(value) if value else None)
-
-    arrow_arrays = [
-        pa.array(l, type=t) for l, t in
-        zip(values_list_by_column, self._column_arrow_types)
-    ]
-    yield pa.RecordBatch.from_arrays(arrow_arrays, self._column_names)
+    return (
+        csv_lines
+        | 'BatchCSVLines' >>
+        beam.BatchElements(**record_based_tfxio.GetBatchElementsKwargs(
+            self._desired_batch_size))
+        | 'BatchedCSVRowsToArrow' >> beam.ParDo(
+            csv_decoder.BatchedCSVRowsToRecordBatch(
+                skip_blank_lines=self._skip_blank_lines,
+                multivalent_columns=self._multivalent_columns_names,
+                secondary_delimiter=self._secondary_delimiter), column_infos))
 
 
 def _get_feature_types_from_schema(

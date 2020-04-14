@@ -8,6 +8,7 @@
 
 *   Crop values in natural language stats generator.
 *   Switch to using PyBind11 instead of SWIG for wrapping C++ libraries.
+*   CSV decoder support for multivalent columns by using tfx_bsl's decoder.
 
 ## Breaking Changes
 
