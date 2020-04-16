@@ -129,8 +129,6 @@ pip install wheel --upgrade
 pip freeze --all
 
 pip install "numpy>=1.16,<2"
-# TODO(b/148406396) Remove installation of apache-beam < 2.18 once bug is fixed.
-pip install "apache-beam>=2.17,<2.18"
 bazel run -c opt --copt=-DWIN32_LEAN_AND_MEAN tensorflow_data_validation:build_pip_package
 bazel test -c opt --copt=-DWIN32_LEAN_AND_MEAN tensorflow_data_validation/anomalies:all
 

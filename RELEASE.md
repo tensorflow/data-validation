@@ -10,6 +10,11 @@
 *   Switch to using PyBind11 instead of SWIG for wrapping C++ libraries.
 *   CSV decoder support for multivalent columns by using tfx_bsl's decoder.
 
+## Known Issues
+
+*  (Known issue resolution) It is no longer necessary to use Apache Beam 2.17
+   when running TFDV on Windows. The current release of Apache Beam will work.
+
 ## Breaking Changes
 
 *   `tfdv.GenerateStatistics` now accepts a PCollection of `pa.RecordBatch`
