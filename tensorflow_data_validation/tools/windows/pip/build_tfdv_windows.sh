@@ -24,11 +24,6 @@
 #   - Msys2
 #   - Anaconda3
 # * Bazel windows executable copied as "bazel.exe" and included in PATH.
-
-function tfdv::die() {
-  echo "$@" 1>&2 ; exit 1;
-}
-
 run_py_tests() {
   # Run python tests for specified test files or those found under the
   # provided directories.
@@ -130,7 +125,6 @@ fi
 # Upgrade pip, setuptools and wheel packages.
 "${PYTHON_BIN_PATH}" -m pip install --upgrade pip
 pip install setuptools --upgrade
-pip install twine --upgrade
 pip install wheel --upgrade
 pip freeze --all
 
@@ -176,80 +170,3 @@ popd
 pip install ${TENSORFLOW}
 
 run_py_tests "tensorflow_data_validation" $@
-
-# copy wheel to ${KOKORO_ARTIFACTS_DIR}
-cp dist/*.whl ${KOKORO_ARTIFACTS_DIR}
-
-function tfdv::setup_pypi_credentials {
-  # Setup .pypirc from credentials from keystore.
-  #
-  # Usage: tfdv::setup_pypi_credentials
-  set +x
-
-  PYPI_USERNAME="$(cat "$KOKORO_KEYSTORE_DIR"/73755_tfx_oss_pypi_username)"
-  PYPI_PASSWORD="$(cat "$KOKORO_KEYSTORE_DIR"/73755_tfx_oss_pypi_password)"
-  TESTPYPI_USERNAME="$(cat "$KOKORO_KEYSTORE_DIR"/73755_tfx_oss_testpypi_username)"
-  TESTPYPI_PASSWORD="$(cat "$KOKORO_KEYSTORE_DIR"/73755_tfx_oss_testpypi_password)"
-  cat >~/.pypirc <<EOL
-[distutils]
-index-servers =
-   pypi
-   testpypi
-
-[pypi]
-repository = https://upload.pypi.org/legacy/
-username:${PYPI_USERNAME}
-password:${PYPI_PASSWORD}
-
-[testpypi]
-repository = https://test.pypi.org/legacy/
-username:${TESTPYPI_USERNAME}
-password:${TESTPYPI_PASSWORD}
-EOL
-}
-
-function tfdv::release_pypi_package {
-  # Upload build manifests to PyPI.
-  #
-  # Usage: tfdv::release_pypi_package
-  tfdv::setup_pypi_credentials
-
-  set -e
-  set -x
-
-  pushd "${TFDV_OUTPUT_DIR}"
-
-  if [[ -z "${RELEASE_GIT_TAG}" && -z "${NIGHTLY_RELEASE_DATE}" ]]; then
-    tfdv::die "One of RELEASE_GIT_TAG or NIGHTLY_RELEASE_DATE must be set"
-  fi
-
-  TFDV_VERSION=$("${PIP_COMMAND}" show tensorflow-data-validation | grep Version | sed 's/Version: //g')
-  printf "\nTFDV version is ${TFDV_VERSION}.\n"
-  WHEEL_PATH=$(find dist -name "tensorflow_data_validation-*.whl")
-  printf "\nUploading wheel file ${WHEEL_PATH} to testpypi.\n"
-  # Copy wheel to ${KOKORO_ARTIFACTS_DIR}, so Kokoro can copy wheel to X20
-  cp "${WHEEL_PATH}" "${KOKORO_ARTIFACTS_DIR}"
-  # Upload package to testpypi.
-  twine upload --skip-existing --repository testpypi "${WHEEL_PATH}" || \
-    tfdv::die "Unable to upload the wheel to Test PyPi"
-
-  if [[ -n "${RELEASE_GIT_TAG}" ]]; then
-    printf "\nUploading wheel file ${WHEEL_PATH} to pypi.\n"
-    twine upload --repository pypi "${WHEEL_PATH}" || \
-      tfdv::die "Unable to upload the wheel to PyPi"
-  fi
-
-  popd
-
-  set +e
-  set +x
-}
-
-if [[ "${RELEASE}" = true ]]; then
-  # We are either releasing from a Git tag, or use current date as version.
-  if [[ -z "${RELEASE_GIT_TAG}" ]]; then
-    NIGHTLY_RELEASE_DATE=$(date +"%Y%m%d")
-  fi
-  tfdv::release_pypi_package || \
-    tfdv::die "Unable to Release the wheel to PyPi"
-fi
