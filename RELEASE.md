@@ -9,6 +9,8 @@
 *   Crop values in natural language stats generator.
 *   Switch to using PyBind11 instead of SWIG for wrapping C++ libraries.
 *   CSV decoder support for multivalent columns by using tfx_bsl's decoder.
+*   When inferring a schema entry for a feature, do not add a shape with dim = 0
+    when min_num_values = 0.
 
 ## Known Issues
 

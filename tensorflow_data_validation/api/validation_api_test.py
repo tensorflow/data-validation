@@ -358,6 +358,19 @@ class ValidationApiTest(absltest.TestCase):
               unique: 5
             }
           }
+          features: {
+            path { step: 'feature4' }
+            type: STRING
+            string_stats: {
+              common_stats: {
+                num_missing: 0
+                num_non_missing: 7
+                min_num_values: 0
+                max_num_values: 1
+              }
+              unique: 5
+            }
+          }
         }
         """, statistics_pb2.DatasetFeatureStatisticsList())
 
@@ -385,6 +398,14 @@ class ValidationApiTest(absltest.TestCase):
           name: "feature3"
           value_count: { min: 1 max: 1}
           presence: {
+            min_count: 1
+          }
+          type: BYTES
+        }
+        feature {
+          name: "feature4"
+          presence: {
+            min_fraction: 1.0
             min_count: 1
           }
           type: BYTES

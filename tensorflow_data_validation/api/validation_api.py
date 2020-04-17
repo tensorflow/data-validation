@@ -137,6 +137,7 @@ def _infer_shape(schema: schema_pb2.Schema):
   for feature in schema.feature:
     # Currently we infer shape only for required features.
     if (feature.presence.min_fraction == 1 and
+        feature.value_count.min != 0 and
         feature.value_count.min == feature.value_count.max):
       feature.shape.dim.add().size = feature.value_count.min
 
