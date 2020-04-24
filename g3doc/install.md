@@ -27,7 +27,7 @@ For instructions on using TFDV, see the
 and try out the
 [example notebook](https://colab.research.google.com/github/tensorflow/tfx/blob/master/docs/tutorials/data_validation/tfdv_basic.ipynb).
 Some of the techniques implemented in TFDV are described in a
-[technical paper published in SysML'19](https://www.sysml.cc/doc/2019/167.pdf).
+[technical paper published in SysML'19](https://mlsys.org/Conferences/2019/doc/2019/167.pdf).
 
 Caution: TFDV may be backwards incompatible before version 1.0.
 
