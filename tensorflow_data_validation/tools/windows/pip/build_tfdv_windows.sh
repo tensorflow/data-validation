@@ -168,3 +168,6 @@ popd
 pip install ${TENSORFLOW}
 
 run_py_tests "tensorflow_data_validation" $@
+
+# copy wheel to ${KOKORO_ARTIFACTS_DIR}
+cp dist/*.whl ${KOKORO_ARTIFACTS_DIR}
