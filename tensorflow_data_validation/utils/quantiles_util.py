@@ -25,7 +25,7 @@ import collections
 import numpy as np
 import six
 import tensorflow_transform as tft
-from typing import Iterable, List, Optional, Union
+from typing import Iterable, List, Union
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
@@ -60,7 +60,7 @@ class QuantilesCombiner(object):
       self, summaries: Iterable[List[List[float]]]) -> List[List[float]]:
     return self._quantiles_spec.merge_accumulators(summaries)
 
-  def extract_output(self, summary: Optional[List[List[float]]]) -> np.ndarray:
+  def extract_output(self, summary: List[List[float]]) -> np.ndarray:
     quantiles = self._quantiles_spec.extract_output(summary)
     # The output of the combiner spec is a list containing a
     # single numpy array which contains the quantile boundaries.

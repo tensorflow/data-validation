@@ -176,7 +176,7 @@ def _make_feature_stats_proto(
 
 
 def write_stats_text(stats: statistics_pb2.DatasetFeatureStatisticsList,
-                     output_path: Text) -> None:
+                     output_path: bytes) -> None:
   """Writes a DatasetFeatureStatisticsList proto to a file in text format.
 
   Args:
@@ -196,7 +196,7 @@ def write_stats_text(stats: statistics_pb2.DatasetFeatureStatisticsList,
 
 
 def load_stats_text(
-    input_path: Text) -> statistics_pb2.DatasetFeatureStatisticsList:
+    input_path: bytes) -> statistics_pb2.DatasetFeatureStatisticsList:
   """Loads the specified DatasetFeatureStatisticsList proto stored in text format.
 
   Args:

@@ -30,7 +30,6 @@ FrozenSet = None
 Hashable = None
 Mapping = None
 Pattern = None
-Sequence = None
 Text = Any
 TypeVar = TypeVariable
 
