@@ -176,9 +176,10 @@ def validate_examples_in_csv(
         | 'ReadData' >> beam.io.textio.ReadFromText(
             file_pattern=data_location, skip_header_lines=skip_header_lines)
         | 'DecodeData' >> csv_decoder.DecodeCSV(
-            column_names=column_names, delimiter=delimiter,
-            schema=stats_options.schema,
-            infer_type_from_schema=stats_options.infer_type_from_schema,
+            column_names=column_names,
+            delimiter=delimiter,
+            schema=stats_options.schema
+            if stats_options.infer_type_from_schema else None,
             desired_batch_size=1)
         | 'DetectAnomalies' >>
         validation_api.IdentifyAnomalousExamples(stats_options)

@@ -59,7 +59,6 @@ _TEST_CASES = [
         feature { name: "float_feature" type: FLOAT }
         feature { name: "str_feature" type: BYTES }
         """, schema_pb2.Schema()),
-        infer_type_from_schema=True,
         expected_result=[
             pa.RecordBatch.from_arrays([
                 pa.array([[1], [5]], pa.list_(pa.float32())),
@@ -271,7 +270,7 @@ _TEST_CASES = [
         testcase_name='size_2_vector_int_multivalent',
         input_lines=['12|14'],
         column_names=['int_feature'],
-        multivalent_columns_names=['int_feature'],
+        multivalent_columns=['int_feature'],
         secondary_delimiter='|',
         expected_result=[
             pa.RecordBatch.from_arrays(
@@ -285,7 +284,7 @@ _TEST_CASES = [
             """
         feature { name: "multivalent_feature" type: FLOAT }
         feature { name: "test_feature" type: BYTES }""", schema_pb2.Schema()),
-        multivalent_columns_names=['multivalent_feature'],
+        multivalent_columns=['multivalent_feature'],
         secondary_delimiter='|',
         expected_result=[
             pa.RecordBatch.from_arrays([
@@ -297,7 +296,7 @@ _TEST_CASES = [
         testcase_name='empty_multivalent_column',
         input_lines=['|,test'],
         column_names=['empty_feature', 'test_feature'],
-        multivalent_columns_names=['empty_feature'],
+        multivalent_columns=['empty_feature'],
         secondary_delimiter='|',
         expected_result=[
             pa.RecordBatch.from_arrays([
@@ -309,7 +308,7 @@ _TEST_CASES = [
         testcase_name='empty_string_multivalent_column',
         input_lines=['|,test', 'a|b,test'],
         column_names=['string_feature', 'test_feature'],
-        multivalent_columns_names=['string_feature'],
+        multivalent_columns=['string_feature'],
         secondary_delimiter='|',
         expected_result=[
             pa.RecordBatch.from_arrays([
@@ -321,7 +320,7 @@ _TEST_CASES = [
         testcase_name='int_and_float_multivalent_column',
         input_lines=['1|2.3,test'],
         column_names=['float_feature', 'test_feature'],
-        multivalent_columns_names=['float_feature'],
+        multivalent_columns=['float_feature'],
         secondary_delimiter='|',
         expected_result=[
             pa.RecordBatch.from_arrays([
@@ -333,7 +332,7 @@ _TEST_CASES = [
         testcase_name='float_and_string_multivalent_column',
         input_lines=['2.3|abc,test'],
         column_names=['string_feature', 'test_feature'],
-        multivalent_columns_names=['string_feature'],
+        multivalent_columns=['string_feature'],
         secondary_delimiter='|',
         expected_result=[
             pa.RecordBatch.from_arrays([
@@ -345,7 +344,7 @@ _TEST_CASES = [
         testcase_name='int_and_string_multivalent_column_multiple_lines',
         input_lines=['1|abc,test', '2|2,test'],
         column_names=['string_feature', 'test_feature'],
-        multivalent_columns_names=['string_feature'],
+        multivalent_columns=['string_feature'],
         secondary_delimiter='|',
         expected_result=[
             pa.RecordBatch.from_arrays([
@@ -367,8 +366,7 @@ class CSVDecoderTest(parameterized.TestCase):
                        delimiter=',',
                        skip_blank_lines=True,
                        schema=None,
-                       infer_type_from_schema=False,
-                       multivalent_columns_names=None,
+                       multivalent_columns=None,
                        secondary_delimiter=None):
     with beam.Pipeline() as p:
       result = (
@@ -378,8 +376,7 @@ class CSVDecoderTest(parameterized.TestCase):
               delimiter=delimiter,
               skip_blank_lines=skip_blank_lines,
               schema=schema,
-              infer_type_from_schema=infer_type_from_schema,
-              multivalent_columns_names=multivalent_columns_names,
+              multivalent_columns=multivalent_columns,
               secondary_delimiter=secondary_delimiter))
       util.assert_that(
           result,
@@ -389,7 +386,7 @@ class CSVDecoderTest(parameterized.TestCase):
     input_lines = ['1,2.0,hello', '5,12.34']
     column_names = ['int_feature', 'float_feature', 'str_feature']
 
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(  # pylint: disable=g-error-prone-assert-raises
         ValueError, '.*Columns do not match specified csv headers.*'):
       with beam.Pipeline() as p:
         result = (
