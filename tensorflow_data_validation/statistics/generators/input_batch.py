@@ -28,7 +28,6 @@ import pyarrow as pa
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
 from tfx_bsl.arrow import array_util
-from typing import Tuple
 
 
 class InputBatch(object):
@@ -70,7 +69,7 @@ class InputBatch(object):
     except KeyError:
       return np.full(self._record_batch.num_rows, True)
 
-  def all_null_mask(self, *paths: Tuple[types.FeaturePath]) -> np.ndarray:
+  def all_null_mask(self, *paths: types.FeaturePath) -> np.ndarray:
     """Returns a boolean mask of rows which are null in all provided paths.
 
     All provided paths must correspond to array of the same length.

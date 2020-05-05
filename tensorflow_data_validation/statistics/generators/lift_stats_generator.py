@@ -57,7 +57,7 @@ from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
 from tfx_bsl.arrow import array_util
 import typing
-from typing import Any, Dict, Iterator, Iterable, List, Optional, Text, Tuple, Union
+from typing import Any, Dict, Iterator, Iterable, Optional, Sequence, Text, Tuple, Union
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
@@ -110,7 +110,7 @@ _LiftSeries = typing.NamedTuple('_LiftSeries',
 
 def _get_example_value_presence(
     record_batch: pa.RecordBatch, path: types.FeaturePath,
-    boundaries: Optional[Iterable[float]],
+    boundaries: Optional[Sequence[float]],
     weight_column_name: Optional[Text]) -> Optional[pd.DataFrame]:
 
   """Returns information about which examples contained which values.
@@ -319,7 +319,7 @@ def _make_dataset_feature_stats_proto(
     else:
       lift_series_proto.y_count = lift_series.y_count
     y = lift_series.y
-    if y_boundaries is not None:
+    if y_boundaries is not None and isinstance(y, int):
       low_value, high_value = bin_util.get_boundaries(y, y_boundaries)
       lift_series_proto.y_bucket.low_value = low_value
       lift_series_proto.y_bucket.high_value = high_value
@@ -372,7 +372,7 @@ def _make_dataset_feature_stats_proto(
 
 
 def _cross_join_y_keys(
-    join_info: Tuple[types.SliceKey, Dict[Text, List[Any]]]
+    join_info: Tuple[types.SliceKey, Dict[Text, Sequence[Any]]]
     # TODO(b/147153346) update dict value list element type annotation to:
     # Union[_YKey, Tuple[_YType, Tuple[types.FeaturePath, _XType, _CountType]]]
 ) -> Iterator[Tuple[_SlicedXYKey, _CountType]]:
@@ -383,7 +383,7 @@ def _cross_join_y_keys(
 
 
 def _join_x_counts(
-    join_info: Tuple[_SlicedXKey, Dict[Text, List[Any]]]
+    join_info: Tuple[_SlicedXKey, Dict[Text, Sequence[Any]]]
     # TODO(b/147153346) update dict value list element type annotation to:
     # Union[_CountType, Tuple[_YType, _CountType]]
 ) -> Iterator[Tuple[_SlicedYKey, _ConditionalYRate]]:
@@ -419,7 +419,7 @@ def _join_x_counts(
 
 
 def _join_example_counts(
-    join_info: Tuple[types.SliceKey, Dict[Text, List[Any]]]
+    join_info: Tuple[types.SliceKey, Dict[Text, Sequence[Any]]]
     # TODO(b/147153346) update dict value list element type annotation to:
     # Union[_CountType, Tuple[_YType, _CountType]]
 ) -> Iterator[Tuple[_SlicedYKey, _YRate]]:
@@ -448,9 +448,9 @@ def _join_example_counts(
 
 
 def _compute_lifts(
-    join_info: Tuple[_SlicedYKey, Dict[Text, List[Any]]]
+    join_info: Tuple[_SlicedYKey, Dict[Text, Sequence[Any]]]
     # TODO(b/147153346) update dict value list element type annotation to:
-    # List[Union[_YRate, _ConditionalYRate]]
+    # Sequence[Union[_YRate, _ConditionalYRate]]
 ) -> Iterator[Tuple[_SlicedFeatureKey, _LiftInfo]]:
   """Joins y_counts with all x-y pairs for that y and computes lift.
 
@@ -577,7 +577,7 @@ class _FilterLifts(beam.PTransform):
 class _GetPlaceholderCopresenceCounts(beam.PTransform):
   """A PTransform for computing all possible x-y pairs, to support 0 lifts."""
 
-  def __init__(self, x_paths, min_x_count):
+  def __init__(self, x_paths: Iterable[types.FeaturePath], min_x_count: int):
     self._x_paths = x_paths
     self._min_x_count = min_x_count
 
@@ -611,8 +611,10 @@ class _GetPlaceholderCopresenceCounts(beam.PTransform):
 class _GetConditionalYRates(beam.PTransform):
   """A PTransform for computing the rate of each y value, given an x value."""
 
-  def __init__(self, y_path, y_boundaries, x_paths, min_x_count,
-               weight_column_name):
+  def __init__(self, y_path: types.FeaturePath,
+               y_boundaries: Optional[np.ndarray],
+               x_paths: Iterable[types.FeaturePath], min_x_count: int,
+               weight_column_name: Optional[Text]):
     self._y_path = y_path
     self._y_boundaries = y_boundaries
     self._x_paths = x_paths
@@ -675,7 +677,9 @@ class _GetConditionalYRates(beam.PTransform):
 class _GetYRates(beam.PTransform):
   """A PTransform for computing the rate of each y value within each slice."""
 
-  def __init__(self, y_path, y_boundaries, weight_column_name):
+  def __init__(self, y_path: types.FeaturePath,
+               y_boundaries: Optional[np.ndarray],
+               weight_column_name: Optional[Text]):
     self._y_path = y_path
     self._y_boundaries = y_boundaries
     self._weight_column_name = weight_column_name
@@ -727,7 +731,7 @@ class _LiftStatsGenerator(beam.PTransform):
   def __init__(self, y_path: types.FeaturePath,
                schema: Optional[schema_pb2.Schema],
                x_paths: Optional[Iterable[types.FeaturePath]],
-               y_boundaries: Optional[Iterable[float]], min_x_count: int,
+               y_boundaries: Optional[Sequence[float]], min_x_count: int,
                top_k_per_y: Optional[int], bottom_k_per_y: Optional[int],
                weight_column_name: Optional[Text],
                output_custom_stats: bool, name: Text) -> None:
@@ -877,7 +881,7 @@ class LiftStatsGenerator(stats_generator.TransformStatsGenerator):
                y_path: types.FeaturePath,
                schema: Optional[schema_pb2.Schema] = None,
                x_paths: Optional[Iterable[types.FeaturePath]] = None,
-               y_boundaries: Optional[Iterable[float]] = None,
+               y_boundaries: Optional[Sequence[float]] = None,
                min_x_count: int = 0,
                top_k_per_y: Optional[int] = None,
                bottom_k_per_y: Optional[int] = None,
