@@ -11,6 +11,7 @@
 *   CSV decoder support for multivalent columns by using tfx_bsl's decoder.
 *   When inferring a schema entry for a feature, do not add a shape with dim = 0
     when min_num_values = 0.
+*   Requires `pyarrow>=0.16,<1`.
 
 ## Known Issues
 
