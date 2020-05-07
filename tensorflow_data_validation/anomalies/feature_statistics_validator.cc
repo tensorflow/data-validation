@@ -35,12 +35,6 @@ namespace data_validation {
 
 namespace {
 const int64 kDefaultEnumThreshold = 400;
-
-template<typename T>
-    absl::optional<T> ToAbslOptional(gtl::optional<T> opt) {
-  if (!opt) return absl::nullopt;
-  return std::move(opt).value();
-}
 }
 
 FeatureStatisticsToProtoConfig GetDefaultFeatureStatisticsToProtoConfig() {
@@ -105,14 +99,14 @@ tensorflow::Status ValidateFeatureStatistics(
     const tensorflow::metadata::v0::DatasetFeatureStatistics&
         feature_statistics,
     const tensorflow::metadata::v0::Schema& schema_proto,
-    const gtl::optional<string>& environment,
-    const gtl::optional<tensorflow::metadata::v0::DatasetFeatureStatistics>&
+    const absl::optional<string>& environment,
+    const absl::optional<tensorflow::metadata::v0::DatasetFeatureStatistics>&
         prev_span_feature_statistics,
-    const gtl::optional<tensorflow::metadata::v0::DatasetFeatureStatistics>&
+    const absl::optional<tensorflow::metadata::v0::DatasetFeatureStatistics>&
         serving_feature_statistics,
-    const gtl::optional<metadata::v0::DatasetFeatureStatistics>&
+    const absl::optional<metadata::v0::DatasetFeatureStatistics>&
         prev_version_feature_statistics,
-    const gtl::optional<FeaturesNeeded>& features_needed,
+    const absl::optional<FeaturesNeeded>& features_needed,
     const ValidationConfig& validation_config, bool enable_diff_regions,
     tensorflow::metadata::v0::Anomalies* result) {
   // TODO(b/113295423): Clean up the optional conversions.
@@ -166,7 +160,7 @@ tensorflow::Status ValidateFeatureStatistics(
         DatasetStatsView(feature_statistics, by_weight, maybe_environment,
                          previous_span, serving, previous_version);
     TF_RETURN_IF_ERROR(
-        schema_anomalies.FindChanges(training, ToAbslOptional(features_needed),
+        schema_anomalies.FindChanges(training, features_needed,
                                      feature_statistics_to_proto_config));
     *result = schema_anomalies.GetSchemaDiff(enable_diff_regions);
   }
@@ -194,7 +188,7 @@ tensorflow::Status ValidateFeatureStatisticsWithSerializedInputs(
         "Failed to parse DatasetFeatureStatistics proto.");
   }
 
-  tensorflow::gtl::optional<tensorflow::metadata::v0::DatasetFeatureStatistics>
+  absl::optional<tensorflow::metadata::v0::DatasetFeatureStatistics>
       previous_span_statistics = tensorflow::gtl::nullopt;
   if (!previous_span_statistics_proto_string.empty()) {
     tensorflow::metadata::v0::DatasetFeatureStatistics tmp_stats;
@@ -205,7 +199,7 @@ tensorflow::Status ValidateFeatureStatisticsWithSerializedInputs(
     previous_span_statistics = tmp_stats;
   }
 
-  tensorflow::gtl::optional<tensorflow::metadata::v0::DatasetFeatureStatistics>
+  absl::optional<tensorflow::metadata::v0::DatasetFeatureStatistics>
       serving_statistics = tensorflow::gtl::nullopt;
   if (!serving_statistics_proto_string.empty()) {
     tensorflow::metadata::v0::DatasetFeatureStatistics tmp_stats;
@@ -216,7 +210,7 @@ tensorflow::Status ValidateFeatureStatisticsWithSerializedInputs(
     serving_statistics = tmp_stats;
   }
 
-  tensorflow::gtl::optional<tensorflow::metadata::v0::DatasetFeatureStatistics>
+  absl::optional<tensorflow::metadata::v0::DatasetFeatureStatistics>
       previous_version_statistics = tensorflow::gtl::nullopt;
   if (!previous_version_statistics_proto_string.empty()) {
     tensorflow::metadata::v0::DatasetFeatureStatistics tmp_stats;
@@ -227,13 +221,13 @@ tensorflow::Status ValidateFeatureStatisticsWithSerializedInputs(
     previous_version_statistics = tmp_stats;
   }
 
-  tensorflow::gtl::optional<string> may_be_environment =
+  absl::optional<string> may_be_environment =
       tensorflow::gtl::nullopt;
   if (!environment.empty()) {
     may_be_environment = environment;
   }
 
-  gtl::optional<FeaturesNeeded> features_needed = gtl::nullopt;
+  absl::optional<FeaturesNeeded> features_needed = gtl::nullopt;
   if (!features_needed_string.empty()) {
     FeaturesNeededProto parsed_proto;
     if (!parsed_proto.ParseFromString(features_needed_string)) {
@@ -273,8 +267,8 @@ tensorflow::Status UpdateSchema(
     const tensorflow::metadata::v0::Schema& schema_to_update,
     const tensorflow::metadata::v0::DatasetFeatureStatistics&
         feature_statistics,
-    const gtl::optional<std::vector<Path>>& paths_to_consider,
-    const gtl::optional<string>& environment,
+    const absl::optional<std::vector<Path>>& paths_to_consider,
+    const absl::optional<string>& environment,
     tensorflow::metadata::v0::Schema* result) {
   // TODO(b/112762449): Add full support for multi-step
   // paths from paths_to_consider.

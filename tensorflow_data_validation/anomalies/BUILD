@@ -323,6 +323,7 @@ cc_test(
         "//tensorflow_data_validation/anomalies/proto:validation_config_proto",
         "//tensorflow_data_validation/anomalies/proto:validation_metadata_proto",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
+        "@com_google_absl//absl/types:optional",
         "@com_google_googletest//:gtest_main",
         "@org_tensorflow//tensorflow/core:lib",
         "@org_tensorflow//tensorflow/core:test",

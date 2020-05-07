@@ -23,6 +23,7 @@ limitations under the License.
 #include <string>
 #include <vector>
 
+#include "absl/types/optional.h"
 #include "tensorflow_data_validation/anomalies/features_needed.h"
 #include "tensorflow_data_validation/anomalies/path.h"
 #include "tensorflow_data_validation/anomalies/proto/feature_statistics_to_proto.pb.h"
@@ -78,14 +79,14 @@ Status UpdateSchema(const string& schema_proto_string,
 Status ValidateFeatureStatistics(
     const metadata::v0::DatasetFeatureStatistics& feature_statistics,
     const metadata::v0::Schema& schema_proto,
-    const gtl::optional<string>& environment,
-    const gtl::optional<metadata::v0::DatasetFeatureStatistics>&
+    const absl::optional<string>& environment,
+    const absl::optional<metadata::v0::DatasetFeatureStatistics>&
         prev_span_feature_statistics,
-    const gtl::optional<metadata::v0::DatasetFeatureStatistics>&
+    const absl::optional<metadata::v0::DatasetFeatureStatistics>&
         serving_feature_statistics,
-    const gtl::optional<metadata::v0::DatasetFeatureStatistics>&
+    const absl::optional<metadata::v0::DatasetFeatureStatistics>&
         prev_version_feature_statistics,
-    const gtl::optional<FeaturesNeeded>& features_needed,
+    const absl::optional<FeaturesNeeded>& features_needed,
     const ValidationConfig& validation_config, bool enable_diff_regions,
     metadata::v0::Anomalies* result);
 
@@ -114,8 +115,8 @@ Status UpdateSchema(
     const metadata::v0::Schema& schema_to_update,
     const metadata::v0::DatasetFeatureStatistics&
         feature_statistics,
-    const gtl::optional<std::vector<Path>>& paths_to_consider,
-    const gtl::optional<string>& environment,
+    const absl::optional<std::vector<Path>>& paths_to_consider,
+    const absl::optional<string>& environment,
     metadata::v0::Schema* result);
 
 }  // namespace data_validation
