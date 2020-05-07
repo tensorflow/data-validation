@@ -58,5 +58,5 @@ class ValidationOptions(object):
     return self._new_features_are_warnings
 
   @property
-  def severity_overrides(self) -> bool:
+  def severity_overrides(self) -> List[validation_config_pb2.SeverityOverride]:
     return self._severity_overrides

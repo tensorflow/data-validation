@@ -169,8 +169,8 @@ class CrossFeatureStatsGenerator(stats_generator.CombinerStatsGenerator):
     else:
       feature_crosses = itertools.combinations(
           sorted(list(features_for_cross.keys())), 2)
-    for feat_cross in feature_crosses:
-      feat_name_x, feat_name_y = feat_cross
+    for feat_name_x, feat_name_y in feature_crosses:
+      feat_cross = (feat_name_x, feat_name_y)
       if feat_cross not in accumulator:
         accumulator[feat_cross] = _PartialCrossFeatureStats()
       df_x, df_y = (features_for_cross[feat_name_x],
