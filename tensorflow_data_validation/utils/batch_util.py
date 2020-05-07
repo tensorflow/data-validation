@@ -24,13 +24,13 @@ import pyarrow as pa
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import decoded_examples_to_arrow
+from tfx_bsl.coders import batch_util
 from tfx_bsl.coders import example_coder
-from tfx_bsl.tfxio import record_based_tfxio
 from typing import List, Iterable, Optional
 
 
 # DEPRECATED. Use the TFXIO util instead.
-GetBeamBatchKwargs = record_based_tfxio.GetBatchElementsKwargs
+GetBeamBatchKwargs = batch_util.GetBatchElementsKwargs
 
 
 # TODO(pachristopher): Deprecate this.
@@ -54,14 +54,12 @@ def BatchExamplesToArrowRecordBatches(
   """
   return (
       examples
-      | "BatchBeamExamples" >>
-      beam.BatchElements(**record_based_tfxio.GetBatchElementsKwargs(
-          desired_batch_size))
-      | "DecodeExamplesToRecordBatch" >>
-      # pylint: disable=unnecessary-lambda
-      beam.Map(
+      | "BatchBeamExamples" >> beam.BatchElements(
+          **batch_util.GetBatchElementsKwargs(desired_batch_size))
+      | "DecodeExamplesToRecordBatch" >> beam.Map(
+          # pylint: disable=unnecessary-lambda
           lambda x: decoded_examples_to_arrow.DecodedExamplesToRecordBatch(x)))
-      # pylint: enable=unnecessary-lambda
+          # pylint: enable=unnecessary-lambda
 
 
 @beam.ptransform_fn
@@ -83,9 +81,8 @@ def BatchSerializedExamplesToArrowRecordBatches(
     A PCollection of Arrow record batches.
   """
   return (examples
-          | "BatchSerializedExamples" >>
-          beam.BatchElements(
-              **record_based_tfxio.GetBatchElementsKwargs(desired_batch_size))
+          | "BatchSerializedExamples" >> beam.BatchElements(
+              **batch_util.GetBatchElementsKwargs(desired_batch_size))
           | "BatchDecodeExamples" >> beam.ParDo(_BatchDecodeExamplesDoFn()))
 
 
