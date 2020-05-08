@@ -11,6 +11,9 @@
 *   CSV decoder support for multivalent columns by using tfx_bsl's decoder.
 *   When inferring a schema entry for a feature, do not add a shape with dim = 0
     when min_num_values = 0.
+*   Add utility methods `tfdv.get_slice_stats` to get statistics for a slice and
+    `tfdv.compare_slices` to compare statistics of two slices using Facets.
+*   Make `tfdv.load_stats_text` and `tfdv.write_stats_text` public.
 *   Requires `pyarrow>=0.16,<1`.
 
 ## Known Issues

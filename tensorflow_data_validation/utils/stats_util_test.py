@@ -175,6 +175,23 @@ class StatsUtilTest(absltest.TestCase):
     with self.assertRaisesRegexp(ValueError, 'Custom statistics.*not found'):
       stats_util.get_custom_stats(stats, 'xyz')
 
+  def test_get_slice_stats(self):
+    statistics = text_format.Parse("""
+    datasets {
+      name: "slice1"
+      num_examples: 100
+    }
+    datasets {
+      name: "slice2"
+      num_examples: 200
+    }
+    """, statistics_pb2.DatasetFeatureStatisticsList())
+    for slice_key in ['slice1', 'slice2']:
+      actual_stats = stats_util.get_slice_stats(statistics, slice_key)
+      self.assertLen(actual_stats.datasets, 1)
+      self.assertEqual(actual_stats.datasets[0].name, slice_key)
+    with self.assertRaisesRegexp(ValueError, 'Invalid slice key'):
+      stats_util.get_slice_stats(statistics, 'slice3')
 
 if __name__ == '__main__':
   absltest.main()

@@ -271,3 +271,27 @@ def get_custom_stats(
 
   raise ValueError('Custom statistics %s not found in the feature statistics.' %
                    custom_stats_name)
+
+
+def get_slice_stats(statistics: statistics_pb2.DatasetFeatureStatisticsList,
+                    slice_key: Text
+                   ) -> statistics_pb2.DatasetFeatureStatisticsList:
+  """Get statistics associated with a specific slice.
+
+  Args:
+    statistics: A DatasetFeatureStatisticsList protocol buffer.
+    slice_key: Slice key of the slice.
+
+  Returns:
+    Statistics of the specific slice.
+
+  Raises:
+    ValueError: If the input statistics proto does not have the specified slice
+      statistics.
+  """
+  for slice_stats in statistics.datasets:
+    if slice_stats.name == slice_key:
+      result = statistics_pb2.DatasetFeatureStatisticsList()
+      result.datasets.add().CopyFrom(slice_stats)
+      return result
+  raise ValueError('Invalid slice key.')

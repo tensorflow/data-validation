@@ -50,6 +50,7 @@ from tensorflow_data_validation.utils.anomalies_util import load_anomalies_text
 from tensorflow_data_validation.utils.anomalies_util import write_anomalies_text
 
 # Import display utilities.
+from tensorflow_data_validation.utils.display_util import compare_slices
 from tensorflow_data_validation.utils.display_util import display_anomalies
 from tensorflow_data_validation.utils.display_util import display_schema
 from tensorflow_data_validation.utils.display_util import visualize_statistics
@@ -69,6 +70,11 @@ from tensorflow_data_validation.utils.stats_gen_lib import generate_statistics_f
 from tensorflow_data_validation.utils.stats_gen_lib import generate_statistics_from_dataframe
 from tensorflow_data_validation.utils.stats_gen_lib import generate_statistics_from_tfrecord
 from tensorflow_data_validation.utils.stats_gen_lib import load_statistics
+
+# Import stats utilities.
+from tensorflow_data_validation.utils.stats_util import get_slice_stats
+from tensorflow_data_validation.utils.stats_util import load_stats_text
+from tensorflow_data_validation.utils.stats_util import write_stats_text
 
 # Import validation lib.
 from tensorflow_data_validation.utils.validation_lib import validate_examples_in_csv
