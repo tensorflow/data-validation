@@ -50,7 +50,7 @@ import pyarrow as pa
 from tensorflow_data_validation import constants
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options
-from typing import Generator
+from typing import Generator, Text
 
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
@@ -130,3 +130,48 @@ def _sample_at_rate(example: pa.RecordBatch, sample_rate: float
   # or add an optional seed argument.
   if random.random() <= sample_rate:
     yield example
+
+
+@beam.typehints.with_input_types(statistics_pb2.DatasetFeatureStatisticsList)
+@beam.typehints.with_output_types(beam.pvalue.PDone)
+class WriteStatisticsToText(beam.PTransform):
+  """API for writing serialized data statistics to text file."""
+
+  def __init__(self, output_path: Text) -> None:
+    """Initializes the transform.
+
+    Args:
+      output_path: Output path for writing data statistics.
+    """
+    self._output_path = output_path
+
+  def expand(self, stats: beam.pvalue.PCollection) -> beam.pvalue.PDone:
+    return (stats
+            | 'WriteStats' >> beam.io.WriteToText(
+                self._output_path,
+                shard_name_template='',
+                append_trailing_newlines=False,
+                coder=beam.coders.ProtoCoder(
+                    statistics_pb2.DatasetFeatureStatisticsList)))
+
+
+@beam.typehints.with_input_types(statistics_pb2.DatasetFeatureStatisticsList)
+@beam.typehints.with_output_types(beam.pvalue.PDone)
+class WriteStatisticsToTFRecord(beam.PTransform):
+  """API for writing serialized data statistics to TFRecord file."""
+
+  def __init__(self, output_path: Text) -> None:
+    """Initializes the transform.
+
+    Args:
+      output_path: Output path for writing data statistics.
+    """
+    self._output_path = output_path
+
+  def expand(self, stats: beam.pvalue.PCollection) -> beam.pvalue.PDone:
+    return (stats
+            | 'WriteStats' >> beam.io.WriteToTFRecord(
+                self._output_path,
+                shard_name_template='',
+                coder=beam.coders.ProtoCoder(
+                    statistics_pb2.DatasetFeatureStatisticsList)))

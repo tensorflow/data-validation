@@ -31,6 +31,7 @@ from tensorflow_data_validation.coders import tf_example_decoder
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options as options
 from tensorflow_data_validation.utils import stats_gen_lib
+from tensorflow_data_validation.utils import stats_util
 from typing import List, Optional, Text
 
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -104,7 +105,7 @@ def validate_examples_in_tfrecord(
             coder=beam.coders.ProtoCoder(
                 statistics_pb2.DatasetFeatureStatisticsList)))
 
-  return stats_gen_lib.load_statistics(output_path)
+  return stats_util.load_statistics(output_path)
 
 
 def validate_examples_in_csv(
@@ -193,4 +194,4 @@ def validate_examples_in_csv(
             coder=beam.coders.ProtoCoder(
                 statistics_pb2.DatasetFeatureStatisticsList)))
 
-  return stats_gen_lib.load_statistics(output_path)
+  return stats_util.load_statistics(output_path)

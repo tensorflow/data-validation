@@ -14,6 +14,11 @@
 *   Add utility methods `tfdv.get_slice_stats` to get statistics for a slice and
     `tfdv.compare_slices` to compare statistics of two slices using Facets.
 *   Make `tfdv.load_stats_text` and `tfdv.write_stats_text` public.
+*   Add PTransforms `tfdv.WriteStatisticsToText` and
+    `tfdv.WriteStatisticsToTFRecord` to write statistics proto to text and
+    tfrecord files respectively.
+*   Modify `tfdv.load_statistics` to handle reading statistics from TFRecord and
+    text files.
 *   Requires `pyarrow>=0.16,<1`.
 
 ## Known Issues

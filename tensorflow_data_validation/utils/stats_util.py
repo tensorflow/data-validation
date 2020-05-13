@@ -18,8 +18,10 @@ from __future__ import division
 
 from __future__ import print_function
 
+import logging
 import numpy as np
 import pyarrow as pa
+import tensorflow as tf
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.utils import io_util
@@ -212,6 +214,22 @@ def load_stats_text(
   return stats_proto
 
 
+def load_stats_tfrecord(
+    input_path: Text) -> statistics_pb2.DatasetFeatureStatisticsList:
+  """Loads data statistics proto from TFRecord file.
+
+  Args:
+    input_path: Data statistics file path.
+
+  Returns:
+    A DatasetFeatureStatisticsList proto.
+  """
+  serialized_stats = next(tf.compat.v1.io.tf_record_iterator(input_path))
+  result = statistics_pb2.DatasetFeatureStatisticsList()
+  result.ParseFromString(serialized_stats)
+  return result
+
+
 def get_feature_stats(stats: statistics_pb2.DatasetFeatureStatistics,
                       feature_path: types.FeaturePath
                      ) -> statistics_pb2.FeatureNameStatistics:
@@ -295,3 +313,27 @@ def get_slice_stats(statistics: statistics_pb2.DatasetFeatureStatisticsList,
       result.datasets.add().CopyFrom(slice_stats)
       return result
   raise ValueError('Invalid slice key.')
+
+
+def load_statistics(
+    input_path: Text) -> statistics_pb2.DatasetFeatureStatisticsList:
+  """Loads data statistics proto from file.
+
+  Args:
+    input_path: Data statistics file path. The file should be a one-record
+      TFRecord file or a plain file containing the serialized statistics proto.
+
+  Returns:
+    A DatasetFeatureStatisticsList proto.
+
+  Raises:
+    IOError: If the input path does not exist.
+  """
+  if not tf.io.gfile.exists(input_path):
+    raise IOError('Invalid input path {}.'.format(input_path))
+  try:
+    return load_stats_tfrecord(input_path)
+  except Exception:  # pylint: disable=broad-except
+    logging.info('File %s did not look like a TFRecord. Try reading as a plain '
+                 'file.', input_path)
+    return load_stats_text(input_path)

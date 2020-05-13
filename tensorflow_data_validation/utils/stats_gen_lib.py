@@ -42,6 +42,7 @@ from tensorflow_data_validation.coders import tf_example_decoder
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options as options
 from tensorflow_data_validation.statistics.generators import stats_generator
+from tensorflow_data_validation.utils import stats_util
 from tfx_bsl.arrow import array_util
 from typing import Any, List, Optional, Text
 
@@ -120,12 +121,9 @@ def generate_statistics_from_tfrecord(
             desired_batch_size=batch_size)
         | 'GenerateStatistics' >> stats_api.GenerateStatistics(stats_options)
         # TODO(b/112014711) Implement a custom sink to write the stats proto.
-        | 'WriteStatsOutput' >> beam.io.WriteToTFRecord(
-            output_path,
-            shard_name_template='',
-            coder=beam.coders.ProtoCoder(
-                statistics_pb2.DatasetFeatureStatisticsList)))
-  return load_statistics(output_path)
+        | 'WriteStatsOutput' >> stats_api.WriteStatisticsToTFRecord(
+            output_path))
+  return stats_util.load_statistics(output_path)
 
 
 def generate_statistics_from_csv(
@@ -204,12 +202,9 @@ def generate_statistics_from_csv(
             desired_batch_size=batch_size)
         | 'GenerateStatistics' >> stats_api.GenerateStatistics(stats_options)
         # TODO(b/112014711) Implement a custom sink to write the stats proto.
-        | 'WriteStatsOutput' >> beam.io.WriteToTFRecord(
-            output_path,
-            shard_name_template='',
-            coder=beam.coders.ProtoCoder(
-                statistics_pb2.DatasetFeatureStatisticsList)))
-  return load_statistics(output_path)
+        | 'WriteStatsOutput' >> stats_api.WriteStatisticsToTFRecord(
+            output_path))
+  return stats_util.load_statistics(output_path)
 
 
 def generate_statistics_from_dataframe(
@@ -347,20 +342,4 @@ def get_csv_header(data_location: Text,
         raise ValueError(
             'Found empty file when reading the header line: %s' % filename)
 
-  return result
-
-
-def load_statistics(
-    input_path: Text) -> statistics_pb2.DatasetFeatureStatisticsList:
-  """Loads data statistics proto from file.
-
-  Args:
-    input_path: Data statistics file path.
-
-  Returns:
-    A DatasetFeatureStatisticsList proto.
-  """
-  serialized_stats = next(tf.compat.v1.io.tf_record_iterator(input_path))
-  result = statistics_pb2.DatasetFeatureStatisticsList()
-  result.ParseFromString(serialized_stats)
   return result

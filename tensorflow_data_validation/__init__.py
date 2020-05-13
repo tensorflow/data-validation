@@ -22,6 +22,8 @@ import pyarrow as _
 
 # Import stats API.
 from tensorflow_data_validation.api.stats_api import GenerateStatistics
+from tensorflow_data_validation.api.stats_api import WriteStatisticsToText
+from tensorflow_data_validation.api.stats_api import WriteStatisticsToTFRecord
 
 # Import validation API.
 from tensorflow_data_validation.api.validation_api import infer_schema
@@ -69,10 +71,10 @@ from tensorflow_data_validation.utils.slicing_util import get_feature_value_slic
 from tensorflow_data_validation.utils.stats_gen_lib import generate_statistics_from_csv
 from tensorflow_data_validation.utils.stats_gen_lib import generate_statistics_from_dataframe
 from tensorflow_data_validation.utils.stats_gen_lib import generate_statistics_from_tfrecord
-from tensorflow_data_validation.utils.stats_gen_lib import load_statistics
 
 # Import stats utilities.
 from tensorflow_data_validation.utils.stats_util import get_slice_stats
+from tensorflow_data_validation.utils.stats_util import load_statistics
 from tensorflow_data_validation.utils.stats_util import load_stats_text
 from tensorflow_data_validation.utils.stats_util import write_stats_text
 

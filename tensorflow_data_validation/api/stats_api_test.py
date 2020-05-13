@@ -19,6 +19,8 @@ from __future__ import division
 
 from __future__ import print_function
 
+import os
+import tempfile
 from absl.testing import absltest
 import apache_beam as beam
 from apache_beam.testing import util
@@ -26,6 +28,8 @@ import numpy as np
 import pyarrow as pa
 from tensorflow_data_validation.api import stats_api
 from tensorflow_data_validation.statistics import stats_options
+from tensorflow_data_validation.utils import io_util
+from tensorflow_data_validation.utils import stats_util
 from tensorflow_data_validation.utils import test_util
 
 from google.protobuf import text_format
@@ -33,6 +37,9 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
 class StatsAPITest(absltest.TestCase):
+
+  def _get_temp_dir(self):
+    return tempfile.mkdtemp()
 
   def test_stats_pipeline(self):
     record_batches = [
@@ -636,6 +643,42 @@ class StatsAPITest(absltest.TestCase):
             p | beam.Create(record_batches)
             | stats_api.GenerateStatistics(options={}))
 
+  def test_write_stats_to_text(self):
+    stats = text_format.Parse(
+        """
+        datasets {
+          name: 'x'
+          num_examples: 100
+        }
+        """, statistics_pb2.DatasetFeatureStatisticsList())
+    output_path = os.path.join(self._get_temp_dir(), 'stats')
+    with beam.Pipeline() as p:
+      _ = (p | beam.Create([stats]) | stats_api.WriteStatisticsToText(
+          output_path))
+    stats_from_file = statistics_pb2.DatasetFeatureStatisticsList()
+    serialized_stats = io_util.read_file_to_string(
+        output_path, binary_mode=True)
+    stats_from_file.ParseFromString(serialized_stats)
+    self.assertLen(stats_from_file.datasets, 1)
+    test_util.assert_dataset_feature_stats_proto_equal(
+        self, stats_from_file.datasets[0], stats.datasets[0])
+
+  def test_write_stats_to_tfrecrod(self):
+    stats = text_format.Parse(
+        """
+        datasets {
+          name: 'x'
+          num_examples: 100
+        }
+        """, statistics_pb2.DatasetFeatureStatisticsList())
+    output_path = os.path.join(self._get_temp_dir(), 'stats')
+    with beam.Pipeline() as p:
+      _ = (p | beam.Create([stats]) | stats_api.WriteStatisticsToTFRecord(
+          output_path))
+    stats_from_file = stats_util.load_statistics(output_path)
+    self.assertLen(stats_from_file.datasets, 1)
+    test_util.assert_dataset_feature_stats_proto_equal(
+        self, stats_from_file.datasets[0], stats.datasets[0])
 
 if __name__ == '__main__':
   absltest.main()
