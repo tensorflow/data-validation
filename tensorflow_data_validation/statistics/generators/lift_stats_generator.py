@@ -55,7 +55,6 @@ from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import bin_util
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
-from tfx_bsl.arrow import array_util
 import typing
 from typing import Any, Dict, Iterator, Iterable, Optional, Sequence, Text, Tuple, Union
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -143,10 +142,11 @@ def _get_example_value_presence(
   """
   arr, example_indices = arrow_util.get_array(
       record_batch, path, return_example_indices=True)
-  if pa.types.is_null(arr.type):
+  if stats_util.get_feature_type_from_arrow_type(path, arr.type) is None:
     return None
 
-  arr_flat = arr.flatten()
+  arr_flat, parent_indices = arrow_util.flatten_nested(
+      arr, return_parent_indices=True)
   is_binary_like = arrow_util.is_binary_like(arr_flat.type)
   assert boundaries is None or not is_binary_like, (
       'Boundaries can only be applied to numeric columns')
@@ -155,7 +155,6 @@ def _get_example_value_presence(
     dict_array = arr_flat.dictionary_encode()
     arr_flat = dict_array.indices
     arr_flat_dict = np.asarray(dict_array.dictionary)
-  parent_indices = array_util.GetFlattenedArrayParentIndices(arr).to_numpy()
   example_indices_flat = example_indices[parent_indices]
   if boundaries is not None:
     element_indices, bins = bin_util.bin_array(arr_flat, boundaries)

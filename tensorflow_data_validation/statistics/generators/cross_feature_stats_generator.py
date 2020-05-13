@@ -32,6 +32,7 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 from tensorflow_data_validation import types
+from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import stats_util
 from tfx_bsl.arrow import array_util
@@ -132,9 +133,9 @@ class CrossFeatureStatsGenerator(stats_generator.CombinerStatsGenerator):
       # If there are no univalent values, continue to the next feature.
       if not univalent_parent_indices:
         continue
-      non_missing_values = np.asarray(feat_arr.flatten())
-      value_parent_indices = np.asarray(
-          array_util.GetFlattenedArrayParentIndices(feat_arr))
+      flattened, value_parent_indices = arrow_util.flatten_nested(
+          feat_arr, True)
+      non_missing_values = np.asarray(flattened)
       if feature_type == statistics_pb2.FeatureNameStatistics.FLOAT:
         # Remove any NaN values if present.
         non_nan_mask = ~np.isnan(non_missing_values)

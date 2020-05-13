@@ -25,6 +25,7 @@ import pyarrow as pa
 from sklearn.feature_selection import mutual_info_classif
 from sklearn.feature_selection import mutual_info_regression
 from tensorflow_data_validation import types
+from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.statistics.generators import partitioned_stats_generator
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
@@ -79,10 +80,10 @@ def _flatten_and_impute(examples: pa.RecordBatch,
     else:
       # to_pandas returns a readonly array. Create a copy as we will be imputing
       # the NaN values.
-      non_missing_values = np.copy(
-          np.asarray(feature_array.flatten()))
-      non_missing_parent_indices = np.asarray(
-          array_util.GetFlattenedArrayParentIndices(feature_array))
+      flattened_array, non_missing_parent_indices = arrow_util.flatten_nested(
+          feature_array, return_parent_indices=True)
+      assert non_missing_parent_indices is not None
+      non_missing_values = np.copy(np.asarray(flattened_array))
       is_categorical_feature = feature_path in categorical_features
       result_dtype = non_missing_values.dtype
       if non_missing_parent_indices.size < num_rows and is_categorical_feature:
@@ -305,9 +306,12 @@ class SkLearnMutualInformation(partitioned_stats_generator.PartitionedStatsFn):
         unsupported_columns.add(f.steps()[0])
     for column_name, column in zip(examples.schema.names,
                                    examples.columns):
-      if (stats_util.get_feature_type_from_arrow_type(
-          types.FeaturePath([column_name]),
-          column.type) == statistics_pb2.FeatureNameStatistics.STRUCT):
+      # only support 1-nested non-struct arrays.
+      column_type = column.type
+      if (arrow_util.get_nest_level(column_type) != 1 or
+          stats_util.get_feature_type_from_arrow_type(
+              types.FeaturePath([column_name]), column_type)
+          == statistics_pb2.FeatureNameStatistics.STRUCT):
         unsupported_columns.add(column_name)
       # Drop columns that were not in the schema.
       if types.FeaturePath([column_name]) not in self._schema_features:

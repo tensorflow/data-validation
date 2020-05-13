@@ -212,21 +212,20 @@ def _to_topk_tuples(
       weight_column=weight_feature,
       enumerate_leaves_only=True):
     feature_array_type = feature_array.type
-    if pa.types.is_null(feature_array_type):
+    feature_type = stats_util.get_feature_type_from_arrow_type(
+        feature_path, feature_array_type)
+    # Skip null columns.
+    if feature_type is None:
       continue
     if feature_path in bytes_features:
       continue
     if (feature_path in categorical_features or
-        stats_util.get_feature_type_from_arrow_type(
-            feature_path,
-            feature_array_type) == statistics_pb2.FeatureNameStatistics.STRING):
-      flattened_values = feature_array.flatten()
+        feature_type == statistics_pb2.FeatureNameStatistics.STRING):
+      flattened_values, parent_indices = arrow_util.flatten_nested(
+          feature_array, weights is not None)
       if weights is not None and flattened_values:
         # Slow path: weighted uniques.
         flattened_values_np = np.asarray(flattened_values)
-        parent_indices = (
-            np.asarray(
-                array_util.GetFlattenedArrayParentIndices(feature_array)))
         weights_ndarray = weights[parent_indices]
         for value, count, weight in _weighted_unique(
             flattened_values_np, weights_ndarray):

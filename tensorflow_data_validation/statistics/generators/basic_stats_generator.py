@@ -243,7 +243,8 @@ class _PartialNumericStats(object):
     if not feature_array:
       return
 
-    flattened_value_array = feature_array.flatten()
+    flattened_value_array, value_parent_indices = arrow_util.flatten_nested(
+        feature_array, weights is not None)
     # Note: to_numpy will fail if flattened_value_array is empty.
     if not flattened_value_array:
       return
@@ -277,8 +278,6 @@ class _PartialNumericStats(object):
     self.quantiles_summary = values_quantiles_combiner.add_input(
         self.quantiles_summary, [values_no_nan, np.ones_like(values_no_nan)])
     if weights is not None:
-      value_parent_indices = np.asarray(
-          array_util.GetFlattenedArrayParentIndices(feature_array))
       flat_weights = weights[value_parent_indices]
       flat_weights_no_nan = flat_weights[non_nan_mask]
       weighted_values = flat_weights_no_nan * values_no_nan
@@ -308,7 +307,7 @@ class _PartialStringStats(object):
     if pa.types.is_null(feature_array.type):
       return
     # Iterate through the value array and update the partial stats.
-    flattened_values_array = feature_array.flatten()
+    flattened_values_array, _ = arrow_util.flatten_nested(feature_array)
     if arrow_util.is_binary_like(flattened_values_array.type):
       # GetBinaryArrayTotalByteSize returns a Python long (to be compatible
       # with Python3). To make sure we do cheaper integer arithemetics in
@@ -350,7 +349,7 @@ class _PartialBytesStats(object):
     if pa.types.is_null(feature_array.type):
       return
     # Iterate through the value array and update the partial stats.'
-    flattened_values_array = feature_array.flatten()
+    flattened_values_array, _ = arrow_util.flatten_nested(feature_array)
     if (pa.types.is_floating(flattened_values_array.type) or
         pa.types.is_integer(flattened_values_array.type)):
       raise ValueError('Bytes stats cannot be computed on INT/FLOAT features.')

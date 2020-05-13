@@ -2009,6 +2009,85 @@ _STRUCT_TEST_CASES = [
                 }
               }""",
         }),
+    dict(
+        testcase_name='struct_not_nested_in_list',
+        struct_column_as_list_dicts=[
+            {'a': [b'meow', b'nyan']},
+            {'b': [b'foo']},
+        ],
+        expected_result_text_protos={
+            ('c',): """
+              type: STRUCT
+              struct_stats {
+                common_stats {
+                  num_non_missing: 2
+                  min_num_values: 1
+                  max_num_values: 1
+                  avg_num_values: 1.0
+                  num_values_histogram {
+                    buckets {
+                      low_value: 1.0
+                      high_value: 1.0
+                      sample_count: 1.0
+                    }
+                    buckets {
+                      low_value: 1.0
+                      high_value: 1.0
+                      sample_count: 1.0
+                    }
+                    type: QUANTILES
+                  }
+                  tot_num_values: 2
+                }
+              }""",
+            ('c', 'a'): """
+              type: STRING
+              string_stats {
+                common_stats {
+                  num_non_missing: 1
+                  num_missing: 1
+                  min_num_values: 2
+                  max_num_values: 2
+                  avg_num_values: 2.0
+                  num_values_histogram {
+                    buckets {
+                      low_value: 2.0
+                      high_value: 2.0
+                      sample_count: 0.5
+                    }                                                                                                                                           buckets {
+                      low_value: 2.0
+                      high_value: 2.0
+                      sample_count: 0.5                                                                                                                         }
+                    type: QUANTILES
+                  }                                                                                                                                           tot_num_values: 2
+                }
+                avg_length: 4.0
+              }""",
+            ('c', 'b'): """
+              type: STRING
+              string_stats {
+                common_stats {
+                  num_non_missing: 1
+                  num_missing: 1
+                  min_num_values: 1
+                  max_num_values: 1
+                  avg_num_values: 1.0
+                  num_values_histogram {
+                    buckets {
+                      low_value: 1.0
+                      high_value: 1.0
+                      sample_count: 0.5
+                    }                                                                                                                                           buckets {
+                      low_value: 1.0
+                      high_value: 1.0                                                                                                                             sample_count: 0.5
+                    }
+                    type: QUANTILES
+                  }                                                                                                                                           tot_num_values: 1
+                }
+                avg_length: 3.0
+              }""",
+        }
+    ),
 ]
 
 
@@ -2393,6 +2472,7 @@ class BasicStatsGeneratorStructStatsTest(test_util.CombinerStatsGeneratorTest,
         num_values_histogram_buckets=2, num_histogram_buckets=3,
         num_quantiles_histogram_buckets=4)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
+
 
 if __name__ == '__main__':
   absltest.main()

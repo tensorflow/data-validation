@@ -33,6 +33,7 @@ import numpy as np
 import pyarrow as pa
 import six
 from tensorflow_data_validation import types
+from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import stats_util
 from typing import Iterable, Text
@@ -200,7 +201,8 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
 
     is_non_utf_vec = np.vectorize(_is_non_utf8, otypes=[np.bool])
     classify_vec = np.vectorize(self._classifier.classify, otypes=[np.bool])
-    values = np.asarray(feature_array.flatten().slice(0, _CROP_AT_VALUES))
+    values = np.asarray(arrow_util.flatten_nested(feature_array)[0]
+                        .slice(0, _CROP_AT_VALUES))
     if np.any(is_non_utf_vec(values)):
       accumulator.invalidate = True
       return accumulator

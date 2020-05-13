@@ -186,7 +186,8 @@ class TopKUniquesCombinerStatsGenerator(
       # with topk stats.
       if (feature_path in self._categorical_features or
           feature_type == statistics_pb2.FeatureNameStatistics.STRING):
-        flattened_values = leaf_array.flatten()
+        flattened_values, parent_indices = arrow_util.flatten_nested(
+            leaf_array, weights is not None)
         unweighted_counts = collections.Counter()
         # Compute unweighted counts.
         value_counts = array_util.ValueCounts(flattened_values)
@@ -199,9 +200,8 @@ class TopKUniquesCombinerStatsGenerator(
         weighted_counts = _WeightedCounter()
         if weights is not None:
           flattened_values_np = np.asarray(flattened_values)
-          parent_indices = array_util.GetFlattenedArrayParentIndices(leaf_array)
           weighted_counts.weighted_update(
-              flattened_values_np, weights[np.asarray(parent_indices)])
+              flattened_values_np, weights[parent_indices])
 
         if feature_path not in accumulator:
           accumulator[feature_path] = _ValueCounts(

@@ -27,8 +27,8 @@ import pyarrow as pa
 import six
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
+from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.utils import stats_util
-from tfx_bsl.arrow import array_util
 from tfx_bsl.arrow import table_util
 from typing import Any, Dict, Iterable, Optional, Text, Union
 
@@ -122,9 +122,9 @@ def get_feature_value_slicer(
     for feature_name, values in six.iteritems(features):
       feature_array = record_batch.column(
           record_batch.schema.get_field_index(feature_name))
-      non_missing_values = np.asarray(feature_array.flatten())
-      value_parent_indices = array_util.GetFlattenedArrayParentIndices(
-          feature_array).to_numpy()
+      flattened, value_parent_indices = arrow_util.flatten_nested(
+          feature_array, True)
+      non_missing_values = np.asarray(flattened)
       # Create dataframe with feature value and parent index.
       df = pd.DataFrame({feature_name: non_missing_values,
                          _PARENT_INDEX_COLUMN: value_parent_indices})

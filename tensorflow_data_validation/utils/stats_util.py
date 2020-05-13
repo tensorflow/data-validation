@@ -98,7 +98,7 @@ def get_feature_type_from_arrow_type(
                     '(Large)List<primitive|struct> or null, but feature {} '
                     'was {}.'.format(feature_path, arrow_type))
 
-  value_type = arrow_type.value_type
+  value_type = arrow_util.get_innermost_nested_type(arrow_type)
   if pa.types.is_integer(value_type):
     return statistics_pb2.FeatureNameStatistics.INT
   elif pa.types.is_floating(value_type):
