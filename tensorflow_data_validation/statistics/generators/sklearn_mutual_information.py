@@ -22,8 +22,6 @@ import sys
 import numpy as np
 import pandas as pd
 import pyarrow as pa
-from sklearn.feature_selection import mutual_info_classif
-from sklearn.feature_selection import mutual_info_regression
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.statistics.generators import partitioned_stats_generator
@@ -36,6 +34,15 @@ from typing import Dict, List, Set, Text
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
+try:
+  # pylint:disable=g-import-not-at-top
+  from sklearn.feature_selection import mutual_info_classif
+  from sklearn.feature_selection import mutual_info_regression
+except ImportError as e:
+  raise ImportError('To use this StatsGenerator, make sure scikit-learn is '
+                    'installed, or install TFDV using "pip install '
+                    'tensorflow-data-validation[mutual-information]": {}'
+                    .format(e))
 
 MUTUAL_INFORMATION_KEY = "sklearn_mutual_information"
 ADJUSTED_MUTUAL_INFORMATION_KEY = "sklearn_adjusted_mutual_information"

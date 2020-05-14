@@ -21,8 +21,6 @@ from __future__ import division
 from __future__ import print_function
 
 import base64
-from IPython.display import display
-from IPython.display import HTML
 import pandas as pd
 from tensorflow_data_validation import types
 from tensorflow_data_validation.utils import stats_util
@@ -30,6 +28,15 @@ from typing import Optional, Text
 from tensorflow_metadata.proto.v0 import anomalies_pb2
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
+
+try:
+  # pylint: disable=g-import-not-at-top
+  from IPython.display import display
+  from IPython.display import HTML
+except ImportError as e:
+  raise ImportError('To use visualization features, make sure ipython is '
+                    'installed, or install TFDV using "pip install '
+                    'tensorflow-data-validation[visualization]": {}'.format(e))
 
 
 def _add_quotes(input_str: types.FeatureName) -> types.FeatureName:

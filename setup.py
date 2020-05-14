@@ -39,6 +39,25 @@ class _BinaryDistribution(Distribution):
     return True
 
 
+def _make_mutual_information_requirements():
+  return ['scikit-learn>=0.18,<0.22']
+
+
+def _make_visualization_requirements():
+  return [
+      # ipython>=6 is not available for python2.
+      # TODO(b/142656402): clean it up once we don't need to support python2 any
+      # more.
+      'ipython>=5,<6;python_version<"3"',
+      'ipython>=7,<8;python_version>="3"',
+  ]
+
+
+def _make_all_extra_requirements():
+  return (_make_mutual_information_requirements() +
+          _make_visualization_requirements())
+
+
 # Get version from version module.
 with open('tensorflow_data_validation/version.py') as fp:
   globals_dict = {}
@@ -97,20 +116,17 @@ setup(
         # TODO(zhuo): Revisit this dependency before releasing.
         'tfx-bsl>=0.21.3,<0.23',
 
-        # Dependencies needed for visualization.
-        # Note that we don't add a max version for IPython as it introduces a
-        # dependency conflict when installed with TFMA (b/124313906).
-        'ipython>=5',
         'pandas>=0.24,<1',
-
-        # Dependency for mutual information computation.
-        'scikit-learn>=0.18,<0.22',
-
-        # TODO(pachristopher): Consider using multi-processing provided by
+        # TODO(b/139941423): Consider using multi-processing provided by
         # Beam's DirectRunner.
         # Dependency for multi-processing.
         'joblib>=0.12,<0.15',
     ],
+    extras_require={
+        'mutual-information': _make_mutual_information_requirements(),
+        'visualization': _make_visualization_requirements(),
+        'all': _make_all_extra_requirements(),
+    },
     python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,<4',
     packages=find_packages(),
     include_package_data=True,
@@ -125,3 +141,4 @@ setup(
     download_url='https://github.com/tensorflow/data-validation/tags',
     requires=[],
     cmdclass={'install': _InstallPlatlib})
+

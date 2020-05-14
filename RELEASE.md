@@ -20,6 +20,13 @@
 *   Modify `tfdv.load_statistics` to handle reading statistics from TFRecord and
     text files.
 *   Requires `pyarrow>=0.16,<1`.
+*   Added an extra requirement group `mutual-information`. As a result, barebone
+    TFDV does not require `scikit-learn` any more.
+*   Added an extra requirement group `visualization`. As a result, barebone
+    TFDV does not require `ipython` any more.
+*   Added an extra requirement group `all` that specifies all the extra
+    dependencies TFDV needs. Use `pip install tensorflow-data-validation[all]`
+    to pull in those dependencies.
 
 ## Known Issues
 

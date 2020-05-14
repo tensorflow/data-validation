@@ -141,7 +141,7 @@ pip uninstall -y Cython
 # overridden by released version.
 
 echo "Installing TFDV"
-pip install dist/*.whl
+pip install $(ls dist/*.whl)[all]
 
 # If running with tf-nightly, install TFT at head.
 if [[ "${TENSORFLOW}" == "tf-nightly" ]]; then
