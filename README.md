@@ -154,17 +154,16 @@ TFDV is tested on the following 64-bit operating systems:
   * Ubuntu 16.04 or later.
   * Windows 7 or later.
 
-## Dependencies
+## Notable Dependencies
 
-TFDV requires TensorFlow but does not depend on the `tensorflow`
-[PyPI package](https://pypi.org/project/tensorflow/). See the [TensorFlow install guides](https://www.tensorflow.org/install/)
-for instructions on how to get started with TensorFlow.
+TensorFlow is required.
 
 [Apache Beam](https://beam.apache.org/) is required; it's the way that efficient
 distributed computation is supported. By default, Apache Beam runs in local
 mode but can also run in distributed mode using
-[Google Cloud Dataflow](https://cloud.google.com/dataflow/).
-TFDV is designed to be extensible for other Apache Beam runners.
+[Google Cloud Dataflow](https://cloud.google.com/dataflow/) and other Apache
+Beam
+[runners](https://beam.apache.org/documentation/runners/capability-matrix/).
 
 [Apache Arrow](https://arrow.apache.org/) is also required. TFDV uses Arrow to
 represent data internally in order to make use of vectorized numpy functions.
@@ -177,7 +176,8 @@ other *untested* combinations may also work.
 
 |tensorflow-data-validation                                                            |tensorflow        |apache-beam[gcp] |pyarrow |
 |--------------------------------------------------------------------------------------|------------------|-----------------|--------|
-|[GitHub master](https://github.com/tensorflow/data-validation/blob/master/RELEASE.md) |nightly (1.x/2.x) |2.17.0           |0.15.0  |
+|[GitHub master](https://github.com/tensorflow/data-validation/blob/master/RELEASE.md) |nightly (1.x/2.x) |2.20.0           |0.16.0  |
+|[0.22.0](https://github.com/tensorflow/data-validation/blob/v0.22.0/RELEASE.md)       |1.15 / 2.2        |2.20.0           |0.16.0  |
 |[0.21.5](https://github.com/tensorflow/data-validation/blob/v0.21.5/RELEASE.md)       |1.15 / 2.1        |2.17.0           |0.15.0  |
 |[0.21.4](https://github.com/tensorflow/data-validation/blob/v0.21.4/RELEASE.md)       |1.15 / 2.1        |2.17.0           |0.15.0  |
 |[0.21.2](https://github.com/tensorflow/data-validation/blob/v0.21.2/RELEASE.md)       |1.15 / 2.1        |2.17.0           |0.15.0  |
@@ -206,6 +206,6 @@ tag.
   * [TensorFlow Data Validation API Documentation](https://www.tensorflow.org/tfx/data_validation/api_docs/python/tfdv)
   * [TensorFlow Data Validation Blog Post](https://medium.com/tensorflow/introducing-tensorflow-data-validation-data-understanding-validation-and-monitoring-at-scale-d38e3952c2f0)
   * [TensorFlow Data Validation PyPI](https://pypi.org/project/tensorflow-data-validation/)
-  * [TensorFlow Data Validation Paper](https://www.sysml.cc/doc/2019/167.pdf)
+  * [TensorFlow Data Validation Paper](https://mlsys.org/Conferences/2019/doc/2019/167.pdf)
   * [TensorFlow Data Validation Slides](https://conf.slac.stanford.edu/xldb2018/sites/xldb2018.conf.slac.stanford.edu/files/Tues_09.45_NeoklisPolyzotis_Data%20Analysis%20and%20Validation%20(1).pdf)
 

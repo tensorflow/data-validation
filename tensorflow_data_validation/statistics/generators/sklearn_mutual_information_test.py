@@ -48,9 +48,9 @@ class SkLearnMutualInformationTest(absltest.TestCase):
     terrible_feat_array = pa.array([
         [0.4], [0.1], [0.4], [0.4], [0.8], [0.7], [0.2],
         [0.1], [0.0], [0.4], [0.8], [0.2], [0.5], [0.1]])
-    batch = pa.Table.from_arrays([
-        label_array, label_array, terrible_feat_array
-    ], ["label_key", "perfect_feature", "terrible_feature"])
+    batch = pa.RecordBatch.from_arrays(
+        [label_array, label_array, terrible_feat_array],
+        ["label_key", "perfect_feature", "terrible_feature"])
 
     schema = text_format.Parse(
         """
@@ -127,7 +127,7 @@ class SkLearnMutualInformationTest(absltest.TestCase):
     # on the feature name used (e.g., if use 'empty_feature', the results
     # differ). This might be due to the scikit learn function used to compute MI
     # adding a small amount of noise to continuous features before computing MI.
-    batch = pa.Table.from_arrays(
+    batch = pa.RecordBatch.from_arrays(
         [label_array, label_array, terrible_feat_array, null_array], [
             "label_key", "perfect_feature", "terrible_feature",
             "values_empty_feature"
@@ -224,8 +224,8 @@ class SkLearnMutualInformationTest(absltest.TestCase):
     perfect_feat_array = pa.array([
         ["Red"], ["Blue"], ["Red"], ["Green"], ["Blue"], ["Green"], ["Green"],
         ["Red"], ["Blue"], ["Green"], ["Red"]])
-    batch = pa.Table.from_arrays([label_array, perfect_feat_array],
-                                 ["label_key", "perfect_feature"])
+    batch = pa.RecordBatch.from_arrays([label_array, perfect_feat_array],
+                                       ["label_key", "perfect_feature"])
 
     schema = text_format.Parse(
         """
@@ -274,8 +274,8 @@ class SkLearnMutualInformationTest(absltest.TestCase):
     perfect_feat_array = pa.array([
         ["Red"], ["Blue"], ["Red"], ["Green"], ["Blue"], ["Green"], ["Green"],
         ["Red"], ["Blue"], ["Green"], ["Red"]])
-    batch = pa.Table.from_arrays([label_array, perfect_feat_array],
-                                 ["label_key", "perfect_feature"])
+    batch = pa.RecordBatch.from_arrays([label_array, perfect_feat_array],
+                                       ["label_key", "perfect_feature"])
 
     schema = text_format.Parse(
         """
@@ -331,7 +331,7 @@ class SkLearnMutualInformationTest(absltest.TestCase):
     unique_feat_array = pa.array([["Red1"], ["Red2"], ["Red3"], ["Red4"],
                                   ["Red5"], ["Red6"], ["Red7"], ["Red8"],
                                   ["Red9"], ["Red10"], ["Red11"]])
-    batch = pa.Table.from_arrays(
+    batch = pa.RecordBatch.from_arrays(
         [label_array, perfect_feat_array, unique_feat_array],
         ["label_key", "perfect_feature", "unique_feat_array"])
 
@@ -393,7 +393,8 @@ class SkLearnMutualInformationTest(absltest.TestCase):
     # A categorical feature with missing values.
     feat_array = pa.array([
         ["Red"], ["Blue"], None, None, ["Blue"], ["Green"], ["Green"]])
-    batch = pa.Table.from_arrays([label_array, feat_array], ["label_key", "fa"])
+    batch = pa.RecordBatch.from_arrays([label_array, feat_array],
+                                       ["label_key", "fa"])
 
     schema = text_format.Parse(
         """
@@ -442,7 +443,8 @@ class SkLearnMutualInformationTest(absltest.TestCase):
     feat_array = pa.array([
         [0.1], [0.2], [0.8], [0.7], [0.2], [np.NaN], None,
         [0.1], [0.2], [0.8], [0.7], [0.2], [0.2], [0.3]])
-    batch = pa.Table.from_arrays([label_array, feat_array], ["label_key", "fa"])
+    batch = pa.RecordBatch.from_arrays([label_array, feat_array],
+                                       ["label_key", "fa"])
 
     schema = text_format.Parse(
         """
@@ -485,8 +487,9 @@ class SkLearnMutualInformationTest(absltest.TestCase):
                                  types.FeaturePath(["label_key"]))
 
   def test_mi_with_invalid_features(self):
-    batch = pa.Table.from_arrays([pa.array([[1]]), pa.array([[1, 2]])],
-                                 ["label_key", "multivalent_feature"])
+    batch = pa.RecordBatch.from_arrays(
+        [pa.array([[1]]), pa.array([[1, 2]])],
+        ["label_key", "multivalent_feature"])
     schema = text_format.Parse(
         """
         feature {
@@ -507,13 +510,15 @@ class SkLearnMutualInformationTest(absltest.TestCase):
           }
         }
         """, schema_pb2.Schema())
-    with self.assertRaisesRegexp(ValueError, "Found array with 0 sample"):
-      sklearn_mutual_information.SkLearnMutualInformation(
-          types.FeaturePath(["label_key"]), schema, TEST_SEED).compute(batch)
+
+    expected = text_format.Parse("""""",
+                                 statistics_pb2.DatasetFeatureStatistics())
+    self._assert_mi_output_equal(batch, expected, schema,
+                                 types.FeaturePath(["label_key"]))
 
   def test_mi_with_missing_label_key(self):
-    batch = pa.Table.from_arrays([pa.array([[1]]), pa.array([[1]])],
-                                 ["label", "fa"])
+    batch = pa.RecordBatch.from_arrays(
+        [pa.array([[1]]), pa.array([[1]])], ["label", "fa"])
 
     schema = text_format.Parse(
         """
@@ -543,8 +548,8 @@ class SkLearnMutualInformationTest(absltest.TestCase):
           types.FeaturePath(["label_key"]), schema, TEST_SEED).compute(batch)
 
   def test_mi_with_multivalent_label(self):
-    batch = pa.Table.from_arrays([pa.array([[1, 2]]), pa.array([[1]])],
-                                 ["label_key", "fa"])
+    batch = pa.RecordBatch.from_arrays(
+        [pa.array([[1, 2]]), pa.array([[1]])], ["label_key", "fa"])
     schema = text_format.Parse(
         """
           feature {

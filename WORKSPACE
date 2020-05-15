@@ -11,13 +11,13 @@ workspace(name = "tensorflow_data_validation")
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
-# TF 1.15
+# TF 1.15.2
 # LINT.IfChange(tf_commit)
-_TENSORFLOW_GIT_COMMIT = "590d6eef7e91a6a7392c8ffffb7b58f2e0c8bc6b"
+_TENSORFLOW_GIT_COMMIT = "5d80e1e8e6ee999be7db39461e0e79c90403a2e4"
 # LINT.ThenChange(:io_bazel_rules_clousure)
 http_archive(
     name = "org_tensorflow",
-    sha256 = "750186951a699cb73d6b440c7cd06f4b2b80fd3ebb00cbe00f655c7da4ae243e",
+    sha256 = "7e3c893995c221276e17ddbd3a1ff177593d00fc57805da56dcc30fdc4299632",
     urls = [
       "https://mirror.bazel.build/github.com/tensorflow/tensorflow/archive/%s.tar.gz" % _TENSORFLOW_GIT_COMMIT,
       "https://github.com/tensorflow/tensorflow/archive/%s.tar.gz" % _TENSORFLOW_GIT_COMMIT,

@@ -237,7 +237,7 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
 
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([
                 ['a', 'b', 'c', 'e'],
                 ['a', 'c', 'd', 'a'],
@@ -324,7 +324,7 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
     # fa: 20 'e', 20 'd', 15 'a', 10 'c', 5 'b'
 
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([
                 ['a', 'b', 'c', 'e'],
                 ['a', 'c', 'd', 'a'],
@@ -454,7 +454,7 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
   def test_topk_uniques_with_single_unicode_feature(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([
                 [u'a', u'b', u'c', u'e'],
                 [u'a', u'c', u'd', u'a'],
@@ -536,7 +536,7 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
     # fb: 1 'a', 2 'b', 3 'c'
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a', 'b', 'c', 'e'], None, ['a', 'c', 'd'],
                       ['a', 'a', 'b', 'c', 'd'], None]),
             pa.array([['a', 'c', 'c'], ['b'], None, None, ['b', 'c']])
@@ -673,8 +673,8 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
     self.assertSlicingAwareTransformOutputEqual(examples, generator,
                                                 expected_result)
 
-  def test_topk_uniques_with_empty_table(self):
-    examples = [pa.Table.from_arrays([], [])]
+  def test_topk_uniques_with_empty_record_batch(self):
+    examples = [pa.RecordBatch.from_arrays([], [])]
     expected_result = []
     generator = top_k_uniques_stats_generator.TopKUniquesStatsGenerator(
         num_top_values=4, num_rank_histogram_buckets=3)
@@ -689,14 +689,14 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
     # fb: 1 'a', 1 'b', 2 'c'
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a', 'b', 'c', 'e'], None]),
             pa.array([
                 ['a', 'c', 'c'],
                 ['b'],
             ])
         ], ['fa', 'fb']),
-        pa.Table.from_arrays(
+        pa.RecordBatch.from_arrays(
             [pa.array([['a', 'c', 'd'], ['a', 'a', 'b', 'c', 'd'], None])],
             ['fa']),
     ]
@@ -827,7 +827,7 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
 
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a', 'b', 'c', 'e'], None, ['a', 'c', 'd'],
                       ['a', 'a', 'b', 'c', 'd']]),
             pa.array([[1.0, 2.0, 3.0], [4.0, 5.0], None, None]),
@@ -899,7 +899,7 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
     # fb: 1 'a', 2 'b', 3 'c'
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a', 'b', 'c', 'e'], None, ['a', 'c', 'd'],
                       ['a', 'a', 'b', 'c', 'd'], None]),
             pa.array([['a', 'c', 'c'], ['b'], None, None, ['b', 'c']])
@@ -985,9 +985,10 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
 
   def test_topk_uniques_with_categorical_feature(self):
     examples = [
-        pa.Table.from_arrays(
+        pa.RecordBatch.from_arrays(
             [pa.array([[12, 23, 34, 12], [45, 23], [12, 12, 34, 45]])], ['fa']),
-        pa.Table.from_arrays([pa.array([None, None], type=pa.null())], ['fa'])
+        pa.RecordBatch.from_arrays([pa.array([None, None], type=pa.null())],
+                                   ['fa'])
     ]
 
     expected_result = [
@@ -1063,7 +1064,7 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
 
   def test_topk_uniques_with_frequency_threshold(self):
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a', 'b', 'y', 'b'], ['a', 'x', 'a', 'z']]),
             pa.array([[5.0], [15.0]])
         ], ['fa', 'w'])
@@ -1174,7 +1175,7 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
 
   def test_topk_uniques_with_invalid_utf8_value(self):
     examples = [
-        pa.Table.from_arrays(
+        pa.RecordBatch.from_arrays(
             [pa.array([[b'a', b'\x80abc', b'a', b'\x80abc', b'a']])], ['fa'])
     ]
     expected_result = [
@@ -1235,17 +1236,18 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
   def test_topk_uniques_with_slicing(self):
     examples = [
         ('slice1',
-         pa.Table.from_arrays(
+         pa.RecordBatch.from_arrays(
              [pa.array([['a', 'b', 'c', 'e']]),
               pa.array([['1', '1', '0']])], ['fa', 'fb'])),
         ('slice2',
-         pa.Table.from_arrays(
+         pa.RecordBatch.from_arrays(
              [pa.array([['b', 'a', 'e', 'c']]),
               pa.array([['0', '0', '1']])], ['fa', 'fb'])),
         ('slice1',
-         pa.Table.from_arrays([pa.array([['a', 'c', 'd', 'a']])], ['fa'])),
+         pa.RecordBatch.from_arrays([pa.array([['a', 'c', 'd', 'a']])],
+                                    ['fa'])),
         ('slice2',
-         pa.Table.from_arrays([pa.array([['b', 'e', 'd', 'b']])], ['fa']))
+         pa.RecordBatch.from_arrays([pa.array([['b', 'e', 'd', 'b']])], ['fa']))
     ]
 
     # Note that if two feature values have the same frequency, the one with the
@@ -1444,7 +1446,7 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
 
   def test_topk_uniques_with_struct_leaves(self):
     inputs = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[1.0], [2.0]]),
             pa.array([[{
                 'f1': ['a', 'b'],
@@ -1458,7 +1460,7 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
                 'f2': [3]
             }]]),
         ], ['w', 'c']),
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[3.0]]),
             pa.array([[{
                 'f1': ['d'],

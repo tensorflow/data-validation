@@ -33,6 +33,7 @@ import numpy as np
 import pyarrow as pa
 import six
 from tensorflow_data_validation import types
+from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import stats_util
 from typing import Iterable, Text
@@ -43,6 +44,9 @@ _AVG_WORD_LENGTH_MIN = 2.5
 _AVG_WORD_LENGTH_MAX = 8
 _MIN_WORDS_PER_VALUE = 3
 _CROP_AT_LENGTH = 100
+# We crop the feature values as checking all the values is expensive for
+# features with high valency.
+_CROP_AT_VALUES = 100
 
 # NLStatsGenerator default initialization values.
 _MATCH_RATIO = 0.8
@@ -197,7 +201,8 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
 
     is_non_utf_vec = np.vectorize(_is_non_utf8, otypes=[np.bool])
     classify_vec = np.vectorize(self._classifier.classify, otypes=[np.bool])
-    values = np.asarray(feature_array.flatten())
+    values = np.asarray(arrow_util.flatten_nested(feature_array)[0]
+                        .slice(0, _CROP_AT_VALUES))
     if np.any(is_non_utf_vec(values)):
       accumulator.invalidate = True
       return accumulator

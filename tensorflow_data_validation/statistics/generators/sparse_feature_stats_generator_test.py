@@ -31,7 +31,7 @@ class SparseFeatureStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
 
   def test_sparse_feature_generator_valid_input(self):
     batches = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a'], ['a', 'b']]),
             pa.array([[1], [1, 3]]),
             pa.array([[2], [2, 4]])
@@ -109,7 +109,7 @@ class SparseFeatureStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
 
   def test_sparse_feature_generator_missing_value_and_index(self):
     batches = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([None, None, ['a', 'b'], ['a', 'b'], ['a', 'b']]),
             pa.array([[1], [1], None, None, None]),
             pa.array([[2], [2], [2, 4], [2, 4], [2, 4]])
@@ -187,7 +187,7 @@ class SparseFeatureStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
 
   def test_sparse_feature_generator_length_mismatch(self):
     batches = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[], [], ['a', 'b'], ['a', 'b'], ['a', 'b']]),
             pa.array([[1], [1], [1, 3], [1, 3], [1, 3]]),
             pa.array([[2], [2], [2, 4, 6, 7, 9], [2, 4, 6, 7, 9],
@@ -266,14 +266,14 @@ class SparseFeatureStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
 
   def test_sparse_feature_generator_with_struct_leaves(self):
     batches = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[{
                 'value_feature': ['a'],
                 'index_feature1': [1],
                 'index_feature2': [2]
             }]]),
         ], ['parent']),
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[{
                 'value_feature': ['a', 'b'],
                 'index_feature1': [1, 3],
@@ -369,7 +369,7 @@ class SparseFeatureStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
 
   def test_sparse_feature_generator_value_feature_not_in_batch(self):
     batches = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a'], ['a', 'b']]),
             pa.array([[1], [1, 3]]),
             pa.array([[2], [2, 4]])
@@ -447,7 +447,7 @@ class SparseFeatureStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
 
   def test_sparse_feature_generator_index_feature_not_in_batch(self):
     batches = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a'], ['a', 'b']]),
             pa.array([[1], [1, 3]]),
             pa.array([[2], [2, 4]])
@@ -525,7 +525,7 @@ class SparseFeatureStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
 
   def test_sparse_feature_generator_component_feature_null_array(self):
     batches = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a'], ['a', 'b']]),
             pa.array([[1], [1, 3]]),
             pa.array([None, None], type=pa.null())
@@ -603,7 +603,7 @@ class SparseFeatureStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
 
   def test_sparse_feature_generator_batch_missing_entire_sparse_feature(self):
     batches = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array(
                 [None, None, ['a', 'b'], ['a', 'b'], ['a', 'b'], None, None]),
             pa.array([[1, 2], [1, 2], None, None, None, None, None]),
@@ -617,7 +617,7 @@ class SparseFeatureStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             'value_feature', 'index_feature1', 'index_feature2',
             'other_feature1', 'other_feature2', 'other_feature3'
         ]),
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([None, None, None, None, None, ['a', 'b'], ['a', 'b']]),
             pa.array([None, None, None, None, None, [2, 4], [2, 4]]),
             pa.array([None, None, None, None, None, None, None], type=pa.null())
@@ -695,7 +695,7 @@ class SparseFeatureStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
 
   def test_sparse_feature_generator_dataset_missing_entire_sparse_feature(self):
     batches = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a']]),
         ], ['other_feature']),
     ]
@@ -766,7 +766,7 @@ class SparseFeatureStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
 
   def test_sparse_feature_generator_multiple_sparse_features(self):
     batches = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array(
                 [None, None, ['a', 'b'], ['a', 'b'], ['a', 'b'], None, None]),
             pa.array([[1, 2], [1, 2], None, None, None, None, None]),
@@ -781,7 +781,7 @@ class SparseFeatureStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             'other_value_feature', 'other_index_feature1',
             'other_index_feature2'
         ]),
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([None, None, None, None, None, ['a', 'b'], ['a', 'b']]),
             pa.array([None, None, None, None, None, [2, 4], [2, 4]]),
             pa.array([None, None, None, None, None, None, None], type=pa.null())

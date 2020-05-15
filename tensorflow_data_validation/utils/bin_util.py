@@ -23,11 +23,11 @@ from __future__ import print_function
 import numpy as np
 import pyarrow as pa
 
-from typing import Iterable, List, Tuple
+from typing import Sequence, Tuple
 
 
 def bin_array(array: pa.Array,
-              boundaries: Iterable[float]) -> Tuple[np.ndarray, np.ndarray]:
+              boundaries: Sequence[float]) -> Tuple[np.ndarray, np.ndarray]:
   """Converts an array to an array of bin indices using provided boundaries.
 
   Provided n boundaries, bin will return bin indices in [-1, n]. Bin index
@@ -78,7 +78,7 @@ def bin_array(array: pa.Array,
 
 
 def get_boundaries(bin_index: int,
-                   boundaries: List[float]) -> Tuple[float, float]:
+                   boundaries: Sequence[float]) -> Tuple[float, float]:
   """Returns a the bucket [min, max) corresponding to the provided bin_index.
 
   Args:

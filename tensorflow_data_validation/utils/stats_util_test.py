@@ -22,6 +22,7 @@ import os
 from absl import flags
 from absl.testing import absltest
 import numpy as np
+import tensorflow as tf
 from tensorflow_data_validation import types
 from tensorflow_data_validation.utils import stats_util
 
@@ -129,12 +130,23 @@ class StatsUtilTest(absltest.TestCase):
 
   def test_write_load_stats_text(self):
     stats = text_format.Parse("""
-      datasets {}
+      datasets { name: 'abc' }
     """, statistics_pb2.DatasetFeatureStatisticsList())
     stats_path = os.path.join(FLAGS.test_tmpdir, 'stats.pbtxt')
     stats_util.write_stats_text(stats=stats, output_path=stats_path)
-    loaded_stats = stats_util.load_stats_text(input_path=stats_path)
-    self.assertEqual(stats, loaded_stats)
+    self.assertEqual(stats, stats_util.load_stats_text(input_path=stats_path))
+    self.assertEqual(stats, stats_util.load_statistics(input_path=stats_path))
+
+  def test_load_stats_tfrecord(self):
+    stats = text_format.Parse("""
+      datasets { name: 'abc' }
+    """, statistics_pb2.DatasetFeatureStatisticsList())
+    stats_path = os.path.join(FLAGS.test_tmpdir, 'stats.tfrecord')
+    with tf.io.TFRecordWriter(stats_path) as writer:
+      writer.write(stats.SerializeToString())
+    self.assertEqual(stats,
+                     stats_util.load_stats_tfrecord(input_path=stats_path))
+    self.assertEqual(stats, stats_util.load_statistics(input_path=stats_path))
 
   def test_write_stats_text_invalid_stats_input(self):
     with self.assertRaisesRegexp(
@@ -175,6 +187,23 @@ class StatsUtilTest(absltest.TestCase):
     with self.assertRaisesRegexp(ValueError, 'Custom statistics.*not found'):
       stats_util.get_custom_stats(stats, 'xyz')
 
+  def test_get_slice_stats(self):
+    statistics = text_format.Parse("""
+    datasets {
+      name: "slice1"
+      num_examples: 100
+    }
+    datasets {
+      name: "slice2"
+      num_examples: 200
+    }
+    """, statistics_pb2.DatasetFeatureStatisticsList())
+    for slice_key in ['slice1', 'slice2']:
+      actual_stats = stats_util.get_slice_stats(statistics, slice_key)
+      self.assertLen(actual_stats.datasets, 1)
+      self.assertEqual(actual_stats.datasets[0].name, slice_key)
+    with self.assertRaisesRegexp(ValueError, 'Invalid slice key'):
+      stats_util.get_slice_stats(statistics, 'slice3')
 
 if __name__ == '__main__':
   absltest.main()

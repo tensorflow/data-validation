@@ -86,21 +86,21 @@ GENERATE_STATS_TESTS = [
     {
         'testcase_name':
             'feature_whitelist',
-        'tables': [
-            pa.Table.from_arrays([
+        'record_batches': [
+            pa.RecordBatch.from_arrays([
                 pa.array([[1.0, 2.0]], type=pa.list_(pa.float32())),
                 pa.array([[b'a', b'b', b'c', b'e']], type=pa.list_(
                     pa.binary())),
                 pa.array([np.linspace(1, 500, 500, dtype=np.int64)]),
             ], ['a', 'b', 'c']),
-            pa.Table.from_arrays([
+            pa.RecordBatch.from_arrays([
                 pa.array([[3.0, 4.0, np.NaN, 5.0]], type=pa.list_(
                     pa.float32())),
                 pa.array([[b'a', b'c', b'd', b'a']], type=pa.list_(
                     pa.binary())),
                 pa.array([np.linspace(501, 1250, 750, dtype=np.int64)]),
             ], ['a', 'b', 'c']),
-            pa.Table.from_arrays([
+            pa.RecordBatch.from_arrays([
                 pa.array([[1.0]], type=pa.list_(pa.float32())),
                 pa.array([[b'a', b'b', b'c', b'd']], type=pa.list_(
                     pa.binary())),
@@ -191,14 +191,14 @@ GENERATE_STATS_TESTS = [
     {
         'testcase_name':
             'schema',
-        'tables': [
-            pa.Table.from_arrays([
+        'record_batches': [
+            pa.RecordBatch.from_arrays([
                 pa.array([[1, 3, 5, 7]]),
             ], ['a']),
-            pa.Table.from_arrays([
+            pa.RecordBatch.from_arrays([
                 pa.array([[2, 4, 6, 8]]),
             ], ['a']),
-            pa.Table.from_arrays([
+            pa.RecordBatch.from_arrays([
                 pa.array([[0, 3, 6, 9]]),
             ], ['a'])
         ],
@@ -292,14 +292,14 @@ GENERATE_STATS_TESTS = [
     {
         'testcase_name':
             'weight_feature',
-        'tables': [
-            pa.Table.from_arrays([
+        'record_batches': [
+            pa.RecordBatch.from_arrays([
                 pa.array([[1.0, 2.0]], type=pa.list_(pa.float32())),
-                pa.array([[b'a', b'b', b'c', b'e']],
-                         type=pa.list_(pa.binary())),
+                pa.array([[b'a', b'b', b'c', b'e']], type=pa.list_(
+                    pa.binary())),
                 pa.array([[1.0]], type=pa.list_(pa.float32())),
             ], ['a', 'b', 'w']),
-            pa.Table.from_arrays([
+            pa.RecordBatch.from_arrays([
                 pa.array([[3.0, 4.0, 5.0, 6.0]], type=pa.list_(pa.float32())),
                 pa.array([[b'd', b'e']], type=pa.list_(pa.binary())),
                 pa.array([[2.0]], type=pa.list_(pa.float32())),
@@ -590,8 +590,8 @@ GENERATE_STATS_TESTS = [
     {
         'testcase_name':
             'combiner_feature_stats_generator_on_struct_leaves',
-        'tables': [
-            pa.Table.from_arrays(
+        'record_batches': [
+            pa.RecordBatch.from_arrays(
                 [pa.array([[{
                     'f1': [
                         {
@@ -603,7 +603,7 @@ GENERATE_STATS_TESTS = [
                         },
                     ]
                 }]])], ['c']),
-            pa.Table.from_arrays([pa.array([[{
+            pa.RecordBatch.from_arrays([pa.array([[{
                 'f1': [{
                     'f2': [4]
                 }]
@@ -841,14 +841,14 @@ GENERATE_STATS_TESTS = [
     {
         'testcase_name':
             'custom_feature_generator',
-        'tables': [
-            pa.Table.from_arrays([
+        'record_batches': [
+            pa.RecordBatch.from_arrays([
                 pa.array([[b'doing']], type=pa.list_(pa.binary())),
             ], ['a']),
-            pa.Table.from_arrays([
+            pa.RecordBatch.from_arrays([
                 pa.array([[b'lala']], type=pa.list_(pa.binary())),
             ], ['b']),
-            pa.Table.from_arrays([
+            pa.RecordBatch.from_arrays([
                 pa.array([[b'din', b'don']], type=pa.list_(pa.binary())),
                 pa.array([[b'lolo']], type=pa.list_(pa.binary())),
             ], ['a', 'b'])
@@ -1010,15 +1010,19 @@ GENERATE_STATS_TESTS = [
         # Generate 100 examples to pass threshold for semantic domains:
         # - Replicate an example passing checks 90 times
         # - Replicate an example not passing checks 10 times
-        'tables': [
-            pa.Table.from_arrays([
-                pa.array([[b'This should be natural text']],
-                         type=pa.list_(pa.binary())),
-                # The png magic header, this should be considered an "image".
-                pa.array([[b'\211PNG\r\n\032\n']], type=pa.list_(pa.binary())),
-            ], ['text_feature', 'image_feature']),
+        'record_batches': [
+            pa.RecordBatch.from_arrays(
+                [
+                    pa.array([[b'This should be natural text']],
+                             type=pa.list_(pa.binary())),
+                    # The png magic header, this should be considered an
+                    # "image".
+                    pa.array([[b'\211PNG\r\n\032\n']],
+                             type=pa.list_(pa.binary())),
+                ],
+                ['text_feature', 'image_feature']),
         ] * 90 + [
-            pa.Table.from_arrays([
+            pa.RecordBatch.from_arrays([
                 pa.array([[b'Thisshouldnotbenaturaltext']],
                          type=pa.list_(pa.binary())),
                 pa.array([[b'Thisisnotanimage']], type=pa.list_(pa.binary())),
@@ -1176,15 +1180,19 @@ GENERATE_STATS_TESTS = [
     {
         'testcase_name':
             'semantic_domains_disabled',
-        'tables': [
-            pa.Table.from_arrays([
-                pa.array([[b'This should be natural text']],
-                         type=pa.list_(pa.binary())),
-                # The png magic header, this should be considered an "image".
-                pa.array([[b'\211PNG\r\n\032\n']], type=pa.list_(pa.binary())),
-            ], ['text_feature', 'image_feature']),
+        'record_batches': [
+            pa.RecordBatch.from_arrays(
+                [
+                    pa.array([[b'This should be natural text']],
+                             type=pa.list_(pa.binary())),
+                    # The png magic header, this should be considered an
+                    # "image".
+                    pa.array([[b'\211PNG\r\n\032\n']],
+                             type=pa.list_(pa.binary())),
+                ],
+                ['text_feature', 'image_feature']),
         ] * 90 + [
-            pa.Table.from_arrays([
+            pa.RecordBatch.from_arrays([
                 pa.array([[b'Thisshouldnotbenaturaltext']],
                          type=pa.list_(pa.binary())),
                 pa.array([[b'Thisisnotanimage']], type=pa.list_(pa.binary())),
@@ -1315,16 +1323,15 @@ GENERATE_STATS_TESTS = [
     {
         'testcase_name':
             'flat_sparse_feature',
-        'tables': [
-            pa.Table.from_arrays(
-                [pa.array([None]),
-                 pa.array([None])],
+        'record_batches': [
+            pa.RecordBatch.from_arrays(
+                [pa.array([None]), pa.array([None])],
                 ['value_feature', 'index_feature']),
-            pa.Table.from_arrays(
+            pa.RecordBatch.from_arrays(
                 [pa.array([[2, 4, 6, 8]]),
                  pa.array([['a', 'b', 'c', 'd']])],
                 ['value_feature', 'index_feature']),
-            pa.Table.from_arrays(
+            pa.RecordBatch.from_arrays(
                 [pa.array([[0, 3, 6, 9]]),
                  pa.array([['a', 'b', 'c', 'd']])],
                 ['value_feature', 'index_feature'])
@@ -1496,20 +1503,20 @@ GENERATE_STATS_TESTS = [
     {
         'testcase_name':
             'struct_leaf_sparse_feature',
-        'tables': [
-            pa.Table.from_arrays([
+        'record_batches': [
+            pa.RecordBatch.from_arrays([
                 pa.array([[{
                     'value_feature': [1, 3, 5, 7],
                     'index_feature': ['a', 'b', 'c', 'd']
                 }]])
             ], ['parent_feature']),
-            pa.Table.from_arrays([
+            pa.RecordBatch.from_arrays([
                 pa.array([[{
                     'value_feature': [2, 4, 6, 8],
                     'index_feature': ['a', 'b', 'c', 'd']
                 }]])
             ], ['parent_feature']),
-            pa.Table.from_arrays([
+            pa.RecordBatch.from_arrays([
                 pa.array([[{
                     'value_feature': [0, 3, 6, 9],
                     'index_feature': ['a', 'b', 'c', 'd']
@@ -1718,14 +1725,17 @@ GENERATE_STATS_TESTS = [
     {
         'testcase_name':
             'cross_feature_stats',
-        'tables': [
-            pa.Table.from_arrays([
+        'record_batches': [
+            pa.RecordBatch.from_arrays([
                 pa.array([[1.0], [3.0], [5.0]]),
                 pa.array([[2.0], [4.0], [6.0]]),
-                pa.array([[5.0], [3.0], [7.0]]),], ['a', 'b', 'c']),
-            pa.Table.from_arrays([
-                pa.array([[6.0], [10.0]]), pa.array([[14.0], [16.0]]),
-                pa.array([[-1.0], [0]]),], ['a', 'b', 'c'])
+                pa.array([[5.0], [3.0], [7.0]]),
+            ], ['a', 'b', 'c']),
+            pa.RecordBatch.from_arrays([
+                pa.array([[6.0], [10.0]]),
+                pa.array([[14.0], [16.0]]),
+                pa.array([[-1.0], [0]]),
+            ], ['a', 'b', 'c'])
         ],
         'options':
             stats_options.StatsOptions(
@@ -1819,16 +1829,16 @@ GENERATE_STATS_TESTS = [
             }""",
     },
     {
-        'testcase_name': 'weighted_feature',
-        'tables': [
-            pa.Table.from_arrays(
-                [pa.array([[1], [3, 5, 7, 9], None]),
-                 pa.array([['a'], ['a', 'b', 'c', 'd'], None])],
-                ['weight', 'value']),
-            pa.Table.from_arrays(
+        'testcase_name':
+            'weighted_feature',
+        'record_batches': [
+            pa.RecordBatch.from_arrays([
+                pa.array([[1], [3, 5, 7, 9], None]),
+                pa.array([['a'], ['a', 'b', 'c', 'd'], None])
+            ], ['weight', 'value']),
+            pa.RecordBatch.from_arrays(
                 [pa.array([[2, 4, 6, 8]]),
-                 pa.array([['a', 'b', 'c', 'd']])],
-                ['weight', 'value']),
+                 pa.array([['a', 'b', 'c', 'd']])], ['weight', 'value']),
         ],
         'options':
             stats_options.StatsOptions(
@@ -1984,8 +1994,8 @@ GENERATE_STATS_NO_IN_MEMORY_TESTS = [
     {
         'testcase_name':
             'label_feature',
-        'tables': [
-            pa.Table.from_arrays([
+        'record_batches': [
+            pa.RecordBatch.from_arrays([
                 pa.array([[b'a'], [b'a'], [b'b'], [b'a']]),
                 pa.array([[b'cat'], [b'dog'], [b'cat'], [b'dog']]),
             ], ['categorical_x', 'string_y']),
@@ -2229,19 +2239,19 @@ SLICING_TESTS = [
     {
         'testcase_name':
             'feature_value_slicing',
-        'tables': [
-            pa.Table.from_arrays([
+        'record_batches': [
+            pa.RecordBatch.from_arrays([
                 pa.array([[1.0, 2.0]], type=pa.list_(pa.float32())),
                 pa.array([[b'a']], type=pa.list_(pa.binary())),
                 pa.array([np.linspace(1, 500, 500, dtype=np.int64)]),
             ], ['a', 'b', 'c']),
-            pa.Table.from_arrays([
-                pa.array([[3.0, 4.0, np.NaN, 5.0]],
-                         type=pa.list_(pa.float32())),
+            pa.RecordBatch.from_arrays([
+                pa.array([[3.0, 4.0, np.NaN, 5.0]], type=pa.list_(
+                    pa.float32())),
                 pa.array([[b'a', b'b']], type=pa.list_(pa.binary())),
                 pa.array([np.linspace(501, 1250, 750, dtype=np.int64)]),
             ], ['a', 'b', 'c']),
-            pa.Table.from_arrays([
+            pa.RecordBatch.from_arrays([
                 pa.array([[1.0]], type=pa.list_(pa.float32())),
                 pa.array([[b'b']], type=pa.list_(pa.binary())),
                 pa.array([np.linspace(1251, 3000, 1750, dtype=np.int64)]),
@@ -2784,7 +2794,7 @@ class StatsImplTest(parameterized.TestCase):
       *(GENERATE_STATS_TESTS + GENERATE_STATS_NO_IN_MEMORY_TESTS +
         SLICING_TESTS))
   def test_stats_impl(self,
-                      tables,
+                      record_batches,
                       options,
                       expected_result_proto_text,
                       schema=None):
@@ -2795,7 +2805,7 @@ class StatsImplTest(parameterized.TestCase):
       options.schema = schema
     with beam.Pipeline() as p:
       result = (
-          p | beam.Create(tables, reshuffle=False)
+          p | beam.Create(record_batches, reshuffle=False)
           | stats_impl.GenerateStatisticsImpl(options))
       util.assert_that(
           result,
@@ -2803,13 +2813,13 @@ class StatsImplTest(parameterized.TestCase):
               self, expected_result))
 
   def test_generate_sliced_statistics_impl_without_slice_fns(self):
-    sliced_tables = [
-        ('test_slice', pa.Table.from_arrays([
-            pa.array([[]], type=pa.list_(pa.float32()))], ['b'])
-        ),
-        ('test_slice', pa.Table.from_arrays([
-            pa.array([[]], type=pa.list_(pa.float32()))], ['b'])
-        ),
+    sliced_record_batches = [
+        ('test_slice',
+         pa.RecordBatch.from_arrays(
+             [pa.array([[]], type=pa.list_(pa.float32()))], ['b'])),
+        ('test_slice',
+         pa.RecordBatch.from_arrays(
+             [pa.array([[]], type=pa.list_(pa.float32()))], ['b'])),
     ]
     # No slice functions are specified in options.
     options = stats_options.StatsOptions(
@@ -2870,7 +2880,7 @@ class StatsImplTest(parameterized.TestCase):
     with beam.Pipeline() as p:
       result = (
           p
-          | beam.Create(sliced_tables, reshuffle=False)
+          | beam.Create(sliced_record_batches, reshuffle=False)
           | stats_impl.GenerateSlicedStatisticsImpl(options=options))
       # GenerateSlicedStatisticsImpl() does not add slice keys to the result
       # because is_slicing_enabled is not set to True (and no slice functions
@@ -2882,7 +2892,7 @@ class StatsImplTest(parameterized.TestCase):
 
     with beam.Pipeline() as p:
       result = (
-          p | beam.Create(sliced_tables, reshuffle=False)
+          p | beam.Create(sliced_record_batches, reshuffle=False)
           | stats_impl.GenerateSlicedStatisticsImpl(
               options=options, is_slicing_enabled=True))
       # GenerateSlicedStatisticsImpl() adds slice keys to the result because
@@ -2893,15 +2903,18 @@ class StatsImplTest(parameterized.TestCase):
               self, expected_result_with_slice_key))
 
   @parameterized.named_parameters(*GENERATE_STATS_TESTS)
-  def test_generate_statistics_in_memory(
-      self, tables, options, expected_result_proto_text, schema=None):
+  def test_generate_statistics_in_memory(self,
+                                         record_batches,
+                                         options,
+                                         expected_result_proto_text,
+                                         schema=None):
     expected_result = text_format.Parse(
         expected_result_proto_text,
         statistics_pb2.DatasetFeatureStatisticsList())
     if schema is not None:
       options.schema = schema
     result = stats_impl.generate_statistics_in_memory(
-        table_util.MergeTables(tables), options)
+        table_util.MergeRecordBatches(record_batches), options)
     # generate_statistics_in_memory does not deterministically
     # order multiple features within a DatasetFeatureStatistics proto. So, we
     # cannot use compare.assertProtoEqual (which requires the same ordering of
@@ -2931,8 +2944,8 @@ class StatsImplTest(parameterized.TestCase):
         return [(None, stats_proto1),
                 (None, stats_proto2)]
 
-    tables = [
-        pa.Table.from_arrays([
+    record_batches = [
+        pa.RecordBatch.from_arrays([
             pa.array([[]], type=pa.list_(pa.int64())),
             pa.array([[]], type=pa.list_(pa.int64())),
         ], ['a', 'b']),
@@ -3013,7 +3026,7 @@ class StatsImplTest(parameterized.TestCase):
           num_values_histogram_buckets=2,
           enable_semantic_domain_stats=True)
       result = (
-          p | beam.Create(tables, reshuffle=False)
+          p | beam.Create(record_batches, reshuffle=False)
           | stats_impl.GenerateStatisticsImpl(options))
       util.assert_that(
           result,
@@ -3021,14 +3034,14 @@ class StatsImplTest(parameterized.TestCase):
               self, expected_result))
 
   def test_generate_statistics_in_memory_empty_examples(self):
-    table = pa.Table.from_arrays([])
+    record_batch = pa.RecordBatch.from_arrays([])
     expected_result = text_format.Parse(
         """
         datasets {
           num_examples: 0
         }""", statistics_pb2.DatasetFeatureStatisticsList())
 
-    result = stats_impl.generate_statistics_in_memory(table)
+    result = stats_impl.generate_statistics_in_memory(record_batch)
     compare.assertProtoEqual(
         self, result, expected_result, normalize_numbers=True)
 
@@ -3059,7 +3072,7 @@ class StatsImplTest(parameterized.TestCase):
         custom_stat.str = 'custom_stat_value'
         return stats_proto
 
-    table = pa.Table.from_arrays(
+    record_batch = pa.RecordBatch.from_arrays(
         [pa.array([[b'xyz', b'qwe'], [b'qwe'], [b'qwe']])], ['a'])
 
     expected_result = text_format.Parse(
@@ -3135,7 +3148,7 @@ class StatsImplTest(parameterized.TestCase):
         num_rank_histogram_buckets=3,
         num_values_histogram_buckets=3,
         enable_semantic_domain_stats=True)
-    result = stats_impl.generate_statistics_in_memory(table, options)
+    result = stats_impl.generate_statistics_in_memory(record_batch, options)
     compare.assertProtoEqual(
         self, result, expected_result, normalize_numbers=True)
 
@@ -3148,7 +3161,7 @@ class StatsImplTest(parameterized.TestCase):
       def expand(self, pcoll):
         pass
 
-    table = pa.Table.from_arrays([pa.array([[1.0]])], ['a'])
+    record_batch = pa.RecordBatch.from_arrays([pa.array([[1.0]])], ['a'])
     custom_generator = stats_generator.TransformStatsGenerator(
         name='CustomStatsGenerator', ptransform=CustomPTransform())
     options = stats_options.StatsOptions(
@@ -3156,7 +3169,7 @@ class StatsImplTest(parameterized.TestCase):
     with self.assertRaisesRegexp(
         TypeError, 'Statistics generator.* found object of type '
         'TransformStatsGenerator.'):
-      stats_impl.generate_statistics_in_memory(table, options)
+      stats_impl.generate_statistics_in_memory(record_batch, options)
 
   def test_merge_dataset_feature_stats_protos(self):
     proto1 = text_format.Parse(
@@ -3304,23 +3317,23 @@ class StatsImplTest(parameterized.TestCase):
         expected)
 
   def test_tfdv_telemetry(self):
-    tables = [
-        pa.Table.from_arrays([
+    record_batches = [
+        pa.RecordBatch.from_arrays([
             pa.array([[1.0, 2.0]]),
             pa.array([['a', 'b', 'c', 'e']]),
             pa.array([None]),
         ], ['a', 'b', 'c']),
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[3.0, 4.0, np.NaN, 5.0]]),
             pa.array([['d', 'e', 'f']]),
             pa.array([None]),
         ], ['a', 'b', 'c']),
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([None]),
             pa.array([['a', 'b', 'c']]),
             pa.array([[10, 20, 30]]),
         ], ['a', 'b', 'c']),
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[5.0]]),
             pa.array([['d', 'e', 'f']]),
             pa.array([[1]]),
@@ -3330,7 +3343,7 @@ class StatsImplTest(parameterized.TestCase):
     p = beam.Pipeline()
     _ = (
         p
-        | 'CreateBatches' >> beam.Create(tables, reshuffle=False)
+        | 'CreateBatches' >> beam.Create(record_batches, reshuffle=False)
         | 'BasicStatsCombiner' >> beam.CombineGlobally(
             stats_impl._CombinerStatsGeneratorsCombineFn([
                 basic_stats_generator.BasicStatsGenerator(),
@@ -3368,23 +3381,24 @@ class StatsImplTest(parameterized.TestCase):
                        expected_result[counter_name])
 
   def test_filter_features(self):
-    input_table = pa.Table.from_arrays([
+    input_record_batch = pa.RecordBatch.from_arrays([
         pa.array([[]], type=pa.list_(pa.int64())),
         pa.array([[]], type=pa.list_(pa.int64())),
         pa.array([[]], type=pa.list_(pa.int64())),
     ], ['a', 'b', 'c'])
-    actual = stats_impl._filter_features(input_table, ['a', 'c'])
-    expected = pa.Table.from_arrays([
+    actual = stats_impl._filter_features(input_record_batch, ['a', 'c'])
+    expected = pa.RecordBatch.from_arrays([
         pa.array([[]], type=pa.list_(pa.int64())),
         pa.array([[]], type=pa.list_(pa.int64())),
     ], ['a', 'c'])
     self.assertEqual(set(actual.schema.names), set(expected.schema.names))
 
   def test_filter_features_empty(self):
-    input_table = pa.Table.from_arrays([
-        pa.array([[]], type=pa.list_(pa.int64())),], ['a'])
-    actual = stats_impl._filter_features(input_table, [])
-    expected = pa.Table.from_arrays([])
+    input_record_batch = pa.RecordBatch.from_arrays([
+        pa.array([[]], type=pa.list_(pa.int64())),
+    ], ['a'])
+    actual = stats_impl._filter_features(input_record_batch, [])
+    expected = pa.RecordBatch.from_arrays([])
     self.assertEqual(set(actual.schema.names), set(expected.schema.names))
 
 

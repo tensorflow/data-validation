@@ -234,7 +234,7 @@ std::vector<Description> UpdateBoolDomain(const FeatureStatsView& feature_stats,
                           absl::SixDigits(numeric_statistics.max()),
                           ") not in {0, 1}: converting to float_domain.")}};
       }
-      for (auto histogram : numeric_statistics.histograms()) {
+      for (const auto& histogram : numeric_statistics.histograms()) {
         // Any non-empty boundary should include 0 or 1, otherwise the feature
         // must not be boolean. Note: if histograms are not computed, or there
         // are values inside the range 0 to 1, invalid bool_domain values will
@@ -247,7 +247,7 @@ std::vector<Description> UpdateBoolDomain(const FeatureStatsView& feature_stats,
                    absl::StrCat("Floats (such as NaN) not in {0, 1}: "
                                 "converting to float_domain.")}};
         }
-        for (auto bucket : histogram.buckets()) {
+        for (const auto& bucket : histogram.buckets()) {
           if (bucket.sample_count() <= 0) {
             continue;
           }

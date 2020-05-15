@@ -39,16 +39,15 @@ from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
-IDENTIFY_ANOMALOUS_EXAMPLES_VALID_INPUTS = [
-    {
-        'testcase_name':
-            'no_anomalies',
-        'examples': [
-            pa.Table.from_arrays([pa.array([['A']])], ['annotated_enum']),
-            pa.Table.from_arrays([pa.array([['C']])], ['annotated_enum']),
-        ],
-        'schema_text':
-            """
+IDENTIFY_ANOMALOUS_EXAMPLES_VALID_INPUTS = [{
+    'testcase_name':
+        'no_anomalies',
+    'examples': [
+        pa.RecordBatch.from_arrays([pa.array([['A']])], ['annotated_enum']),
+        pa.RecordBatch.from_arrays([pa.array([['C']])], ['annotated_enum']),
+    ],
+    'schema_text':
+        """
               string_domain {
                 name: "MyAloneEnum"
                 value: "A"
@@ -79,18 +78,17 @@ IDENTIFY_ANOMALOUS_EXAMPLES_VALID_INPUTS = [
                 type: BYTES
               }
               """,
-        'expected_result': []
-    },
-    {
-        'testcase_name':
-            'same_anomaly_reason',
-        'examples': [
-            pa.Table.from_arrays([pa.array([['D']])], ['annotated_enum']),
-            pa.Table.from_arrays([pa.array([['D']])], ['annotated_enum']),
-            pa.Table.from_arrays([pa.array([['C']])], ['annotated_enum']),
-        ],
-        'schema_text':
-            """
+    'expected_result': []
+}, {
+    'testcase_name':
+        'same_anomaly_reason',
+    'examples': [
+        pa.RecordBatch.from_arrays([pa.array([['D']])], ['annotated_enum']),
+        pa.RecordBatch.from_arrays([pa.array([['D']])], ['annotated_enum']),
+        pa.RecordBatch.from_arrays([pa.array([['C']])], ['annotated_enum']),
+    ],
+    'schema_text':
+        """
               string_domain {
                 name: "MyAloneEnum"
                 value: "A"
@@ -110,24 +108,23 @@ IDENTIFY_ANOMALOUS_EXAMPLES_VALID_INPUTS = [
                 domain: "MyAloneEnum"
               }
               """,
-        'expected_result':
-            [
-                ('annotated_enum_ENUM_TYPE_UNEXPECTED_STRING_VALUES',
-                 pa.Table.from_arrays([pa.array([['D']])], ['annotated_enum'])),
-                ('annotated_enum_ENUM_TYPE_UNEXPECTED_STRING_VALUES',
-                 pa.Table.from_arrays([pa.array([['D']])], ['annotated_enum']))
-            ]
-    },
-    {
-        'testcase_name':
-            'different_anomaly_reasons',
-        'examples': [
-            pa.Table.from_arrays([pa.array([['D']])], ['annotated_enum']),
-            pa.Table.from_arrays([pa.array([['C']])], ['annotated_enum']),
-            pa.Table.from_arrays([pa.array([[1]])], ['feature_not_in_schema']),
-        ],
-        'schema_text':
-            """
+    'expected_result': [('annotated_enum_ENUM_TYPE_UNEXPECTED_STRING_VALUES',
+                         pa.RecordBatch.from_arrays([pa.array([['D']])],
+                                                    ['annotated_enum'])),
+                        ('annotated_enum_ENUM_TYPE_UNEXPECTED_STRING_VALUES',
+                         pa.RecordBatch.from_arrays([pa.array([['D']])],
+                                                    ['annotated_enum']))]
+}, {
+    'testcase_name':
+        'different_anomaly_reasons',
+    'examples': [
+        pa.RecordBatch.from_arrays([pa.array([['D']])], ['annotated_enum']),
+        pa.RecordBatch.from_arrays([pa.array([['C']])], ['annotated_enum']),
+        pa.RecordBatch.from_arrays([pa.array([[1]])],
+                                   ['feature_not_in_schema']),
+    ],
+    'schema_text':
+        """
               string_domain {
                 name: "MyAloneEnum"
                 value: "A"
@@ -147,16 +144,13 @@ IDENTIFY_ANOMALOUS_EXAMPLES_VALID_INPUTS = [
                 domain: "MyAloneEnum"
               }
               """,
-        'expected_result':
-            [
-                ('annotated_enum_ENUM_TYPE_UNEXPECTED_STRING_VALUES',
-                 pa.Table.from_arrays([pa.array([['D']])], ['annotated_enum'])),
-                ('feature_not_in_schema_SCHEMA_NEW_COLUMN',
-                 pa.Table.from_arrays([pa.array([[1]])],
-                                      ['feature_not_in_schema']))
-            ]
-    }
-]
+    'expected_result': [('annotated_enum_ENUM_TYPE_UNEXPECTED_STRING_VALUES',
+                         pa.RecordBatch.from_arrays([pa.array([['D']])],
+                                                    ['annotated_enum'])),
+                        ('feature_not_in_schema_SCHEMA_NEW_COLUMN',
+                         pa.RecordBatch.from_arrays([pa.array([[1]])],
+                                                    ['feature_not_in_schema']))]
+}]
 
 
 class ValidationApiTest(absltest.TestCase):
@@ -364,6 +358,19 @@ class ValidationApiTest(absltest.TestCase):
               unique: 5
             }
           }
+          features: {
+            path { step: 'feature4' }
+            type: STRING
+            string_stats: {
+              common_stats: {
+                num_missing: 0
+                num_non_missing: 7
+                min_num_values: 0
+                max_num_values: 1
+              }
+              unique: 5
+            }
+          }
         }
         """, statistics_pb2.DatasetFeatureStatisticsList())
 
@@ -391,6 +398,14 @@ class ValidationApiTest(absltest.TestCase):
           name: "feature3"
           value_count: { min: 1 max: 1}
           presence: {
+            min_count: 1
+          }
+          type: BYTES
+        }
+        feature {
+          name: "feature4"
+          presence: {
+            min_fraction: 1.0
             min_count: 1
           }
           type: BYTES
@@ -2080,7 +2095,8 @@ class ValidationApiTest(absltest.TestCase):
   # pylint: enable=line-too-long
 
   def test_validate_instance(self):
-    instance = pa.Table.from_arrays([pa.array([['D']])], ['annotated_enum'])
+    instance = pa.RecordBatch.from_arrays([pa.array([['D']])],
+                                          ['annotated_enum'])
     schema = text_format.Parse(
         """
         string_domain {
@@ -2137,7 +2153,8 @@ class ValidationApiTest(absltest.TestCase):
     self._assert_equal_anomalies(anomalies, expected_anomalies)
 
   def test_validate_instance_global_only_anomaly_type(self):
-    instance = pa.Table.from_arrays([pa.array([['D']])], ['annotated_enum'])
+    instance = pa.RecordBatch.from_arrays([pa.array([['D']])],
+                                          ['annotated_enum'])
     # This schema has a presence.min_count > 1, which will generate an anomaly
     # of type FEATURE_TYPE_LOW_NUMBER_PRESENT when any single example is
     # validated using this schema. This test checks that this anomaly type
@@ -2188,7 +2205,7 @@ class ValidationApiTest(absltest.TestCase):
     self._assert_equal_anomalies(anomalies, expected_anomalies)
 
   def test_validate_instance_environment(self):
-    instance = pa.Table.from_arrays([pa.array([['A']])], ['feature'])
+    instance = pa.RecordBatch.from_arrays([pa.array([['A']])], ['feature'])
     schema = text_format.Parse(
         """
         default_environment: "TRAINING"
@@ -2238,7 +2255,7 @@ class ValidationApiTest(absltest.TestCase):
     self._assert_equal_anomalies(anomalies_serving, {})
 
   def test_validate_instance_invalid_environment(self):
-    instance = pa.Table.from_arrays([pa.array([['A']])], ['feature'])
+    instance = pa.RecordBatch.from_arrays([pa.array([['A']])], ['feature'])
     schema = text_format.Parse(
         """
         default_environment: "TRAINING"
@@ -2265,13 +2282,13 @@ class ValidationApiTest(absltest.TestCase):
           instance, options, environment='INVALID')
 
   def test_validate_instance_invalid_options(self):
-    instance = pa.Table.from_arrays([pa.array([['A']])], ['feature'])
+    instance = pa.RecordBatch.from_arrays([pa.array([['A']])], ['feature'])
     with self.assertRaisesRegexp(ValueError,
                                  'options must be a StatsOptions object.'):
       _ = validation_api.validate_instance(instance, {})
 
   def test_validate_instance_stats_options_without_schema(self):
-    instance = pa.Table.from_arrays([pa.array([['A']])], ['feature'])
+    instance = pa.RecordBatch.from_arrays([pa.array([['A']])], ['feature'])
     # This instance of StatsOptions has no schema.
     options = stats_options.StatsOptions()
     with self.assertRaisesRegexp(ValueError, 'options must include a schema.'):
@@ -2285,11 +2302,29 @@ class IdentifyAnomalousExamplesTest(parameterized.TestCase):
                                        expected_result):
     schema = text_format.Parse(schema_text, schema_pb2.Schema())
     options = stats_options.StatsOptions(schema=schema)
+
+    def _assert_fn(got):
+
+      # TODO(zhuo): clean-up after ARROW-8277 is available.
+      class _RecordBatchEqualityWrapper(object):
+        __hash__ = None
+
+        def __init__(self, record_batch):
+          self._batch = record_batch
+
+        def __eq__(self, other):
+          return self._batch.equals(other._batch)  # pylint: disable=protected-access
+
+      wrapped_got = [(k, _RecordBatchEqualityWrapper(v)) for k, v in got]
+      wrapped_expected = [
+          (k, _RecordBatchEqualityWrapper(v)) for k, v in expected_result]
+      self.assertCountEqual(wrapped_got, wrapped_expected)
+
     with beam.Pipeline() as p:
       result = (
           p | beam.Create(examples)
           | validation_api.IdentifyAnomalousExamples(options))
-      util.assert_that(result, util.equal_to(expected_result))
+      util.assert_that(result, _assert_fn)
 
   def test_identify_anomalous_examples_options_of_wrong_type(self):
     examples = [{'annotated_enum': np.array(['D'], dtype=np.object)}]

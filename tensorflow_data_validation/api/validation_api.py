@@ -28,7 +28,7 @@ from tensorflow_data_validation import types
 from tensorflow_data_validation.anomalies.proto import validation_config_pb2
 from tensorflow_data_validation.anomalies.proto import validation_metadata_pb2
 from tensorflow_data_validation.api import validation_options as vo
-from tensorflow_data_validation.pywrap import pywrap_tensorflow_data_validation
+from tensorflow_data_validation.pywrap.tensorflow_data_validation_extension import validation as pywrap_tensorflow_data_validation
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.utils import anomalies_util
@@ -137,6 +137,7 @@ def _infer_shape(schema: schema_pb2.Schema):
   for feature in schema.feature:
     # Currently we infer shape only for required features.
     if (feature.presence.min_fraction == 1 and
+        feature.value_count.min != 0 and
         feature.value_count.min == feature.value_count.max):
       feature.shape.dim.add().size = feature.value_count.min
 
@@ -506,7 +507,7 @@ def _check_for_unsupported_stats_fields(
 
 
 def validate_instance(
-    instance: pa.Table,
+    instance: pa.RecordBatch,
     options: stats_options.StatsOptions,
     environment: Optional[str] = None
 ) -> anomalies_pb2.Anomalies:
@@ -516,7 +517,7 @@ def validate_instance(
   `environment` and the `instance` is validated against the filtered schema.
 
   Args:
-    instance: A batch of examples in the form of an Arrow table.
+    instance: A batch of examples in the form of an Arrow RecordBatch.
     options: `tfdv.StatsOptions` for generating data statistics. This must
       contain a schema.
     environment: An optional string denoting the validation environment. Must be
@@ -551,12 +552,12 @@ def validate_instance(
   return anomalies
 
 
-def _detect_anomalies_in_example(table: pa.Table,
+def _detect_anomalies_in_example(record_batch: pa.RecordBatch,
                                  options: stats_options.StatsOptions):
   """Validates the example against the schema provided in `options`."""
   # Verify that we have a single row.
-  assert table.num_rows == 1
-  return (table, validate_instance(table, options))
+  assert record_batch.num_rows == 1
+  return (record_batch, validate_instance(record_batch, options))
 
 
 def _get_default_dataset_statistics(
@@ -595,20 +596,21 @@ def _get_default_dataset_statistics(
 
 
 @beam.typehints.with_input_types(
-    beam.typehints.Tuple[pa.Table, anomalies_pb2.Anomalies])
-@beam.typehints.with_output_types(types.BeamSlicedTable)
+    beam.typehints.Tuple[pa.RecordBatch, anomalies_pb2.Anomalies])
+@beam.typehints.with_output_types(types.BeamSlicedRecordBatch)
 class _GenerateAnomalyReasonSliceKeys(beam.DoFn):
   """Yields a slice key for each anomaly reason in the Anomalies proto."""
 
   def process(self, element):
-    table, anomalies_proto = element
+    record_batch, anomalies_proto = element
     for slice_key in slicing_util.generate_slices(
-        table, [anomalies_util.anomalies_slicer], anomalies=anomalies_proto):
-      yield slice_key, table
+        record_batch, [anomalies_util.anomalies_slicer],
+        anomalies=anomalies_proto):
+      yield slice_key, record_batch
 
 
-@beam.typehints.with_input_types(pa.Table)
-@beam.typehints.with_output_types(types.BeamSlicedTable)
+@beam.typehints.with_input_types(pa.RecordBatch)
+@beam.typehints.with_output_types(types.BeamSlicedRecordBatch)
 class IdentifyAnomalousExamples(beam.PTransform):
   """API for identifying anomalous examples.
 
@@ -616,7 +618,7 @@ class IdentifyAnomalousExamples(beam.PTransform):
   outputs (anomaly reason, anomalous example) tuples.
 
   Note: This transform requires that the input PCollection consist of pyarrow
-  Tables that have a single row (i.e., batch size == 1).
+  RecordBatches that have a single row (i.e., batch size == 1).
   """
 
   def __init__(

@@ -35,7 +35,7 @@ class WeightedFeatureStatsGeneratorTest(parameterized.TestCase,
       {
           'testcase_name': 'AllMatching',
           'batches': [
-              pa.Table.from_arrays(
+              pa.RecordBatch.from_arrays(
                   [pa.array([['a'], ['a', 'b']]),
                    pa.array([[2], [2, 4]])], ['value', 'weight'])
           ],
@@ -46,10 +46,10 @@ class WeightedFeatureStatsGeneratorTest(parameterized.TestCase,
       }, {
           'testcase_name': 'AllMatchingMultiBatch',
           'batches': [
-              pa.Table.from_arrays(
+              pa.RecordBatch.from_arrays(
                   [pa.array([['a'], ['a', 'b']]),
                    pa.array([[2], [2, 4]])], ['value', 'weight']),
-              pa.Table.from_arrays(
+              pa.RecordBatch.from_arrays(
                   [pa.array([['a'], ['a', 'b']]),
                    pa.array([[2], [2, 4]])], ['value', 'weight'])
           ],
@@ -60,7 +60,7 @@ class WeightedFeatureStatsGeneratorTest(parameterized.TestCase,
       }, {
           'testcase_name': 'LengthMismatchPositive',
           'batches': [
-              pa.Table.from_arrays(
+              pa.RecordBatch.from_arrays(
                   [pa.array([['a'], ['a']]),
                    pa.array([[2], [2, 4]])], ['value', 'weight'])
           ],
@@ -71,7 +71,7 @@ class WeightedFeatureStatsGeneratorTest(parameterized.TestCase,
       }, {
           'testcase_name': 'LengthMismatchNegative',
           'batches': [
-              pa.Table.from_arrays(
+              pa.RecordBatch.from_arrays(
                   [pa.array([['a'], ['a', 'b']]),
                    pa.array([[2], [2]])], ['value', 'weight'])
           ],
@@ -82,10 +82,10 @@ class WeightedFeatureStatsGeneratorTest(parameterized.TestCase,
       }, {
           'testcase_name': 'LengthMismatchMultiBatch',
           'batches': [
-              pa.Table.from_arrays(
+              pa.RecordBatch.from_arrays(
                   [pa.array([['a'], ['a', 'b']]),
                    pa.array([[], []])], ['value', 'weight']),
-              pa.Table.from_arrays([pa.array([[1], [1, 1]])], ['other'])
+              pa.RecordBatch.from_arrays([pa.array([[1], [1, 1]])], ['other'])
           ],
           'expected_missing_weight': 0.0,
           'expected_missing_value': 0.0,
@@ -94,7 +94,7 @@ class WeightedFeatureStatsGeneratorTest(parameterized.TestCase,
       }, {
           'testcase_name': 'SomePairsMissing',
           'batches': [
-              pa.Table.from_arrays([
+              pa.RecordBatch.from_arrays([
                   pa.array([['a'], None, ['a', 'b']]),
                   pa.array([[1, 1], None, [1, 1, 1]])
               ], ['value', 'weight'])
@@ -106,7 +106,8 @@ class WeightedFeatureStatsGeneratorTest(parameterized.TestCase,
       }, {
           'testcase_name': 'EmptyWeights',
           'batches': [
-              pa.Table.from_arrays([pa.array([['a'], ['a', 'b']])], ['value'])
+              pa.RecordBatch.from_arrays([pa.array([['a'], ['a', 'b']])],
+                                         ['value'])
           ],
           'expected_missing_weight': 2.0,
           'expected_missing_value': 0.0,
@@ -114,15 +115,16 @@ class WeightedFeatureStatsGeneratorTest(parameterized.TestCase,
           'expected_max_weight_length_diff': -1.0
       }, {
           'testcase_name': 'EmptyValues',
-          'batches':
-              [pa.Table.from_arrays([pa.array([[1], [1, 2]])], ['weight'])],
+          'batches': [
+              pa.RecordBatch.from_arrays([pa.array([[1], [1, 2]])], ['weight'])
+          ],
           'expected_missing_weight': 0.0,
           'expected_missing_value': 2.0,
           'expected_min_weight_length_diff': 1.0,
           'expected_max_weight_length_diff': 2.0
       }, {
           'testcase_name': 'EmptyWeightsAndValues',
-          'batches': [pa.Table.from_arrays([])],
+          'batches': [pa.RecordBatch.from_arrays([])],
           'expected_missing_weight': 0.0,
           'expected_missing_value': 0.0,
           'expected_min_weight_length_diff': 0.0,
@@ -130,7 +132,7 @@ class WeightedFeatureStatsGeneratorTest(parameterized.TestCase,
       }, {
           'testcase_name': 'NullWeightArray',
           'batches': [
-              pa.Table.from_arrays([
+              pa.RecordBatch.from_arrays([
                   pa.array([['a'], ['a', 'b']]),
                   pa.array([None, None], type=pa.null())
               ], ['value', 'weight'])
@@ -177,11 +179,11 @@ class WeightedFeatureStatsGeneratorTest(parameterized.TestCase,
 
   def test_shared_weight(self):
     batches = [
-        pa.Table.from_arrays(
-            [pa.array([['a'], ['a', 'b'], ['a']]),
-             pa.array([['x'], ['y'], ['x']]),
-             pa.array([[2], [4], None])],
-            ['value1', 'value2', 'weight'])
+        pa.RecordBatch.from_arrays([
+            pa.array([['a'], ['a', 'b'], ['a']]),
+            pa.array([['x'], ['y'], ['x']]),
+            pa.array([[2], [4], None])
+        ], ['value1', 'value2', 'weight'])
     ]
     schema = text_format.Parse(
         """

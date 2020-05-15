@@ -21,14 +21,22 @@ from __future__ import division
 from __future__ import print_function
 
 import base64
-from IPython.display import display
-from IPython.display import HTML
 import pandas as pd
 from tensorflow_data_validation import types
+from tensorflow_data_validation.utils import stats_util
 from typing import Optional, Text
 from tensorflow_metadata.proto.v0 import anomalies_pb2
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
+
+try:
+  # pylint: disable=g-import-not-at-top
+  from IPython.display import display
+  from IPython.display import HTML
+except ImportError as e:
+  raise ImportError('To use visualization features, make sure ipython is '
+                    'installed, or install TFDV using "pip install '
+                    'tensorflow-data-validation[visualization]": {}'.format(e))
 
 
 def _add_quotes(input_str: types.FeatureName) -> types.FeatureName:
@@ -275,3 +283,22 @@ def visualize_statistics(
   """
   html = get_statistics_html(lhs_statistics, rhs_statistics, lhs_name, rhs_name)
   display(HTML(html))
+
+
+def compare_slices(statistics: statistics_pb2.DatasetFeatureStatisticsList,
+                   lhs_slice_key: Text, rhs_slice_key: Text):
+  """Compare statistics of two slices using Facets.
+
+  Args:
+    statistics: A DatasetFeatureStatisticsList protocol buffer.
+    lhs_slice_key: Slice key of the first slice.
+    rhs_slice_key: Slice key of the second slice.
+
+  Raises:
+    ValueError: If the input statistics proto does not have the specified slice
+      statistics.
+  """
+  lhs_stats = stats_util.get_slice_stats(statistics, lhs_slice_key)
+  rhs_stats = stats_util.get_slice_stats(statistics, rhs_slice_key)
+  visualize_statistics(lhs_stats, rhs_stats,
+                       lhs_name=lhs_slice_key, rhs_name=rhs_slice_key)

@@ -335,7 +335,7 @@ Schema::Updater::Updater(const FeatureStatisticsToProtoConfig& config)
 void Schema::Updater::UpdateSeverityForAnomaly(
     const std::vector<Description>& descriptions,
     tensorflow::metadata::v0::AnomalyInfo::Severity* severity) const {
-  for (auto description : descriptions) {
+  for (const auto& description : descriptions) {
     // By default, all anomalies are ERROR level.
     tensorflow::metadata::v0::AnomalyInfo::Severity severity_for_anomaly =
         tensorflow::metadata::v0::AnomalyInfo::ERROR;
@@ -347,7 +347,7 @@ void Schema::Updater::UpdateSeverityForAnomaly(
                       "severity_overrides";
       severity_for_anomaly = tensorflow::metadata::v0::AnomalyInfo::WARNING;
     }
-    for (auto severity_override : config_.severity_overrides()) {
+    for (const auto& severity_override : config_.severity_overrides()) {
       if (severity_override.type() == description.type) {
         severity_for_anomaly = severity_override.severity();
       }

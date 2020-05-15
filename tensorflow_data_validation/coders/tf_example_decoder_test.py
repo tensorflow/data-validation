@@ -34,7 +34,7 @@ class TFExampleDecoderTest(parameterized.TestCase):
   @parameterized.named_parameters(
       *tf_example_decoder_test_data.BEAM_TF_EXAMPLE_DECODER_TESTS)
   def test_decode_example_with_beam_pipeline(self, example_proto_text,
-                                             decoded_table):
+                                             decoded_record_batch):
     example = tf.train.Example()
     text_format.Merge(example_proto_text, example)
     with beam.Pipeline() as p:
@@ -43,7 +43,8 @@ class TFExampleDecoderTest(parameterized.TestCase):
                 | tf_example_decoder.DecodeTFExample())
       util.assert_that(
           result,
-          test_util.make_arrow_tables_equal_fn(self, [decoded_table]))
+          test_util.make_arrow_record_batches_equal_fn(self,
+                                                       [decoded_record_batch]))
 
 if __name__ == '__main__':
   absltest.main()

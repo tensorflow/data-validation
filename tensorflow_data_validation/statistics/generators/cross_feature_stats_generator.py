@@ -32,6 +32,7 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 from tensorflow_data_validation import types
+from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import stats_util
 from tfx_bsl.arrow import array_util
@@ -113,32 +114,28 @@ class CrossFeatureStatsGenerator(stats_generator.CombinerStatsGenerator):
     return {}
 
   def _get_univalent_values_with_parent_indices(
-      self, examples_table: pa.Table) -> Dict[types.FeatureName, pd.DataFrame]:
+      self, examples: pa.RecordBatch) -> Dict[types.FeatureName, pd.DataFrame]:
     """Extracts univalent values for each feature along with parent indices."""
     result = {}
-    for feature_name, feature_column in zip(
-        examples_table.schema.names, examples_table.itercolumns()):
+    for feature_name, feat_arr in zip(examples.schema.names, examples.columns):
       if (self._features_needed is not None and
           feature_name not in self._features_needed):
         continue
       feature_type = stats_util.get_feature_type_from_arrow_type(
-          feature_name, feature_column.type)
+          feature_name, feat_arr.type)
       # Only consider crosses of numeric features.
       # TODO(zhuo): Support numeric features nested under structs.
       if feature_type in (None, statistics_pb2.FeatureNameStatistics.STRING,
                           statistics_pb2.FeatureNameStatistics.STRUCT):
         continue
-      # Assume we have only a single chunk.
-      assert feature_column.data.num_chunks == 1
-      feat_arr = feature_column.data.chunk(0)
       value_lengths = np.asarray(array_util.ListLengthsFromListArray(feat_arr))
       univalent_parent_indices = set((value_lengths == 1).nonzero()[0])
       # If there are no univalent values, continue to the next feature.
       if not univalent_parent_indices:
         continue
-      non_missing_values = np.asarray(feat_arr.flatten())
-      value_parent_indices = np.asarray(
-          array_util.GetFlattenedArrayParentIndices(feat_arr))
+      flattened, value_parent_indices = arrow_util.flatten_nested(
+          feat_arr, True)
+      non_missing_values = np.asarray(flattened)
       if feature_type == statistics_pb2.FeatureNameStatistics.FLOAT:
         # Remove any NaN values if present.
         non_nan_mask = ~np.isnan(non_missing_values)
@@ -153,10 +150,10 @@ class CrossFeatureStatsGenerator(stats_generator.CombinerStatsGenerator):
 
     return result
 
-  # Incorporates the input (an arrow Table) into the accumulator.
+  # Incorporates the input (an arrow RecordBatch) into the accumulator.
   def add_input(
       self, accumulator: CrossFeatureStatsGeneratorAccumulator,
-      examples_table: pa.Table
+      examples: pa.RecordBatch
   ) -> Dict[types.FeatureCross, _PartialCrossFeatureStats]:
     if random.random() > self._sample_rate:
       return accumulator
@@ -164,7 +161,7 @@ class CrossFeatureStatsGenerator(stats_generator.CombinerStatsGenerator):
     # avoid doing the same computation for a feature multiple times in
     # each cross.
     features_for_cross = self._get_univalent_values_with_parent_indices(
-        examples_table)
+        examples)
 
     # Generate crosses of numeric univalent features and update the partial
     # cross stats.
@@ -173,8 +170,8 @@ class CrossFeatureStatsGenerator(stats_generator.CombinerStatsGenerator):
     else:
       feature_crosses = itertools.combinations(
           sorted(list(features_for_cross.keys())), 2)
-    for feat_cross in feature_crosses:
-      feat_name_x, feat_name_y = feat_cross
+    for feat_name_x, feat_name_y in feature_crosses:
+      feat_cross = (feat_name_x, feat_name_y)
       if feat_cross not in accumulator:
         accumulator[feat_cross] = _PartialCrossFeatureStats()
       df_x, df_y = (features_for_cross[feat_name_x],

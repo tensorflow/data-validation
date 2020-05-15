@@ -181,29 +181,31 @@ class DecodedExamplesToArrowPyTest(parameterized.TestCase):
   def test_invalid_input(self, test_input, expected_error,
                          expected_error_regexp):
     with self.assertRaisesRegex(expected_error, expected_error_regexp):
-      decoded_examples_to_arrow.DecodedExamplesToTable(test_input)
+      decoded_examples_to_arrow.DecodedExamplesToRecordBatch(test_input)
 
   @parameterized.named_parameters(*_CONVERSION_TEST_CASES)
   def test_conversion(self, input_examples, expected_output):
-    table = decoded_examples_to_arrow.DecodedExamplesToTable(input_examples)
-    self.assertLen(expected_output, table.num_columns)
+    record_batch = decoded_examples_to_arrow.DecodedExamplesToRecordBatch(
+        input_examples)
+    self.assertLen(expected_output, record_batch.num_columns)
     for feature_name, expected_arrow_array in six.iteritems(expected_output):
-      self.assertLen(table.column(feature_name).data.chunks, 1)
-      actual = table.column(feature_name).data.chunk(0)
+      actual = record_batch.column(
+          record_batch.schema.get_field_index(feature_name))
       self.assertTrue(
           expected_arrow_array.equals(actual),
           "{} vs {}".format(expected_arrow_array, actual))
 
   def test_conversion_empty_input(self):
-    table = decoded_examples_to_arrow.DecodedExamplesToTable([])
-    self.assertEqual(table.num_columns, 0)
-    self.assertEqual(table.num_rows, 0)
+    record_batch = decoded_examples_to_arrow.DecodedExamplesToRecordBatch([])
+    self.assertEqual(record_batch.num_columns, 0)
+    self.assertEqual(record_batch.num_rows, 0)
 
   def test_conversion_empty_examples(self):
     input_examples = [{}] * 10
-    table = decoded_examples_to_arrow.DecodedExamplesToTable(input_examples)
-    self.assertEqual(table.num_rows, 10)
-    self.assertEqual(table.num_columns, 0)
+    record_batch = decoded_examples_to_arrow.DecodedExamplesToRecordBatch(
+        input_examples)
+    self.assertEqual(record_batch.num_rows, 10)
+    self.assertEqual(record_batch.num_columns, 0)
 
 
 if __name__ == "__main__":

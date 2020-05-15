@@ -22,6 +22,8 @@ import pyarrow as _
 
 # Import stats API.
 from tensorflow_data_validation.api.stats_api import GenerateStatistics
+from tensorflow_data_validation.api.stats_api import WriteStatisticsToText
+from tensorflow_data_validation.api.stats_api import WriteStatisticsToTFRecord
 
 # Import validation API.
 from tensorflow_data_validation.api.validation_api import infer_schema
@@ -35,6 +37,7 @@ from tensorflow_data_validation.coders.tf_example_decoder import DecodeTFExample
 
 # Import stats generators.
 from tensorflow_data_validation.statistics.generators.lift_stats_generator import LiftStatsGenerator
+from tensorflow_data_validation.statistics.generators.partitioned_stats_generator import NonStreamingCustomStatsGenerator
 from tensorflow_data_validation.statistics.generators.stats_generator import CombinerStatsGenerator
 from tensorflow_data_validation.statistics.generators.stats_generator import TransformStatsGenerator
 
@@ -49,6 +52,7 @@ from tensorflow_data_validation.utils.anomalies_util import load_anomalies_text
 from tensorflow_data_validation.utils.anomalies_util import write_anomalies_text
 
 # Import display utilities.
+from tensorflow_data_validation.utils.display_util import compare_slices
 from tensorflow_data_validation.utils.display_util import display_anomalies
 from tensorflow_data_validation.utils.display_util import display_schema
 from tensorflow_data_validation.utils.display_util import visualize_statistics
@@ -67,7 +71,12 @@ from tensorflow_data_validation.utils.slicing_util import get_feature_value_slic
 from tensorflow_data_validation.utils.stats_gen_lib import generate_statistics_from_csv
 from tensorflow_data_validation.utils.stats_gen_lib import generate_statistics_from_dataframe
 from tensorflow_data_validation.utils.stats_gen_lib import generate_statistics_from_tfrecord
-from tensorflow_data_validation.utils.stats_gen_lib import load_statistics
+
+# Import stats utilities.
+from tensorflow_data_validation.utils.stats_util import get_slice_stats
+from tensorflow_data_validation.utils.stats_util import load_statistics
+from tensorflow_data_validation.utils.stats_util import load_stats_text
+from tensorflow_data_validation.utils.stats_util import write_stats_text
 
 # Import validation lib.
 from tensorflow_data_validation.utils.validation_lib import validate_examples_in_csv
@@ -75,3 +84,9 @@ from tensorflow_data_validation.utils.validation_lib import validate_examples_in
 
 # Import version string.
 from tensorflow_data_validation.version import __version__
+
+
+# If tfdv module has this flag, tfdv.GenerateStatistics accepts
+# PCollection[pa.RecordBatch] as the input; otherwise it accepts
+# PCollection[pa.Table]
+TFDV_ACCEPT_RECORD_BATCH = True

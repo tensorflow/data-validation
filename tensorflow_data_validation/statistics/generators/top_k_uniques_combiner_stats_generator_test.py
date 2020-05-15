@@ -35,11 +35,11 @@ class TopKUniquesCombinerStatsGeneratorTest(
   def test_topk_uniques_combiner_with_single_bytes_feature(self):
     # 'fa': 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
     batches = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a', 'b', 'c', 'e'], ['a', 'c', 'd', 'a']],
                      type=pa.list_(pa.binary()))
         ], ['fa']),
-        pa.Table.from_arrays(
+        pa.RecordBatch.from_arrays(
             [pa.array([['a', 'b', 'c', 'd']], type=pa.list_(pa.binary()))],
             ['fa'])
     ]
@@ -105,11 +105,11 @@ class TopKUniquesCombinerStatsGeneratorTest(
     # weighted ordering
     # fa: 20 'e', 20 'd', 15 'a', 10 'c', 5 'b'
     batches = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a', 'b', 'c', 'e'], ['a', 'c', 'd', 'a']]),
             pa.array([[5.0], [5.0]]),
         ], ['fa', 'w']),
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['d', 'e']]),
             pa.array([[15.0]]),
         ], ['fa', 'w']),
@@ -209,10 +209,11 @@ class TopKUniquesCombinerStatsGeneratorTest(
   def test_topk_uniques_combiner_with_single_unicode_feature(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
     batches = [
-        pa.Table.from_arrays(
+        pa.RecordBatch.from_arrays(
             [pa.array([[u'a', u'b', u'c', u'e'], [u'a', u'c', u'd', u'a']])],
             ['fa']),
-        pa.Table.from_arrays([pa.array([[u'a', u'b', u'c', u'd']])], ['fa']),
+        pa.RecordBatch.from_arrays([pa.array([[u'a', u'b', u'c', u'd']])],
+                                   ['fa']),
     ]
     expected_result = {
         types.FeaturePath(['fa']):
@@ -272,11 +273,11 @@ class TopKUniquesCombinerStatsGeneratorTest(
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
     # fb: 1 'a', 2 'b', 3 'c'
     batches = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a', 'b', 'c', 'e'], None, ['a', 'c', 'd']]),
             pa.array([['a', 'c', 'c'], ['b'], None]),
         ], ['fa', 'fb']),
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a', 'a', 'b', 'c', 'd'], None]),
             pa.array([None, ['b', 'c']])
         ], ['fa', 'fb']),
@@ -379,8 +380,8 @@ class TopKUniquesCombinerStatsGeneratorTest(
 
   def test_topk_uniques_combiner_zero_row(self):
     batches = [
-        pa.Table.from_arrays([pa.array([], type=pa.list_(pa.binary()))],
-                             ['f1'])
+        pa.RecordBatch.from_arrays([pa.array([], type=pa.list_(pa.binary()))],
+                                   ['f1'])
     ]
     expected_result = {}
     generator = (
@@ -389,8 +390,8 @@ class TopKUniquesCombinerStatsGeneratorTest(
             num_top_values=4, num_rank_histogram_buckets=3))
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_topk_uniques_combiners_empty_table(self):
-    batches = [pa.Table.from_arrays([], [])]
+  def test_topk_uniques_combiners_empty_record_batch(self):
+    batches = [pa.RecordBatch.from_arrays([], [])]
     expected_result = {}
     generator = (
         top_k_uniques_combiner_stats_generator
@@ -402,11 +403,11 @@ class TopKUniquesCombinerStatsGeneratorTest(
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
     # fb: 1 'a', 1 'b', 2 'c'
     batches = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a', 'b', 'c', 'e'], None, ['a', 'c', 'd']]),
             pa.array([['a', 'c', 'c'], ['b'], None]),
         ], ['fa', 'fb']),
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a', 'a', 'b', 'c', 'd'], None]),
         ], ['fa'])
     ]
@@ -509,11 +510,11 @@ class TopKUniquesCombinerStatsGeneratorTest(
   def test_topk_uniques_combiner_with_numeric_feature(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
     batches = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a', 'b', 'c', 'e'], None, ['a', 'c', 'd']]),
             pa.array([[1.0, 2.0, 3.0], [4.0, 5.0], None]),
         ], ['fa', 'fb']),
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a', 'a', 'b', 'c', 'd']]),
             pa.array([None], type=pa.list_(pa.float32())),
         ], ['fa', 'fb']),
@@ -575,9 +576,10 @@ class TopKUniquesCombinerStatsGeneratorTest(
   def test_topk_uniques_combiner_with_categorical_feature(self):
     # fa: 4 12, 2 23, 2 34, 2 45
     batches = [
-        pa.Table.from_arrays([pa.array([[12, 23, 34, 12], [45, 23]])], ['fa']),
-        pa.Table.from_arrays([pa.array([[12, 12, 34, 45]])], ['fa']),
-        pa.Table.from_arrays(
+        pa.RecordBatch.from_arrays([pa.array([[12, 23, 34, 12], [45, 23]])],
+                                   ['fa']),
+        pa.RecordBatch.from_arrays([pa.array([[12, 12, 34, 45]])], ['fa']),
+        pa.RecordBatch.from_arrays(
             [pa.array([None, None, None, None], type=pa.null())], ['fa']),
     ]
     expected_result = {
@@ -646,11 +648,11 @@ class TopKUniquesCombinerStatsGeneratorTest(
 
   def test_topk_with_frequency_threshold(self):
     batches = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a', 'b', 'y', 'b']]),
             pa.array([[5.0]]),
         ], ['fa', 'w']),
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a', 'x', 'a', 'z']]),
             pa.array([[15.0]]),
         ], ['fa', 'w'])
@@ -732,7 +734,7 @@ class TopKUniquesCombinerStatsGeneratorTest(
 
   def test_topk_struct_leaves(self):
     batches = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[1.0], [2.0]]),
             pa.array([[{
                 'f1': ['a', 'b'],
@@ -746,7 +748,7 @@ class TopKUniquesCombinerStatsGeneratorTest(
                 'f2': [3]
             }]]),
         ], ['w', 'c']),
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[3.0]]),
             pa.array([[{
                 'f1': ['d'],

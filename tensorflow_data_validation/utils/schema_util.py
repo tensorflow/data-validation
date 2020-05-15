@@ -22,7 +22,7 @@ import logging
 import six
 from tensorflow_data_validation import types
 from tensorflow_data_validation.utils import io_util
-from typing import Iterable, List, Optional, Set, Tuple, Union
+from typing import Iterable, List, Optional, Set, Text, Tuple, Union
 from google.protobuf import text_format
 from tensorflow_metadata.proto.v0 import schema_pb2
 
@@ -191,7 +191,7 @@ def set_domain(schema: schema_pb2.Schema, feature_path: types.FeaturePath,
     feature.domain = domain
 
 
-def write_schema_text(schema: schema_pb2.Schema, output_path: bytes) -> None:
+def write_schema_text(schema: schema_pb2.Schema, output_path: Text) -> None:
   """Writes input schema to a file in text format.
 
   Args:
@@ -209,7 +209,7 @@ def write_schema_text(schema: schema_pb2.Schema, output_path: bytes) -> None:
   io_util.write_string_to_file(output_path, schema_text)
 
 
-def load_schema_text(input_path: bytes) -> schema_pb2.Schema:
+def load_schema_text(input_path: Text) -> schema_pb2.Schema:
   """Loads the schema stored in text format in the input path.
 
   Args:

@@ -46,7 +46,7 @@ FeatureValueCount = collections.namedtuple('FeatureValueCount',
 
 # Pickling types.FeaturePath is slow, so we use tuples directly where pickling
 # happens frequently.
-FeaturePathTuple = Tuple[types.FeatureName]
+FeaturePathTuple = Tuple[types.FeatureName, ...]
 
 
 def _make_feature_stats_proto_with_uniques_stats(
@@ -198,36 +198,34 @@ def _weighted_unique(values: np.ndarray, weights: np.ndarray
 
 
 def _to_topk_tuples(
-    sliced_table: Tuple[types.SliceKey, pa.Table],
+    sliced_record_batch: Tuple[types.SliceKey, pa.RecordBatch],
     bytes_features: FrozenSet[types.FeaturePath],
     categorical_features: FrozenSet[types.FeaturePath],
     weight_feature: Optional[Text]
-) -> Iterable[
-    Tuple[Tuple[types.SliceKey, FeaturePathTuple, Any],
-          Union[int, Tuple[int, Union[int, float]]]]]:
-  """Generates tuples for computing top-k and uniques from input tables."""
-  slice_key, table = sliced_table
+) -> Iterable[Tuple[Tuple[types.SliceKey, FeaturePathTuple, Any], Union[
+    int, Tuple[int, Union[int, float]]]]]:
+  """Generates tuples for computing top-k and uniques from the input."""
+  slice_key, record_batch = sliced_record_batch
 
   for feature_path, feature_array, weights in arrow_util.enumerate_arrays(
-      table,
+      record_batch,
       weight_column=weight_feature,
       enumerate_leaves_only=True):
     feature_array_type = feature_array.type
-    if pa.types.is_null(feature_array_type):
+    feature_type = stats_util.get_feature_type_from_arrow_type(
+        feature_path, feature_array_type)
+    # Skip null columns.
+    if feature_type is None:
       continue
     if feature_path in bytes_features:
       continue
     if (feature_path in categorical_features or
-        stats_util.get_feature_type_from_arrow_type(
-            feature_path,
-            feature_array_type) == statistics_pb2.FeatureNameStatistics.STRING):
-      flattened_values = feature_array.flatten()
+        feature_type == statistics_pb2.FeatureNameStatistics.STRING):
+      flattened_values, parent_indices = arrow_util.flatten_nested(
+          feature_array, weights is not None)
       if weights is not None and flattened_values:
         # Slow path: weighted uniques.
         flattened_values_np = np.asarray(flattened_values)
-        parent_indices = (
-            np.asarray(
-                array_util.GetFlattenedArrayParentIndices(feature_array)))
         weights_ndarray = weights[parent_indices]
         for value, count, weight in _weighted_unique(
             flattened_values_np, weights_ndarray):

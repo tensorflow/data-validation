@@ -32,20 +32,33 @@ from joblib import delayed
 from joblib import Parallel
 import numpy as np
 import pandas as pd
+import pyarrow as pa
 import tensorflow as tf
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.api import stats_api
-from tensorflow_data_validation.arrow import decoded_examples_to_arrow
 from tensorflow_data_validation.coders import csv_decoder
 from tensorflow_data_validation.coders import tf_example_decoder
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options as options
 from tensorflow_data_validation.statistics.generators import stats_generator
+from tensorflow_data_validation.utils import stats_util
+from tfx_bsl.arrow import array_util
 from typing import Any, List, Optional, Text
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
+
+
+_NUMPY_KIND_TO_ARROW_TYPE = {
+    'i': pa.int64(),
+    'u': pa.uint64(),
+    'f': pa.float64(),
+    'b': pa.int8(),
+    'S': pa.binary(),
+    'O': pa.binary(),
+    'U': pa.utf8(),
+}
 
 
 def generate_statistics_from_tfrecord(
@@ -108,12 +121,9 @@ def generate_statistics_from_tfrecord(
             desired_batch_size=batch_size)
         | 'GenerateStatistics' >> stats_api.GenerateStatistics(stats_options)
         # TODO(b/112014711) Implement a custom sink to write the stats proto.
-        | 'WriteStatsOutput' >> beam.io.WriteToTFRecord(
-            output_path,
-            shard_name_template='',
-            coder=beam.coders.ProtoCoder(
-                statistics_pb2.DatasetFeatureStatisticsList)))
-  return load_statistics(output_path)
+        | 'WriteStatsOutput' >> stats_api.WriteStatisticsToTFRecord(
+            output_path))
+  return stats_util.load_statistics(output_path)
 
 
 def generate_statistics_from_csv(
@@ -181,21 +191,20 @@ def generate_statistics_from_csv(
     _ = (
         p
         | 'ReadData' >> beam.io.textio.ReadFromText(
-            file_pattern=data_location, skip_header_lines=skip_header_lines,
+            file_pattern=data_location,
+            skip_header_lines=skip_header_lines,
             compression_type=compression_type)
         | 'DecodeData' >> csv_decoder.DecodeCSV(
-            column_names=column_names, delimiter=delimiter,
-            schema=stats_options.schema,
-            infer_type_from_schema=stats_options.infer_type_from_schema,
+            column_names=column_names,
+            delimiter=delimiter,
+            schema=stats_options.schema
+            if stats_options.infer_type_from_schema else None,
             desired_batch_size=batch_size)
         | 'GenerateStatistics' >> stats_api.GenerateStatistics(stats_options)
         # TODO(b/112014711) Implement a custom sink to write the stats proto.
-        | 'WriteStatsOutput' >> beam.io.WriteToTFRecord(
-            output_path,
-            shard_name_template='',
-            coder=beam.coders.ProtoCoder(
-                statistics_pb2.DatasetFeatureStatisticsList)))
-  return load_statistics(output_path)
+        | 'WriteStatsOutput' >> stats_api.WriteStatisticsToTFRecord(
+            output_path))
+  return stats_util.load_statistics(output_path)
 
 
 def generate_statistics_from_dataframe(
@@ -254,26 +263,6 @@ def _generate_partial_statistics_from_df(
     stats_generators: List[stats_generator.CombinerStatsGenerator]
 ) -> List[Any]:
   """Generate accumulators containing partial stats."""
-  inmemory_dicts = [{} for _ in range(len(dataframe))]
-  isnull = pd.isnull
-  # Initialize decoding fn based on column type.
-  int_fn = lambda x: np.array([x], dtype=np.integer)
-  float_fn = lambda x: None if isnull(x) else np.array([x], dtype=np.floating)
-  str_fn = lambda x: None if isnull(x) else np.array([x], dtype=np.object)
-  decode_fn = {
-      # int type.
-      'i': int_fn,
-      'u': int_fn,
-      # float type.
-      'f': float_fn,
-      # bool type.
-      'b': int_fn,
-      # string type.
-      'S': str_fn,
-      'O': str_fn,
-      'U': str_fn,
-  }
-
   feature_whitelist = set()
   if stats_options.feature_whitelist:
     feature_whitelist.update(stats_options.feature_whitelist)
@@ -282,9 +271,11 @@ def _generate_partial_statistics_from_df(
   # Remove feature_whitelist option as it is no longer needed.
   stats_options_modified.feature_whitelist = None
   schema = schema_pb2.Schema()
+
+  arrow_fields = []
   for col_name, col_type in zip(dataframe.columns, dataframe.dtypes):
     kind = col_type.kind
-    if (kind not in decode_fn or
+    if (kind not in _NUMPY_KIND_TO_ARROW_TYPE or
         (feature_whitelist and col_name not in feature_whitelist)):
       logging.warning('Ignoring feature %s of type %s', col_name, col_type)
       continue
@@ -293,19 +284,20 @@ def _generate_partial_statistics_from_df(
       schema.feature.add(
           name=col_name, type=schema_pb2.INT,
           bool_domain=schema_pb2.BoolDomain())
-
-    # Get decoding fn based on column type.
-    fn = decode_fn[kind]
-    # Iterate over the column and apply the decoding fn.
-    j = 0
-    for val in dataframe[col_name]:
-      inmemory_dicts[j][col_name] = fn(val)
-      j += 1
+    arrow_fields.append(pa.field(col_name, _NUMPY_KIND_TO_ARROW_TYPE[kind]))
   if schema.feature:
     stats_options_modified.schema = schema
+  record_batch_with_primitive_arrays = pa.RecordBatch.from_pandas(
+      dataframe, schema=pa.schema(arrow_fields))
+  arrays = []
+  for column_array in record_batch_with_primitive_arrays.columns:
+    arrays.append(array_util.ToSingletonListArray(column_array))
+  # TODO(pachristopher): Consider using a list of record batches instead of a
+  # single record batch to avoid having list arrays larger than 2^31 elements.
+  record_batch_with_list_arrays = pa.RecordBatch.from_arrays(
+      arrays, record_batch_with_primitive_arrays.schema.names)
   return stats_impl.generate_partial_statistics_in_memory(
-      decoded_examples_to_arrow.DecodedExamplesToTable(inmemory_dicts),
-      stats_options_modified, stats_generators)
+      record_batch_with_list_arrays, stats_options_modified, stats_generators)
 
 
 def get_csv_header(data_location: Text,
@@ -350,20 +342,4 @@ def get_csv_header(data_location: Text,
         raise ValueError(
             'Found empty file when reading the header line: %s' % filename)
 
-  return result
-
-
-def load_statistics(
-    input_path: Text) -> statistics_pb2.DatasetFeatureStatisticsList:
-  """Loads data statistics proto from file.
-
-  Args:
-    input_path: Data statistics file path.
-
-  Returns:
-    A DatasetFeatureStatisticsList proto.
-  """
-  serialized_stats = next(tf.compat.v1.io.tf_record_iterator(input_path))
-  result = statistics_pb2.DatasetFeatureStatisticsList()
-  result.ParseFromString(serialized_stats)
   return result

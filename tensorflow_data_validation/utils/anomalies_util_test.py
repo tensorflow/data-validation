@@ -497,7 +497,7 @@ class AnomaliesUtilTest(parameterized.TestCase):
   @parameterized.named_parameters(*ANOMALIES_SLICER_TESTS)
   def test_anomalies_slicer(self, input_anomalies_proto_text,
                             expected_slice_keys):
-    example = pa.Table.from_arrays([])
+    example = pa.RecordBatch.from_arrays([])
     anomalies = text_format.Parse(input_anomalies_proto_text,
                                   anomalies_pb2.Anomalies())
     slice_keys = anomalies_util.anomalies_slicer(example, anomalies)

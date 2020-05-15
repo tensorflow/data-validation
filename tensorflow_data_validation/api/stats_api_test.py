@@ -19,6 +19,8 @@ from __future__ import division
 
 from __future__ import print_function
 
+import os
+import tempfile
 from absl.testing import absltest
 import apache_beam as beam
 from apache_beam.testing import util
@@ -26,6 +28,8 @@ import numpy as np
 import pyarrow as pa
 from tensorflow_data_validation.api import stats_api
 from tensorflow_data_validation.statistics import stats_options
+from tensorflow_data_validation.utils import io_util
+from tensorflow_data_validation.utils import stats_util
 from tensorflow_data_validation.utils import test_util
 
 from google.protobuf import text_format
@@ -34,20 +38,22 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 
 class StatsAPITest(absltest.TestCase):
 
+  def _get_temp_dir(self):
+    return tempfile.mkdtemp()
+
   def test_stats_pipeline(self):
-    # input with three tables.
-    tables = [
-        pa.Table.from_arrays([
+    record_batches = [
+        pa.RecordBatch.from_arrays([
             pa.array([[1.0, 2.0]]),
             pa.array([['a', 'b', 'c', 'e']]),
             pa.array([np.linspace(1, 500, 500, dtype=np.int32)]),
         ], ['a', 'b', 'c']),
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[3.0, 4.0, np.NaN, 5.0]]),
             pa.array([['a', 'c', 'd', 'a']]),
             pa.array([np.linspace(501, 1250, 750, dtype=np.int32)]),
         ], ['a', 'b', 'c']),
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[1.0]]),
             pa.array([['a', 'b', 'c', 'd']]),
             pa.array([np.linspace(1251, 3000, 1750, dtype=np.int32)]),
@@ -295,7 +301,8 @@ class StatsAPITest(absltest.TestCase):
           num_quantiles_histogram_buckets=4,
           epsilon=0.001)
       result = (
-          p | beam.Create(tables) | stats_api.GenerateStatistics(options))
+          p | beam.Create(record_batches)
+          | stats_api.GenerateStatistics(options))
       util.assert_that(
           result,
           test_util.make_dataset_feature_stats_list_proto_equal_fn(
@@ -368,20 +375,20 @@ class StatsAPITest(absltest.TestCase):
     """, statistics_pb2.DatasetFeatureStatisticsList())
 
   def test_stats_pipeline_with_examples_with_no_values(self):
-    tables = [
-        pa.Table.from_arrays([
+    record_batches = [
+        pa.RecordBatch.from_arrays([
             pa.array([[]], type=pa.list_(pa.float32())),
             pa.array([[]], type=pa.list_(pa.binary())),
             pa.array([[]], type=pa.list_(pa.int32())),
             pa.array([[2]]),
         ], ['a', 'b', 'c', 'w']),
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[]], type=pa.list_(pa.float32())),
             pa.array([[]], type=pa.list_(pa.binary())),
             pa.array([[]], type=pa.list_(pa.int32())),
             pa.array([[2]]),
         ], ['a', 'b', 'c', 'w']),
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[]], type=pa.list_(pa.float32())),
             pa.array([[]], type=pa.list_(pa.binary())),
             pa.array([[]], type=pa.list_(pa.int32())),
@@ -549,7 +556,8 @@ class StatsAPITest(absltest.TestCase):
           num_quantiles_histogram_buckets=1,
           epsilon=0.001)
       result = (
-          p | beam.Create(tables) | stats_api.GenerateStatistics(options))
+          p | beam.Create(record_batches)
+          | stats_api.GenerateStatistics(options))
       util.assert_that(
           result,
           test_util.make_dataset_feature_stats_list_proto_equal_fn(
@@ -577,14 +585,13 @@ class StatsAPITest(absltest.TestCase):
               self, expected_result))
 
   def test_stats_pipeline_with_sample_count(self):
-    # input with three tables.
-    tables = [
-        pa.Table.from_arrays([
-            pa.array([np.linspace(1, 3000, 3000, dtype=np.int32)])], ['c']),
-        pa.Table.from_arrays([
-            pa.array([np.linspace(1, 3000, 3000, dtype=np.int32)])], ['c']),
-        pa.Table.from_arrays([
-            pa.array([np.linspace(1, 3000, 3000, dtype=np.int32)])], ['c']),
+    record_batches = [
+        pa.RecordBatch.from_arrays(
+            [pa.array([np.linspace(1, 3000, 3000, dtype=np.int32)])], ['c']),
+        pa.RecordBatch.from_arrays(
+            [pa.array([np.linspace(1, 3000, 3000, dtype=np.int32)])], ['c']),
+        pa.RecordBatch.from_arrays(
+            [pa.array([np.linspace(1, 3000, 3000, dtype=np.int32)])], ['c']),
     ]
 
     with beam.Pipeline() as p:
@@ -598,16 +605,17 @@ class StatsAPITest(absltest.TestCase):
           epsilon=0.001,
           desired_batch_size=3000)
       result = (
-          p | beam.Create(tables) | stats_api.GenerateStatistics(options))
+          p | beam.Create(record_batches)
+          | stats_api.GenerateStatistics(options))
       util.assert_that(
           result,
           test_util.make_dataset_feature_stats_list_proto_equal_fn(
               self, self._sampling_test_expected_result))
 
   def test_stats_pipeline_with_sample_rate(self):
-    tables = [
-        pa.Table.from_arrays([
-            pa.array([np.linspace(1, 3000, 3000, dtype=np.int32)])], ['c']),
+    record_batches = [
+        pa.RecordBatch.from_arrays(
+            [pa.array([np.linspace(1, 3000, 3000, dtype=np.int32)])], ['c']),
     ]
 
     with beam.Pipeline() as p:
@@ -620,19 +628,57 @@ class StatsAPITest(absltest.TestCase):
           num_quantiles_histogram_buckets=2,
           epsilon=0.001)
       result = (
-          p | beam.Create(tables) | stats_api.GenerateStatistics(options))
+          p | beam.Create(record_batches)
+          | stats_api.GenerateStatistics(options))
       util.assert_that(
           result,
           test_util.make_dataset_feature_stats_list_proto_equal_fn(
               self, self._sampling_test_expected_result))
 
   def test_invalid_stats_options(self):
-    tables = [pa.Table.from_arrays([])]
+    record_batches = [pa.RecordBatch.from_arrays([])]
     with self.assertRaisesRegexp(TypeError, '.*should be a StatsOptions.'):
       with beam.Pipeline() as p:
-        _ = (p | beam.Create(tables)
-             | stats_api.GenerateStatistics(options={}))
+        _ = (
+            p | beam.Create(record_batches)
+            | stats_api.GenerateStatistics(options={}))
 
+  def test_write_stats_to_text(self):
+    stats = text_format.Parse(
+        """
+        datasets {
+          name: 'x'
+          num_examples: 100
+        }
+        """, statistics_pb2.DatasetFeatureStatisticsList())
+    output_path = os.path.join(self._get_temp_dir(), 'stats')
+    with beam.Pipeline() as p:
+      _ = (p | beam.Create([stats]) | stats_api.WriteStatisticsToText(
+          output_path))
+    stats_from_file = statistics_pb2.DatasetFeatureStatisticsList()
+    serialized_stats = io_util.read_file_to_string(
+        output_path, binary_mode=True)
+    stats_from_file.ParseFromString(serialized_stats)
+    self.assertLen(stats_from_file.datasets, 1)
+    test_util.assert_dataset_feature_stats_proto_equal(
+        self, stats_from_file.datasets[0], stats.datasets[0])
+
+  def test_write_stats_to_tfrecrod(self):
+    stats = text_format.Parse(
+        """
+        datasets {
+          name: 'x'
+          num_examples: 100
+        }
+        """, statistics_pb2.DatasetFeatureStatisticsList())
+    output_path = os.path.join(self._get_temp_dir(), 'stats')
+    with beam.Pipeline() as p:
+      _ = (p | beam.Create([stats]) | stats_api.WriteStatisticsToTFRecord(
+          output_path))
+    stats_from_file = stats_util.load_statistics(output_path)
+    self.assertLen(stats_from_file.datasets, 1)
+    test_util.assert_dataset_feature_stats_proto_equal(
+        self, stats_from_file.datasets[0], stats.datasets[0])
 
 if __name__ == '__main__':
   absltest.main()

@@ -19,6 +19,7 @@ limitations under the License.
 #include <string>
 
 #include <gtest/gtest.h>
+#include "absl/types/optional.h"
 #include "tensorflow_data_validation/anomalies/proto/validation_config.pb.h"
 #include "tensorflow_data_validation/anomalies/test_util.h"
 #include "tensorflow/core/lib/core/status_test_util.h"
@@ -51,14 +52,14 @@ void TestSchemaUpdate(const ValidationConfig& config,
 void TestFeatureStatisticsValidator(
     const Schema& old_schema, const ValidationConfig& validation_config,
     const DatasetFeatureStatistics& feature_statistics,
-    const tensorflow::gtl::optional<DatasetFeatureStatistics>&
+    const absl::optional<DatasetFeatureStatistics>&
         prev_span_feature_statistics,
-    const tensorflow::gtl::optional<DatasetFeatureStatistics>&
+    const absl::optional<DatasetFeatureStatistics>&
         prev_version_feature_statistics,
-    const tensorflow::gtl::optional<string>& environment,
-    const tensorflow::gtl::optional<FeaturesNeeded>& features_needed,
+    const absl::optional<string>& environment,
+    const absl::optional<FeaturesNeeded>& features_needed,
     const std::map<string, testing::ExpectedAnomalyInfo>& expected_anomalies,
-    const tensorflow::gtl::optional<testing::ExpectedAnomalyInfo>&
+    const absl::optional<testing::ExpectedAnomalyInfo>&
         expected_dataset_anomalies) {
   tensorflow::metadata::v0::Anomalies result;
   TF_CHECK_OK(ValidateFeatureStatistics(
@@ -688,7 +689,7 @@ TEST(FeatureStatisticsValidatorTest,
   testing::ExpectedAnomalyInfo expected_anomaly_info;
   expected_anomaly_info.new_schema = want_fixed_schema;
   expected_anomaly_info.expected_info_without_diff = expected_info;
-  gtl::optional<testing::ExpectedAnomalyInfo> dataset_anomalies =
+  absl::optional<testing::ExpectedAnomalyInfo> dataset_anomalies =
       gtl::make_optional(expected_anomaly_info);
 
   TestFeatureStatisticsValidator(

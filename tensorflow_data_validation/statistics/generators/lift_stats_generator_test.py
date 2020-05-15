@@ -37,7 +37,7 @@ class GetExampleValuePresenceTest(absltest.TestCase):
   """Tests for _get_example_value_presence."""
 
   def test_example_value_presence(self):
-    t = pa.Table.from_arrays([
+    t = pa.RecordBatch.from_arrays([
         pa.array([[1], [1, 1], [1, 2], [2]]),
     ], ['x'])
     expected_df = pd.DataFrame({'values': [1, 1, 1, 2, 2]},
@@ -50,7 +50,7 @@ class GetExampleValuePresenceTest(absltest.TestCase):
             weight_column_name=None))
 
   def test_example_value_presence_weighted(self):
-    t = pa.Table.from_arrays([
+    t = pa.RecordBatch.from_arrays([
         pa.array([[1], [1, 1], [1, 2], [2]]),
         pa.array([[.5], [1.0], [1.5], [2.0]]),
     ], ['x', 'w'])
@@ -67,7 +67,7 @@ class GetExampleValuePresenceTest(absltest.TestCase):
             weight_column_name='w'))
 
   def test_example_value_presence_none_value(self):
-    t = pa.Table.from_arrays([
+    t = pa.RecordBatch.from_arrays([
         pa.array([[1], None]),
     ], ['x'])
     expected_df = pd.DataFrame({'values': [1]},
@@ -79,7 +79,7 @@ class GetExampleValuePresenceTest(absltest.TestCase):
             weight_column_name=None))
 
   def test_example_value_presence_null_array(self):
-    t = pa.Table.from_arrays([
+    t = pa.RecordBatch.from_arrays([
         pa.array([None, None], type=pa.null()),
     ], ['x'])
     self.assertIsNone(
@@ -88,7 +88,7 @@ class GetExampleValuePresenceTest(absltest.TestCase):
             weight_column_name=None))
 
   def test_example_value_presence_struct_leaf(self):
-    t = pa.Table.from_arrays([
+    t = pa.RecordBatch.from_arrays([
         pa.array([
             [
                 {'y': [1]},
@@ -112,7 +112,7 @@ class GetExampleValuePresenceTest(absltest.TestCase):
 class ToPartialCopresenceCountsTest(absltest.TestCase):
 
   def test_to_partial_copresence_counts_weighted(self):
-    t = pa.Table.from_arrays([
+    t = pa.RecordBatch.from_arrays([
         pa.array([[1], [2], [1]]),
         pa.array([['a'], ['a'], ['b']]),
         pa.array([[0.5], [0.5], [2.0]]),
@@ -186,7 +186,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
 
   def test_lift_string_y(self):
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a'], ['a'], ['b'], ['a']]),
             pa.array([['cat'], ['dog'], ['cat'], ['dog']]),
         ], ['categorical_x', 'string_y']),
@@ -293,7 +293,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
 
   def test_lift_bytes_x_and_y(self):
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[b'a'], [b'a'], [b'\x80abc'], [b'a']]),
             pa.array([[b'cat'], [b'dog'], [b'cat'], [b'dog']]),
         ], ['categorical_x', 'string_y']),
@@ -368,7 +368,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
 
   def test_lift_int_y(self):
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[11], [11], [22], [11]]),
             pa.array([[1], [0], [1], [0]]),
         ], ['categorical_x', 'int_y']),
@@ -478,7 +478,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
 
   def test_lift_bool_y(self):
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a'], ['a'], ['b'], ['a']]),
             pa.array([[1], [0], [1], [0]]),
         ], ['categorical_x', 'bool_y']),
@@ -586,7 +586,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
 
   def test_lift_float_y(self):
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a'], ['a'], ['b'], ['a']]),
             pa.array([[1.1], [2.2], [3.3], [4.4]]),
         ], ['categorical_x', 'float_y']),
@@ -731,7 +731,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
 
   def test_lift_weighted(self):
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a'], ['a'], ['b'], ['a']]),
             pa.array([['cat'], ['dog'], ['cat'], ['dog']]),
             pa.array([[.5], [.5], [2], [1]]),
@@ -857,7 +857,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
 
   def test_lift_weighted_missing_weight(self):
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a'], ['a']]),
             pa.array([['cat'], ['dog']]),
             pa.array([[], [1]]),
@@ -890,7 +890,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
 
   def test_lift_weighted_weight_is_none(self):
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a']]),
             pa.array([['cat']]),
             pa.array([None]),
@@ -922,7 +922,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
 
   def test_lift_no_categorical_features(self):
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([[1.0], [2.0], [3.0], [4.0]]),
             pa.array([[1], [0], [1], [0]]),
         ], ['continous_x', 'int_y']),
@@ -954,7 +954,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
 
   def test_lift_x_is_none(self):
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([None, None, ['b'], ['a']]),
             pa.array([['cat'], ['dog'], ['cat'], ['dog']]),
         ], ['categorical_x', 'string_y']),
@@ -1029,7 +1029,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
 
   def test_lift_y_is_none(self):
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a'], ['a'], ['b'], ['a']]),
             pa.array([None, [.7], [.4], [.6]]),
         ], ['categorical_x', 'float_y']),
@@ -1111,7 +1111,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
 
   def test_lift_null_x(self):
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([None, None, None, None], type=pa.null()),
             pa.array([['cat'], ['dog'], ['cat'], ['dog']]),
         ], ['categorical_x', 'string_y']),
@@ -1139,7 +1139,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
 
   def test_lift_null_y(self):
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a'], ['a'], ['b'], ['a']]),
             pa.array([None, None, None, None], type=pa.null()),
         ], ['categorical_x', 'string_y']),
@@ -1167,7 +1167,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
 
   def test_lift_missing_x_and_y(self):
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             # explicitly construct type to avoid treating as null type
             pa.array([], type=pa.list_(pa.binary())),
             pa.array([], type=pa.list_(pa.binary())),
@@ -1197,7 +1197,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
   def test_lift_float_y_is_nan(self):
     # after calling bin_array, this is effectively an empty array.
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a']]),
             pa.array([[np.nan]]),
         ], ['categorical_x', 'float_y']),
@@ -1225,7 +1225,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
 
   def test_lift_min_x_count(self):
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a'], ['a'], ['b'], ['a']]),
             pa.array([['cat'], ['dog'], ['cat'], ['dog']]),
         ], ['categorical_x', 'string_y']),
@@ -1290,7 +1290,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
 
   def test_lift_min_x_count_filters_all(self):
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a'], ['a'], ['b'], ['a']]),
             pa.array([['cat'], ['dog'], ['cat'], ['dog']]),
         ], ['categorical_x', 'string_y']),
@@ -1320,7 +1320,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
 
   def test_lift_overlapping_top_bottom_k(self):
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a'], ['b'], ['c'], ['a']]),
             pa.array([['cat'], ['cat'], ['cat'], ['dog']]),
         ], ['categorical_x', 'string_y']),
@@ -1410,7 +1410,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
 
   def test_lift_flattened_x(self):
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([
                 [
                     {'docs': ['a', 'b']},
@@ -1513,7 +1513,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
 
   def test_lift_flattened_x_leaf(self):
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a', 'a'], ['a'], ['b', 'b'], ['a', 'a']]),
             pa.array([['cat'], ['dog'], ['cat'], ['dog']]),
         ], ['categorical_x', 'string_y']),
@@ -1588,7 +1588,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
 
   def test_lift_multi_x(self):
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a'], ['a'], ['b'], ['a']]),
             pa.array([['x'], ['x'], ['y'], ['x']]),
             pa.array([['cat'], ['dog'], ['cat'], ['dog']]),
@@ -1713,7 +1713,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
 
   def test_lift_provided_x_no_schema(self):
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([['a'], ['a'], ['b'], ['a']]),
             pa.array([['x'], ['x'], ['y'], ['x']]),
             pa.array([['cat'], ['dog'], ['cat'], ['dog']]),
@@ -1779,7 +1779,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
 
   def test_lift_flattened_x_and_y(self):
     examples = [
-        pa.Table.from_arrays([
+        pa.RecordBatch.from_arrays([
             pa.array([
                 [
                     {'docs': ['a', 'b']},
@@ -1897,19 +1897,19 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
 
   def test_lift_slice_aware(self):
     examples = [
-        ('slice1', pa.Table.from_arrays([
+        ('slice1', pa.RecordBatch.from_arrays([
             pa.array([['a'], ['a'], ['b'], ['a']]),
             pa.array([['cat'], ['dog'], ['cat'], ['dog']]),
         ], ['categorical_x', 'string_y'])),
-        ('slice2', pa.Table.from_arrays([
+        ('slice2', pa.RecordBatch.from_arrays([
             pa.array([['a'], ['a'], ['a']]),
             pa.array([['cat'], ['dog'], ['dog']]),
         ], ['categorical_x', 'string_y'])),
-        ('slice1', pa.Table.from_arrays([
+        ('slice1', pa.RecordBatch.from_arrays([
             pa.array([['a'], ['a'], ['b'], ['a']]),
             pa.array([['cat'], ['dog'], ['cat'], ['dog']]),
         ], ['categorical_x', 'string_y'])),
-        ('slice2', pa.Table.from_arrays([
+        ('slice2', pa.RecordBatch.from_arrays([
             pa.array([None, None, None, None], type=pa.null()),
             pa.array([['cat'], ['dog'], ['cat'], ['dog']]),
         ], ['categorical_x', 'string_y'])),

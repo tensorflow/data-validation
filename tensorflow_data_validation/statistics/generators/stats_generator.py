@@ -26,10 +26,9 @@ parallel. We support two types of generators:
    Initializes an accumulator to store the partial state and returns it.
        create_accumulator()
 
-   Incorporates a batch of input examples (represented as an arrow table) into
-   the current accumulator
-   and returns the updated accumulator.
-       add_input(accumulator, input_table)
+   Incorporates a batch of input examples (represented as an arrow RecordBatch)
+   into the current accumulator and returns the updated accumulator.
+       add_input(accumulator, input_record_batch)
 
    Merge the partial states in the accumulators and returns the accumulator
    containing the merged state.
@@ -42,10 +41,10 @@ parallel. We support two types of generators:
 2) TransformStatsGenerator
    This generator computes statistics using a user-provided Beam PTransform.
    The PTransform must accept a Beam PCollection where each element is a tuple
-   containing a slice key and an Arrow table representing a batch of examples.
-   It must return a PCollection where each element is a tuple containing a
-   slice key and a DatasetFeatureStatistics proto representing the statistics
-   of a slice.
+   containing a slice key and an Arrow RecordBatch representing a batch of
+   examples. It must return a PCollection where each element is a tuple
+   containing a slice key and a DatasetFeatureStatistics proto representing the
+   statistics of a slice.
 """
 
 from __future__ import absolute_import
@@ -107,14 +106,14 @@ class CombinerStatsGenerator(StatsGenerator):
     """
     raise NotImplementedError
 
-  def add_input(
-      self, accumulator: ACCTYPE, input_table: pa.Table) -> ACCTYPE:
+  def add_input(self, accumulator: ACCTYPE,
+                input_record_batch: pa.RecordBatch) -> ACCTYPE:
     """Returns result of folding a batch of inputs into accumulator.
 
     Args:
       accumulator: The current accumulator.
-      input_table: An Arrow Table whose columns are features and rows are
-        examples. The columns are of type List<primitive> or Null (If a
+      input_record_batch: An Arrow RecordBatch whose columns are features and
+        rows are examples. The columns are of type List<primitive> or Null (If a
         feature's value is None across all the examples in the batch, its
         corresponding column is of Null type).
 
@@ -258,10 +257,10 @@ class ConstituentStatsGenerator(object):
 
     Args:
       accumulator: The current accumulator.
-      batch: An InputBatch which wraps an Arrow Table whose columns are features
-        and rows are examples. The columns are of type List<primitive> or Null
-        (If a feature's value is None across all the examples in the batch, its
-        corresponding column is of Null type).
+      batch: An InputBatch which wraps an Arrow RecordBatch whose columns are
+        features and rows are examples. The columns are of type List<primitive>
+        or Null (If a feature's value is None across all the examples in the
+        batch, its corresponding column is of Null type).
 
     Returns:
       The accumulator after updating the statistics for the batch of inputs.
@@ -345,9 +344,9 @@ class CompositeStatsGenerator(CombinerStatsGenerator):
 
   def add_input(
       self, accumulator: Iterable[CONSTITUENT_ACCTYPE],
-      input_arrow_table: pa.Table
+      input_record_batch: pa.RecordBatch
   ) -> Iterable[CONSTITUENT_ACCTYPE]:  # pytype: disable=invalid-annotation
-    batch = input_batch.InputBatch(input_arrow_table)
+    batch = input_batch.InputBatch(input_record_batch)
     return [
         c.add_input(a, batch) for c, a in zip(self._constituents, accumulator)
     ]

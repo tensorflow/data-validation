@@ -55,9 +55,8 @@ from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import bin_util
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
-from tfx_bsl.arrow import array_util
 import typing
-from typing import Any, Dict, Iterator, Iterable, List, Optional, Text, Tuple, Union
+from typing import Any, Dict, Iterator, Iterable, Optional, Sequence, Text, Tuple, Union
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
@@ -109,8 +108,8 @@ _LiftSeries = typing.NamedTuple('_LiftSeries',
 
 
 def _get_example_value_presence(
-    table: pa.Table, path: types.FeaturePath,
-    boundaries: Optional[Iterable[float]],
+    record_batch: pa.RecordBatch, path: types.FeaturePath,
+    boundaries: Optional[Sequence[float]],
     weight_column_name: Optional[Text]) -> Optional[pd.DataFrame]:
 
   """Returns information about which examples contained which values.
@@ -119,14 +118,14 @@ def _get_example_value_presence(
   as a set and and returns a mapping between each example index and the distinct
   values which are present in that example.
 
-  The result of calling this function for path 'p' on an arrow table with the
-  two records [{'p': ['a', 'a', 'b']}, {'p': [a]}] will be
+  The result of calling this function for path 'p' on an arrow record batch with
+  the two records [{'p': ['a', 'a', 'b']}, {'p': [a]}] will be
   pd.Series(['a', 'b', 'a'], index=[0, 0, 1]).
 
   If the array retrieved from get_array is null, this function returns None.
 
   Args:
-    table: The table in which to look up the path.
+    record_batch: The RecordBatch in which to look up the path.
     path: The FeaturePath for which to fetch values.
     boundaries: Optionally, a set of bin boundaries to use for binning the array
       values.
@@ -142,11 +141,12 @@ def _get_example_value_presence(
     for the example from which each value came.
   """
   arr, example_indices = arrow_util.get_array(
-      table, path, return_example_indices=True)
-  if pa.types.is_null(arr.type):
+      record_batch, path, return_example_indices=True)
+  if stats_util.get_feature_type_from_arrow_type(path, arr.type) is None:
     return None
 
-  arr_flat = arr.flatten()
+  arr_flat, parent_indices = arrow_util.flatten_nested(
+      arr, return_parent_indices=True)
   is_binary_like = arrow_util.is_binary_like(arr_flat.type)
   assert boundaries is None or not is_binary_like, (
       'Boundaries can only be applied to numeric columns')
@@ -155,7 +155,6 @@ def _get_example_value_presence(
     dict_array = arr_flat.dictionary_encode()
     arr_flat = dict_array.indices
     arr_flat_dict = np.asarray(dict_array.dictionary)
-  parent_indices = array_util.GetFlattenedArrayParentIndices(arr).to_numpy()
   example_indices_flat = example_indices[parent_indices]
   if boundaries is not None:
     element_indices, bins = bin_util.bin_array(arr_flat, boundaries)
@@ -176,16 +175,16 @@ def _get_example_value_presence(
     values = pd.Categorical.from_codes(values, categories=arr_flat_dict)
   columns = {'example_indices': example_indices, 'values': values}
   if weight_column_name:
-    weights = arrow_util.get_weight_feature(table, weight_column_name)
+    weights = arrow_util.get_weight_feature(record_batch, weight_column_name)
     columns['weights'] = np.asarray(weights)[example_indices]
   df = pd.DataFrame(columns)
   return df.set_index('example_indices')
 
 
 def _to_partial_copresence_counts(
-    sliced_table: types.SlicedTable, y_path: types.FeaturePath,
-    x_paths: Iterable[types.FeaturePath],
-    y_boundaries: Optional[np.ndarray], weight_column_name: Optional[Text]
+    sliced_record_batch: types.SlicedRecordBatch, y_path: types.FeaturePath,
+    x_paths: Iterable[types.FeaturePath], y_boundaries: Optional[np.ndarray],
+    weight_column_name: Optional[Text]
 ) -> Iterator[Tuple[_SlicedXYKey, _CountType]]:
   """Yields per-(slice, path_x, x, y) counts of examples with x and y.
 
@@ -194,7 +193,8 @@ def _to_partial_copresence_counts(
   x or y is absent will be skipped.
 
   Args:
-    sliced_table: A tuple of (slice_key, table) representing a slice of examples
+    sliced_record_batch: A tuple of (slice_key, record_batch) representing a
+      slice of examples
     y_path: The path to use as Y in the lift expression: lift = P(Y=y|X=x) /
       P(Y=y).
     x_paths: A set of x_paths for which to compute lift.
@@ -206,16 +206,19 @@ def _to_partial_copresence_counts(
 
   Yields:
     Tuples of the form (_SlicedXYKey(slice_key, x_path, x, y), count) for each
-    combination of  x_path, x, and y  in the input table.
+    combination of  x_path, x, and y  in the input record batch.
   """
-  slice_key, table = sliced_table
-  y_df = _get_example_value_presence(table, y_path, y_boundaries,
+  slice_key, record_batch = sliced_record_batch
+  y_df = _get_example_value_presence(record_batch, y_path, y_boundaries,
                                      weight_column_name)
   if y_df is None:
     return
   for x_path in x_paths:
     x_df = _get_example_value_presence(
-        table, x_path, boundaries=None, weight_column_name=weight_column_name)
+        record_batch,
+        x_path,
+        boundaries=None,
+        weight_column_name=weight_column_name)
     if x_df is None:
       continue
     # merge using inner join implicitly drops null entries.
@@ -233,12 +236,13 @@ def _to_partial_copresence_counts(
 
 
 def _to_partial_counts(
-    sliced_table: types.SlicedTable, path: types.FeaturePath,
+    sliced_record_batch: types.SlicedRecordBatch, path: types.FeaturePath,
     boundaries: Optional[np.ndarray], weight_column_name: Optional[Text]
 ) -> Iterator[Tuple[Tuple[types.SliceKey, Union[_XType, _YType]], _CountType]]:
   """Yields per-(slice, value) counts of the examples with value in path."""
-  slice_key, table = sliced_table
-  df = _get_example_value_presence(table, path, boundaries, weight_column_name)
+  slice_key, record_batch = sliced_record_batch
+  df = _get_example_value_presence(record_batch, path, boundaries,
+                                   weight_column_name)
   if df is None:
     return
   for value, group in df.groupby('values'):
@@ -250,13 +254,13 @@ def _to_partial_counts(
 
 
 def _to_partial_x_counts(
-    sliced_table: types.SlicedTable, x_paths: Iterable[types.FeaturePath],
-    weight_column_name: Optional[Text]
+    sliced_record_batch: types.SlicedRecordBatch,
+    x_paths: Iterable[types.FeaturePath], weight_column_name: Optional[Text]
 ) -> Iterator[Tuple[_SlicedXKey, _CountType]]:
   """Yields per-(slice, x_path, x) counts of the examples with x in x_path."""
   for x_path in x_paths:
     for (slice_key, x), x_count in _to_partial_counts(
-        sliced_table,
+        sliced_record_batch,
         x_path,
         boundaries=None,
         weight_column_name=weight_column_name):
@@ -314,7 +318,7 @@ def _make_dataset_feature_stats_proto(
     else:
       lift_series_proto.y_count = lift_series.y_count
     y = lift_series.y
-    if y_boundaries is not None:
+    if y_boundaries is not None and isinstance(y, int):
       low_value, high_value = bin_util.get_boundaries(y, y_boundaries)
       lift_series_proto.y_bucket.low_value = low_value
       lift_series_proto.y_bucket.high_value = high_value
@@ -367,7 +371,7 @@ def _make_dataset_feature_stats_proto(
 
 
 def _cross_join_y_keys(
-    join_info: Tuple[types.SliceKey, Dict[Text, List[Any]]]
+    join_info: Tuple[types.SliceKey, Dict[Text, Sequence[Any]]]
     # TODO(b/147153346) update dict value list element type annotation to:
     # Union[_YKey, Tuple[_YType, Tuple[types.FeaturePath, _XType, _CountType]]]
 ) -> Iterator[Tuple[_SlicedXYKey, _CountType]]:
@@ -378,7 +382,7 @@ def _cross_join_y_keys(
 
 
 def _join_x_counts(
-    join_info: Tuple[_SlicedXKey, Dict[Text, List[Any]]]
+    join_info: Tuple[_SlicedXKey, Dict[Text, Sequence[Any]]]
     # TODO(b/147153346) update dict value list element type annotation to:
     # Union[_CountType, Tuple[_YType, _CountType]]
 ) -> Iterator[Tuple[_SlicedYKey, _ConditionalYRate]]:
@@ -414,7 +418,7 @@ def _join_x_counts(
 
 
 def _join_example_counts(
-    join_info: Tuple[types.SliceKey, Dict[Text, List[Any]]]
+    join_info: Tuple[types.SliceKey, Dict[Text, Sequence[Any]]]
     # TODO(b/147153346) update dict value list element type annotation to:
     # Union[_CountType, Tuple[_YType, _CountType]]
 ) -> Iterator[Tuple[_SlicedYKey, _YRate]]:
@@ -443,9 +447,9 @@ def _join_example_counts(
 
 
 def _compute_lifts(
-    join_info: Tuple[_SlicedYKey, Dict[Text, List[Any]]]
+    join_info: Tuple[_SlicedYKey, Dict[Text, Sequence[Any]]]
     # TODO(b/147153346) update dict value list element type annotation to:
-    # List[Union[_YRate, _ConditionalYRate]]
+    # Sequence[Union[_YRate, _ConditionalYRate]]
 ) -> Iterator[Tuple[_SlicedFeatureKey, _LiftInfo]]:
   """Joins y_counts with all x-y pairs for that y and computes lift.
 
@@ -572,7 +576,7 @@ class _FilterLifts(beam.PTransform):
 class _GetPlaceholderCopresenceCounts(beam.PTransform):
   """A PTransform for computing all possible x-y pairs, to support 0 lifts."""
 
-  def __init__(self, x_paths, min_x_count):
+  def __init__(self, x_paths: Iterable[types.FeaturePath], min_x_count: int):
     self._x_paths = x_paths
     self._min_x_count = min_x_count
 
@@ -606,20 +610,23 @@ class _GetPlaceholderCopresenceCounts(beam.PTransform):
 class _GetConditionalYRates(beam.PTransform):
   """A PTransform for computing the rate of each y value, given an x value."""
 
-  def __init__(self, y_path, y_boundaries, x_paths, min_x_count,
-               weight_column_name):
+  def __init__(self, y_path: types.FeaturePath,
+               y_boundaries: Optional[np.ndarray],
+               x_paths: Iterable[types.FeaturePath], min_x_count: int,
+               weight_column_name: Optional[Text]):
     self._y_path = y_path
     self._y_boundaries = y_boundaries
     self._x_paths = x_paths
     self._min_x_count = min_x_count
     self._weight_column_name = weight_column_name
 
-  def expand(self, sliced_tables_and_ys: Tuple[types.SlicedTable, _SlicedYKey]):
-    sliced_tables, y_keys = sliced_tables_and_ys
+  def expand(self, sliced_record_batchs_and_ys: Tuple[types.SlicedRecordBatch,
+                                                      _SlicedYKey]):
+    sliced_record_batchs, y_keys = sliced_record_batchs_and_ys
 
     # _SlicedXYKey(slice, x_path, x, y), xy_count
     partial_copresence_counts = (
-        sliced_tables
+        sliced_record_batchs
         | 'ToPartialCopresenceCounts' >> beam.FlatMap(
             _to_partial_copresence_counts, self._y_path, self._x_paths,
             self._y_boundaries, self._weight_column_name))
@@ -631,7 +638,7 @@ class _GetConditionalYRates(beam.PTransform):
 
     # _SlicedXKey(slice, x_path, x), x_count
     x_counts = (
-        sliced_tables
+        sliced_record_batchs
         | 'ToPartialXCounts' >> beam.FlatMap(
             _to_partial_x_counts, self._x_paths, self._weight_column_name)
         | 'SumXCounts' >> beam.CombinePerKey(sum))
@@ -664,20 +671,22 @@ class _GetConditionalYRates(beam.PTransform):
             | 'JoinXCounts' >> beam.FlatMap(_join_x_counts))
 
 
-@beam.typehints.with_input_types(types.SlicedTable)
+@beam.typehints.with_input_types(types.SlicedRecordBatch)
 @beam.typehints.with_output_types(Tuple[_SlicedYKey, _YRate])
 class _GetYRates(beam.PTransform):
   """A PTransform for computing the rate of each y value within each slice."""
 
-  def __init__(self, y_path, y_boundaries, weight_column_name):
+  def __init__(self, y_path: types.FeaturePath,
+               y_boundaries: Optional[np.ndarray],
+               weight_column_name: Optional[Text]):
     self._y_path = y_path
     self._y_boundaries = y_boundaries
     self._weight_column_name = weight_column_name
 
-  def expand(self, sliced_tables):
+  def expand(self, sliced_record_batchs):
     # slice, example_count
     example_counts = (
-        sliced_tables
+        sliced_record_batchs
         | 'ToExampleCounts' >> beam.MapTuple(lambda k, v: (k, v.num_rows))
         | 'SumExampleCounts' >> beam.CombinePerKey(sum))
 
@@ -687,7 +696,7 @@ class _GetYRates(beam.PTransform):
 
     # slice, (y, y_count)
     y_counts = (
-        sliced_tables
+        sliced_record_batchs
         | 'ToPartialYCounts' >>
         beam.FlatMap(_to_partial_counts, self._y_path, self._y_boundaries,
                      self._weight_column_name)
@@ -703,7 +712,7 @@ class _GetYRates(beam.PTransform):
             | 'JoinExampleCounts' >> beam.FlatMap(_join_example_counts))
 
 
-@beam.typehints.with_input_types(types.SlicedTable)
+@beam.typehints.with_input_types(types.SlicedRecordBatch)
 @beam.typehints.with_output_types(Tuple[types.SliceKey,
                                         statistics_pb2.DatasetFeatureStatistics]
                                  )
@@ -721,7 +730,7 @@ class _LiftStatsGenerator(beam.PTransform):
   def __init__(self, y_path: types.FeaturePath,
                schema: Optional[schema_pb2.Schema],
                x_paths: Optional[Iterable[types.FeaturePath]],
-               y_boundaries: Optional[Iterable[float]], min_x_count: int,
+               y_boundaries: Optional[Sequence[float]], min_x_count: int,
                top_k_per_y: Optional[int], bottom_k_per_y: Optional[int],
                weight_column_name: Optional[Text],
                output_custom_stats: bool, name: Text) -> None:
@@ -786,17 +795,18 @@ class _LiftStatsGenerator(beam.PTransform):
     else:
       raise ValueError('Either a schema or x_paths must be provided.')
 
-  def expand(self,
-             sliced_tables: beam.pvalue.PCollection) -> beam.pvalue.PCollection:
+  def expand(
+      self,
+      sliced_record_batchs: beam.pvalue.PCollection) -> beam.pvalue.PCollection:
     # Compute P(Y=y)
     # _SlicedYKey(slice, y), _YRate(y_count, example_count)
-    y_rates = sliced_tables | 'GetYRates' >> _GetYRates(
+    y_rates = sliced_record_batchs | 'GetYRates' >> _GetYRates(
         self._y_path, self._y_boundaries, self._weight_column_name)
     y_keys = y_rates | 'ExtractYKeys' >> beam.Keys()
 
     # Compute P(Y=y | X=x)
     # _SlicedYKey(slice, y), _ConditionalYRate(x_path, x, xy_count, x_count)
-    conditional_y_rates = ((sliced_tables, y_keys)
+    conditional_y_rates = ((sliced_record_batchs, y_keys)
                            | 'GetConditionalYRates' >> _GetConditionalYRates(
                                self._y_path, self._y_boundaries, self._x_paths,
                                self._min_x_count, self._weight_column_name))
@@ -816,7 +826,7 @@ class _LiftStatsGenerator(beam.PTransform):
                                    self._output_custom_stats))
 
 
-@beam.typehints.with_input_types(types.SlicedTable)
+@beam.typehints.with_input_types(types.SlicedRecordBatch)
 @beam.typehints.with_output_types(Tuple[types.SliceKey,
                                         statistics_pb2.DatasetFeatureStatistics]
                                  )
@@ -845,17 +855,18 @@ class _UnweightedAndWeightedLiftStatsGenerator(beam.PTransform):
       self._weighted_generator = _LiftStatsGenerator(
           weight_column_name=weight_column_name, **kwargs)
 
-  def expand(self,
-             sliced_tables: beam.pvalue.PCollection) -> beam.pvalue.PCollection:
+  def expand(
+      self,
+      sliced_record_batchs: beam.pvalue.PCollection) -> beam.pvalue.PCollection:
     unweighted_protos = (
-        sliced_tables
+        sliced_record_batchs
         | 'ComputeUnweightedLift' >> self._unweighted_generator)
     if not self._weight_column_name:
       # If no weight column name is given, only compute unweighted lift.
       return unweighted_protos
 
     weighted_protos = (
-        sliced_tables
+        sliced_record_batchs
         | 'ComputeWeightedLift' >> self._weighted_generator)
 
     return ((unweighted_protos, weighted_protos)
@@ -869,7 +880,7 @@ class LiftStatsGenerator(stats_generator.TransformStatsGenerator):
                y_path: types.FeaturePath,
                schema: Optional[schema_pb2.Schema] = None,
                x_paths: Optional[Iterable[types.FeaturePath]] = None,
-               y_boundaries: Optional[Iterable[float]] = None,
+               y_boundaries: Optional[Sequence[float]] = None,
                min_x_count: int = 0,
                top_k_per_y: Optional[int] = None,
                bottom_k_per_y: Optional[int] = None,

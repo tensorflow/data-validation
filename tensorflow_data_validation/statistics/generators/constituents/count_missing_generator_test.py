@@ -50,7 +50,7 @@ class CountMissingGeneratorTest(absltest.TestCase):
 
   def test_count_missing_generator_single_batch(self):
     batch = input_batch.InputBatch(
-        pa.Table.from_arrays([pa.array([[1], None, []])], ['feature']))
+        pa.RecordBatch.from_arrays([pa.array([[1], None, []])], ['feature']))
     path = types.FeaturePath(['feature'])
     generator = count_missing_generator.CountMissingGenerator(path)
     accumulator = generator.create_accumulator()
@@ -59,7 +59,7 @@ class CountMissingGeneratorTest(absltest.TestCase):
 
   def test_count_missing_generator_required_path(self):
     batch = input_batch.InputBatch(
-        pa.Table.from_arrays(
+        pa.RecordBatch.from_arrays(
             [pa.array([[1], None, []]),
              pa.array([[1], None, []])], ['index', 'value']))
     path = types.FeaturePath(['index'])

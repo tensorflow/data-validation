@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "tensorflow_data_validation/anomalies/float_domain_util.h"
 
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -108,7 +109,7 @@ void CheckFloatNans(const FeatureStatsView& stats,
   }
   switch (stats.type()) {
     case FeatureNameStatistics::FLOAT:
-      for (auto histogram : stats.num_stats().histograms()) {
+      for (const auto& histogram : stats.num_stats().histograms()) {
         if (histogram.num_nan() > 0) {
           has_nans = true;
           break;
@@ -118,7 +119,7 @@ void CheckFloatNans(const FeatureStatsView& stats,
     case FeatureNameStatistics::STRING:
       for (const string& str : stats.GetStringValues()) {
         float value;
-        if (absl::SimpleAtof(str, &value) && isnan(value)) {
+        if (absl::SimpleAtof(str, &value) && std::isnan(value)) {
           has_nans = true;
           break;
         }

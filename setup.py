@@ -39,6 +39,21 @@ class _BinaryDistribution(Distribution):
     return True
 
 
+def _make_mutual_information_requirements():
+  return ['scikit-learn>=0.18,<0.24']
+
+
+def _make_visualization_requirements():
+  return [
+      'ipython>=7,<8;python_version>="3"',
+  ]
+
+
+def _make_all_extra_requirements():
+  return (_make_mutual_information_requirements() +
+          _make_visualization_requirements())
+
+
 # Get version from version module.
 with open('tensorflow_data_validation/version.py') as fp:
   globals_dict = {}
@@ -65,9 +80,6 @@ setup(
         'Operating System :: POSIX :: Linux',
         'Operating System :: Microsoft :: Windows',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
@@ -86,35 +98,28 @@ setup(
         # TODO(b/149841057): remove once avro has a healthy release.
         'avro-python3>=1.8.1,!=1.9.2.*,<2.0.0; python_version=="3.5" and platform_system=="Darwin"',
         'absl-py>=0.7,<0.9',
-        'apache-beam[gcp]>=2.17,<3',
+        'apache-beam[gcp]>=2.20,<3',
         'numpy>=1.16,<2',
         'protobuf>=3.7,<4',
-        'pyarrow>=0.15',
+        'pyarrow>=0.16,<0.17',
         'six>=1.12,<2',
-        # LINT.IfChange
-        'tensorflow>=1.15,<3',
-        # LINT.ThenChange(//third_party/py/tensorflow_data_validation/opensource_only/WORKSPACE)
-        # LINT.IfChange
-        'tensorflow-metadata>=0.21.1,<0.22',
-        # LINT.ThenChange(//third_party/py/tensorflow_data_validation/opensource_only/workspace.bzl)
-        'tensorflow-transform>=0.21,<0.22',
-        'tfx-bsl>=0.21.3,<0.22',
+        'tensorflow>=1.15,!=2.0.*,<3',
+        'tensorflow-metadata>=0.22,<0.23',
+        'tensorflow-transform>=0.22,<0.23',
+        'tfx-bsl>=0.22,<0.23',
 
-        # Dependencies needed for visualization.
-        # Note that we don't add a max version for IPython as it introduces a
-        # dependency conflict when installed with TFMA (b/124313906).
-        'ipython>=5',
         'pandas>=0.24,<1',
-
-        # Dependency for mutual information computation.
-        'scikit-learn>=0.18,<0.22',
-
-        # TODO(pachristopher): Consider using multi-processing provided by
+        # TODO(b/139941423): Consider using multi-processing provided by
         # Beam's DirectRunner.
         # Dependency for multi-processing.
         'joblib>=0.12,<0.15',
     ],
-    python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,<4',
+    extras_require={
+        'mutual-information': _make_mutual_information_requirements(),
+        'visualization': _make_visualization_requirements(),
+        'all': _make_all_extra_requirements(),
+    },
+    python_requires='>=3.5,<4',
     packages=find_packages(),
     include_package_data=True,
     package_data={'': ['*.lib', '*.pyd', '*.so']},
@@ -128,3 +133,4 @@ setup(
     download_url='https://github.com/tensorflow/data-validation/tags',
     requires=[],
     cmdclass={'install': _InstallPlatlib})
+

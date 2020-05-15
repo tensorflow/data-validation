@@ -18,8 +18,10 @@ from __future__ import division
 
 from __future__ import print_function
 
+import logging
 import numpy as np
 import pyarrow as pa
+import tensorflow as tf
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.utils import io_util
@@ -96,7 +98,7 @@ def get_feature_type_from_arrow_type(
                     '(Large)List<primitive|struct> or null, but feature {} '
                     'was {}.'.format(feature_path, arrow_type))
 
-  value_type = arrow_type.value_type
+  value_type = arrow_util.get_innermost_nested_type(arrow_type)
   if pa.types.is_integer(value_type):
     return statistics_pb2.FeatureNameStatistics.INT
   elif pa.types.is_floating(value_type):
@@ -176,7 +178,7 @@ def _make_feature_stats_proto(
 
 
 def write_stats_text(stats: statistics_pb2.DatasetFeatureStatisticsList,
-                     output_path: bytes) -> None:
+                     output_path: Text) -> None:
   """Writes a DatasetFeatureStatisticsList proto to a file in text format.
 
   Args:
@@ -196,7 +198,7 @@ def write_stats_text(stats: statistics_pb2.DatasetFeatureStatisticsList,
 
 
 def load_stats_text(
-    input_path: bytes) -> statistics_pb2.DatasetFeatureStatisticsList:
+    input_path: Text) -> statistics_pb2.DatasetFeatureStatisticsList:
   """Loads the specified DatasetFeatureStatisticsList proto stored in text format.
 
   Args:
@@ -210,6 +212,22 @@ def load_stats_text(
   stats_text = io_util.read_file_to_string(input_path)
   text_format.Parse(stats_text, stats_proto)
   return stats_proto
+
+
+def load_stats_tfrecord(
+    input_path: Text) -> statistics_pb2.DatasetFeatureStatisticsList:
+  """Loads data statistics proto from TFRecord file.
+
+  Args:
+    input_path: Data statistics file path.
+
+  Returns:
+    A DatasetFeatureStatisticsList proto.
+  """
+  serialized_stats = next(tf.compat.v1.io.tf_record_iterator(input_path))
+  result = statistics_pb2.DatasetFeatureStatisticsList()
+  result.ParseFromString(serialized_stats)
+  return result
 
 
 def get_feature_stats(stats: statistics_pb2.DatasetFeatureStatistics,
@@ -271,3 +289,51 @@ def get_custom_stats(
 
   raise ValueError('Custom statistics %s not found in the feature statistics.' %
                    custom_stats_name)
+
+
+def get_slice_stats(statistics: statistics_pb2.DatasetFeatureStatisticsList,
+                    slice_key: Text
+                   ) -> statistics_pb2.DatasetFeatureStatisticsList:
+  """Get statistics associated with a specific slice.
+
+  Args:
+    statistics: A DatasetFeatureStatisticsList protocol buffer.
+    slice_key: Slice key of the slice.
+
+  Returns:
+    Statistics of the specific slice.
+
+  Raises:
+    ValueError: If the input statistics proto does not have the specified slice
+      statistics.
+  """
+  for slice_stats in statistics.datasets:
+    if slice_stats.name == slice_key:
+      result = statistics_pb2.DatasetFeatureStatisticsList()
+      result.datasets.add().CopyFrom(slice_stats)
+      return result
+  raise ValueError('Invalid slice key.')
+
+
+def load_statistics(
+    input_path: Text) -> statistics_pb2.DatasetFeatureStatisticsList:
+  """Loads data statistics proto from file.
+
+  Args:
+    input_path: Data statistics file path. The file should be a one-record
+      TFRecord file or a plain file containing the serialized statistics proto.
+
+  Returns:
+    A DatasetFeatureStatisticsList proto.
+
+  Raises:
+    IOError: If the input path does not exist.
+  """
+  if not tf.io.gfile.exists(input_path):
+    raise IOError('Invalid input path {}.'.format(input_path))
+  try:
+    return load_stats_tfrecord(input_path)
+  except Exception:  # pylint: disable=broad-except
+    logging.info('File %s did not look like a TFRecord. Try reading as a plain '
+                 'file.', input_path)
+    return load_stats_text(input_path)

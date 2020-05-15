@@ -27,8 +27,8 @@ import pyarrow as pa
 import six
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
+from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.utils import stats_util
-from tfx_bsl.arrow import array_util
 from tfx_bsl.arrow import table_util
 from typing import Any, Dict, Iterable, Optional, Text, Union
 
@@ -38,21 +38,21 @@ _PARENT_INDEX_COLUMN = '__TFDV_INTERNAL_PARENT_INDEX__'
 _SLICE_KEY_COLUMN = '__TFDV_INTERNAL_SLICE_KEY__'
 
 
-def default_slicer(table: pa.Table
-                  ) -> Iterable[types.SlicedTable]:
+def default_slicer(
+    record_batch: pa.RecordBatch) -> Iterable[types.SlicedRecordBatch]:
   """Default slicing function that adds the default slice key to the input."""
-  yield (constants.DEFAULT_SLICE_KEY, table)
+  yield (constants.DEFAULT_SLICE_KEY, record_batch)
 
 
 def get_feature_value_slicer(
     features: Dict[types.FeatureName, Optional[_ValueType]]
 ) -> types.SliceFunction:
-  """Returns a function that generates sliced tables for a given table.
+  """Returns a function that generates sliced record batches for a given one.
 
-  The returned function returns sliced tables based on the combination of all
-  features specified in `features`. To slice on features separately (e.g., slice
-  on age feature and separately slice on interests feature), you must use
-  separate slice functions.
+  The returned function returns sliced record batches based on the combination
+  of all features specified in `features`. To slice on features separately (
+  e.g., slice on age feature and separately slice on interests feature), you
+  must use separate slice functions.
 
   Examples:
   # Slice on each value of the specified features.
@@ -70,13 +70,13 @@ def get_feature_value_slicer(
     features: A mapping of features to an optional iterable of values that the
       returned function will slice on. If values is None for a feature, then the
       slice keys will reflect each distinct value found for that feature in the
-      input table. If values are specified for a feature, then the slice keys
-      will reflect only those values for the feature, if found in the input
-      table. Values must be an iterable of strings or integers.
+      input record batch. If values are specified for a feature, then the slice
+      keys will reflect only those values for the feature, if found in the input
+      record batch. Values must be an iterable of strings or integers.
 
   Returns:
-    A function that takes as input a single Arrow table and returns a list of
-    sliced tables (slice_key, table).
+    A function that takes as input a single record batch and returns a list of
+    sliced record batches (slice_key, record_batch).
 
   Raises:
     TypeError: If feature values are not specified in an iterable.
@@ -97,34 +97,34 @@ def get_feature_value_slicer(
     if features[feature_name] is not None:
       features[feature_name] = set(features[feature_name])
 
-  def feature_value_slicer(table):
-    """A function that generates sliced tables.
+  def feature_value_slicer(record_batch: pa.RecordBatch) -> Iterable[
+      types.SlicedRecordBatch]:
+    """A function that generates sliced record batches.
 
     The naive approach of doing this would be to iterate each row, identify
     slice keys for the row and keep track of index ranges for each slice key.
-    And then generate an arrow table for each slice key based on the index
-    ranges. This would be expensive as we are identifying the slice keys for
-    each row individually and we would have to loop over the feature values
+    And then generate an arrow record batch for each slice key based on the
+    index ranges. This would be expensive as we are identifying the slice keys
+    for each row individually and we would have to loop over the feature values
     including crossing them when we have to slice on multiple features. The
     current approach generates the slice keys for a batch by performing joins
-    over indices of individual features. And then groups the joined table by
-    slice key to get the row indices corresponding to a slice.
+    over indices of individual features. And then groups the joined record batch
+    by slice key to get the row indices corresponding to a slice.
 
     Args:
-      table: Arrow table.
+      record_batch: Arrow RecordBatch.
 
     Yields:
-      Sliced table (slice_key, Arrow table) where the table contains the rows
-      corresponding to a slice.
+      Sliced record batch (slice_key, record_batch) where record_batch contains
+      the rows corresponding to a slice.
     """
     per_feature_parent_indices = []
     for feature_name, values in six.iteritems(features):
-      column = table.column(feature_name)
-      # Assume we have a single chunk.
-      feature_array = column.data.chunk(0)
-      non_missing_values = np.asarray(feature_array.flatten())
-      value_parent_indices = array_util.GetFlattenedArrayParentIndices(
-          feature_array).to_numpy()
+      feature_array = record_batch.column(
+          record_batch.schema.get_field_index(feature_name))
+      flattened, value_parent_indices = arrow_util.flatten_nested(
+          feature_array, True)
+      non_missing_values = np.asarray(flattened)
       # Create dataframe with feature value and parent index.
       df = pd.DataFrame({feature_name: non_missing_values,
                          _PARENT_INDEX_COLUMN: value_parent_indices})
@@ -165,10 +165,9 @@ def get_feature_value_slicer(
     per_slice_parent_indices = merged_df.groupby(
         _SLICE_KEY_COLUMN, sort=False)[_PARENT_INDEX_COLUMN]
     for slice_key, parent_indices in per_slice_parent_indices:
-      yield (
-          slice_key,
-          table_util.SliceTableByRowIndices(
-              table, pa.array(parent_indices.to_numpy())))
+      yield (slice_key,
+             table_util.RecordBatchTake(record_batch,
+                                        pa.array(parent_indices.to_numpy())))
 
   return feature_value_slicer
 
@@ -188,23 +187,24 @@ def _to_slice_key(feature_value: Any):
 
 
 def generate_slices(
-    table: pa.Table, slice_functions: Iterable[types.SliceFunction],
-    **kwargs) -> Iterable[types.SlicedTable]:
-  """Generates sliced tables based on provided slice functions.
+    record_batch: pa.RecordBatch,
+    slice_functions: Iterable[types.SliceFunction], **kwargs
+    ) -> Iterable[types.SlicedRecordBatch]:
+  """Generates sliced record batches based on provided slice functions.
 
   Args:
-    table: Arrow table.
+    record_batch: Arrow RecordBatch.
     slice_functions: An iterable of functions each of which takes as input an
       example (and zero or more kwargs) and returns a list of slice keys.
     **kwargs: Keyword arguments to pass to each of the slice_functions.
 
   Yields:
-    Sliced table (slice_key, table).
+    Sliced record batch (slice_key, record batch).
   """
   for slice_fn in slice_functions:
     try:
-      for sliced_table in slice_fn(table, **kwargs):
-        yield sliced_table
+      for sliced_record_batch in slice_fn(record_batch, **kwargs):
+        yield sliced_record_batch
     except Exception as e:
       raise ValueError('One of the slice_functions %s raised an exception: %s.'
                        % (slice_fn.__name__, repr(e)))

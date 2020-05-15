@@ -50,13 +50,13 @@ import pyarrow as pa
 from tensorflow_data_validation import constants
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options
-from typing import Generator
+from typing import Generator, Text
 
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
 # TODO(b/112146483): Test the Stats API with unicode input.
-@beam.typehints.with_input_types(pa.Table)
+@beam.typehints.with_input_types(pa.RecordBatch)
 @beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatisticsList)
 class GenerateStatistics(beam.PTransform):
   """API for generating data statistics.
@@ -97,11 +97,13 @@ class GenerateStatistics(beam.PTransform):
     # Sample input data if sample_count option is provided.
     # TODO(b/117229955): Consider providing an option to write the sample
     # to a file.
+    # TODO(zhuo): clean this up once public APIs are changed to accept
+    # PCollection[RecordBatch].
     if self._options.sample_count is not None:
       # TODO(pachristopher): Consider moving the sampling logic to decoders.
       # beam.combiners.Sample.FixedSizeGlobally returns a
-      # PCollection[List[pa.Table]], which we then flatten to get a
-      # PCollection[pa.Table].
+      # PCollection[List[pa.RecordBatch]], which we then flatten to get a
+      # PCollection[pa.RecordBatch].
       batch_size = (
           self._options.desired_batch_size if self._options.desired_batch_size
           and self._options.desired_batch_size > 0 else
@@ -121,10 +123,55 @@ class GenerateStatistics(beam.PTransform):
             stats_impl.GenerateStatisticsImpl(self._options))
 
 
-def _sample_at_rate(example: pa.Table, sample_rate: float
-                   ) -> Generator[pa.Table, None, None]:
+def _sample_at_rate(example: pa.RecordBatch, sample_rate: float
+                   ) -> Generator[pa.RecordBatch, None, None]:
   """Sample examples at input sampling rate."""
   # TODO(pachristopher): Revisit this to decide if we need to fix a seed
   # or add an optional seed argument.
   if random.random() <= sample_rate:
     yield example
+
+
+@beam.typehints.with_input_types(statistics_pb2.DatasetFeatureStatisticsList)
+@beam.typehints.with_output_types(beam.pvalue.PDone)
+class WriteStatisticsToText(beam.PTransform):
+  """API for writing serialized data statistics to text file."""
+
+  def __init__(self, output_path: Text) -> None:
+    """Initializes the transform.
+
+    Args:
+      output_path: Output path for writing data statistics.
+    """
+    self._output_path = output_path
+
+  def expand(self, stats: beam.pvalue.PCollection) -> beam.pvalue.PDone:
+    return (stats
+            | 'WriteStats' >> beam.io.WriteToText(
+                self._output_path,
+                shard_name_template='',
+                append_trailing_newlines=False,
+                coder=beam.coders.ProtoCoder(
+                    statistics_pb2.DatasetFeatureStatisticsList)))
+
+
+@beam.typehints.with_input_types(statistics_pb2.DatasetFeatureStatisticsList)
+@beam.typehints.with_output_types(beam.pvalue.PDone)
+class WriteStatisticsToTFRecord(beam.PTransform):
+  """API for writing serialized data statistics to TFRecord file."""
+
+  def __init__(self, output_path: Text) -> None:
+    """Initializes the transform.
+
+    Args:
+      output_path: Output path for writing data statistics.
+    """
+    self._output_path = output_path
+
+  def expand(self, stats: beam.pvalue.PCollection) -> beam.pvalue.PDone:
+    return (stats
+            | 'WriteStats' >> beam.io.WriteToTFRecord(
+                self._output_path,
+                shard_name_template='',
+                coder=beam.coders.ProtoCoder(
+                    statistics_pb2.DatasetFeatureStatisticsList)))
