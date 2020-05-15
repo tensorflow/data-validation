@@ -51,15 +51,6 @@ from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
-# The combiner accumulates record batches from the upstream and merge them when
-# certain conditions are met. A merged record batch would allow better
-# vectorized processing, # but we have to pay for copying and the RAM to contain
-# the merged record batch. If the total byte size of accumulated record batches
-# exceeds this threshold a merge will be forced to avoid consuming too much
-# memory.
-_MERGE_RECORD_BATCH_BYTE_SIZE_THRESHOLD = 20 << 20  # 20MiB
-
-
 @beam.typehints.with_input_types(pa.RecordBatch)
 @beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatisticsList)
 class GenerateStatisticsImpl(beam.PTransform):
@@ -576,7 +567,15 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
   # accumulators in the individual stats generators, but shouldn't be too large
   # as it also acts as cap on the maximum memory usage of the computation.
   # TODO(b/73789023): Ideally we should automatically infer the batch size.
-  _DEFAULT_DESIRED_MERGE_ACCUMULATOR_BATCH_SIZE = 100
+  _DESIRED_MERGE_ACCUMULATOR_BATCH_SIZE = 100
+
+  # The combiner accumulates record batches from the upstream and merges them
+  # when certain conditions are met. A merged record batch would allow better
+  # vectorized processing, but we have to pay for copying and the RAM to
+  # contain the merged record batch. If the total byte size of accumulated
+  # record batches exceeds this threshold a merge will be forced to avoid
+  # consuming too much memory.
+  _MERGE_RECORD_BATCH_BYTE_SIZE_THRESHOLD = 20 << 20  # 20MiB
 
   def __init__(
       self,
@@ -633,7 +632,8 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
     if curr_batch_size >= self._desired_batch_size:
       return True
 
-    if accumulator.curr_byte_size >= _MERGE_RECORD_BATCH_BYTE_SIZE_THRESHOLD:
+    if (accumulator.curr_byte_size >=
+        self._MERGE_RECORD_BATCH_BYTE_SIZE_THRESHOLD):
       return True
 
     return False
@@ -690,7 +690,7 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
       # Repeatedly take the next N from `accumulators` (an iterator).
       # If there are less than N remaining, all is taken.
       batched_accumulators = list(itertools.islice(
-          accumulators, self._DEFAULT_DESIRED_MERGE_ACCUMULATOR_BATCH_SIZE))
+          accumulators, self._DESIRED_MERGE_ACCUMULATOR_BATCH_SIZE))
       if not batched_accumulators:
         break
 
