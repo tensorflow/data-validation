@@ -40,15 +40,11 @@ class _BinaryDistribution(Distribution):
 
 
 def _make_mutual_information_requirements():
-  return ['scikit-learn>=0.18,<0.22']
+  return ['scikit-learn>=0.18,<0.24']
 
 
 def _make_visualization_requirements():
   return [
-      # ipython>=6 is not available for python2.
-      # TODO(b/142656402): clean it up once we don't need to support python2 any
-      # more.
-      'ipython>=5,<6;python_version<"3"',
       'ipython>=7,<8;python_version>="3"',
   ]
 
@@ -84,9 +80,6 @@ setup(
         'Operating System :: POSIX :: Linux',
         'Operating System :: Microsoft :: Windows',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
@@ -105,16 +98,15 @@ setup(
         # TODO(b/149841057): remove once avro has a healthy release.
         'avro-python3>=1.8.1,!=1.9.2.*,<2.0.0; python_version=="3.5" and platform_system=="Darwin"',
         'absl-py>=0.7,<0.9',
-        'apache-beam[gcp]>=2.17,<3',
+        'apache-beam[gcp]>=2.20,<3',
         'numpy>=1.16,<2',
         'protobuf>=3.7,<4',
-        'pyarrow>=0.16,<1',
+        'pyarrow>=0.16,<0.17',
         'six>=1.12,<2',
-        'tensorflow>=1.15,<3',
-        'tensorflow-metadata>=0.21.1,<0.22',
-        'tensorflow-transform>=0.21,<0.22',
-        # TODO(zhuo): Revisit this dependency before releasing.
-        'tfx-bsl>=0.21.3,<0.23',
+        'tensorflow>=1.15,!=2.0.*,<3',
+        'tensorflow-metadata>=0.22,<0.23',
+        'tensorflow-transform>=0.22,<0.23',
+        'tfx-bsl>=0.22,<0.23',
 
         'pandas>=0.24,<1',
         # TODO(b/139941423): Consider using multi-processing provided by
@@ -127,7 +119,7 @@ setup(
         'visualization': _make_visualization_requirements(),
         'all': _make_all_extra_requirements(),
     },
-    python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,<4',
+    python_requires='>=3.5,<4',
     packages=find_packages(),
     include_package_data=True,
     package_data={'': ['*.lib', '*.pyd', '*.so']},

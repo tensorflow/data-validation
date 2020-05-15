@@ -1,6 +1,6 @@
 <!-- mdlint off(HEADERS_TOO_MANY_H1) -->
 
-# Current Version(Still in Development)
+# Version 0.22.0
 
 ## Major Features and Improvements
 
@@ -19,14 +19,21 @@
     tfrecord files respectively.
 *   Modify `tfdv.load_statistics` to handle reading statistics from TFRecord and
     text files.
-*   Requires `pyarrow>=0.16,<1`.
 *   Added an extra requirement group `mutual-information`. As a result, barebone
     TFDV does not require `scikit-learn` any more.
-*   Added an extra requirement group `visualization`. As a result, barebone
-    TFDV does not require `ipython` any more.
+*   Added an extra requirement group `visualization`. As a result, barebone TFDV
+    does not require `ipython` any more.
 *   Added an extra requirement group `all` that specifies all the extra
     dependencies TFDV needs. Use `pip install tensorflow-data-validation[all]`
     to pull in those dependencies.
+*   Depends on `pyarrow>=0.16,<0.17`.
+*   Depends on `apache-beam[gcp]>=2.20,<3`.
+*   Depends on `ipython>=7,<8;python_version>="3"'.
+*   Depends on `scikit-learn>=0.18,<0.24'.
+*   Depends on `tensorflow>=1.15,!=2.0.*,<3`.
+*   Depends on `tensorflow-metadata>=0.22.0,<0.23`.
+*   Depends on `tensorflow-transform>=0.22,<0.23`.
+*   Depends on `tfx-bsl>=0.22,<0.23`.
 
 ## Known Issues
 
@@ -48,6 +55,8 @@
     `pa.Table` as input and should output a tuple `(slice_key, record_batch)`.
 
 ## Deprecations
+
+*   Deprecating Py2 support.
 
 # Release 0.21.5
 
