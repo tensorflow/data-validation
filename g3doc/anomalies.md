@@ -466,7 +466,7 @@ condition(s) under which each anomaly type is detected.
         -   `num_examples` / previous statistics `num_examples` > comparator
             `max_fraction_threshold`
 
--   `DATASET_NUM_EXAMPLES`
+-   `DATASET_LOW_NUM_EXAMPLES`
 
     -   Schema Fields:
         -   `schema.dataset_constraints.min_examples_count`
@@ -474,6 +474,15 @@ condition(s) under which each anomaly type is detected.
         -   `num_examples`*
     -   Detection Condition:
         -   `num_examples` < `dataset_constraints.min_examples_count`
+
+-   `DATASET_HIGH_NUM_EXAMPLES`
+
+    -   Schema Fields:
+        -   `schema.dataset_constraints.max_examples_count`
+    -   Statistics Fields:
+        -   `num_examples`*
+    -   Detection Condition:
+        -   `num_examples` > `dataset_constraints.max_examples_count`
 
 -   `WEIGHTED_FEATURE_MISSING_VALUE`
 

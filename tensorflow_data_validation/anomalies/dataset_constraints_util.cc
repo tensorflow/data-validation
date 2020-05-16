@@ -125,7 +125,7 @@ std::vector<Description> UpdateNumExamplesComparatorDirect(
   return descriptions;
 }
 
-std::vector<Description> UpdateMinExamplesCount(
+std::vector<Description> UpdateExamplesCount(
     const DatasetStatsView& stats,
     tensorflow::metadata::v0::DatasetConstraints* dataset_constraints) {
   std::vector<Description> descriptions;
@@ -138,6 +138,17 @@ std::vector<Description> UpdateMinExamplesCount(
            "Low num examples in dataset.",
            absl::StrCat("The dataset has ", num_present,
                         " examples, which is fewer than expected.")});
+    }
+  }
+  if (dataset_constraints->has_max_examples_count()) {
+    const double num_present = stats.GetNumExamples();
+    if (num_present > dataset_constraints->max_examples_count()) {
+      dataset_constraints->set_max_examples_count(num_present);
+      descriptions.push_back(
+          {tensorflow::metadata::v0::AnomalyInfo::DATASET_HIGH_NUM_EXAMPLES,
+           "High num examples in dataset.",
+           absl::StrCat("The dataset has ", num_present,
+                        " examples, which is more than expected.")});
     }
   }
   return descriptions;

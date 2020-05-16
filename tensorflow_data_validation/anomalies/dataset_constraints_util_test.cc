@@ -271,12 +271,12 @@ TEST(DatasetConstraintsUtilTest,
   DatasetConstraints expected_constraints =
       ParseTextProtoOrDie<DatasetConstraints>(R"(min_examples_count: 2)");
 
-  UpdateMinExamplesCount(statistics_view, &dataset_constraints);
+  UpdateExamplesCount(statistics_view, &dataset_constraints);
   EXPECT_THAT(dataset_constraints, EqualsProto(expected_constraints));
 }
 
 TEST(DatasetConstraintsUtilTest,
-     UpdateMinExamplesCountUsesWeightedNumExamplesIfPresent) {
+     UpdateExamplesCountUsesWeightedNumExamplesIfPresent) {
   DatasetFeatureStatistics statistics =
       ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(num_examples: 2,
                                                        weighted_num_examples:
@@ -291,7 +291,7 @@ TEST(DatasetConstraintsUtilTest,
   DatasetConstraints expected_constraints =
       ParseTextProtoOrDie<DatasetConstraints>(R"(min_examples_count: 4)");
 
-  UpdateMinExamplesCount(statistics_view, &dataset_constraints);
+  UpdateExamplesCount(statistics_view, &dataset_constraints);
   EXPECT_THAT(dataset_constraints, EqualsProto(expected_constraints));
 }
 
@@ -309,7 +309,7 @@ TEST(DatasetConstraintsUtilTest,
   DatasetConstraints dataset_constraints;
   dataset_constraints.CopyFrom(original_dataset_constraints);
 
-  UpdateMinExamplesCount(statistics_view, &dataset_constraints);
+  UpdateExamplesCount(statistics_view, &dataset_constraints);
   EXPECT_THAT(dataset_constraints, EqualsProto(original_dataset_constraints));
 }
 
@@ -327,8 +327,44 @@ TEST(DatasetConstraintsUtilTest,
   DatasetConstraints dataset_constraints;
   dataset_constraints.CopyFrom(original_dataset_constraints);
 
-  UpdateMinExamplesCount(statistics_view, &dataset_constraints);
+  UpdateExamplesCount(statistics_view, &dataset_constraints);
   EXPECT_THAT(dataset_constraints, EqualsProto(original_dataset_constraints));
+}
+
+TEST(DatasetConstraintsUtilTest,
+     UpdateWithNumExamplesBelowMaxDoesNotChangeConstraints) {
+  DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(num_examples: 4)");
+  DatasetStatsView statistics_view = DatasetStatsView(
+      statistics, /*by_weight=*/false, /*environment=*/absl::nullopt,
+      /*previous_span=*/std::shared_ptr<DatasetStatsView>(),
+      /*serving=*/std::shared_ptr<DatasetStatsView>(),
+      /*previous_version=*/std::shared_ptr<DatasetStatsView>());
+  DatasetConstraints original_dataset_constraints =
+      ParseTextProtoOrDie<DatasetConstraints>(R"(max_examples_count: 5)");
+  DatasetConstraints dataset_constraints;
+  dataset_constraints.CopyFrom(original_dataset_constraints);
+
+  UpdateExamplesCount(statistics_view, &dataset_constraints);
+  EXPECT_THAT(dataset_constraints, EqualsProto(original_dataset_constraints));
+}
+
+TEST(DatasetConstraintsUtilTest,
+     UpdateWithNumExamplesAboveMaxUpdatesConstraints) {
+  DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(num_examples: 5)");
+  DatasetStatsView statistics_view = DatasetStatsView(
+      statistics, /*by_weight=*/false, /*environment=*/absl::nullopt,
+      /*previous_span=*/std::shared_ptr<DatasetStatsView>(),
+      /*serving=*/std::shared_ptr<DatasetStatsView>(),
+      /*previous_version=*/std::shared_ptr<DatasetStatsView>());
+  DatasetConstraints dataset_constraints =
+      ParseTextProtoOrDie<DatasetConstraints>(R"(max_examples_count: 3)");
+  DatasetConstraints expected_constraints =
+      ParseTextProtoOrDie<DatasetConstraints>(R"(max_examples_count: 5)");
+
+  UpdateExamplesCount(statistics_view, &dataset_constraints);
+  EXPECT_THAT(dataset_constraints, EqualsProto(expected_constraints));
 }
 
 }  // namespace

@@ -1192,7 +1192,7 @@ std::vector<Description> Schema::UpdateDatasetConstraints(
     }
     if (dataset_constraints->has_min_examples_count()) {
       std::vector<Description> min_examples_description_updates =
-          UpdateMinExamplesCount(dataset_stats_view, dataset_constraints);
+          UpdateExamplesCount(dataset_stats_view, dataset_constraints);
       descriptions.insert(descriptions.end(),
                           min_examples_description_updates.begin(),
                           min_examples_description_updates.end());
