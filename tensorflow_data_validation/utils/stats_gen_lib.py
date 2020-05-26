@@ -20,7 +20,6 @@ from __future__ import print_function
 
 import copy
 import csv
-import logging
 import multiprocessing
 import os
 import tempfile
@@ -32,7 +31,6 @@ from joblib import delayed
 from joblib import Parallel
 import numpy as np
 import pandas as pd
-import pyarrow as pa
 import tensorflow as tf
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
@@ -43,22 +41,11 @@ from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options as options
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import stats_util
-from tfx_bsl.arrow import array_util
+from tfx_bsl.arrow import table_util
 from typing import Any, List, Optional, Text
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
-
-
-_NUMPY_KIND_TO_ARROW_TYPE = {
-    'i': pa.int64(),
-    'u': pa.uint64(),
-    'f': pa.float64(),
-    'b': pa.int8(),
-    'S': pa.binary(),
-    'O': pa.binary(),
-    'U': pa.utf8(),
-}
 
 
 def generate_statistics_from_tfrecord(
@@ -271,31 +258,24 @@ def _generate_partial_statistics_from_df(
   # Remove feature_whitelist option as it is no longer needed.
   stats_options_modified.feature_whitelist = None
   schema = schema_pb2.Schema()
-
-  arrow_fields = []
+  drop_columns = []
   for col_name, col_type in zip(dataframe.columns, dataframe.dtypes):
-    kind = col_type.kind
-    if (kind not in _NUMPY_KIND_TO_ARROW_TYPE or
+    if (not table_util.NumpyKindToArrowType(col_type.kind) or
         (feature_whitelist and col_name not in feature_whitelist)):
-      logging.warning('Ignoring feature %s of type %s', col_name, col_type)
-      continue
-    if kind == 'b':
+      drop_columns.append(col_name)
+    elif col_type.kind == 'b':
       # Track bool type feature as categorical.
       schema.feature.add(
-          name=col_name, type=schema_pb2.INT,
+          name=col_name,
+          type=schema_pb2.INT,
           bool_domain=schema_pb2.BoolDomain())
-    arrow_fields.append(pa.field(col_name, _NUMPY_KIND_TO_ARROW_TYPE[kind]))
+  dataframe = dataframe.drop(columns=drop_columns)
   if schema.feature:
     stats_options_modified.schema = schema
-  record_batch_with_primitive_arrays = pa.RecordBatch.from_pandas(
-      dataframe, schema=pa.schema(arrow_fields))
-  arrays = []
-  for column_array in record_batch_with_primitive_arrays.columns:
-    arrays.append(array_util.ToSingletonListArray(column_array))
-  # TODO(pachristopher): Consider using a list of record batches instead of a
-  # single record batch to avoid having list arrays larger than 2^31 elements.
-  record_batch_with_list_arrays = pa.RecordBatch.from_arrays(
-      arrays, record_batch_with_primitive_arrays.schema.names)
+  record_batch_with_primitive_arrays = table_util.DataFrameToRecordBatch(
+      dataframe)
+  record_batch_with_list_arrays = table_util.CanonicalizeRecordBatch(
+      record_batch_with_primitive_arrays)
   return stats_impl.generate_partial_statistics_in_memory(
       record_batch_with_list_arrays, stats_options_modified, stats_generators)
 
