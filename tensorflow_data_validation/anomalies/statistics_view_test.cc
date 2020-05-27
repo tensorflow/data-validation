@@ -653,7 +653,6 @@ TEST(FeatureStatsView, GetFractionPresent) {
 }
 
 TEST(FeatureStatsView, GetTotalValueCountInExamples) {
-  // double GetNumMissing() const;
   const FeatureNameStatistics input =
       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
         name: 'bar'
@@ -678,7 +677,6 @@ TEST(FeatureStatsView, GetTotalValueCountInExamples) {
 
 // Older protos may not have tot_num_values set.
 TEST(FeatureStatsView, GetTotalValueCountInExamplesOld) {
-  // double GetNumMissing() const;
   const FeatureNameStatistics input =
       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
         name: 'bar'
@@ -701,7 +699,6 @@ TEST(FeatureStatsView, GetTotalValueCountInExamplesOld) {
 }
 
 TEST(DatasetStatsView, Features) {
-  // double GetNumMissing() const;
   const FeatureNameStatistics input =
       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
         name: 'bar'
@@ -742,7 +739,6 @@ TEST(DatasetStatsView, GetNumExamples) {
 }
 
 TEST(DatasetStatsView, GetNumExamplesWeighted) {
-  // double GetNumMissing() const;
   const FeatureNameStatistics input =
       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
         name: 'bar'
