@@ -11,7 +11,7 @@ py_binary(
     srcs_version = "PY2AND3",
     deps = [
         "//third_party/py/absl:app",
-        "//third_party/py/apache_beam:apache_beam_internal_deps",
+        "//third_party/py/apache_beam",
         "//tensorflow_data_validation",
         "//third_party/py/tensorflow_docs/api_generator",
     ],
