@@ -129,11 +129,13 @@ def make_feature_stats_proto_with_topk_stats(
     # Check if we have a valid utf-8 string. If not, assign a default invalid
     # string value.
     if isinstance(value, six.binary_type):
-      value = stats_util.maybe_get_utf8(value)
-      if value is None:
+      decoded_value = stats_util.maybe_get_utf8(value)
+      if decoded_value is None:
         logging.warning('Feature "%s" has bytes value "%s" which cannot be '
                         'decoded as a UTF-8 string.', feature_path, value)
         value = constants.NON_UTF8_PLACEHOLDER
+      else:
+        value = decoded_value
     elif not isinstance(value, six.text_type):
       value = str(value)
 

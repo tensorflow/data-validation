@@ -268,13 +268,13 @@ def _to_partial_x_counts(
 
 
 def _get_unicode_value(value: Union[Text, bytes], path: types.FeaturePath):
-  value = stats_util.maybe_get_utf8(value)
+  decoded_value = stats_util.maybe_get_utf8(value)
   # Check if we have a valid utf-8 string. If not, assign a placeholder.
-  if value is None:
+  if decoded_value is None:
     logging.warning('Feature "%s" has bytes value "%s" which cannot be '
                     'decoded as a UTF-8 string.', path, value)
-    value = constants.NON_UTF8_PLACEHOLDER
-  return value
+    decoded_value = constants.NON_UTF8_PLACEHOLDER
+  return decoded_value
 
 
 def _make_dataset_feature_stats_proto(
