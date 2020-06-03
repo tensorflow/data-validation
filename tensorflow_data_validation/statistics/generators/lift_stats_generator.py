@@ -267,7 +267,8 @@ def _to_partial_x_counts(
       yield _SlicedXKey(slice_key, x_path, x), x_count
 
 
-def _get_unicode_value(value: Union[Text, bytes], path: types.FeaturePath):
+def _get_unicode_value(value: Union[Text, bytes], path: types.FeaturePath
+                       ) -> Text:
   decoded_value = stats_util.maybe_get_utf8(value)
   # Check if we have a valid utf-8 string. If not, assign a placeholder.
   if decoded_value is None:
