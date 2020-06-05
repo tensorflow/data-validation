@@ -8,6 +8,8 @@
 
 *   Trigger DATASET_HIGH_NUM_EXAMPLES when a dataset has more than the specified
     limit on number of examples.
+*   Fix bug in display_anomalies that prevented dataset-level anomalies from
+    being displayed.
 
 ## Known Issues
 

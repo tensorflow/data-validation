@@ -155,6 +155,11 @@ def display_anomalies(anomalies: anomalies_pb2.Anomalies) -> None:
         _add_quotes(feature_name), anomaly_info.short_description,
         anomaly_info.description
     ])
+  if anomalies.HasField('dataset_anomaly_info'):
+    anomaly_rows.append([
+        '[dataset anomaly]', anomalies.dataset_anomaly_info.short_description,
+        anomalies.dataset_anomaly_info.description
+    ])
 
   if not anomaly_rows:
     display(HTML('<h4 style="color:green;">No anomalies found.</h4>'))
