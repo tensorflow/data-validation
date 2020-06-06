@@ -42,20 +42,29 @@ function is_windows() {
 
 set -u -x
 
-cp -f ${BUILD_WORKSPACE_DIRECTORY}/bazel-genfiles/tensorflow_data_validation/anomalies/proto/validation_config_pb2.py \
-  ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/anomalies/proto
-cp -f ${BUILD_WORKSPACE_DIRECTORY}/bazel-genfiles/tensorflow_data_validation/anomalies/proto/validation_metadata_pb2.py \
-  ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/anomalies/proto
 if is_windows; then
   PYWRAP_TFDV="tensorflow_data_validation/pywrap/tensorflow_data_validation_extension.pyd"
   cp -f "${BUILD_WORKSPACE_DIRECTORY}/bazel-out/x64_windows-opt/bin/${PYWRAP_TFDV}" \
     "${BUILD_WORKSPACE_DIRECTORY}/${PYWRAP_TFDV}"
+
+  cp -f ${BUILD_WORKSPACE_DIRECTORY}/bazel-genfiles/tensorflow_data_validation/anomalies/proto/validation_config_pb2.py \
+    ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/anomalies/proto
+  cp -f ${BUILD_WORKSPACE_DIRECTORY}/bazel-genfiles/tensorflow_data_validation/anomalies/proto/validation_metadata_pb2.py \
+    ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/anomalies/proto
 else
   PYWRAP_TFDV="tensorflow_data_validation/pywrap/tensorflow_data_validation_extension.so"
   cp -f "${BUILD_WORKSPACE_DIRECTORY}/bazel-bin/${PYWRAP_TFDV}" \
     "${BUILD_WORKSPACE_DIRECTORY}/${PYWRAP_TFDV}"
-  chmod +w "${BUILD_WORKSPACE_DIRECTORY}/${PYWRAP_TFDV}"
+
+  # If run by "bazel run", $(pwd) is the .runfiles dir that contains all the
+  # data dependencies.
+  RUNFILES_DIR=$(pwd)
+  cp -f ${RUNFILES_DIR}/tensorflow_data_validation/anomalies/proto/validation_config_pb2.py \
+    ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/anomalies/proto
+  cp -f ${RUNFILES_DIR}/tensorflow_data_validation/anomalies/proto/validation_metadata_pb2.py \
+    ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/anomalies/proto
 fi
+chmod +w "${BUILD_WORKSPACE_DIRECTORY}/${PYWRAP_TFDV}"
 
 # Create the wheel
 cd ${BUILD_WORKSPACE_DIRECTORY}
