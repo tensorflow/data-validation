@@ -233,13 +233,8 @@ double GetMaxOffDomain(const tensorflow::metadata::v0::DistributionConstraints&
              : 0.0;
 }
 
-// TODO(b/117184825): Currently the clear_oneof_name() method is private.
-// Clean up the code to use this method if it is made public or if there is a
-// better way to clear oneof fields.
 void ClearDomain(Feature* feature) {
-  feature->mutable_int_domain();
-  // Note that this clears the oneof field domain_info.
-  feature->clear_int_domain();
+  feature->clear_domain_info();
 }
 
 void InitValueCountAndPresence(const FeatureStatsView& feature_stats_view,
