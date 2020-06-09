@@ -11,29 +11,46 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Module that computes the basic statistics for the features.
+"""Module that computes the basic statistics for a collection of RecordBatches.
 
-We compute the following common statistics for each feature:
-  - Number of examples with at least one value for this feature.
-  - Number of examples with no values for this feature.
-  - Minimum number of values in a single example for this feature.
-  - Maximum number of values in a single example for this feature.
-  - Average number of values in a single example for this feature.
-  - Total number of values across all examples for this feature.
-  - Quantiles histogram over the number of values in an example.
+It computes common statistics for each column in the
+RecordBatches. And if a column is of struct type (i.e. it consists of
+child arrays), it recursively computes common statistics for each child array.
+Common statistics are about the presence and valency of the column. The column
+is assumed to be at least 1-nested (i.e. a list<primitive>, which means the
+value of the column at each row of a RecordBatch is a list of primitives) and
+could be more deeply nested (i.e. a of list<list<...>> type). We compute
+presence and valency stats for each nest level, relative to its outer level.
+Note that the presence and valency of the outermost nest level is relative to a
+RecordBatch row. The following presence and valency stats are computed:
+  * Number of missing (value == null) elements.
+    Note:
+      - For the out-most level, this number means number of rows that does not
+        have values at this column. And this number is actually not computed
+        here because we need num_rows (or num_examples) to compute it and that
+        is not tracked here. See stats_impl.py.
+      - An empty list is distinguished from a null and is not counted as
+        missing.
+  * Number of present elements.
+  * Maximum valency of elements.
+  * Minimum valency of elements. Note that the valency of an empty list is 0
+    but a null element has no valency (does not contribute to the result).
+  * Total number of values (sum of valency).
+  * Quantiles histogram over the valency.
 
-We compute the following statistics across all examples
-for each numeric feature:
-  - Mean of the values for this feature.
-  - Standard deviation of the values for this feature.
-  - Median of the values for this feature.
-  - Number of values that equal zero for this feature.
-  - Minimum value for this feature.
-  - Maximum value for this feature.
-  - Standard histogram over the feature values.
-  - Quantiles histogram over the feature values.
+It computes the following statistics for each numeric column (or leaf numeric
+array contained in some struct column):
+  - Mean of the values.
+  - Standard deviation of the values.
+  - Median of the values.
+  - Number of values that equal zero.
+  - Minimum value.
+  - Maximum value.
+  - Standard histogram over the values.
+  - Quantiles histogram over the values.
 
-We compute the following statistics for each string feature:
+We compute the following statistics for each string column (or leaf numeric
+array contained in some struct column):
   - Average length of the values for this feature.
 """
 
@@ -43,8 +60,10 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
+import itertools
 import math
 import sys
+from typing import Any, Dict, Iterable, List, Optional, Text
 
 import apache_beam as beam
 import numpy as np
@@ -58,20 +77,19 @@ from tensorflow_data_validation.utils import quantiles_util
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
 from tfx_bsl.arrow import array_util
-from typing import Any, Dict, Iterable, Optional, Text
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
-class _PartialCommonStats(object):
-  """Holds partial common statistics for a single feature."""
+class _PresenceAndValencyStats(object):
+  """Contains stats on presence and valency of a feature."""
+  __slots__ = [
+      'num_non_missing', 'min_num_values', 'max_num_values', 'total_num_values',
+      'weighted_total_num_values', 'weighted_num_non_missing'
+  ]
 
-  __slots__ = ['num_non_missing', 'min_num_values', 'max_num_values',
-               'total_num_values', 'type', 'num_values_summary', 'has_weights',
-               'weighted_num_non_missing', 'weighted_total_num_values']
-
-  def __init__(self, has_weights: bool):
+  def __init__(self):
     # The number of examples with at least one value for this feature.
     self.num_non_missing = 0
     # The minimum number of values in a single example for this feature.
@@ -80,32 +98,88 @@ class _PartialCommonStats(object):
     self.max_num_values = 0
     # The total number of values for this feature.
     self.total_num_values = 0
-    # Type of the feature.
-    self.type = None
-    # Summary of the quantiles histogram for the number of values in this
+    # The sum of weights of all the values for this feature.
+    self.weighted_total_num_values = 0
+    # The sum of weights of all the examples with at least one value for this
     # feature.
-    self.num_values_summary = None
+    self.weighted_num_non_missing = 0
 
-    self.has_weights = has_weights
-    # Keep track of partial weighted common stats.
-    if has_weights:
-      # The sum of weights of all the examples with at least one value for this
-      # feature.
-      self.weighted_num_non_missing = 0
-      # The sum of weights of all the values for this feature.
-      self.weighted_total_num_values = 0
-
-  def __iadd__(self, other: '_PartialCommonStats') -> '_PartialCommonStats':
-    """Merge two partial common statistics and return the merged statistics."""
+  def merge_with(self, other: '_PresenceAndValencyStats') -> None:
     self.num_non_missing += other.num_non_missing
     self.min_num_values = min(self.min_num_values, other.min_num_values)
     self.max_num_values = max(self.max_num_values, other.max_num_values)
     self.total_num_values += other.total_num_values
+    self.weighted_num_non_missing += other.weighted_num_non_missing
+    self.weighted_total_num_values += other.weighted_total_num_values
+
+  def update(self, feature_array: pa.Array, presence_mask: np.ndarray,
+             num_values: np.ndarray, num_values_not_none: np.ndarray,
+             weights: Optional[np.ndarray]) -> None:
+    """Updates the stats with a feature array."""
+    self.num_non_missing += len(feature_array) - feature_array.null_count
+
+    self.max_num_values = np.maximum.reduce(
+        num_values_not_none, initial=self.max_num_values)
+    self.min_num_values = np.minimum.reduce(num_values_not_none,
+                                            initial=self.min_num_values)
+    self.total_num_values += np.sum(num_values_not_none)
+
+    if weights is not None:
+      if weights.size != num_values.size:
+        raise ValueError('Weight feature must not be missing.')
+      self.weighted_total_num_values += np.sum(num_values * weights)
+      self.weighted_num_non_missing += np.sum(weights[presence_mask])
+
+
+class _PartialCommonStats(object):
+  """Holds partial common statistics for a single feature."""
+
+  __slots__ = [
+      'type', 'has_weights', 'presence_and_valency_stats',
+      'num_values_summaries'
+  ]
+
+  def __init__(self, has_weights: bool):
+    # Type of the feature.
+    self.type = None  # type: Optional[List[_PresenceAndValencyStats]]
+    # This will be a List[_PresenceAndValencyStats] once `update()` is called.
+    # presence_and_valency_stats[i] contains the stats at nest level i.
+    # for example: a feature of type list<list<int>> will have
+    # presence_and_valency_stats of length 2. presence_and_valency_stats[0]
+    # contains the stats about the outer list.
+    self.presence_and_valency_stats = None  # type: Optional[List[Any]]
+    # Similar to num_values_summaries, this will be a List[QuantileSummaryType]
+    # once `update()` is called.
+    self.num_values_summaries = None
+    self.has_weights = has_weights
+
+  def merge_with(
+      self, feature_path: types.FeaturePath, other: '_PartialCommonStats'
+      ) -> None:
+    """Merges two partial common statistics and return the merged statistics.
+
+    Note that this DOES NOT merge self.num_values_summaries. See
+    `merge_num_values_summaries()`.
+
+    Args:
+      feature_path: path of the feature that `self` is associated with.
+      other: a _PartialCommonStats to merge with.
+    """
 
     assert self.has_weights == other.has_weights
-    if self.has_weights:
-      self.weighted_num_non_missing += other.weighted_num_non_missing
-      self.weighted_total_num_values += other.weighted_total_num_values
+    if self.presence_and_valency_stats is None:
+      self.presence_and_valency_stats = other.presence_and_valency_stats
+    elif other.presence_and_valency_stats is not None:
+      this_nest_level = len(self.presence_and_valency_stats)
+      other_nest_level = len(other.presence_and_valency_stats)
+      if this_nest_level != other_nest_level:
+        raise ValueError(
+            'Unable to merge common stats with different nest levels for '
+            'feature {}: {} vs {}'.format(
+                feature_path, this_nest_level, other_nest_level))
+      for self_stats, other_stats in zip(self.presence_and_valency_stats,
+                                         other.presence_and_valency_stats):
+        self_stats.merge_with(other_stats)
 
     # Set the type of the merged common stats.
     # Case 1: Both the types are None. We set the merged type to be None.
@@ -116,57 +190,97 @@ class _PartialCommonStats(object):
     # be the same type.
     if self.type is None:
       self.type = other.type
-    return self
+
+  def merge_num_values_summaries(
+      self, feature_path: types.FeaturePath,
+      num_values_quantiles_combiner: quantiles_util.QuantilesCombiner,
+      all_summaries_lists: List[Optional[List[Any]]]) -> None:
+    """Merges num_values_summaries.
+
+    This function merges the summaries in `all_summaries_list` into
+    one num_values_summaries, and replaces self.num_values_summaries with it.
+
+    Args:
+      feature_path: path of the feature that `self` is associated with.
+      num_values_quantiles_combiner: a QuantilesCombiner to combine the
+        summaries.
+      all_summaries_lists: a list of (list of quantile summaries or None).
+        all elements that are lists must have a length that equals to
+        len(self.num_values_summaries) (i.e. they are num values summaries of
+        the same feature (of the same nest level)).
+    """
+    all_summary_lists = [s for s in all_summaries_lists if s is not None]
+    if not all_summary_lists:
+      self.num_values_summaries = None
+      return
+
+    num_summaries = len(all_summary_lists[0])
+    if not all([len(l) == num_summaries for l in all_summary_lists]):
+      raise ValueError('unable to merge num_values_summaries of incompatible '
+                       'shapes for feature {}'.format(feature_path))
+    assert (self.num_values_summaries is None or
+            len(self.num_values_summaries) == num_summaries)
+
+    merged_summaries = []
+    for i in range(num_summaries):
+      merged_summaries.append(
+          num_values_quantiles_combiner.merge_accumulators(
+              [l[i] for l in all_summary_lists]))
+    self.num_values_summaries = merged_summaries
 
   def update(self,
              feature_path: types.FeaturePath,
              feature_array: pa.Array,
              feature_type: types.FeatureNameStatisticsType,
-             num_values_quantiles_combiner: Any,
+             num_values_quantiles_combiner: quantiles_util.QuantilesCombiner,
              weights: Optional[np.ndarray] = None) -> None:
     """Update the partial common statistics using the input value."""
-    # All the values in this column is null and we cannot deduce the type of
-    # the feature. This is not an error as this feature might have some values
-    # in other batches.
-    if feature_type is None:
-      return
-
     if self.type is None:
       self.type = feature_type
-    elif self.type != feature_type:
+    elif feature_type is not None and self.type != feature_type:
       raise TypeError('Cannot determine the type of feature %s. '
                       'Found values of types %s and %s.' %
                       (feature_path, self.type, feature_type))
 
-    # np.max / np.min below cannot handle empty arrays. And there's nothing
-    # we can collect in this case.
+    nest_level = arrow_util.get_nest_level(feature_array.type)
+    if self.presence_and_valency_stats is None:
+      assert self.num_values_summaries is None
+      self.presence_and_valency_stats = [
+          _PresenceAndValencyStats() for _ in range(nest_level)
+      ]
+      self.num_values_summaries = [
+          num_values_quantiles_combiner.create_accumulator()
+          for _ in range(nest_level)
+      ]
+    elif nest_level != len(self.presence_and_valency_stats):
+      raise ValueError('Inconsistent nestedness in feature {}: {} vs {}'.format(
+          feature_path, nest_level, len(self.presence_and_valency_stats)))
+
+    # And there's nothing we can collect in this case.
     if not feature_array:
       return
 
-    num_values = np.asarray(array_util.ListLengthsFromListArray(feature_array))
-    none_mask = np.asarray(
-        array_util.GetArrayNullBitmapAsByteArray(feature_array)).view(np.bool)
-
-    self.num_non_missing += len(feature_array) - feature_array.null_count
-    num_values_not_none = num_values[~none_mask]
-    # We do this check to avoid failing in np.min/max with empty array.
-    if num_values_not_none.size == 0:
-      return
-    # Use np.maximum.reduce(num_values_not_none, initial=self.max_num_values)
-    # once we upgrade to numpy 1.16
-    self.max_num_values = max(
-        np.max(num_values_not_none), self.max_num_values)
-    self.min_num_values = min(
-        np.min(num_values_not_none), self.min_num_values)
-    self.total_num_values += np.sum(num_values_not_none)
-    self.num_values_summary = num_values_quantiles_combiner.add_input(
-        self.num_values_summary, [num_values_not_none])
-
-    if weights is not None:
-      if weights.size != num_values.size:
-        raise ValueError('Weight feature must not be missing.')
-      self.weighted_total_num_values += np.sum(num_values * weights)
-      self.weighted_num_non_missing += np.sum(weights[~none_mask])
+    level = 0
+    while arrow_util.is_list_like(feature_array.type):
+      presence_mask = ~np.asarray(
+          array_util.GetArrayNullBitmapAsByteArray(feature_array)).view(np.bool)
+      num_values = np.asarray(
+          array_util.ListLengthsFromListArray(feature_array))
+      num_values_not_none = num_values[presence_mask]
+      self.presence_and_valency_stats[level].update(feature_array,
+                                                    presence_mask, num_values,
+                                                    num_values_not_none,
+                                                    weights)
+      self.num_values_summaries[level] = (
+          num_values_quantiles_combiner.add_input(
+              self.num_values_summaries[level], [num_values_not_none]))
+      flattened = feature_array.flatten()
+      if weights is not None:
+        parent_indices = array_util.GetFlattenedArrayParentIndices(
+            feature_array).to_numpy()
+        weights = weights[parent_indices]
+      feature_array = flattened
+      level += 1
 
 
 class _PartialNumericStats(object):
@@ -373,6 +487,59 @@ class _PartialBasicStats(object):
     self.bytes_stats = _PartialBytesStats()
 
 
+def _make_presence_and_valency_stats_protos(
+    parent_presence_and_valency: Optional[_PresenceAndValencyStats],
+    presence_and_valency: List[_PresenceAndValencyStats]
+    ) -> List[statistics_pb2.PresenceAndValencyStatistics]:
+  """Converts presence and valency stats to corresponding protos."""
+  result = []
+  # The top-level non-missing is computed by
+  # num_examples - top_level.num_non_missing (outside BasicStatsGenerator as
+  # num_examples cannot be computed here). For all other levels,
+  # it's previous_level.total_num_values - this_level.num_non_missing.
+  for prev_s, s in zip(
+      itertools.chain([parent_presence_and_valency], presence_and_valency),
+      presence_and_valency):
+    proto = statistics_pb2.PresenceAndValencyStatistics()
+    if prev_s is not None:
+      proto.num_missing = (prev_s.total_num_values - s.num_non_missing)
+    proto.num_non_missing = s.num_non_missing
+    if s.num_non_missing > 0:
+      proto.min_num_values = s.min_num_values
+      proto.max_num_values = s.max_num_values
+      proto.tot_num_values = s.total_num_values
+    result.append(proto)
+  return result
+
+
+def _make_weighted_presence_and_valency_stats_protos(
+    parent_presence_and_valency: Optional[_PresenceAndValencyStats],
+    presence_and_valency: List[_PresenceAndValencyStats]
+    ) -> List[statistics_pb2.WeightedCommonStatistics]:
+  """Converts weighted presence and valency stats to corresponding protos."""
+  result = []
+  # The top-level non-missing is computed by
+  # weighted_num_examples - top_level.weighted_num_non_missing (outside
+  # BasicStatsGenerator as num_examples cannot be computed here).
+  # For all other levels,
+  # it's (previous_level.weighted_total_num_values -
+  # this_level.weighted_num_non_missing).
+  for prev_s, s in zip(
+      itertools.chain([parent_presence_and_valency], presence_and_valency),
+      presence_and_valency):
+    proto = statistics_pb2.WeightedCommonStatistics()
+    if prev_s is not None:
+      proto.num_missing = (
+          prev_s.weighted_total_num_values - s.weighted_num_non_missing)
+    proto.num_non_missing = s.weighted_num_non_missing
+    proto.tot_num_values = s.weighted_total_num_values
+    if s.weighted_num_non_missing > 0:
+      proto.avg_num_values = (
+          s.weighted_total_num_values / s.weighted_num_non_missing)
+    result.append(proto)
+  return result
+
+
 def _make_common_stats_proto(
     common_stats: _PartialCommonStats,
     parent_common_stats: Optional[_PartialCommonStats],
@@ -382,43 +549,73 @@ def _make_common_stats_proto(
 ) -> statistics_pb2.CommonStatistics:
   """Convert the partial common stats into a CommonStatistics proto."""
   result = statistics_pb2.CommonStatistics()
-  result.num_non_missing = common_stats.num_non_missing
+  parent_presence_and_valency = None
   if parent_common_stats is not None:
+    parent_presence_and_valency = (
+        _PresenceAndValencyStats()
+        if parent_common_stats.presence_and_valency_stats is None else
+        parent_common_stats.presence_and_valency_stats[-1])
+
+  presence_and_valency_stats = common_stats.presence_and_valency_stats
+  # the CommonStatistics already contains the presence and valency
+  # for a 1-nested feature.
+  if (presence_and_valency_stats is not None and
+      len(presence_and_valency_stats) > 1):
+    result.presence_and_valency_stats.extend(
+        _make_presence_and_valency_stats_protos(
+            parent_presence_and_valency,
+            common_stats.presence_and_valency_stats))
+    if has_weights:
+      result.weighted_presence_and_valency_stats.extend(
+          _make_weighted_presence_and_valency_stats_protos(
+              parent_presence_and_valency,
+              common_stats.presence_and_valency_stats))
+
+  top_level_presence_and_valency = (
+      _PresenceAndValencyStats()
+      if common_stats.presence_and_valency_stats is None else
+      common_stats.presence_and_valency_stats[0])
+  result.num_non_missing = top_level_presence_and_valency.num_non_missing
+
+  if parent_presence_and_valency is not None:
     result.num_missing = (
-        parent_common_stats.total_num_values - common_stats.num_non_missing)
-  result.tot_num_values = common_stats.total_num_values
+        parent_presence_and_valency.total_num_values -
+        top_level_presence_and_valency.num_non_missing)
+  result.tot_num_values = top_level_presence_and_valency.total_num_values
 
   # TODO(b/79685042): Need to decide on what is the expected values for
   # statistics like min_num_values, max_num_values, avg_num_values, when
   # all the values for the feature are missing.
-  if common_stats.num_non_missing > 0:
-    result.min_num_values = common_stats.min_num_values
-    result.max_num_values = common_stats.max_num_values
+  if top_level_presence_and_valency.num_non_missing > 0:
+    result.min_num_values = top_level_presence_and_valency.min_num_values
+    result.max_num_values = top_level_presence_and_valency.max_num_values
     result.avg_num_values = (
-        common_stats.total_num_values / common_stats.num_non_missing)
+        top_level_presence_and_valency.total_num_values /
+        top_level_presence_and_valency.num_non_missing)
 
-    # Add num_values_histogram to the common stats proto.
-    num_values_quantiles = q_combiner.extract_output(
-        common_stats.num_values_summary)
-    histogram = quantiles_util.generate_quantiles_histogram(
-        num_values_quantiles, common_stats.num_non_missing,
-        num_values_histogram_buckets)
-    result.num_values_histogram.CopyFrom(histogram)
+    if common_stats.num_values_summaries is not None:
+      # Add num_values_histogram to the common stats proto.
+      num_values_quantiles = q_combiner.extract_output(
+          common_stats.num_values_summaries[0])
+      histogram = quantiles_util.generate_quantiles_histogram(
+          num_values_quantiles, top_level_presence_and_valency.num_non_missing,
+          num_values_histogram_buckets)
+      result.num_values_histogram.CopyFrom(histogram)
 
   # Add weighted common stats to the proto.
   if has_weights:
     weighted_common_stats_proto = statistics_pb2.WeightedCommonStatistics(
-        num_non_missing=common_stats.weighted_num_non_missing,
-        tot_num_values=common_stats.weighted_total_num_values)
-    if parent_common_stats is not None:
+        num_non_missing=top_level_presence_and_valency.weighted_num_non_missing,
+        tot_num_values=top_level_presence_and_valency.weighted_total_num_values)
+    if parent_presence_and_valency is not None:
       weighted_common_stats_proto.num_missing = (
-          parent_common_stats.weighted_total_num_values -
-          common_stats.weighted_num_non_missing)
+          parent_presence_and_valency.weighted_total_num_values -
+          top_level_presence_and_valency.weighted_num_non_missing)
 
-    if common_stats.weighted_num_non_missing > 0:
+    if top_level_presence_and_valency.weighted_num_non_missing > 0:
       weighted_common_stats_proto.avg_num_values = (
-          common_stats.weighted_total_num_values /
-          common_stats.weighted_num_non_missing)
+          top_level_presence_and_valency.weighted_total_num_values /
+          top_level_presence_and_valency.weighted_num_non_missing)
 
     result.weighted_common_stats.CopyFrom(
         weighted_common_stats_proto)
@@ -549,6 +746,51 @@ def _make_bytes_stats_proto(bytes_stats: _PartialBytesStats,
   return result
 
 
+def _make_num_values_custom_stats_proto(
+    common_stats: _PartialCommonStats,
+    q_combiner: quantiles_util.QuantilesCombiner,
+    num_histogram_buckets: int,
+    ) -> List[statistics_pb2.CustomStatistic]:
+  """Returns a list of CustomStatistic protos that contains histograms.
+
+  Those histograms captures the distribution of number of values at each
+  nest level.
+
+  It will only create histograms for nest levels greater than 1. Because
+  the histogram of nest level 1 is already in
+  CommonStatistics.num_values_histogram.
+
+  Args:
+    common_stats: a _PartialCommonStats.
+    q_combiner: the QuantilesCombiners to extract the quantiles from summaries.
+    num_histogram_buckets: number of buckets in the histogram.
+  Returns:
+    a (potentially empty) list of statistics_pb2.CustomStatistic.
+  """
+  result = []
+  if common_stats.type is None:
+    return result
+  num_values_summaries = common_stats.num_values_summaries
+  presence_and_valency_stats = common_stats.presence_and_valency_stats
+  if num_values_summaries is None or presence_and_valency_stats is None:
+    return result
+
+  assert presence_and_valency_stats is not None
+  # The top level histogram is included in CommonStats -- skip.
+  for level, summary, parent_presence_and_valency in zip(
+      itertools.count(2), num_values_summaries[1:], presence_and_valency_stats):
+    num_values_quantiles = q_combiner.extract_output(
+        summary)
+    histogram = quantiles_util.generate_quantiles_histogram(
+        num_values_quantiles, parent_presence_and_valency.num_non_missing,
+        num_histogram_buckets)
+    proto = statistics_pb2.CustomStatistic()
+    proto.name = 'level_{}_value_list_length'.format(level)
+    proto.histogram.CopyFrom(histogram)
+    result.append(proto)
+  return result
+
+
 def _make_feature_stats_proto(
     feature_path: types.FeaturePath,
     basic_stats: _PartialBasicStats,
@@ -609,21 +851,26 @@ def _make_feature_stats_proto(
       num_values_q_combiner,
       num_values_histogram_buckets, has_weights)
 
+  # this is the total number of values at the leaf level.
+  total_num_values = (
+      0 if basic_stats.common_stats.presence_and_valency_stats is None else
+      basic_stats.common_stats.presence_and_valency_stats[-1].total_num_values)
+
   # Copy the common stats into appropriate numeric/string stats.
   # If the type is not set, we currently wrap the common stats
   # within numeric stats.
   if is_bytes:
     # Construct bytes statistics proto.
     bytes_stats_proto = _make_bytes_stats_proto(
-        basic_stats.bytes_stats, basic_stats.common_stats.total_num_values)
+        basic_stats.bytes_stats, common_stats_proto.tot_num_values)
     # Add the common stats into bytes stats.
     bytes_stats_proto.common_stats.CopyFrom(common_stats_proto)
     result.bytes_stats.CopyFrom(bytes_stats_proto)
   if (is_categorical or
       result.type == statistics_pb2.FeatureNameStatistics.STRING):
     # Construct string statistics proto.
-    string_stats_proto = _make_string_stats_proto(
-        basic_stats.string_stats, basic_stats.common_stats.total_num_values)
+    string_stats_proto = _make_string_stats_proto(basic_stats.string_stats,
+                                                  total_num_values)
     # Add the common stats into string stats.
     string_stats_proto.common_stats.CopyFrom(common_stats_proto)
     result.string_stats.CopyFrom(string_stats_proto)
@@ -633,13 +880,16 @@ def _make_feature_stats_proto(
                        statistics_pb2.FeatureNameStatistics.FLOAT):
     # Construct numeric statistics proto.
     numeric_stats_proto = _make_numeric_stats_proto(
-        basic_stats.numeric_stats, basic_stats.common_stats.total_num_values,
-        values_q_combiner, num_histogram_buckets,
-        num_quantiles_histogram_buckets, has_weights)
+        basic_stats.numeric_stats, total_num_values, values_q_combiner,
+        num_histogram_buckets, num_quantiles_histogram_buckets, has_weights)
     # Add the common stats into numeric stats.
     numeric_stats_proto.common_stats.CopyFrom(common_stats_proto)
     result.num_stats.CopyFrom(numeric_stats_proto)
 
+  result.custom_stats.extend(_make_num_values_custom_stats_proto(
+      basic_stats.common_stats,
+      num_values_q_combiner,
+      num_values_histogram_buckets))
   return result
 
 
@@ -665,16 +915,21 @@ def _update_tfdv_telemetry(
     common_stats = basic_stats.common_stats
     if common_stats.type is None:
       continue
+    # Take the leaf level stats.
+    presence_and_valency = (
+        _PresenceAndValencyStats()
+        if common_stats.presence_and_valency_stats is None else
+        common_stats.presence_and_valency_stats[-1])
     # Update type specific metrics.
     type_metrics = metrics[common_stats.type]
     num_non_missing = (type_metrics.num_non_missing +
-                       common_stats.num_non_missing)
+                       presence_and_valency.num_non_missing)
     min_value_count = min(type_metrics.min_value_count,
-                          common_stats.min_num_values)
+                          presence_and_valency.min_num_values)
     max_value_count = max(type_metrics.max_value_count,
-                          common_stats.max_num_values)
+                          presence_and_valency.max_num_values)
     total_num_values = (type_metrics.total_num_values +
-                        common_stats.total_num_values)
+                        presence_and_valency.total_num_values)
     metrics[common_stats.type] = _TFDVMetrics(num_non_missing, min_value_count,
                                               max_value_count, total_num_values)
 
@@ -794,8 +1049,6 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
       if stats_for_feature is None:
         stats_for_feature = _PartialBasicStats(self._weight_feature is not None)
         # Store empty summary for each of the quantiles computations.
-        stats_for_feature.common_stats.num_values_summary = (
-            self._num_values_quantiles_combiner.create_accumulator())
         stats_for_feature.numeric_stats.quantiles_summary = (
             self._values_quantiles_combiner.create_accumulator())
         stats_for_feature.numeric_stats.weighted_quantiles_summary = (
@@ -826,7 +1079,7 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
       self, accumulators: Iterable[Dict[types.FeaturePath, _PartialBasicStats]]
   ) -> Dict[types.FeaturePath, _PartialBasicStats]:
     result = {}
-    num_values_summary_per_feature = collections.defaultdict(list)
+    num_values_summaries_per_feature = collections.defaultdict(list)
     values_summary_per_feature = collections.defaultdict(list)
     if self._weight_feature:
       weighted_values_summary_per_feature = collections.defaultdict(list)
@@ -851,7 +1104,8 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
                             'Found values of types %s and %s.' %
                             (feature_path, left_type, right_type))
 
-          existing_stats.common_stats += basic_stats.common_stats
+          existing_stats.common_stats.merge_with(feature_path,
+                                                 basic_stats.common_stats)
 
           if current_type is not None:
             if feature_path in self._bytes_features:
@@ -864,8 +1118,8 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
               existing_stats.numeric_stats += basic_stats.numeric_stats
 
         # Keep track of num values quantiles summaries per feature.
-        num_values_summary_per_feature[feature_path].append(
-            basic_stats.common_stats.num_values_summary)
+        num_values_summaries_per_feature[feature_path].append(
+            basic_stats.common_stats.num_values_summaries)
 
         if (current_type is not None and
             not is_categorical and
@@ -881,10 +1135,10 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
 
     # Merge the summaries per feature.
     for feature_path, num_values_summaries in (
-        six.iteritems(num_values_summary_per_feature)):
-      result[feature_path].common_stats.num_values_summary = (
-          self._num_values_quantiles_combiner.merge_accumulators(
-              num_values_summaries))
+        six.iteritems(num_values_summaries_per_feature)):
+      result[feature_path].common_stats.merge_num_values_summaries(
+          feature_path,
+          self._num_values_quantiles_combiner, num_values_summaries)
 
     # Merge the values quantiles summaries per feature.
     for feature_path, quantiles_summaries in (

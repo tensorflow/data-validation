@@ -107,6 +107,8 @@ def get_feature_type_from_arrow_type(
     return statistics_pb2.FeatureNameStatistics.STRING
   elif pa.types.is_struct(value_type):
     return statistics_pb2.FeatureNameStatistics.STRUCT
+  elif pa.types.is_null(value_type):
+    return None
 
   raise TypeError('Feature {} has unsupported arrow type: {}'.format(
       feature_path, arrow_type))

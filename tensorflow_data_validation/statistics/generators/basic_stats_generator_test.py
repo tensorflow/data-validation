@@ -443,6 +443,40 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         num_quantiles_histogram_buckets=4)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
+  def test_basic_stats_generator_pure_null_column(self):
+    batches = [
+        pa.RecordBatch.from_arrays([
+            pa.array([None, None], type=pa.null()),
+            pa.array([[1.0], [1.0]]),
+        ], ['a', 'w']),
+        pa.RecordBatch.from_arrays([
+            pa.array([None], type=pa.null()),
+            pa.array([[1.0]]),
+        ], ['a', 'w']),
+    ]
+    expected_result = {
+        types.FeaturePath(['a']):
+            text_format.Parse("""
+            type: STRING
+            string_stats {
+              common_stats {
+                weighted_common_stats {
+                }
+              }
+            }
+            path {
+              step: "a"
+            }
+            """, statistics_pb2.FeatureNameStatistics()),
+    }
+    generator = basic_stats_generator.BasicStatsGenerator(
+        weight_feature='w',
+        num_values_histogram_buckets=4, num_histogram_buckets=3,
+        num_quantiles_histogram_buckets=4)
+    self.assertCombinerOutputEqual(
+        batches, generator, expected_result,
+        only_match_expected_feature_stats=True)
+
   def test_basic_stats_generator_with_weight_feature(self):
     # input with two batches: first batch has two examples and second batch
     # has a single example.
@@ -1576,7 +1610,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
   def test_basic_stats_generator_column_not_list(self):
     batches = [pa.RecordBatch.from_arrays([pa.array([1, 2, 3])], ['a'])]
     generator = basic_stats_generator.BasicStatsGenerator()
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(  # pylint: disable=g-error-prone-assert-raises
         TypeError, r'Expected feature column to be a \(Large\)List'):
       self.assertCombinerOutputEqual(batches, generator, None)
 
@@ -1584,7 +1618,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     batches = [pa.RecordBatch.from_arrays(
         [pa.array([[]], type=pa.list_(pa.date32()))], ['a'])]
     generator = basic_stats_generator.BasicStatsGenerator()
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(  # pylint: disable=g-error-prone-assert-raises
         TypeError, 'Feature a has unsupported arrow type'):
       self.assertCombinerOutputEqual(batches, generator, None)
 
@@ -1595,7 +1629,8 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         pa.RecordBatch.from_arrays([pa.array([[1]])], ['a']),
     ]
     generator = basic_stats_generator.BasicStatsGenerator()
-    with self.assertRaisesRegexp(TypeError, 'Cannot determine the type'):
+    with self.assertRaisesRegex(  # pylint: disable=g-error-prone-assert-raises
+        TypeError, 'Cannot determine the type'):
       self.assertCombinerOutputEqual(batches, generator, None)
 
 
@@ -2054,12 +2089,15 @@ _STRUCT_TEST_CASES = [
                       low_value: 2.0
                       high_value: 2.0
                       sample_count: 0.5
-                    }                                                                                                                                           buckets {
+                    }
+                    buckets {
                       low_value: 2.0
                       high_value: 2.0
-                      sample_count: 0.5                                                                                                                         }
+                      sample_count: 0.5
+                    }
                     type: QUANTILES
-                  }                                                                                                                                           tot_num_values: 2
+                  }
+                  tot_num_values: 2
                 }
                 avg_length: 4.0
               }""",
@@ -2077,12 +2115,15 @@ _STRUCT_TEST_CASES = [
                       low_value: 1.0
                       high_value: 1.0
                       sample_count: 0.5
-                    }                                                                                                                                           buckets {
+                    }
+                    buckets {
                       low_value: 1.0
-                      high_value: 1.0                                                                                                                             sample_count: 0.5
+                      high_value: 1.0
+                      sample_count: 0.5
                     }
                     type: QUANTILES
-                  }                                                                                                                                           tot_num_values: 1
+                  }
+                  tot_num_values: 1
                 }
                 avg_length: 3.0
               }""",
@@ -2473,6 +2514,207 @@ class BasicStatsGeneratorStructStatsTest(test_util.CombinerStatsGeneratorTest,
         num_quantiles_histogram_buckets=4)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
+
+_NESTED_TEST_CASES = [
+    dict(
+        testcase_name='nested',
+        batches=[
+            pa.RecordBatch.from_arrays([
+                pa.array([None, None],
+                         type=pa.large_list(
+                             pa.large_list(pa.list_(pa.large_binary())))),
+                pa.array([[1.0], [1.0]]),
+            ], ['a', 'w']),
+            pa.RecordBatch.from_arrays([
+                pa.array([
+                    [[[b'a', b'a'], [b'a'], None], None, []],
+                    [[[b'a', b'a']], [[b'a']]],
+                ]),
+                pa.array([[1.0], [1.0]]),
+            ], ['a', 'w']),
+            # in this batch, 'a' has the same nestedness, but its type is
+            # unknown. Note that here pa.null() means pa.list_(<unknown_type>).
+            pa.RecordBatch.from_arrays([
+                pa.array([
+                    [[None, None], None, []],
+                ], type=pa.list_(
+                    pa.list_(pa.null()))),
+                pa.array([[1.0]])
+            ], ['a', 'w'])
+        ],
+        weight_column='w',
+        expected_result={
+            types.FeaturePath(['a']):
+            """
+            type: STRING
+            string_stats {
+              common_stats {
+                num_non_missing: 3
+                min_num_values: 2
+                max_num_values: 3
+                avg_num_values: 2.666667
+                num_values_histogram {
+                  buckets {
+                    low_value: 2.0
+                    high_value: 3.0
+                    sample_count: 1.5
+                  }
+                  buckets {
+                    low_value: 3.0
+                    high_value: 3.0
+                    sample_count: 1.5
+                  }
+                  type: QUANTILES
+                }
+                weighted_common_stats {
+                  num_non_missing: 3.0
+                  avg_num_values: 2.6666667
+                  tot_num_values: 8.0
+                }
+                tot_num_values: 8
+                presence_and_valency_stats {
+                  num_non_missing: 3
+                  min_num_values: 2
+                  max_num_values: 3
+                  tot_num_values: 8
+                }
+                presence_and_valency_stats {
+                  num_non_missing: 6
+                  num_missing: 2
+                  max_num_values: 3
+                  tot_num_values: 7
+                }
+                presence_and_valency_stats {
+                  num_non_missing: 4
+                  num_missing: 3
+                  min_num_values: 1
+                  max_num_values: 2
+                  tot_num_values: 6
+                }
+                weighted_presence_and_valency_stats {
+                  num_non_missing: 3.0
+                  avg_num_values: 2.6666667
+                  tot_num_values: 8.0
+                }
+                weighted_presence_and_valency_stats {
+                  num_non_missing: 6.0
+                  num_missing: 2.0
+                  avg_num_values: 1.1666667
+                  tot_num_values: 7.0
+                }
+                weighted_presence_and_valency_stats {
+                  num_non_missing: 4.0
+                  num_missing: 3.0
+                  avg_num_values: 1.5
+                  tot_num_values: 6.0
+                }
+              }
+              avg_length: 1.0
+            }
+            custom_stats {
+              name: "level_2_value_list_length"
+              histogram {
+                buckets {
+                  high_value: 1.0
+                  sample_count: 1.5
+                }
+                buckets {
+                  low_value: 1.0
+                  high_value: 3.0
+                  sample_count: 1.5
+                }
+                type: QUANTILES
+              }
+            }
+            custom_stats {
+              name: "level_3_value_list_length"
+              histogram {
+                buckets {
+                  low_value: 1.0
+                  high_value: 2.0
+                  sample_count: 3.0
+                }
+                buckets {
+                  low_value: 2.0
+                  high_value: 2.0
+                  sample_count: 3.0
+                }
+                type: QUANTILES
+              }
+            }
+            path {
+              step: "a"
+            }"""}),
+    dict(
+        testcase_name='nested_null',
+        batches=[
+            pa.RecordBatch.from_arrays([
+                pa.array([[None, None], None, []],
+                         type=pa.large_list(pa.null()))
+            ], ['a']),
+        ],
+        expected_result={types.FeaturePath(['a']): """
+            type: STRING
+            string_stats {
+              common_stats {
+                num_non_missing: 2
+                max_num_values: 2
+                avg_num_values: 1.0
+                num_values_histogram {
+                  buckets {
+                    high_value: 2.0
+                    sample_count: 1.0
+                  }
+                  buckets {
+                    low_value: 2.0
+                    high_value: 2.0
+                    sample_count: 1.0
+                  }
+                  type: QUANTILES
+                }
+                tot_num_values: 2
+                presence_and_valency_stats {
+                  num_non_missing: 2
+                  max_num_values: 2
+                  tot_num_values: 2
+                }
+                presence_and_valency_stats {
+                  num_missing: 2
+                }
+              }
+            }
+            path {
+            step: "a"
+            }"""}),
+
+]
+
+
+class BasicStatsGeneratorNestedListTest(
+    test_util.CombinerStatsGeneratorTest, parameterized.TestCase):
+  # pylint: disable=g-error-prone-assert-raises
+
+  @parameterized.named_parameters(*_NESTED_TEST_CASES)
+  def test_nested_list(self, batches, expected_result, weight_column=None):
+    generator = basic_stats_generator.BasicStatsGenerator(
+        num_values_histogram_buckets=2, num_histogram_buckets=3,
+        num_quantiles_histogram_buckets=4, weight_feature=weight_column)
+    expected_result = {
+        path: text_format.Parse(pbtxt, statistics_pb2.FeatureNameStatistics())
+        for path, pbtxt in expected_result.items()
+    }
+    self.assertCombinerOutputEqual(batches, generator, expected_result,
+                                   only_match_expected_feature_stats=True)
+
+  def test_basic_stats_generator_different_nest_levels(self):
+    batches = [
+        pa.RecordBatch.from_arrays([pa.array([[1]])], ['a']),
+        pa.RecordBatch.from_arrays([pa.array([[[1]]])], ['a']),
+    ]
+    generator = basic_stats_generator.BasicStatsGenerator()
+    with self.assertRaisesRegex(
+        ValueError, 'Unable to merge common stats with different nest levels'):
+      self.assertCombinerOutputEqual(batches, generator, None)
 
 if __name__ == '__main__':
   absltest.main()

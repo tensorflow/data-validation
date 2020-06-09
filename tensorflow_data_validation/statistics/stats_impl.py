@@ -427,12 +427,19 @@ def _update_example_and_missing_count(
         'examples: {} for feature {}.'.format(
             num_examples, common_stats.num_non_missing,
             '.'.join(feature_stats.path.step)))
-    common_stats.num_missing = int(
-        num_examples - common_stats.num_non_missing)
+    num_missing = int(num_examples - common_stats.num_non_missing)
+    common_stats.num_missing = num_missing
+    if common_stats.presence_and_valency_stats:
+      common_stats.presence_and_valency_stats[0].num_missing = num_missing
     if weighted_num_examples != 0:
-      common_stats.weighted_common_stats.num_missing = (
+      weighted_num_missing = (
           weighted_num_examples -
           common_stats.weighted_common_stats.num_non_missing)
+      common_stats.weighted_common_stats.num_missing = weighted_num_missing
+      if common_stats.weighted_presence_and_valency_stats:
+        common_stats.weighted_presence_and_valency_stats[0].num_missing = (
+            weighted_num_missing)
+
   stats.num_examples = int(num_examples)
   stats.weighted_num_examples = weighted_num_examples
 

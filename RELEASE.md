@@ -4,6 +4,11 @@
 
 ## Major Features and Improvements
 
+*   Statistics generation is now able to handle arbitrarily nested arrow
+    List/LargeList types. Stats about the list elements' presence and valency
+    are computed at each nest level, and stored in a newly added field,
+    `valency_and_presence_stats` in `CommonStatistics`.
+
 ## Bug Fixes and Other Changes
 
 *   Trigger DATASET_HIGH_NUM_EXAMPLES when a dataset has more than the specified
