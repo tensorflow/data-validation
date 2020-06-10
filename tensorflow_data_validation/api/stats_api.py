@@ -69,10 +69,7 @@ class GenerateStatistics(beam.PTransform):
            | 'ReadData' >> beam.io.ReadFromTFRecord(data_location)
            | 'DecodeData' >> tfdv.DecodeTFExample()
            | 'GenerateStatistics' >> GenerateStatistics()
-           | 'WriteStatsOutput' >> beam.io.WriteToTFRecord(
-               output_path, shard_name_template='',
-               coder=beam.coders.ProtoCoder(
-                   statistics_pb2.DatasetFeatureStatisticsList)))
+           | 'WriteStatsOutput' >> tfdv.WriteStatisticsToTFRecord(output_path))
   ```
   """
 

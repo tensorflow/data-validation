@@ -435,11 +435,7 @@ with beam.Pipeline() as p:
     # 3. Invoke TFDV `GenerateStatistics` API to compute the data statistics.
     | 'GenerateStatistics' >> tfdv.GenerateStatistics()
     # 4. Materialize the generated data statistics.
-    | 'WriteStatsOutput' >> beam.io.WriteToTFRecord(
-        file_path_prefix = OUTPUT_LOCATION,
-        shard_name_template='',
-        coder=beam.coders.ProtoCoder(
-            statistics_pb2.DatasetFeatureStatisticsList)))
+    | 'WriteStatsOutput' >> WriteStatisticsToTFRecord(OUTPUT_LOCATION))
 ```
 
 ## Computing statistics over slices of data

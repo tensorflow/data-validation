@@ -21,10 +21,12 @@ from __future__ import print_function
 import os
 import tempfile
 
+from typing import List, Optional, Text
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 import tensorflow as tf
 from tensorflow_data_validation import types
+from tensorflow_data_validation.api import stats_api
 from tensorflow_data_validation.api import validation_api
 from tensorflow_data_validation.coders import csv_decoder
 from tensorflow_data_validation.coders import tf_example_decoder
@@ -32,7 +34,6 @@ from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options as options
 from tensorflow_data_validation.utils import stats_gen_lib
 from tensorflow_data_validation.utils import stats_util
-from typing import List, Optional, Text
 
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
@@ -98,12 +99,8 @@ def validate_examples_in_tfrecord(
         |
         'GenerateSummaryStatistics' >> stats_impl.GenerateSlicedStatisticsImpl(
             stats_options, is_slicing_enabled=True)
-        # TODO(b/112014711) Implement a custom sink to write the stats proto.
-        | 'WriteStatsOutput' >> beam.io.WriteToTFRecord(
-            output_path,
-            shard_name_template='',
-            coder=beam.coders.ProtoCoder(
-                statistics_pb2.DatasetFeatureStatisticsList)))
+        | 'WriteStatsOutput' >> stats_api.WriteStatisticsToTFRecord(
+            output_path))
 
   return stats_util.load_statistics(output_path)
 
@@ -187,11 +184,7 @@ def validate_examples_in_csv(
         |
         'GenerateSummaryStatistics' >> stats_impl.GenerateSlicedStatisticsImpl(
             stats_options, is_slicing_enabled=True)
-        # TODO(b/112014711) Implement a custom sink to write the stats proto.
-        | 'WriteStatsOutput' >> beam.io.WriteToTFRecord(
-            output_path,
-            shard_name_template='',
-            coder=beam.coders.ProtoCoder(
-                statistics_pb2.DatasetFeatureStatisticsList)))
+        | 'WriteStatsOutput' >> stats_api.WriteStatisticsToTFRecord(
+            output_path))
 
   return stats_util.load_statistics(output_path)

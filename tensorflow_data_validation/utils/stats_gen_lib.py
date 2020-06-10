@@ -107,7 +107,6 @@ def generate_statistics_from_tfrecord(
         | 'DecodeData' >> tf_example_decoder.DecodeTFExample(
             desired_batch_size=batch_size)
         | 'GenerateStatistics' >> stats_api.GenerateStatistics(stats_options)
-        # TODO(b/112014711) Implement a custom sink to write the stats proto.
         | 'WriteStatsOutput' >> stats_api.WriteStatisticsToTFRecord(
             output_path))
   return stats_util.load_statistics(output_path)
@@ -188,7 +187,6 @@ def generate_statistics_from_csv(
             if stats_options.infer_type_from_schema else None,
             desired_batch_size=batch_size)
         | 'GenerateStatistics' >> stats_api.GenerateStatistics(stats_options)
-        # TODO(b/112014711) Implement a custom sink to write the stats proto.
         | 'WriteStatsOutput' >> stats_api.WriteStatisticsToTFRecord(
             output_path))
   return stats_util.load_statistics(output_path)
