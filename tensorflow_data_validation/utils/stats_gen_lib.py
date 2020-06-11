@@ -23,6 +23,7 @@ import csv
 import multiprocessing
 import os
 import tempfile
+from typing import Any, cast, List, Optional, Text
 
 import apache_beam as beam
 from apache_beam.io.filesystem import CompressionTypes
@@ -42,7 +43,6 @@ from tensorflow_data_validation.statistics import stats_options as options
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import stats_util
 from tfx_bsl.arrow import table_util
-from typing import Any, List, Optional, Text
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -215,7 +215,9 @@ def generate_statistics_from_dataframe(
     raise TypeError('dataframe argument is of type {}. Must be a '
                     'pandas DataFrame.'.format(type(dataframe).__name__))
 
-  stats_generators = stats_impl.get_generators(stats_options, in_memory=True)  # type: List[stats_generator.CombinerStatsGenerator]
+  stats_generators = cast(
+      List[stats_generator.CombinerStatsGenerator],
+      stats_impl.get_generators(stats_options, in_memory=True))
   if n_jobs < -1 or n_jobs == 0:
     raise ValueError('Invalid n_jobs parameter {}. Should be either '
                      ' -1 or >= 1.'.format(n_jobs))
