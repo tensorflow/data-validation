@@ -1059,6 +1059,10 @@ std::vector<Description> Schema::UpdateFeatureInternal(
       DCHECK(false);
   }
 
+  if (feature->has_unique_constraints()) {
+    add_to_descriptions(UpdateUniqueConstraints(view, feature));
+  }
+
   const std::vector<FeatureComparatorType> all_comparator_types = {
       FeatureComparatorType::DRIFT, FeatureComparatorType::SKEW};
   // Handle comparators here.

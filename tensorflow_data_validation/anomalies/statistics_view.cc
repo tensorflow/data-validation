@@ -538,5 +538,12 @@ const Path& FeatureStatsView::GetPath() const {
   return parent_view_.GetPath(*this);
 }
 
+const absl::optional<uint64> FeatureStatsView::GetNumUnique() const {
+  if (data().has_string_stats()) {
+    return data().string_stats().unique();
+  }
+  return absl::nullopt;
+}
+
 }  // namespace data_validation
 }  // namespace tensorflow

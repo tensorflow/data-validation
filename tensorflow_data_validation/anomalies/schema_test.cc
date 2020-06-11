@@ -3260,6 +3260,66 @@ TEST(SchemaTest, ValidTestAnnotatedFieldsMessageBaseline) {
   EXPECT_THAT(original, EqualsProto(schema.GetSchema()));
 }
 
+TEST(SchemaTest, UpdateUniqueConstraints) {
+  Schema schema;
+  TF_ASSERT_OK(
+      schema.Init(ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
+        feature {
+          name: "categorical_feature"
+          type: INT
+          int_domain { is_categorical: true }
+          unique_constraints { min: 2 max: 2 }
+        },
+        feature {
+          name: "string_feature"
+          type: BYTES
+          unique_constraints { min: 2 max: 2 }
+        })")));
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        features: {
+          name: "categorical_feature"
+          type: INT
+          string_stats {
+            common_stats: {
+              num_missing: 0
+              num_non_missing: 2
+              min_num_values: 1
+              max_num_values: 1
+            }
+            unique: 5
+          }
+        },
+        features: {
+          name: "string_feature"
+          type: STRING
+          string_stats {
+            common_stats: {
+              num_missing: 0
+              num_non_missing: 2
+              min_num_values: 1
+              max_num_values: 1
+            }
+            unique: 1
+          }
+        })");
+  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, /*by_weight=*/false),
+                             FeatureStatisticsToProtoConfig()));
+  const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
+  EXPECT_THAT(actual, EqualsProto(R"(
+                feature {
+                  name: "categorical_feature"
+                  type: INT
+                  int_domain { is_categorical: true }
+                  unique_constraints { min: 2 max: 5 }
+                },
+                feature {
+                  name: "string_feature"
+                  type: BYTES
+                  unique_constraints { min: 1 max: 2 }
+                })"));
+}
+
 }  // namespace
 }  // namespace data_validation
 }  // namespace tensorflow

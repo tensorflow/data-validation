@@ -790,6 +790,108 @@ TEST(SchemaAnomalies, FindSkew) {
                 expected_anomalies);
 }
 
+TEST(SchemaAnomalies, UniqueNotInRange) {
+  const Schema initial = ParseTextProtoOrDie<Schema>(R"(
+    feature {
+      name: "categorical_feature"
+      type: INT
+      int_domain { is_categorical: true }
+      unique_constraints { min: 1 max: 1 }
+    }
+    feature {
+      name: "string_feature"
+      type: BYTES
+      unique_constraints { min: 5 max: 5 }
+    }
+    feature {
+      name: "numeric_feature"
+      type: FLOAT
+      unique_constraints { min: 1 max: 1 }
+    })");
+
+  const DatasetFeatureStatistics statistics = ParseTextProtoOrDie<
+      DatasetFeatureStatistics>(R"(
+    features: {
+      name: 'categorical_feature'
+      type: INT
+      string_stats: {
+        common_stats: { min_num_values: 1 max_num_values: 1 num_non_missing: 5 }
+        unique: 5
+      }
+    }
+    features: {
+      name: 'string_feature'
+      type: BYTES
+      string_stats: {
+        common_stats: { min_num_values: 1 max_num_values: 1 num_non_missing: 9 }
+        unique: 1
+      }
+    }
+    features: {
+      name: 'numeric_feature'
+      type: FLOAT
+      num_stats: {
+        common_stats: { min_num_values: 1 max_num_values: 1 num_non_missing: 1 }
+      }
+    })");
+
+  std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
+  expected_anomalies["categorical_feature"].new_schema =
+      ParseTextProtoOrDie<Schema>(R"(
+       feature {
+          name: "categorical_feature"
+          type: INT
+          int_domain { is_categorical: true }
+          unique_constraints { min: 1 max: 5 }
+        })");
+  expected_anomalies["categorical_feature"].expected_info_without_diff =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
+        path { step: "categorical_feature" }
+        description: "Expected no more than 1 unique values but found 5."
+        severity: ERROR
+        short_description: "High number of unique values"
+        reason {
+          type: FEATURE_TYPE_HIGH_UNIQUE
+          short_description: "High number of unique values"
+          description: "Expected no more than 1 unique values but found 5."
+        })");
+  expected_anomalies["string_feature"].new_schema =
+      ParseTextProtoOrDie<Schema>(R"(
+        feature {
+          name: "string_feature"
+          type: BYTES
+          unique_constraints { min: 1 max: 5 }
+        })");
+  expected_anomalies["string_feature"].expected_info_without_diff =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
+        path { step: "string_feature" }
+        description: "Expected at least 5 unique values but found only 1."
+        severity: ERROR
+        short_description: "Low number of unique values"
+        reason {
+          type: FEATURE_TYPE_LOW_UNIQUE
+          short_description: "Low number of unique values"
+          description: "Expected at least 5 unique values but found only 1."
+        })");
+  expected_anomalies["numeric_feature"].new_schema =
+      ParseTextProtoOrDie<Schema>(R"(
+        feature { name: "numeric_feature" type: FLOAT })");
+  expected_anomalies["numeric_feature"]
+      .expected_info_without_diff = ParseTextProtoOrDie<
+      tensorflow::metadata::v0::AnomalyInfo>(R"(
+    path { step: "numeric_feature" }
+    description: "UniqueConstraints specified for the feature, but unique values were not counted (i.e., feature is not string or categorical)."
+    severity: ERROR
+    short_description: "No unique values"
+    reason {
+      type: FEATURE_TYPE_NO_UNIQUE
+      short_description: "No unique values"
+      description: "UniqueConstraints specified for the feature, but unique values were not counted (i.e., feature is not string or categorical)."
+    })");
+  TestFindChanges(initial, DatasetStatsView(statistics, /*by_weight=*/false),
+                  FeatureStatisticsToProtoConfig(), expected_anomalies);
+}
+
 TEST(Schema, FindChangesEmptySchemaProto) {
   const DatasetFeatureStatistics statistics =
       ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(

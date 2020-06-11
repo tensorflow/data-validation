@@ -320,5 +320,42 @@ std::vector<Description> UpdatePresence(
   return descriptions;
 }
 
+std::vector<Description> UpdateUniqueConstraints(
+    const FeatureStatsView& feature_stats_view,
+    tensorflow::metadata::v0::Feature* feature) {
+  std::vector<Description> descriptions;
+  const absl::optional<int> num_unique = feature_stats_view.GetNumUnique();
+  if (num_unique) {
+    if (num_unique < feature->unique_constraints().min()) {
+      descriptions.push_back(
+          {tensorflow::metadata::v0::AnomalyInfo::FEATURE_TYPE_LOW_UNIQUE,
+           "Low number of unique values",
+           absl::StrCat(
+               "Expected at least ", feature->unique_constraints().min(),
+               " unique values but found only ", num_unique.value(), ".")});
+      feature->mutable_unique_constraints()->set_min(num_unique.value());
+    }
+    if (num_unique > feature->unique_constraints().max()) {
+      descriptions.push_back(
+          {tensorflow::metadata::v0::AnomalyInfo::FEATURE_TYPE_HIGH_UNIQUE,
+           "High number of unique values",
+           absl::StrCat("Expected no more than ",
+                        feature->unique_constraints().max(),
+                        " unique values but found ", num_unique.value(), ".")});
+      feature->mutable_unique_constraints()->set_max(num_unique.value());
+    }
+  } else {
+    descriptions.push_back(
+        {tensorflow::metadata::v0::AnomalyInfo::FEATURE_TYPE_NO_UNIQUE,
+         "No unique values",
+         absl::StrCat(
+             "UniqueConstraints specified for the feature, but unique values "
+             "were not counted (i.e., feature is not string or "
+             "categorical).")});
+    feature->clear_unique_constraints();
+  }
+  return descriptions;
+}
+
 }  // namespace data_validation
 }  // namespace tensorflow

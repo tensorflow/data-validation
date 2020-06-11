@@ -28,9 +28,14 @@ limitations under the License.
 namespace tensorflow {
 namespace data_validation {
 
+using ::tensorflow::data_validation::testing::DatasetForTesting;
+using ::tensorflow::data_validation::testing::ParseTextProtoOrDie;
 using ::tensorflow::metadata::v0::DatasetFeatureStatistics;
 using ::tensorflow::metadata::v0::FeatureNameStatistics;
-using testing::ParseTextProtoOrDie;
+using ::testing::ElementsAre;
+using ::testing::IsEmpty;
+using ::testing::Pair;
+using ::testing::UnorderedElementsAre;
 
 TEST(DatasetStatsView, Environment) {
   const DatasetFeatureStatistics current =
@@ -48,7 +53,7 @@ TEST(DatasetStatsView, Environment) {
       std::shared_ptr<DatasetStatsView>(), std::shared_ptr<DatasetStatsView>());
 
   EXPECT_TRUE(view.environment());
-  EXPECT_EQ("environment_name", *view.environment());
+  EXPECT_EQ(*view.environment(), "environment_name");
 
   DatasetStatsView view_no_environment(current, false);
   EXPECT_FALSE(view_no_environment.environment());
@@ -70,7 +75,7 @@ TEST(FeatureStatsView, Environment) {
       std::shared_ptr<DatasetStatsView>(), std::shared_ptr<DatasetStatsView>());
 
   EXPECT_TRUE(view.GetByPath(Path({"bar"}))->environment());
-  EXPECT_EQ("environment_name", *view.GetByPath(Path({"bar"}))->environment());
+  EXPECT_EQ(*view.GetByPath(Path({"bar"}))->environment(), "environment_name");
 }
 
 TEST(FeatureStatsView, Previous) {
@@ -100,10 +105,10 @@ TEST(FeatureStatsView, Previous) {
                         std::shared_ptr<DatasetStatsView>(),
                         std::shared_ptr<DatasetStatsView>());
 
-  EXPECT_EQ(10,
-            view.GetByPath(Path({"bar"}))->GetPreviousSpan()->max_num_values());
-  EXPECT_EQ(10,
-            view.GetPreviousSpan()->GetByPath(Path({"bar"}))->max_num_values());
+  EXPECT_EQ(view.GetByPath(Path({"bar"}))->GetPreviousSpan()->max_num_values(),
+            10);
+  EXPECT_EQ(view.GetPreviousSpan()->GetByPath(Path({"bar"}))->max_num_values(),
+            10);
   DatasetStatsView view_no_previous(current, false);
   EXPECT_FALSE(view_no_previous.GetServing());
   EXPECT_FALSE(view_no_previous.GetByPath(Path({"bar"}))->GetServing());
@@ -136,8 +141,8 @@ TEST(FeatureStatsView, Serving) {
                         std::shared_ptr<DatasetStatsView>(), serving_view,
                         std::shared_ptr<DatasetStatsView>());
 
-  EXPECT_EQ(10, view.GetServing()->GetByPath(Path({"bar"}))->max_num_values());
-  EXPECT_EQ(10, view.GetByPath(Path({"bar"}))->GetServing()->max_num_values());
+  EXPECT_EQ(view.GetServing()->GetByPath(Path({"bar"}))->max_num_values(), 10);
+  EXPECT_EQ(view.GetByPath(Path({"bar"}))->GetServing()->max_num_values(), 10);
   DatasetStatsView view_no_serving(current, false);
   EXPECT_FALSE(view_no_serving.GetServing());
   EXPECT_FALSE(view_no_serving.GetByPath(Path({"bar"}))->GetServing());
@@ -152,57 +157,54 @@ TEST(FeatureStatsView, Name) {
           common_stats: { num_missing: 3 min_num_values: 3 max_num_values: 7 }
         })");
 
-  EXPECT_EQ(Path({"bar"}),
-            testing::DatasetForTesting(input).feature_stats_view().GetPath());
+  EXPECT_EQ(DatasetForTesting(input).feature_stats_view().GetPath(),
+            Path({"bar"}));
 }
 
 TEST(FeatureStatsView, Type) {
-  const testing::DatasetForTesting dataset(
-      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-        name: 'optional_float'
-        type: FLOAT
-        num_stats: {
-          common_stats: {
-            num_missing: 0
-            num_non_missing: 10
-            min_num_values: 1
-            max_num_values: 1
-          }
-        })"));
-  EXPECT_EQ(tensorflow::metadata::v0::FeatureNameStatistics::FLOAT,
-            dataset.feature_stats_view().type());
+  const DatasetForTesting dataset(ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+    name: 'optional_float'
+    type: FLOAT
+    num_stats: {
+      common_stats: {
+        num_missing: 0
+        num_non_missing: 10
+        min_num_values: 1
+        max_num_values: 1
+      }
+    })"));
+  EXPECT_EQ(dataset.feature_stats_view().type(),
+            tensorflow::metadata::v0::FeatureNameStatistics::FLOAT);
 }
 
 TEST(FeatureStatsView, GetNumPresent) {
-  const testing::DatasetForTesting dataset(
-      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-        name: 'optional_float'
-        type: FLOAT
-        num_stats: {
-          common_stats: {
-            num_missing: 0
-            num_non_missing: 10
-            min_num_values: 1
-            max_num_values: 1
-          }
-        })"));
-  EXPECT_EQ(10.0, dataset.feature_stats_view().GetNumPresent());
+  const DatasetForTesting dataset(ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+    name: 'optional_float'
+    type: FLOAT
+    num_stats: {
+      common_stats: {
+        num_missing: 0
+        num_non_missing: 10
+        min_num_values: 1
+        max_num_values: 1
+      }
+    })"));
+  EXPECT_EQ(dataset.feature_stats_view().GetNumPresent(), 10.0);
 }
 
 TEST(FeatureStatsView, GetNumPresentForStruct) {
-  const testing::DatasetForTesting dataset(
-      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-        name: 'the_struct'
-        type: STRUCT
-        struct_stats: {
-          common_stats: {
-            num_missing: 0
-            num_non_missing: 10
-            min_num_values: 1
-            max_num_values: 1
-          }
-        })"));
-  EXPECT_EQ(10.0, dataset.feature_stats_view().GetNumPresent());
+  const DatasetForTesting dataset(ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+    name: 'the_struct'
+    type: STRUCT
+    struct_stats: {
+      common_stats: {
+        num_missing: 0
+        num_non_missing: 10
+        min_num_values: 1
+        max_num_values: 1
+      }
+    })"));
+  EXPECT_EQ(dataset.feature_stats_view().GetNumPresent(), 10.0);
 }
 
 TEST(FeatureStatsView, MinNumValues) {
@@ -214,9 +216,8 @@ TEST(FeatureStatsView, MinNumValues) {
           common_stats: { num_missing: 3 min_num_values: 3 max_num_values: 7 }
         })");
 
-  EXPECT_THAT(
-      3,
-      testing::DatasetForTesting(input).feature_stats_view().min_num_values());
+  EXPECT_THAT(DatasetForTesting(input).feature_stats_view().min_num_values(),
+              3);
 }
 
 TEST(FeatureStatsView, MaxNumValues) {
@@ -228,9 +229,8 @@ TEST(FeatureStatsView, MaxNumValues) {
           common_stats: { num_missing: 3 min_num_values: 3 max_num_values: 7 }
         })");
 
-  EXPECT_THAT(
-      7,
-      testing::DatasetForTesting(input).feature_stats_view().max_num_values());
+  EXPECT_THAT(DatasetForTesting(input).feature_stats_view().max_num_values(),
+              7);
 }
 
 TEST(FeatureStatsView, GetNumExamples) {
@@ -246,9 +246,7 @@ TEST(FeatureStatsView, GetNumExamples) {
             max_num_values: 7
           }
         })");
-  EXPECT_EQ(
-      9,
-      testing::DatasetForTesting(input).feature_stats_view().GetNumExamples());
+  EXPECT_EQ(DatasetForTesting(input).feature_stats_view().GetNumExamples(), 9);
 }
 
 TEST(DatasetStatsView, GetParentGetPath) {
@@ -284,8 +282,8 @@ TEST(DatasetStatsView, GetParentGetPath) {
   ASSERT_TRUE(actual);
   absl::optional<FeatureStatsView> parent = actual->GetParent();
   ASSERT_TRUE(parent);
-  EXPECT_EQ(Path({"foo"}), parent->GetPath());
-  EXPECT_EQ(Path({"foo", "bar"}), actual->GetPath());
+  EXPECT_EQ(parent->GetPath(), Path({"foo"}));
+  EXPECT_EQ(actual->GetPath(), Path({"foo", "bar"}));
 }
 
 // foo is not a parent of foo.bar, as they are both floats.
@@ -321,7 +319,7 @@ TEST(DatasetStatsView, GetParentFalsePositiveGetPath) {
   EXPECT_TRUE(actual);
   absl::optional<FeatureStatsView> parent = actual->GetParent();
   EXPECT_FALSE(parent);
-  EXPECT_EQ(Path({"foo.bar"}), actual->GetPath());
+  EXPECT_EQ(actual->GetPath(), Path({"foo.bar"}));
 }
 
 TEST(DatasetStatsView, GetRootFeatures) {
@@ -354,7 +352,7 @@ TEST(DatasetStatsView, GetRootFeatures) {
   DatasetStatsView stats(input);
   std::vector<FeatureStatsView> roots = stats.GetRootFeatures();
   ASSERT_EQ(roots.size(), 1);
-  EXPECT_EQ(Path({"foo"}), roots[0].GetPath());
+  EXPECT_EQ(roots[0].GetPath(), Path({"foo"}));
 }
 
 TEST(DatasetStatsView, GetRootFeaturesWithSkip) {
@@ -376,7 +374,7 @@ TEST(DatasetStatsView, GetRootFeaturesWithSkip) {
   DatasetStatsView stats(input);
   std::vector<FeatureStatsView> roots = stats.GetRootFeatures();
   ASSERT_EQ(roots.size(), 1);
-  EXPECT_EQ(Path({"foo"}), roots[0].GetPath());
+  EXPECT_EQ(roots[0].GetPath(), Path({"foo"}));
   EXPECT_TRUE(roots[0].GetChildren().empty());
 }
 
@@ -396,12 +394,12 @@ TEST(FeatureStatsView, GetNumExamplesWeighted) {
           }
         })");
 
-  EXPECT_EQ(10.0, testing::DatasetForTesting(input, false)
-                      .feature_stats_view()
-                      .GetNumExamples());
-  EXPECT_EQ(8.5, testing::DatasetForTesting(input, true)
-                     .dataset_stats_view()
-                     .GetNumExamples());
+  EXPECT_EQ(
+      DatasetForTesting(input, false).feature_stats_view().GetNumExamples(),
+      10.0);
+  EXPECT_EQ(
+      DatasetForTesting(input, true).dataset_stats_view().GetNumExamples(),
+      8.5);
 }
 
 TEST(FeatureStatsView, GetStringValuesWithCountsBasicTest) {
@@ -419,13 +417,10 @@ TEST(FeatureStatsView, GetStringValuesWithCountsBasicTest) {
           }
         })");
 
-  const std::map<string, double> actual = testing::DatasetForTesting(input)
-                                              .feature_stats_view()
-                                              .GetStringValuesWithCounts();
-  EXPECT_THAT(actual,
-              ::testing::UnorderedElementsAre(::testing::Pair("foo", 1.5),
-                                              ::testing::Pair("bar", 2),
-                                              ::testing::Pair("baz", 3)));
+  const std::map<string, double> actual =
+      DatasetForTesting(input).feature_stats_view().GetStringValuesWithCounts();
+  EXPECT_THAT(actual, UnorderedElementsAre(Pair("foo", 1.5), Pair("bar", 2),
+                                           Pair("baz", 3)));
 }
 
 TEST(FeatureStatsView, GetStringValuesWithCountsEmptyResult) {
@@ -435,10 +430,9 @@ TEST(FeatureStatsView, GetStringValuesWithCountsEmptyResult) {
         type: STRING
         num_stats: { common_stats: { num_missing: 3 max_num_values: 2 } })");
 
-  const std::map<string, double> actual = testing::DatasetForTesting(input)
-                                              .feature_stats_view()
-                                              .GetStringValuesWithCounts();
-  EXPECT_THAT(actual, ::testing::IsEmpty());
+  const std::map<string, double> actual =
+      DatasetForTesting(input).feature_stats_view().GetStringValuesWithCounts();
+  EXPECT_THAT(actual, IsEmpty());
 }
 
 TEST(FeatureStatsView, GetStringValuesWithCountsNotString) {
@@ -448,10 +442,9 @@ TEST(FeatureStatsView, GetStringValuesWithCountsNotString) {
         num_stats: { common_stats: { num_non_missing: 4 num_missing: 1 } }
         type: STRING)");
 
-  const std::map<string, double> actual = testing::DatasetForTesting(input)
-                                              .feature_stats_view()
-                                              .GetStringValuesWithCounts();
-  EXPECT_THAT(actual, ::testing::IsEmpty());
+  const std::map<string, double> actual =
+      DatasetForTesting(input).feature_stats_view().GetStringValuesWithCounts();
+  EXPECT_THAT(actual, IsEmpty());
 }
 
 TEST(FeatureStatsView, HasInvalidUTF8Strings) {
@@ -469,9 +462,8 @@ TEST(FeatureStatsView, HasInvalidUTF8Strings) {
           }
         })");
 
-  EXPECT_TRUE(testing::DatasetForTesting(input)
-                  .feature_stats_view()
-                  .HasInvalidUTF8Strings());
+  EXPECT_TRUE(
+      DatasetForTesting(input).feature_stats_view().HasInvalidUTF8Strings());
 }
 
 TEST(FeatureStatsView, HasInvalidUTF8StringsFalse) {
@@ -489,9 +481,8 @@ TEST(FeatureStatsView, HasInvalidUTF8StringsFalse) {
           }
         })");
 
-  EXPECT_FALSE(testing::DatasetForTesting(input)
-                   .feature_stats_view()
-                   .HasInvalidUTF8Strings());
+  EXPECT_FALSE(
+      DatasetForTesting(input).feature_stats_view().HasInvalidUTF8Strings());
 }
 
 TEST(FeatureStatsView, GetStringValuesNoStringTest) {
@@ -502,8 +493,8 @@ TEST(FeatureStatsView, GetStringValuesNoStringTest) {
         type: STRING)");
 
   const std::vector<string> actual =
-      testing::DatasetForTesting(input).feature_stats_view().GetStringValues();
-  EXPECT_THAT(actual, ::testing::IsEmpty());
+      DatasetForTesting(input).feature_stats_view().GetStringValues();
+  EXPECT_THAT(actual, IsEmpty());
 }
 
 TEST(FeatureStatsView, GetStringValuesBasic) {
@@ -521,8 +512,8 @@ TEST(FeatureStatsView, GetStringValuesBasic) {
           }
         })");
   const std::vector<string> actual =
-      testing::DatasetForTesting(input).feature_stats_view().GetStringValues();
-  EXPECT_THAT(actual, ::testing::ElementsAre("bar", "baz", "foo"));
+      DatasetForTesting(input).feature_stats_view().GetStringValues();
+  EXPECT_THAT(actual, ElementsAre("bar", "baz", "foo"));
 }
 
 // Try get_missing with the weight_by field.
@@ -541,11 +532,10 @@ TEST(FeatureStatsView, GetStringValuesWithCountsWeighted) {
             }
           }
         })");
-  const testing::DatasetForTesting dataset(stats, true);
+  const DatasetForTesting dataset(stats, true);
   const std::map<string, double> result =
       dataset.feature_stats_view().GetStringValuesWithCounts();
-  EXPECT_THAT(result, ::testing::ElementsAre(::testing::Pair("alpha", 123),
-                                             ::testing::Pair("beta", 234)));
+  EXPECT_THAT(result, ElementsAre(Pair("alpha", 123), Pair("beta", 234)));
 }
 
 // Return the numeric stats, or an empty object if no numeric stats exist.
@@ -559,9 +549,8 @@ TEST(FeatureStatsView, NumStats) {
           common_stats: { num_missing: 3 min_num_values: 3 max_num_values: 7 }
         })");
 
-  EXPECT_EQ(
-      8.0,
-      testing::DatasetForTesting(input).feature_stats_view().num_stats().min());
+  EXPECT_EQ(DatasetForTesting(input).feature_stats_view().num_stats().min(),
+            8.0);
   const FeatureNameStatistics missing =
       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
         type: STRING
@@ -575,10 +564,8 @@ TEST(FeatureStatsView, NumStats) {
             }
           }
         })");
-  EXPECT_EQ(0.0, testing::DatasetForTesting(missing)
-                     .feature_stats_view()
-                     .num_stats()
-                     .min());
+  EXPECT_EQ(DatasetForTesting(missing).feature_stats_view().num_stats().min(),
+            0.0);
 }
 
 TEST(FeatureStatsView, GetNumMissing) {
@@ -601,10 +588,9 @@ TEST(FeatureStatsView, GetNumMissing) {
           }
         })");
 
-  EXPECT_EQ(3.0, DatasetStatsView(input).features()[0].GetNumMissing());
-  EXPECT_EQ(4.25, testing::DatasetForTesting(input, true)
-                      .feature_stats_view()
-                      .GetNumMissing());
+  EXPECT_EQ(DatasetStatsView(input).features()[0].GetNumMissing(), 3.0);
+  EXPECT_EQ(DatasetForTesting(input, true).feature_stats_view().GetNumMissing(),
+            4.25);
 }
 
 TEST(FeatureStatsView, GetFeatureType) {
@@ -621,9 +607,8 @@ TEST(FeatureStatsView, GetFeatureType) {
           }
         })");
 
-  EXPECT_EQ(
-      tensorflow::metadata::v0::STRUCT,
-      testing::DatasetForTesting(input).feature_stats_view().GetFeatureType());
+  EXPECT_EQ(DatasetForTesting(input).feature_stats_view().GetFeatureType(),
+            tensorflow::metadata::v0::STRUCT);
 }
 
 TEST(FeatureStatsView, GetFractionPresent) {
@@ -642,14 +627,12 @@ TEST(FeatureStatsView, GetFractionPresent) {
           }
         })");
 
-  absl::optional<double> result_a = testing::DatasetForTesting(input)
-                                        .feature_stats_view()
-                                        .GetFractionPresent();
-  EXPECT_EQ(0.75, *result_a);
-  absl::optional<double> result_b = testing::DatasetForTesting(input, true)
-                                        .feature_stats_view()
-                                        .GetFractionPresent();
-  EXPECT_EQ(0.25, *result_b);
+  absl::optional<double> result_a =
+      DatasetForTesting(input).feature_stats_view().GetFractionPresent();
+  EXPECT_EQ(*result_a, 0.75);
+  absl::optional<double> result_b =
+      DatasetForTesting(input, true).feature_stats_view().GetFractionPresent();
+  EXPECT_EQ(*result_b, 0.25);
 }
 
 TEST(FeatureStatsView, GetTotalValueCountInExamples) {
@@ -670,9 +653,10 @@ TEST(FeatureStatsView, GetTotalValueCountInExamples) {
           }
         })");
 
-  EXPECT_EQ(4.0, testing::DatasetForTesting(input)
-                     .feature_stats_view()
-                     .GetTotalValueCountInExamples());
+  EXPECT_EQ(DatasetForTesting(input)
+                .feature_stats_view()
+                .GetTotalValueCountInExamples(),
+            4.0);
 }
 
 // Older protos may not have tot_num_values set.
@@ -693,9 +677,59 @@ TEST(FeatureStatsView, GetTotalValueCountInExamplesOld) {
           }
         })");
 
-  EXPECT_EQ(4.0, testing::DatasetForTesting(input)
-                     .feature_stats_view()
-                     .GetTotalValueCountInExamples());
+  EXPECT_EQ(DatasetForTesting(input)
+                .feature_stats_view()
+                .GetTotalValueCountInExamples(),
+            4.0);
+}
+
+TEST(FeatureStatsView, GetNumUnique) {
+  const FeatureNameStatistics categorical_input =
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'bar'
+        type: INT
+        string_stats: {
+          common_stats: {
+            num_missing: 0
+            num_non_missing: 2
+            min_num_values: 1
+            max_num_values: 1
+          }
+          unique: 2
+        })");
+  const FeatureNameStatistics string_input =
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'bar'
+        type: BYTES
+        string_stats: {
+          common_stats: {
+            num_missing: 0
+            num_non_missing: 2
+            min_num_values: 1
+            max_num_values: 2
+          }
+          unique: 3
+        })");
+  const FeatureNameStatistics numeric_input =
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'bar'
+        type: FLOAT
+        num_stats: {
+          common_stats: {
+            num_missing: 0
+            num_non_missing: 2
+            min_num_values: 1
+            max_num_values: 2
+          }
+        })");
+  EXPECT_EQ(
+      DatasetForTesting(categorical_input).feature_stats_view().GetNumUnique(),
+      2);
+  EXPECT_EQ(DatasetForTesting(string_input).feature_stats_view().GetNumUnique(),
+            3);
+  EXPECT_EQ(
+      DatasetForTesting(numeric_input).feature_stats_view().GetNumUnique(),
+      absl::nullopt);
 }
 
 TEST(DatasetStatsView, Features) {
@@ -715,9 +749,7 @@ TEST(DatasetStatsView, Features) {
           }
         })");
 
-  EXPECT_EQ(
-      1,
-      testing::DatasetForTesting(input).dataset_stats_view().features().size());
+  EXPECT_EQ(DatasetForTesting(input).dataset_stats_view().features().size(), 1);
 }
 
 TEST(DatasetStatsView, GetNumExamples) {
@@ -733,9 +765,7 @@ TEST(DatasetStatsView, GetNumExamples) {
             max_num_values: 7
           }
         })");
-  EXPECT_EQ(
-      9,
-      testing::DatasetForTesting(input).dataset_stats_view().GetNumExamples());
+  EXPECT_EQ(9, DatasetForTesting(input).dataset_stats_view().GetNumExamples());
 }
 
 TEST(DatasetStatsView, GetNumExamplesWeighted) {
@@ -754,9 +784,9 @@ TEST(DatasetStatsView, GetNumExamplesWeighted) {
           }
         })");
   //  weighted_num_examples = num_non_missing + num_missing = 5.5 + 3.0 = 8.5
-  EXPECT_EQ(8.5, testing::DatasetForTesting(input, true)
-                     .dataset_stats_view()
-                     .GetNumExamples());
+  EXPECT_EQ(
+      DatasetForTesting(input, true).dataset_stats_view().GetNumExamples(),
+      8.5);
 }
 
 TEST(DatasetStatsView, ByWeight) {
@@ -772,32 +802,32 @@ TEST(DatasetStatsView, ByWeight) {
             max_num_values: 1
           }
         })");
-  const testing::DatasetForTesting dataset_false(feature_stats, false);
+  const DatasetForTesting dataset_false(feature_stats, false);
 
   EXPECT_FALSE(dataset_false.dataset_stats_view().by_weight());
-  const testing::DatasetForTesting dataset_true(feature_stats, true);
+  const DatasetForTesting dataset_true(feature_stats, true);
 
   EXPECT_TRUE(dataset_true.dataset_stats_view().by_weight());
 }
 
 TEST(DatasetStatsView, GetByPathOrNull) {
-  const testing::DatasetForTesting dataset(
-      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-        name: 'optional_float'
-        type: FLOAT
-        num_stats: {
-          common_stats: {
-            num_missing: 0
-            num_non_missing: 10
-            min_num_values: 1
-            max_num_values: 1
-          }
-        })"));
-  EXPECT_EQ(Path({"optional_float"}), dataset.dataset_stats_view()
-                                          .GetByPath(Path({"optional_float"}))
-                                          ->GetPath());
-  EXPECT_EQ(absl::nullopt,
-            dataset.dataset_stats_view().GetByPath(Path({"imaginary_field"})));
+  const DatasetForTesting dataset(ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+    name: 'optional_float'
+    type: FLOAT
+    num_stats: {
+      common_stats: {
+        num_missing: 0
+        num_non_missing: 10
+        min_num_values: 1
+        max_num_values: 1
+      }
+    })"));
+  EXPECT_EQ(dataset.dataset_stats_view()
+                .GetByPath(Path({"optional_float"}))
+                ->GetPath(),
+            Path({"optional_float"}));
+  EXPECT_EQ(dataset.dataset_stats_view().GetByPath(Path({"imaginary_field"})),
+            absl::nullopt);
 }
 
 TEST(DatasetStatsView, WeightedStatisticsExist) {
@@ -894,8 +924,8 @@ TEST(FeatureStatsView, GetParentGetPath_FieldIdIsName) {
   absl::optional<FeatureStatsView> parent_view = view->GetParent();
   ASSERT_TRUE(parent_view);
 
-  EXPECT_EQ(Path({"foo"}), parent_view->GetPath());
-  EXPECT_EQ(Path({"foo", "baz"}), view->GetPath());
+  EXPECT_EQ(parent_view->GetPath(), Path({"foo"}));
+  EXPECT_EQ(view->GetPath(), Path({"foo", "baz"}));
 }
 
 TEST(DatasetStatsView, GetChildren_FieldIdIsName) {
@@ -930,7 +960,7 @@ TEST(DatasetStatsView, GetChildren_FieldIdIsName) {
   ASSERT_TRUE(parent);
   std::vector<FeatureStatsView> children = parent->GetChildren();
   ASSERT_EQ(children.size(), 1);
-  EXPECT_EQ(Path({"foo", "bar"}), children[0].GetPath());
+  EXPECT_EQ(children[0].GetPath(), Path({"foo", "bar"}));
 }
 
 TEST(FeatureStatsView, GetParentGetPath_FieldIdIsPath) {
@@ -972,8 +1002,8 @@ TEST(FeatureStatsView, GetParentGetPath_FieldIdIsPath) {
   absl::optional<FeatureStatsView> parent_view = view->GetParent();
   ASSERT_TRUE(parent_view);
 
-  EXPECT_EQ(Path({"foo"}), parent_view->GetPath());
-  EXPECT_EQ(Path({"foo", "baz"}), view->GetPath());
+  EXPECT_EQ(parent_view->GetPath(), Path({"foo"}));
+  EXPECT_EQ(view->GetPath(), Path({"foo", "baz"}));
 }
 
 TEST(DatasetStatsView, GetChildren_FieldIdIsPath) {
@@ -1013,7 +1043,7 @@ TEST(DatasetStatsView, GetChildren_FieldIdIsPath) {
   ASSERT_TRUE(parent);
   std::vector<FeatureStatsView> children = parent->GetChildren();
   ASSERT_EQ(children.size(), 1);
-  EXPECT_EQ(Path({"foo", "bar"}), children[0].GetPath());
+  EXPECT_EQ(children[0].GetPath(), Path({"foo", "bar"}));
 }
 
 TEST(DatasetStatsViewDeathTest, MixedFieldId) {
@@ -1077,8 +1107,8 @@ TEST(DatasetStatsView, GetPreviousVersion) {
       std::shared_ptr<DatasetStatsView>(), previous_version_view);
 
   EXPECT_EQ(
-      10,
-      view.GetPreviousVersion()->GetByPath(Path({"bar"}))->max_num_values());
+      view.GetPreviousVersion()->GetByPath(Path({"bar"}))->max_num_values(),
+      10);
   DatasetStatsView view_no_previous_version(current, false);
   EXPECT_FALSE(view_no_previous_version.GetPreviousVersion());
 }

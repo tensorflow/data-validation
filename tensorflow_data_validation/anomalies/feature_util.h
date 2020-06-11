@@ -107,6 +107,12 @@ double GetMaxOffDomain(const tensorflow::metadata::v0::DistributionConstraints&
 
 // Clear the domain of the feature.
 void ClearDomain(tensorflow::metadata::v0::Feature* feature);
+
+// Updates the UniqueConstraints specified for the feature.
+std::vector<Description> UpdateUniqueConstraints(
+    const FeatureStatsView& feature_stats_view,
+    tensorflow::metadata::v0::Feature* feature);
+
 }  // namespace data_validation
 }  // namespace tensorflow
 #endif  // TENSORFLOW_DATA_VALIDATION_ANOMALIES_FEATURE_UTIL_H_

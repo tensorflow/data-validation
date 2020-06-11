@@ -15,6 +15,8 @@
     limit on number of examples.
 *   Fix bug in display_anomalies that prevented dataset-level anomalies from
     being displayed.
+*   Trigger anomalies when a feature has a number of unique values that does not
+    conform to the specified minimum/maximum.
 
 ## Known Issues
 

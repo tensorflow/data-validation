@@ -193,6 +193,35 @@ condition(s) under which each anomaly type is detected.
 
     -   Anomaly type not detected in TFDV
 
+-   `FEATURE_TYPE_HIGH_UNIQUE`
+
+    -   Schema Fields:
+        -   `feature.unique_constraints.max`
+    -   Statistics Fields:
+        -   `feature.string_stats.unique`
+    -   Detection Condition:
+        -   `feature.string_stats.unique` > `feature.unique_constraints.max`
+
+-   `FEATURE_TYPE_LOW_UNIQUE`
+
+     -   Schema Fields:
+        -   `feature.unique_constraints.min`
+    -   Statistics Fields:
+        -   `feature.string_stats.unique`
+    -   Detection Condition:
+        -   `feature.string_stats.unique` < `feature.unique_constraints.min`
+
+-   `FEATURE_TYPE_NO_UNIQUE`
+
+    -   Schema Fields:
+        -   `feature.unique_constraints`
+    -   Statistics Fields:
+        -   `feature.string_stats.unique`
+    -   Detection Condition:
+        -   `feature.unique_constraints` specified but no
+            `feature.string_stats.unique` present (as is the case where the
+            feature is not a string or categorical)
+
 -   `FLOAT_TYPE_BIG_FLOAT`
 
     -   Schema Fields:

@@ -198,6 +198,10 @@ class FeatureStatsView {
     return type() == tensorflow::metadata::v0::FeatureNameStatistics::STRUCT;
   }
 
+  // Returns the number of unique values if a string or categorical feature.
+  // Otherwise, returns nullopt.
+  const absl::optional<uint64> GetNumUnique() const;
+
   // Object is assumed to be created from DatasetStatsView::features().
   FeatureStatsView(int index, const DatasetStatsView& parent_view)
       : parent_view_(parent_view), index_(index) {}

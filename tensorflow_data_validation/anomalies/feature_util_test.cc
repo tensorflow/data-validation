@@ -273,6 +273,194 @@ TEST(FeatureUtilTest,
   EXPECT_EQ(actual_descriptions.size(), 0);
 }
 
+TEST(FeatureUtilTest, UpdateUniqueConstraintsNoChange) {
+  DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        features: {
+          name: "categorical_feature"
+          type: INT
+          string_stats {
+            common_stats: {
+              num_missing: 0
+              num_non_missing: 2
+              min_num_values: 1
+              max_num_values: 1
+            }
+            unique: 5
+          }
+        },
+        features: {
+          name: "string_feature"
+          type: STRING
+          string_stats {
+            common_stats: {
+              num_missing: 0
+              num_non_missing: 2
+              min_num_values: 1
+              max_num_values: 1
+            }
+            unique: 1
+          }
+        })");
+
+  DatasetStatsView stats_view(statistics);
+  const FeatureStatsView categorical_feature_stats_view =
+      stats_view.GetByPath(Path({"categorical_feature"})).value();
+  const FeatureStatsView string_feature_stats_view =
+      stats_view.GetByPath(Path({"string_feature"})).value();
+
+  Feature original_categorical_feature =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Feature>(R"(
+        name: "categorical_feature"
+        type: INT
+        int_domain { is_categorical: true }
+        unique_constraints { min: 1 max: 5 })");
+  Feature categorical_feature;
+  categorical_feature.CopyFrom(original_categorical_feature);
+  Feature original_string_feature =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Feature>(
+          R"(name: "string_feature"
+             type: BYTES
+             unique_constraints { min: 1 max: 5 })");
+  Feature string_feature;
+  string_feature.CopyFrom(original_string_feature);
+
+  std::vector<Description> actual_categorical_descriptions =
+      UpdateUniqueConstraints(categorical_feature_stats_view,
+                              &categorical_feature);
+  std::vector<Description> actual_string_descriptions =
+      UpdateUniqueConstraints(string_feature_stats_view, &string_feature);
+
+  // The feature is not changed, and no anomalies are generated.
+  EXPECT_THAT(categorical_feature, EqualsProto(original_categorical_feature));
+  EXPECT_EQ(actual_categorical_descriptions.size(), 0);
+  EXPECT_THAT(string_feature, EqualsProto(original_string_feature));
+  EXPECT_EQ(actual_string_descriptions.size(), 0);
+}
+
+TEST(FeatureUtilTest, UpdateUniqueConstraintsNumUniquesOutsideRange) {
+  DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        features: {
+          name: "categorical_feature"
+          type: INT
+          string_stats {
+            common_stats: {
+              num_missing: 0
+              num_non_missing: 2
+              min_num_values: 1
+              max_num_values: 1
+            }
+            unique: 5
+          }
+        },
+        features: {
+          name: "string_feature"
+          type: STRING
+          string_stats {
+            common_stats: {
+              num_missing: 0
+              num_non_missing: 2
+              min_num_values: 1
+              max_num_values: 1
+            }
+            unique: 1
+          }
+        })");
+
+  DatasetStatsView stats_view(statistics);
+  const FeatureStatsView categorical_feature_stats_view =
+      stats_view.GetByPath(Path({"categorical_feature"})).value();
+  const FeatureStatsView string_feature_stats_view =
+      stats_view.GetByPath(Path({"string_feature"})).value();
+
+  Feature categorical_feature =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Feature>(R"(
+        name: "categorical_feature"
+        type: INT
+        int_domain { is_categorical: true }
+        unique_constraints { min: 2 max: 2 })");
+  Feature string_feature =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Feature>(
+          R"(name: "string_feature"
+             type: BYTES
+             unique_constraints { min: 2 max: 2 })");
+
+  // The number of unique values for the categorical feature is higher than the
+  // original unique_constraints.max for that feature, so expect that the max
+  // will be updated.
+  Feature expected_categorical_feature =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Feature>(R"(
+        name: "categorical_feature"
+        type: INT
+        int_domain { is_categorical: true }
+        unique_constraints { min: 2 max: 5 })");
+  // The number of unique values for the string feature is lower than the
+  // original unique_constraints.min for that feature, so expect that the
+  // min will be updated.
+  Feature expected_string_feature =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Feature>(
+          R"(name: "string_feature"
+             type: BYTES
+             unique_constraints { min: 1 max: 2 })");
+
+  std::vector<Description> actual_categorical_descriptions =
+      UpdateUniqueConstraints(categorical_feature_stats_view,
+                              &categorical_feature);
+  std::vector<Description> actual_string_descriptions =
+      UpdateUniqueConstraints(string_feature_stats_view, &string_feature);
+
+  EXPECT_THAT(categorical_feature, EqualsProto(expected_categorical_feature));
+  EXPECT_EQ(actual_categorical_descriptions.size(), 1);
+  EXPECT_EQ(actual_categorical_descriptions.at(0).long_description,
+            "Expected no more than 2 unique values but found 5.");
+  EXPECT_THAT(string_feature, EqualsProto(expected_string_feature));
+  EXPECT_EQ(actual_string_descriptions.size(), 1);
+  EXPECT_EQ(actual_string_descriptions.at(0).long_description,
+            "Expected at least 2 unique values but found only 1.");
+}
+
+TEST(FeatureUtilTest, UpdateUniqueConstraintsNotStringOrCategorical) {
+  DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        features: {
+          name: "numeric_feature"
+          type: INT
+          num_stats {
+            common_stats: {
+              num_missing: 0
+              num_non_missing: 6
+              min_num_values: 1
+              max_num_values: 1
+            }
+          }
+        })");
+
+  DatasetStatsView stats_view(statistics);
+  const FeatureStatsView numeric_feature_stats_view =
+      stats_view.GetByPath(Path({"numeric_feature"})).value();
+
+  Feature numeric_feature =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Feature>(R"(
+        name: "numeric_feature"
+        type: INT
+        unique_constraints { min: 5 max: 5 })");
+  Feature expected_numeric_feature =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Feature>(R"(
+        name: "numeric_feature"
+        type: INT)");
+
+  std::vector<Description> actual_numeric_descriptions =
+      UpdateUniqueConstraints(numeric_feature_stats_view, &numeric_feature);
+
+  // The unique_constraints are cleared, and an anomaly is generated.
+  EXPECT_THAT(numeric_feature, EqualsProto(expected_numeric_feature));
+  EXPECT_EQ(actual_numeric_descriptions.size(), 1);
+  EXPECT_EQ(actual_numeric_descriptions.at(0).long_description,
+            "UniqueConstraints specified for the feature, but unique values "
+            "were not counted (i.e., feature is not string or categorical).");
+}
+
 // Confirm that the result of calling DeprecateFeature on a feature is
 // recognized as by FeatureIsDeprecated.
 TEST(FeatureTypeTest, DeprecateConsistency) {
