@@ -96,12 +96,17 @@ setup(
     # Make sure to sync the versions of common dependencies (absl-py, numpy,
     # six, and protobuf) with TF.
     install_requires=[
+        'absl-py>=0.7,<0.9',
+        'apache-beam[gcp]>=2.20,<3',
         # avro-python3 1.9.2.1 still does not work for MacOS + Py3.5.
         # TODO(b/149841057): remove once avro has a healthy release.
         'avro-python3>=1.8.1,!=1.9.2.*,<2.0.0; python_version=="3.5" and platform_system=="Darwin"',
-        'absl-py>=0.7,<0.9',
-        'apache-beam[gcp]>=2.20,<3',
+        # TODO(b/139941423): Consider using multi-processing provided by
+        # Beam's DirectRunner.
+        # Dependency for multi-processing.
+        'joblib>=0.12,<0.15',
         'numpy>=1.16,<2',
+        'pandas>=0.24,<2',
         'protobuf>=3.7,<4',
         'pyarrow>=0.16,<0.17',
         'six>=1.12,<2',
@@ -109,12 +114,6 @@ setup(
         'tensorflow-metadata>=0.22,<0.23',
         'tensorflow-transform>=0.22,<0.23',
         'tfx-bsl>=0.22,<0.23',
-
-        'pandas>=0.24,<1',
-        # TODO(b/139941423): Consider using multi-processing provided by
-        # Beam's DirectRunner.
-        # Dependency for multi-processing.
-        'joblib>=0.12,<0.15',
     ],
     extras_require={
         'mutual-information': _make_mutual_information_requirements(),

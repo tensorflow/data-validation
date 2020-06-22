@@ -17,6 +17,7 @@
     being displayed.
 *   Trigger anomalies when a feature has a number of unique values that does not
     conform to the specified minimum/maximum.
+*   Depends on `pandas>=0.24,<2`.
 
 ## Known Issues
 
