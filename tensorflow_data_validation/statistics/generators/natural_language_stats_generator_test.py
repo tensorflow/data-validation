@@ -18,12 +18,12 @@ from __future__ import division
 
 from __future__ import print_function
 
+from absl.testing import absltest
 import pyarrow as pa
 from tensorflow_data_validation.statistics.generators import natural_language_stats_generator as nlsg
 from tensorflow_data_validation.utils import test_util
 from typing import Text
 
-import unittest
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
@@ -203,4 +203,4 @@ class NaturalLanguageStatsGeneratorTest(
 
 
 if __name__ == '__main__':
-  unittest.main()
+  absltest.main()
