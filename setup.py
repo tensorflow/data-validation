@@ -111,9 +111,9 @@ setup(
         'pyarrow>=0.16,<0.17',
         'six>=1.12,<2',
         'tensorflow>=1.15,!=2.0.*,<3',
-        'tensorflow-metadata>=0.22,<0.23',
+        'tensorflow-metadata>=0.22.2,<0.23',
         'tensorflow-transform>=0.22,<0.23',
-        'tfx-bsl>=0.22,<0.23',
+        'tfx-bsl>=0.22.1,<0.23',
     ],
     extras_require={
         'mutual-information': _make_mutual_information_requirements(),

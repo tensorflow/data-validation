@@ -1,6 +1,6 @@
 <!-- mdlint off(HEADERS_TOO_MANY_H1) -->
 
-# Current Version(Still in Development)
+# Version 0.22.1
 
 ## Major Features and Improvements
 
@@ -18,6 +18,8 @@
 *   Trigger anomalies when a feature has a number of unique values that does not
     conform to the specified minimum/maximum.
 *   Depends on `pandas>=0.24,<2`.
+*   Depends on `tensorflow-metadata>=0.22.2,<0.23.0`.
+*   Depends on `tfx-bsl>=0.22.1,<0.23.0`.
 
 ## Known Issues
 
