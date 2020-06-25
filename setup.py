@@ -97,14 +97,13 @@ setup(
     # six, and protobuf) with TF.
     install_requires=[
         'absl-py>=0.7,<0.9',
-        'apache-beam[gcp]>=2.20,<3',
+        'apache-beam[gcp]>=2.22,<3',
         # avro-python3 1.9.2.1 still does not work for MacOS + Py3.5.
         # TODO(b/149841057): remove once avro has a healthy release.
         'avro-python3>=1.8.1,!=1.9.2.*,<2.0.0; python_version=="3.5" and platform_system=="Darwin"',
         # TODO(b/139941423): Consider using multi-processing provided by
         # Beam's DirectRunner.
-        # Dependency for multi-processing.
-        'joblib>=0.12,<0.15',
+        'joblib>=0.12,<0.15',  # Dependency for multi-processing.
         'numpy>=1.16,<2',
         'pandas>=0.24,<2',
         'protobuf>=3.7,<4',

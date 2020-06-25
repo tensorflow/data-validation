@@ -21,11 +21,11 @@ from __future__ import print_function
 
 import bisect
 import collections
+from typing import Iterable, List, Optional, Union
 
 import numpy as np
 import six
 import tensorflow_transform as tft
-from typing import Iterable, List, Optional, Union
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
@@ -44,6 +44,10 @@ class QuantilesCombiner(object):
         num_quantiles=num_quantiles, epsilon=epsilon,
         bucket_numpy_dtype=np.float32, always_return_num_quantiles=True,
         has_weights=has_weights, include_max_and_min=True)
+
+    # TODO(b/135541366): Move this to CombineFn.setup once it exists.
+    # That should help simplify several aspects of Quantiles state management.
+    #
     # TODO(pachristopher): Consider passing an appropriate (runner-dependent)
     # tf_config, similar to TFT.
     self._quantiles_spec.initialize_local_state(tf_config=None)
