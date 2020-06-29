@@ -5,6 +5,7 @@
 ## Major Features and Improvements
 
 ## Bug Fixes and Other Changes
+*   Fixed a bug that affected tfx 0.22.0 to work with TFDV 0.22.1.
 
 ## Known Issues
 

@@ -84,3 +84,9 @@ from tensorflow_data_validation.utils.validation_lib import validate_examples_in
 
 # Import version string.
 from tensorflow_data_validation.version import __version__
+
+# If tfdv module has this flag, tfdv.GenerateStatistics accepts
+# PCollection[pa.RecordBatch] as the input; otherwise it accepts
+# PCollection[pa.Table]
+# TODO(b/153368237): clean this up once tfx>0.22.0 is released.
+TFDV_ACCEPT_RECORD_BATCH = True
