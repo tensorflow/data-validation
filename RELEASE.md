@@ -6,6 +6,7 @@
 
 ## Bug Fixes and Other Changes
 *   Fixed a bug that affected tfx 0.22.0 to work with TFDV 0.22.1.
+*   Depends on 'avro-python3>=1.8.1,<1.9.2' on Python 3.5 + MacOS
 
 ## Known Issues
 
