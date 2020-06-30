@@ -24,6 +24,7 @@ from __future__ import print_function
 
 import collections
 import logging
+from typing import Any, FrozenSet, Iterable, Iterator, List, Optional, Text, Tuple, Union
 import apache_beam as beam
 import numpy as np
 import pandas as pd
@@ -36,7 +37,6 @@ from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
 from tfx_bsl.arrow import array_util
-from typing import Any, Iterable, Iterator, FrozenSet, List, Optional, Set, Text, Tuple, Union
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -67,7 +67,7 @@ def _make_feature_stats_proto_with_uniques_stats(
 def _make_dataset_feature_stats_proto_with_uniques_for_single_feature(
     feature_path_to_value_count: Tuple[Tuple[types.SliceKey,
                                              FeaturePathTuple], int],
-    categorical_features: Set[types.FeaturePath]
+    categorical_features: FrozenSet[types.FeaturePath]
 ) -> Tuple[types.SliceKey, statistics_pb2.DatasetFeatureStatistics]:
   """Makes a DatasetFeatureStatistics proto with uniques stats for a feature."""
   (slice_key, feature_path_tuple), count = feature_path_to_value_count
@@ -156,7 +156,7 @@ def _make_dataset_feature_stats_proto_with_topk_for_single_feature(
     feature_path_to_value_count_list: Tuple[Tuple[types.SliceKey,
                                                   FeaturePathTuple],
                                             List[FeatureValueCount]],
-    categorical_features: Set[types.FeaturePath], is_weighted_stats: bool,
+    categorical_features: FrozenSet[types.FeaturePath], is_weighted_stats: bool,
     num_top_values: int, frequency_threshold: Union[int, float],
     num_rank_histogram_buckets: int
 ) -> Tuple[types.SliceKey, statistics_pb2.DatasetFeatureStatistics]:
@@ -262,9 +262,9 @@ class _ComputeTopKUniquesStats(beam.PTransform):
       num_rank_histogram_buckets: The number of buckets in the rank histogram
           for string features.
     """
-    self._bytes_features = set(
+    self._bytes_features = frozenset(
         schema_util.get_bytes_features(schema) if schema else [])
-    self._categorical_features = set(
+    self._categorical_features = frozenset(
         schema_util.get_categorical_numeric_features(schema) if schema else [])
     self._weight_feature = weight_feature
     self._num_top_values = num_top_values
