@@ -39,6 +39,13 @@ std::pair<string, double> LInftyDistance(
     const std::map<string, double>& counts_a,
     const std::map<string, double>& counts_b);
 
+// Computes the approximate Jensen-Shannon divergence
+// (https://en.wikipedia.org/wiki/Jensen%E2%80%93Shannon_divergence) between the
+// (weighted) histograms of the features.
+Status UpdateJensenShannonDivergenceResult(const FeatureStatsView& a,
+                                           const FeatureStatsView& b,
+                                           double& result);
+
 }  // namespace data_validation
 }  // namespace tensorflow
 

@@ -22,14 +22,18 @@ limitations under the License.
 #include "absl/types/optional.h"
 #include "tensorflow_data_validation/anomalies/map_util.h"
 #include "tensorflow/core/platform/logging.h"
+#include "tensorflow/core/platform/protobuf.h"
 #include "tensorflow/core/platform/types.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
+
 namespace tensorflow {
 namespace data_validation {
 
 namespace {
-using tensorflow::metadata::v0::DatasetFeatureStatistics;
-using tensorflow::metadata::v0::FeatureNameStatistics;
+using ::tensorflow::metadata::v0::DatasetFeatureStatistics;
+using ::tensorflow::metadata::v0::FeatureNameStatistics;
+using ::tensorflow::metadata::v0::Histogram;
+using ::tensorflow::protobuf::RepeatedPtrField;
 
 // Returns true if a is a strict prefix of b.
 const bool IsStrictPrefix(const string& a, const string& b) {
@@ -440,6 +444,23 @@ std::map<string, double> FeatureStatsView::GetStringValuesWithCounts() const {
     result.insert({bucket.label(), bucket.sample_count()});
   }
   return result;
+}
+
+absl::optional<Histogram> FeatureStatsView::GetStandardHistogram() const {
+  if (!data().has_num_stats()) {
+    return absl::nullopt;
+  }
+  RepeatedPtrField<Histogram> histograms =
+      (parent_view_.by_weight())
+          ? data().num_stats().weighted_numeric_stats().histograms()
+          : data().num_stats().histograms();
+  for (const auto& histogram : histograms) {
+    if (histogram.type() ==
+        Histogram::HistogramType::Histogram_HistogramType_STANDARD) {
+      return histogram;
+    }
+  }
+  return absl::nullopt;
 }
 
 std::vector<string> FeatureStatsView::GetStringValues() const {

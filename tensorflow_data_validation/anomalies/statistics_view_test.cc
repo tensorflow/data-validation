@@ -732,6 +732,90 @@ TEST(FeatureStatsView, GetNumUnique) {
       absl::nullopt);
 }
 
+TEST(FeatureStatsView, GetStandardHistogram) {
+  const FeatureNameStatistics statistics_with_standard_histogram =
+      ParseTextProtoOrDie<FeatureNameStatistics>(
+          R"(name: 'float'
+             type: FLOAT
+             num_stats {
+               common_stats { num_non_missing: 4 }
+               histograms {
+                 buckets { low_value: 1.0 high_value: 1.0 sample_count: 4.0 }
+                 type: STANDARD
+               }
+             }
+          )");
+  const FeatureNameStatistics statistics_with_weighted_standard_histogram =
+      ParseTextProtoOrDie<FeatureNameStatistics>(
+          R"(
+            name: 'integer'
+            type: INT
+            num_stats {
+              common_stats {
+                num_non_missing: 3
+                weighted_common_stats { num_non_missing: 6.0 }
+              }
+              histograms {
+                buckets { low_value: 2.0 high_value: 2.0 sample_count: 3.0 }
+                type: STANDARD
+              }
+              weighted_numeric_stats {
+                histograms {
+                  buckets { low_value: 2.0 high_value: 2.0 sample_count: 6.0 }
+                  type: STANDARD
+                }
+              }
+            }
+          )");
+  const FeatureNameStatistics statistics_without_standard_histogram =
+      ParseTextProtoOrDie<FeatureNameStatistics>(
+          R"(name: 'float'
+             type: FLOAT
+             num_stats {
+               common_stats { num_non_missing: 4 }
+               histograms {
+                 buckets { low_value: 1.0 high_value: 1.0 sample_count: 4.0 }
+                 type: QUANTILES
+               }
+             }
+          )");
+
+  ASSERT_EQ(DatasetForTesting(statistics_with_standard_histogram)
+                .feature_stats_view()
+                .GetStandardHistogram()
+                ->buckets_size(),
+            1);
+  tensorflow::metadata::v0::Histogram::Bucket actual_bucket =
+      DatasetForTesting(statistics_with_standard_histogram)
+          .feature_stats_view()
+          .GetStandardHistogram()
+          ->buckets()
+          .at(0);
+  EXPECT_EQ(actual_bucket.low_value(), 1);
+  EXPECT_EQ(actual_bucket.high_value(), 1);
+  EXPECT_EQ(actual_bucket.sample_count(), 4);
+  ASSERT_EQ(DatasetForTesting(statistics_with_weighted_standard_histogram,
+                              /*by_weight=*/true)
+                .feature_stats_view()
+                .GetStandardHistogram()
+                ->buckets_size(),
+            1);
+  actual_bucket = DatasetForTesting(statistics_with_weighted_standard_histogram,
+                                    /*by_weight=*/true)
+                      .feature_stats_view()
+                      .GetStandardHistogram()
+                      ->buckets()
+                      .at(0);
+  EXPECT_EQ(actual_bucket.low_value(), 2);
+  EXPECT_EQ(actual_bucket.high_value(), 2);
+  EXPECT_EQ(actual_bucket.sample_count(), 6);
+
+  EXPECT_EQ(DatasetForTesting(statistics_without_standard_histogram)
+                .feature_stats_view()
+                .GetStandardHistogram(),
+            absl::nullopt);
+}
+
 TEST(DatasetStatsView, Features) {
   const FeatureNameStatistics input =
       ParseTextProtoOrDie<FeatureNameStatistics>(R"(

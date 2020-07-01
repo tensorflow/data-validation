@@ -22,6 +22,7 @@ limitations under the License.
 #include <gtest/gtest.h>
 #include "tensorflow_data_validation/anomalies/statistics_view_test_util.h"
 #include "tensorflow_data_validation/anomalies/test_util.h"
+#include "tensorflow/core/lib/core/status_test_util.h"
 #include "tensorflow/core/platform/types.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
 
@@ -30,6 +31,7 @@ namespace data_validation {
 
 namespace {
 
+using tensorflow::metadata::v0::FeatureNameStatistics;
 using testing::DatasetForTesting;
 using testing::ParseTextProtoOrDie;
 
@@ -94,6 +96,180 @@ TEST(LInftyDistanceTest, All) {
                               .second;
     EXPECT_NEAR(result, test.expected, 1e-5) << test.name;
   }
+}
+
+TEST(JensenShannonDivergence, SameStatistics) {
+  const DatasetForTesting dataset(ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+    name: 'float'
+    type: FLOAT
+    num_stats {
+      common_stats {}
+      histograms {
+        num_nan: 1
+        buckets { low_value: 1.0 high_value: 2.3333333 sample_count: 2.9866667 }
+        buckets {
+          low_value: 2.3333333
+          high_value: 3.6666667
+          sample_count: 1.0066667
+        }
+        buckets { low_value: 3.6666667 high_value: 5.0 sample_count: 2.0066667 }
+        type: STANDARD
+      }
+    })"));
+  double result;
+  TF_ASSERT_OK(UpdateJensenShannonDivergenceResult(
+      dataset.feature_stats_view(), dataset.feature_stats_view(), result));
+  EXPECT_NEAR(result, 0.0, 1e-5);
+}
+
+TEST(JensenShannonDivergence, DifferentBucketBoundaries) {
+  const DatasetForTesting dataset_1(
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'float'
+        type: FLOAT
+        num_stats {
+          common_stats {}
+          histograms {
+            buckets { low_value: 1.0 high_value: 2.0 sample_count: 2.0 }
+            buckets { low_value: 2.0 high_value: 3.0 sample_count: 2.0 }
+            type: STANDARD
+          }
+        })"));
+  const DatasetForTesting dataset_2(
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'float'
+        type: FLOAT
+        num_stats {
+          common_stats {}
+          histograms {
+            buckets { low_value: 2.0 high_value: 4.0 sample_count: 2.0 }
+            buckets { low_value: 4.0 high_value: 6.0 sample_count: 2.0 }
+            type: STANDARD
+          }
+        })"));
+  double result;
+  TF_ASSERT_OK(UpdateJensenShannonDivergenceResult(
+      dataset_1.feature_stats_view(), dataset_2.feature_stats_view(), result));
+  // Rebucketed and normalized histogram for dataset_1 is:
+  // buckets { low_value: 1.0 high_value: 2.0 sample_count: 0.5 }
+  // buckets { low_value: 2.0 high_value: 3.0 sample_count: 0.5 }
+  // buckets { low_value: 3.0 high_value: 4.0 sample_count: 0 }
+  // buckets { low_value: 4.0 high_value: 6.0 sample_count: 0 }
+  // Rebucketed and normalized histogram for dataset_2 is:
+  // buckets { low_value: 1.0 high_value: 2.0 sample_count: 0 }
+  // buckets { low_value: 2.0 high_value: 3.0 sample_count: 0.25 }
+  // buckets { low_value: 3.0 high_value: 4.0 sample_count: 0.25 }
+  // buckets { low_value: 4.0 high_value: 6.0 sample_count: 0.5 }
+  // Average distribution is:
+  // buckets { low_value: 1.0 high_value: 2.0 sample_count: 0.25 }
+  // buckets { low_value: 2.0 high_value: 3.0 sample_count: 0.325 }
+  // buckets { low_value: 3.0 high_value: 4.0 sample_count: 0.125 }
+  // buckets { low_value: 4.0 high_value: 6.0 sample_count: 0.25 }
+  // JSD = (0.5*log(0.5/0.25) + 0.5*log(0.5/0.375))/2 + (0.25*log(0.25/0.375) +
+  // 0.25*log(0.25/0.125) + 0.5*log(0.5/0.25))/2 = 0.65563906222
+  EXPECT_NEAR(result, 0.65563906222, 1e-5);
+}
+
+TEST(JensenShannonDivergence, NoOverlap) {
+  const DatasetForTesting dataset_1(
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'float'
+        type: FLOAT
+        num_stats {
+          common_stats {}
+          histograms {
+            buckets { low_value: 0.0 high_value: 1.0 sample_count: 2.0 }
+            buckets { low_value: 1.0 high_value: 2.0 sample_count: 2.0 }
+            type: STANDARD
+          }
+        })"));
+  const DatasetForTesting dataset_2(
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'float'
+        type: FLOAT
+        num_stats {
+          common_stats {}
+          histograms {
+            buckets { low_value: 3.0 high_value: 4.0 sample_count: 2.0 }
+            buckets { low_value: 4.0 high_value: 6.0 sample_count: 2.0 }
+            type: STANDARD
+          }
+        })"));
+  double result;
+  TF_ASSERT_OK(UpdateJensenShannonDivergenceResult(
+      dataset_1.feature_stats_view(), dataset_2.feature_stats_view(), result));
+  EXPECT_NEAR(result, 1, 1e-5);
+}
+
+TEST(JensenShannonDivergence, AllValuesInOneBucket) {
+  const DatasetForTesting dataset_1(
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'float'
+        type: FLOAT
+        num_stats {
+          common_stats {}
+          histograms {
+            buckets { low_value: 1.0 high_value: 1.0 sample_count: 4.0 }
+            type: STANDARD
+          }
+        })"));
+  const DatasetForTesting dataset_2(
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'float'
+        type: FLOAT
+        num_stats {
+          common_stats {}
+          histograms {
+            buckets { low_value: 2.0 high_value: 4.0 sample_count: 2.0 }
+            buckets { low_value: 4.0 high_value: 6.0 sample_count: 2.0 }
+            type: STANDARD
+          }
+        })"));
+  double result;
+  TF_ASSERT_OK(UpdateJensenShannonDivergenceResult(
+      dataset_1.feature_stats_view(), dataset_2.feature_stats_view(), result));
+  EXPECT_NEAR(result, 1, 1e-5);
+}
+
+TEST(JensenShannonDivergence, WithNaNs) {
+  const DatasetForTesting dataset_1(
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'float'
+        type: FLOAT
+        num_stats {
+          common_stats {}
+          histograms {
+            num_nan: 1
+            buckets { low_value: 1.0 high_value: 2.0 sample_count: 3.0 }
+            type: STANDARD
+          }
+        })"));
+  const DatasetForTesting dataset_2(
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'float'
+        type: FLOAT
+        num_stats {
+          common_stats {}
+          histograms {
+            buckets { low_value: 1.0 high_value: 2.0 sample_count: 4.0 }
+            type: STANDARD
+          }
+        })"));
+  double result;
+  TF_ASSERT_OK(UpdateJensenShannonDivergenceResult(
+      dataset_1.feature_stats_view(), dataset_2.feature_stats_view(), result));
+  // Rebucketed and normalized histogram for dataset_1 is:
+  // buckets { low_value: NaN high_value: Nan sample_count: 0.25 }
+  // buckets { low_value: 1.0 high_value: 2.0 sample_count: 0.75 }
+  // Rebucketed and normalized histogram for dataset_2 is:
+  // buckets { low_value: NaN high_value: NaN sample_count: 0 }
+  // buckets { low_value: 1.0 high_value: 2.0 sample_count: 1.0 }
+  // Average distribution is:
+  // buckets { low_value: NaN high_value: NaN sample_count: 0.125 }
+  // buckets { low_value: 1.0 high_value: 2.0 sample_count: 0.875 }
+  // JSD = (0.25*log(0.25/0.125) + 0.75*log(0.75/0.875))/2 +
+  // (1.0*log(1.0/0.875))/2 = 0.13792538096
+  EXPECT_NEAR(result, 0.13792538096, 1e-5);
 }
 
 }  // namespace
