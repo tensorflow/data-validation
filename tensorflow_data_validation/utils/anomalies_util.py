@@ -18,10 +18,10 @@ from __future__ import division
 
 from __future__ import print_function
 
+from typing import FrozenSet, List, Text, Tuple
 import pyarrow as pa
 from tensorflow_data_validation import types
 from tensorflow_data_validation.utils import io_util
-from typing import List, Set, Text, Tuple
 from google.protobuf import text_format
 from tensorflow_metadata.proto.v0 import anomalies_pb2
 
@@ -47,7 +47,7 @@ def _make_updated_descriptions(
 
 def remove_anomaly_types(
     anomalies: anomalies_pb2.Anomalies,
-    types_to_remove: Set['anomalies_pb2.AnomalyInfo.Type']) -> None:
+    types_to_remove: FrozenSet['anomalies_pb2.AnomalyInfo.Type']) -> None:
   """Removes the specified types of anomaly reasons from an Anomalies proto.
 
   If all reasons for a given feature's anomalies are removed, the entire feature

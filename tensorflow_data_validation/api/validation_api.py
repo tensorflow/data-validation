@@ -20,6 +20,7 @@ from __future__ import division
 from __future__ import print_function
 
 import logging
+from typing import Callable, List, Optional, Text
 import apache_beam as beam
 import pyarrow as pa
 import tensorflow as tf
@@ -33,13 +34,12 @@ from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.utils import anomalies_util
 from tensorflow_data_validation.utils import slicing_util
-from typing import Callable, List, Optional, Text
 
 from tensorflow_metadata.proto.v0 import anomalies_pb2
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 # Set of anomaly types that do not apply on a per-example basis.
-_GLOBAL_ONLY_ANOMALY_TYPES = set([
+_GLOBAL_ONLY_ANOMALY_TYPES = frozenset([
     anomalies_pb2.AnomalyInfo.FEATURE_TYPE_LOW_FRACTION_PRESENT,
     anomalies_pb2.AnomalyInfo.FEATURE_TYPE_LOW_NUMBER_PRESENT,
     anomalies_pb2.AnomalyInfo.FEATURE_TYPE_NOT_PRESENT,
@@ -50,6 +50,8 @@ _GLOBAL_ONLY_ANOMALY_TYPES = set([
     anomalies_pb2.AnomalyInfo.COMPARATOR_LOW_NUM_EXAMPLES,
     anomalies_pb2.AnomalyInfo.COMPARATOR_HIGH_NUM_EXAMPLES,
     anomalies_pb2.AnomalyInfo.NO_DATA_IN_SPAN,
+    anomalies_pb2.AnomalyInfo.DATASET_LOW_NUM_EXAMPLES,
+    anomalies_pb2.AnomalyInfo.DATASET_HIGH_NUM_EXAMPLES,
 ])
 
 
