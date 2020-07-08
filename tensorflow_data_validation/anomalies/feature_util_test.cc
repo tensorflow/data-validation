@@ -662,8 +662,6 @@ TEST(FeatureTypeTest, ConstructFromFeatureNameStatistics) {
   }
 }
 
-// Construct a schema from a proto field, and then write it to a
-// DescriptorProto.
 struct UpdateValueCountTest {
   string name;
   FeatureNameStatistics statistics;
@@ -676,399 +674,59 @@ struct UpdateValueCountTest {
 };
 
 const std::vector<UpdateValueCountTest> GetUpdateValueCountTests() {
-  const std::vector<UpdateValueCountTest> battery_a = {
-      {"optional_float_valid",
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-           name: 'optional_float'
-           type: FLOAT
-           num_stats: {
-             common_stats: {
-               num_missing: 0
-               num_non_missing: 10
-               min_num_values: 1
-               max_num_values: 1}})"),
-       true, ParseTextProtoOrDie<ValueCount>(R"(min:1 max: 1)"),
-       ParseTextProtoOrDie<ValueCount>(R"(min:1 max: 1)")},
-      {"optional_string_valid",
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-           name: 'optional_string'
-           type: STRING
-           string_stats: {
-             common_stats: {
-               num_missing: 3
-               num_non_missing: 10
-               min_num_values: 1
-               max_num_values: 2
-             }
-             unique: 3
-             rank_histogram: {
-               buckets: {
-                 label: "foo"
-               }
-               buckets: {
-                 label: "bar"
-               }
-               buckets: {
-                 label: "baz"}}})"),
-       false, ParseTextProtoOrDie<ValueCount>(R"(min:1 max: 1)"),
-       ParseTextProtoOrDie<ValueCount>(R"(min:1 max: 2)")},
-      {"optional_int64_valid",
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-           name: 'optional_int64'
-           type: INT
-           num_stats: {
-             common_stats: {
-               num_missing: 0
-               num_non_missing: 10
-               min_num_values: 1
-               max_num_values: 1}})"),
-       true, ParseTextProtoOrDie<ValueCount>(R"(min:1 max: 1)"),
-       ParseTextProtoOrDie<ValueCount>(R"(min:1 max: 1)")},
-      {"optional_bool_valid",
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-           name: 'bar'
-           type: INT
-           num_stats: {
-             common_stats: {
-               num_missing: 0
-               num_non_missing: 10
-               min_num_values: 1
-               max_num_values: 1
-             }
-             min: 0.0
-             max: 1.0})"),
-       true, ParseTextProtoOrDie<ValueCount>(R"(min:1 max: 1)"),
-       ParseTextProtoOrDie<ValueCount>(R"(min:1 max: 1)")},
-      {"repeated_float_valid",
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-           name: 'repeated_float'
-           type: FLOAT
-           num_stats: {
-             common_stats: {
-               num_missing: 0
-               num_non_missing: 10
-               min_num_values: 1
-               max_num_values: 1}})"),
-       true, ParseTextProtoOrDie<ValueCount>(R"(min:1)"),
-       ParseTextProtoOrDie<ValueCount>(R"(min:1)")},
-      {"repeated_string_valid",
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-           name: 'repeated_string'
-           type: STRING
-           string_stats: {
-             common_stats: {
-               num_missing: 3
-               num_non_missing: 10
-               min_num_values: 1
-               max_num_values: 2
-             }
-             unique: 3
-             rank_histogram: {
-               buckets: {
-                 label: "foo"
-               }
-               buckets: {
-                 label: "bar"
-               }
-               buckets: {
-                 label: "baz"}}})"),
-       true, ParseTextProtoOrDie<ValueCount>(R"(min: 1)"),
-       ParseTextProtoOrDie<ValueCount>(R"(min: 1)")},
-      {"repeated_int64_valid",
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-           name: 'bar'
-           type: INT
-           num_stats: {
-             common_stats: {
-               num_missing: 10000
-               num_non_missing: 10
-               min_num_values: 1
-               max_num_values: 1012
-             }
-             min: 0.0
-             max: 1.0})"),
-       true, ParseTextProtoOrDie<ValueCount>(R"(min: 1)"),
-       ParseTextProtoOrDie<ValueCount>(R"(min: 1)")}};
-  const std::vector<UpdateValueCountTest> battery_b = {
-      {"repeated_bool_valid",
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-           name: 'bar'
-           type: INT
-           num_stats: {
-             common_stats: {
-               num_missing: 10000
-               num_non_missing: 10
-               min_num_values: 1
-               max_num_values: 1012
-             }
-             min: 0.0
-             max: 1.0})"),
-       true, ParseTextProtoOrDie<ValueCount>(R"(min: 1)"),
-       ParseTextProtoOrDie<ValueCount>(R"(min: 1)")},
-      {"string_int64_valid",
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-           name: 'repeated_string'
-           type: STRING
-           string_stats: {
-             common_stats: {
-               num_missing: 3
-               num_non_missing: 10
-               min_num_values: 1
-               max_num_values: 1
-             }
-             unique: 3
-             rank_histogram: {
-               buckets: {
-                 label: "12"
-               }
-               buckets: {
-                 label: "39"
-               }
-               buckets: {
-                 label: "256"
-               }
-             }})"),
+  return {
+      {"value_count_valid", ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+         name: 'feature'
+         type: FLOAT
+         num_stats: {
+           common_stats: {
+             num_missing: 0
+             num_non_missing: 10
+             min_num_values: 1
+             max_num_values: 1
+           }
+         })"),
        true, ParseTextProtoOrDie<ValueCount>(R"(min: 1 max: 1)"),
        ParseTextProtoOrDie<ValueCount>(R"(min: 1 max: 1)")},
-      {"string_int64_to_repeated",
+      {"num_values_outside_value_count_bounds",
        ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-           name: 'repeated_string'
-           type: STRING
-           string_stats: {
-             common_stats: {
-               num_missing: 3
-               num_non_missing: 10
-               min_num_values: 1
-               max_num_values: 2
-             }
-             unique: 3
-             rank_histogram: {
-               buckets: {
-                 label: "12"
-               }
-               buckets: {
-                 label: "39"
-               }
-               buckets: {
-                 label: "256"}}})"),
-       false, ParseTextProtoOrDie<ValueCount>(R"(min: 1 max: 1)"),
-       ParseTextProtoOrDie<ValueCount>(R"(min: 1 max: 2)")},
-      {
-          "string_int32_valid",
-          ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-              name: 'string_int32'
-              type: STRING
-              string_stats: {
-                common_stats: {
-                  num_missing: 3
-                  num_non_missing: 10
-                  min_num_values: 1
-                  max_num_values: 1
-                }
-                unique: 3
-                rank_histogram: {
-                  buckets: {
-                    label: "12"
-                  }
-                  buckets: {
-                    label: "39"
-                  }
-                  buckets: {
-                    label: "256"}}})"),
-          true,
-          ParseTextProtoOrDie<ValueCount>(R"(min: 1 max: 1)"),
-          ParseTextProtoOrDie<ValueCount>(R"(min: 1 max: 1)"),
-      },
-      {"string_int32_to_repeated_string",
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-           name: 'string_int32'
-           type: STRING
-           string_stats: {
-             common_stats: {
-               num_missing: 3
-               num_non_missing: 10
-               min_num_values: 1
-               max_num_values: 2
-             }
-             unique: 3
-             rank_histogram: {
-               buckets: {
-                 label: "FOO"
-               }
-               buckets: {
-                 label: "39"
-               }
-               buckets: {
-                 label: "256"}}})"),
-       false, ParseTextProtoOrDie<ValueCount>(R"(min: 1 max: 1)"),
-       ParseTextProtoOrDie<ValueCount>(R"(min: 1 max: 2)")},
-      {"min_max_5",
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-           name: 'string_int32'
-           type: STRING
-           string_stats: {
-             common_stats: {
-               num_missing: 3
-               num_non_missing: 10
-               min_num_values: 5
-               max_num_values: 5
-             }
-             unique: 3
-             rank_histogram: {
-               buckets: {
-                 label: "FOO"
-               }
-               buckets: {
-                 label: "39"
-               }
-               buckets: {
-                 label: "256"}}})"),
-       true, ParseTextProtoOrDie<ValueCount>(R"(min: 5 max: 5)"),
-       ParseTextProtoOrDie<ValueCount>(R"(min: 5 max: 5)")},
-      {"min_max_5_wrong",
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-           name: 'string_int32'
-           type: STRING
-           string_stats: {
-             common_stats: {
-               num_missing: 3
-               num_non_missing: 10
-               min_num_values: 3
-               max_num_values: 8
-             }
-             unique: 3
-             rank_histogram: {
-               buckets: {
-                 label: "FOO"
-               }
-               buckets: {
-                 label: "39"
-               }
-               buckets: {
-                 label: "256"}}})"),
+         name: 'feature'
+         type: FLOAT
+         num_stats: {
+           common_stats: {
+             num_missing: 3
+             num_non_missing: 10
+             min_num_values: 3
+             max_num_values: 8
+           }
+         })"),
        false, ParseTextProtoOrDie<ValueCount>(R"(min: 5 max: 5)"),
        ParseTextProtoOrDie<ValueCount>(R"(min: 3 max: 8)")},
-      {"string_uint32_valid",
+      {"num_values_outside_value_count_bounds_clears_min",
        ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-           name: 'string_uint32'
-           type: STRING
-           string_stats: {
-             common_stats: {
-               num_missing: 3
-               num_non_missing: 10
-               min_num_values: 1
-               max_num_values: 1
-             }
-             unique: 3
-             rank_histogram: {
-               buckets: {
-                 label: "12"
-               }
-               buckets: {
-                 label: "39"
-               }
-               buckets: {
-                 label: "256"}}})"),
-       true, ParseTextProtoOrDie<ValueCount>(R"(min: 1 max: 1)"),
-       ParseTextProtoOrDie<ValueCount>(R"(min: 1 max: 1)")}};
-  const std::vector<UpdateValueCountTest> battery_c = {
-      {"string_uint32_negatives",
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"(name: 'string_uint32'
-           type: STRING
-           string_stats: {
-             common_stats: {
-               num_missing: 3
-               num_non_missing: 10
-               min_num_values: 1
-               max_num_values: 1
-             }
-             unique: 3
-             rank_histogram: {
-               buckets: {
-                 label: "-12"
-               }
-               buckets: {
-                 label: "39"
-               }
-               buckets: {
-                 label: "256"}}})"),
-       true, ParseTextProtoOrDie<ValueCount>(R"(min: 1 max: 1)"),
-       ParseTextProtoOrDie<ValueCount>(R"(min: 1 max: 1)")},
-      {"few_int64_valid",
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-           name: 'bar'
-           type: INT
-           num_stats: {
-             common_stats: {
-               num_missing: 0
-               num_non_missing: 10
-               min_num_values: 1
-               max_num_values: 3
-             }
-             min: 0.0
-             max: 1.0})"),
-       true, ParseTextProtoOrDie<ValueCount>(R"(min: 1 max: 3)"),
-       ParseTextProtoOrDie<ValueCount>(R"(min: 1 max: 3)")},
-      {"float_very_common_valid",
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-           name: 'float_very_common'
-           type: FLOAT
-           num_stats: {
-             common_stats: {
-               num_missing: 4
-               num_non_missing: 6
-               min_num_values: 1
-               max_num_values: 1
-             }
-             min: 0.0
-             max: 1.0})"),
-       true, ParseTextProtoOrDie<ValueCount>(R"(min: 1 max: 1)"),
-       ParseTextProtoOrDie<ValueCount>(R"(min: 1 max: 1)")},
-      {"float_very_common_invalid",
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-           name: 'float_very_common'
-           type: FLOAT
-           num_stats: {
-             common_stats: {
-               num_missing: 7  # 7/10 missing.
-               num_non_missing: 3
-               min_num_values: 1
-               max_num_values: 1
-               weighted_common_stats: {
-                 num_non_missing: 3.0
-                 num_missing: 7.0
-               }
-             }
-             min: 0.0
-             max: 1.0})"),
-       true, ParseTextProtoOrDie<ValueCount>(R"(min: 1 max: 1)"),
-       ParseTextProtoOrDie<ValueCount>(R"(min: 1 max: 1)")}};
-  std::vector<UpdateValueCountTest> result(battery_a);
-  result.insert(result.end(), battery_b.begin(), battery_b.end());
-  result.insert(result.end(), battery_c.begin(), battery_c.end());
-  return result;
+         name: 'feature'
+         type: FLOAT
+         num_stats: {
+           common_stats: {
+             num_missing: 3
+             num_non_missing: 10
+             min_num_values: 0
+             max_num_values: 8
+           }
+         })"),
+       false, ParseTextProtoOrDie<ValueCount>(R"(min: 5 max: 5)"),
+       ParseTextProtoOrDie<ValueCount>(R"(max: 8)")},
+  };
 }
 
-// TODO(b/148430313): this is too many test cases that test too little.
-// Write a two test cases focusing on min=max=5 (success and failure).
-// Remove redundant tests.
 TEST(FeatureTypeTest, UpdateValueCountTest) {
   for (const auto& test : GetUpdateValueCountTests()) {
-    for (bool by_weight : {false, true}) {
-      ValueCount to_modify = test.original;
-      DatasetFeatureStatistics statistics;
-      statistics.set_num_examples(10);
-      *statistics.add_features() = test.statistics;
-      testing::DatasetForTesting dataset(AddWeightedStats(test.statistics),
-                                         by_weight);
-      std::vector<Description> description_b;
-      description_b =
-          UpdateValueCount(dataset.feature_stats_view(), &to_modify);
-      EXPECT_EQ(test.expected_description_empty, description_b.empty());
-      EXPECT_THAT(to_modify, EqualsProto(test.expected))
-          << "Test:" << test.name << "(by_weight: " << by_weight
-          << ") Reason: " << DescriptionsToString(description_b);
-    }
+    ValueCount to_modify = test.original;
+    testing::DatasetForTesting dataset(test.statistics);
+    std::vector<Description> description =
+        UpdateValueCount(dataset.feature_stats_view(), &to_modify);
+    EXPECT_EQ(test.expected_description_empty, description.empty());
+    EXPECT_THAT(to_modify, EqualsProto(test.expected));
   }
 }
 
