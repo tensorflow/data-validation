@@ -5,6 +5,7 @@
 ## Major Features and Improvements
 
 ## Bug Fixes and Other Changes
+*   Stopped requiring avro-python3.
 
 ## Known Issues
 
