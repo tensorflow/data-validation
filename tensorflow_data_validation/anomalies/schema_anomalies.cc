@@ -431,7 +431,7 @@ tensorflow::Status SchemaAnomalies::FindSkew(
        dataset_stats_view.features()) {
     // This is a simplified version of finding skew, that ignores the feature
     // if there is no training data for it.
-    TF_CHECK_OK(GenericUpdate(
+    TF_RETURN_IF_ERROR(GenericUpdate(
         [&feature_stats_view](SchemaAnomaly* schema_anomaly) {
           schema_anomaly->UpdateSkewComparator(feature_stats_view);
           return Status::OK();
