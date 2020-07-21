@@ -20,6 +20,7 @@ limitations under the License.
 #include "absl/strings/str_cat.h"
 #include "absl/types/optional.h"
 #include "tensorflow_data_validation/anomalies/metrics.h"
+#include "tensorflow/core/lib/core/errors.h"
 #include "tensorflow/core/platform/logging.h"
 #include "tensorflow/core/platform/types.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
@@ -30,7 +31,7 @@ namespace data_validation {
 namespace {
 using absl::optional;
 using ::tensorflow::metadata::v0::Feature;
-using tensorflow::metadata::v0::FeatureComparator;
+using ::tensorflow::metadata::v0::FeatureComparator;
 using ::tensorflow::metadata::v0::SparseFeature;
 using ::tensorflow::metadata::v0::WeightedFeature;
 
@@ -154,6 +155,83 @@ bool FeatureTypeIsDeprecated(const T& feature) {
   return false;
 }
 
+// If the comparator contains an infinity norm threshold, checks whether the
+// L-infinity distance between the stats and control stats is within that
+// threshold. If not, updates the comparator and returns a description of the
+// anomaly.
+absl::optional<Description> UpdateInfinityNormComparator(
+    const FeatureStatsView& stats, const FeatureStatsView& control_stats,
+    const ComparatorContext& context,
+    tensorflow::metadata::v0::FeatureComparator* comparator) {
+  if (!comparator->infinity_norm().has_threshold()) {
+    return absl::nullopt;
+  }
+  const double linf_threshold = comparator->infinity_norm().threshold();
+  const std::pair<std::string, double> linf_distance =
+      LInftyDistance(stats, control_stats);
+  const std::string max_difference_value = linf_distance.first;
+  const double stats_infinity_norm = linf_distance.second;
+  if (stats_infinity_norm <= linf_threshold) {
+    return absl::nullopt;
+  }
+  // TODO(b/68711199): Add support for Linf with numeric features, or log a
+  // warning where the user has specified an infinity_norm threshold for a
+  // numeric feature.
+  comparator->mutable_infinity_norm()->set_threshold(stats_infinity_norm);
+  return Description(
+      {tensorflow::metadata::v0::AnomalyInfo::COMPARATOR_L_INFTY_HIGH,
+       absl::StrCat("High Linfty distance between ", context.treatment_name,
+                    " and ", context.control_name),
+       absl::StrCat("The Linfty distance between ", context.treatment_name,
+                    " and ", context.control_name, " is ",
+                    absl::SixDigits(stats_infinity_norm),
+                    " (up to six significant digits), above the threshold ",
+                    absl::SixDigits(linf_threshold),
+                    ". The feature value with maximum difference is: ",
+                    max_difference_value)});
+}
+
+// If the comparator contains a Jensen-Shannon Divergence threshold, checks
+// whether the approximate Jensen-Shannon Divergence between the stats and
+// control stats is within that threshold. If not, updates the comparator and
+// returns a description of the anomaly.
+absl::optional<Description> UpdateJensenShannonDivergenceComparator(
+    const FeatureStatsView& stats, const FeatureStatsView& control_stats,
+    const ComparatorContext& context,
+    tensorflow::metadata::v0::FeatureComparator* comparator) {
+  if (!comparator->jensen_shannon_divergence().has_threshold()) {
+    return absl::nullopt;
+  }
+  const double jensen_shannon_threshold =
+      comparator->jensen_shannon_divergence().threshold();
+  double jensen_shannon_divergence;
+  if (UpdateJensenShannonDivergenceResult(stats, control_stats,
+                                          jensen_shannon_divergence)
+          .ok()) {
+    if (jensen_shannon_divergence > jensen_shannon_threshold) {
+      return Description(
+          {tensorflow::metadata::v0::AnomalyInfo::
+               COMPARATOR_JENSEN_SHANNON_DIVERGENCE_HIGH,
+           absl::StrCat("High approximate Jensen-Shannon divergence between ",
+                        context.treatment_name, " and ", context.control_name),
+           absl::StrCat("The approximate Jensen-Shannon divergence between ",
+                        context.treatment_name, " and ", context.control_name,
+                        " is ", absl::SixDigits(jensen_shannon_divergence),
+                        " (up to six significant digits), above the threshold ",
+                        absl::SixDigits(jensen_shannon_threshold), ".")});
+    }
+  } else {
+    // TODO(b/68711199): Add support for using JSD with categorical features.
+    LOG(WARNING) << "A jensen_shannon_divergence threshold for feature "
+                 << stats.GetPath().Serialize()
+                 << ", but the stats for this feature do not include a "
+                    "histogram from which the divergence can be analyzed. The "
+                    "jensen_shannon_divergence can be specified for a "
+                    "numeric feature only.";
+  }
+  return absl::nullopt;
+}
+
 }  // namespace
 
 void DeprecateFeature(Feature* feature) {
@@ -183,39 +261,39 @@ bool WeightedFeatureIsDeprecated(const WeightedFeature& weighted_feature) {
 std::vector<Description> UpdateFeatureComparatorDirect(
     const FeatureStatsView& stats, const FeatureComparatorType comparator_type,
     tensorflow::metadata::v0::FeatureComparator* comparator) {
-  if (!comparator->infinity_norm().has_threshold()) {
+  if (!comparator->infinity_norm().has_threshold() &&
+      !comparator->jensen_shannon_divergence().has_threshold()) {
     // There is nothing to check.
     return {};
   }
   const ComparatorContext& context = GetContext(comparator_type);
-  absl::optional<FeatureStatsView> control_stats =
+  const absl::optional<FeatureStatsView> control_stats =
       GetControlStats(stats, comparator_type);
   if (control_stats) {
-    const double threshold = comparator->infinity_norm().threshold();
-    const std::pair<string, double> distance =
-        LInftyDistance(stats, *control_stats);
-    const string max_difference_value = distance.first;
-    const double stats_infinity_norm = distance.second;
-    if (stats_infinity_norm > threshold) {
-      comparator->mutable_infinity_norm()->set_threshold(stats_infinity_norm);
-      return {
-          {tensorflow::metadata::v0::AnomalyInfo::COMPARATOR_L_INFTY_HIGH,
-           absl::StrCat("High Linfty distance between ", context.treatment_name,
-                        " and ", context.control_name),
-           absl::StrCat("The Linfty distance between ", context.treatment_name,
-                        " and ", context.control_name, " is ",
-                        absl::SixDigits(stats_infinity_norm),
-                        " (up to six significant digits), above the threshold ",
-                        absl::SixDigits(threshold),
-                        ". The feature value with maximum difference is: ",
-                        max_difference_value)}};
+    std::vector<Description> description;
+    const absl::optional<Description> linfty_description =
+        UpdateInfinityNormComparator(stats, control_stats.value(), context,
+                                     comparator);
+    if (linfty_description) {
+      description.push_back(linfty_description.value());
     }
-
+    const absl::optional<Description> jensen_shannon_description =
+        UpdateJensenShannonDivergenceComparator(stats, control_stats.value(),
+                                                context, comparator);
+    if (jensen_shannon_description) {
+      description.push_back(jensen_shannon_description.value());
+    }
+    return description;
   } else if (HasControlDataset(stats, comparator_type)) {
     // If there is a control dataset, but that dataset does not contain
     // statistics for the feature at issue, generate a missing control data
-    // anomaly.
-    comparator->mutable_infinity_norm()->clear_threshold();
+    // anomaly, and clear the comparator threshold(s).
+    if (comparator->infinity_norm().has_threshold()) {
+      comparator->mutable_infinity_norm()->clear_threshold();
+    }
+    if (comparator->jensen_shannon_divergence().has_threshold()) {
+      comparator->mutable_jensen_shannon_divergence()->clear_threshold();
+    }
     return {
         {tensorflow::metadata::v0::AnomalyInfo::COMPARATOR_CONTROL_DATA_MISSING,
          absl::StrCat(context.control_name, " data missing"),

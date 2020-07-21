@@ -226,7 +226,8 @@ TEST(FeatureUtilTest,
   const FeatureStatsView feature_stats_view =
       stats_view.GetByPath(Path({"test_feature"})).value();
   FeatureComparator comparator = ParseTextProtoOrDie<FeatureComparator>(R"(
-    infinity_norm: { threshold: 0.1 })");
+    infinity_norm: { threshold: 0.1 }
+    jensen_shannon_divergence: { threshold: 0.1 })");
 
   std::vector<Description> actual_descriptions = UpdateFeatureComparatorDirect(
       feature_stats_view, FeatureComparatorType::DRIFT, &comparator);
@@ -238,6 +239,9 @@ TEST(FeatureUtilTest,
   EXPECT_EQ(actual_descriptions[0].short_description, "previous data missing");
   EXPECT_EQ(actual_descriptions[0].long_description,
             "previous data is missing.");
+  // Confirm that missing control data clears the comparator threshold.
+  EXPECT_FALSE(comparator.infinity_norm().has_threshold());
+  EXPECT_FALSE(comparator.jensen_shannon_divergence().has_threshold());
 }
 
 TEST(FeatureUtilTest,

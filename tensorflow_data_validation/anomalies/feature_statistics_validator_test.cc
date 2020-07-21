@@ -56,9 +56,10 @@ void TestFeatureStatisticsValidator(
         prev_span_feature_statistics,
     const absl::optional<DatasetFeatureStatistics>&
         prev_version_feature_statistics,
-    const absl::optional<string>& environment,
+    const absl::optional<std::string>& environment,
     const absl::optional<FeaturesNeeded>& features_needed,
-    const std::map<string, testing::ExpectedAnomalyInfo>& expected_anomalies,
+    const std::map<std::string, testing::ExpectedAnomalyInfo>&
+        expected_anomalies,
     const absl::optional<testing::ExpectedAnomalyInfo>&
         expected_dataset_anomalies) {
   tensorflow::metadata::v0::Anomalies result;
@@ -117,7 +118,7 @@ TEST(FeatureStatisticsValidatorTest, EndToEnd) {
           string_stats: { common_stats: { num_missing: 1000 } }
         })");
 
-  std::map<string, testing::ExpectedAnomalyInfo> anomalies;
+  std::map<std::string, testing::ExpectedAnomalyInfo> anomalies;
   // In this case, there are two anomalies.
   anomalies["annotated_enum"].new_schema = ParseTextProtoOrDie<Schema>(R"(
     feature {
@@ -179,7 +180,7 @@ TEST(FeatureStatisticsValidatorTest, MissingColumn) {
           name: 'feature'
         })");
 
-  std::map<string, testing::ExpectedAnomalyInfo> anomalies;
+  std::map<std::string, testing::ExpectedAnomalyInfo> anomalies;
   anomalies["feature"].new_schema = ParseTextProtoOrDie<Schema>(R"(
     feature {
       name: "feature"
@@ -243,7 +244,7 @@ TEST(FeatureStatisticsValidatorTest, MissingFeatureAndEnvironments) {
           }
         })");
 
-  std::map<string, testing::ExpectedAnomalyInfo> anomalies;
+  std::map<std::string, testing::ExpectedAnomalyInfo> anomalies;
   anomalies["label"].new_schema = ParseTextProtoOrDie<Schema>(R"(
     default_environment: "TRAINING"
     default_environment: "SERVING"
@@ -324,7 +325,7 @@ TEST(FeatureStatisticsValidatorTest, FeaturesNeeded) {
           string_stats: { common_stats: { num_missing: 1000 } }
         })");
 
-  std::map<string, testing::ExpectedAnomalyInfo> anomalies;
+  std::map<std::string, testing::ExpectedAnomalyInfo> anomalies;
   anomalies["feature1"].expected_info_without_diff =
       ParseTextProtoOrDie<AnomalyInfo>(R"pb(
         description: "New column (column in data but not in schema)"
@@ -560,7 +561,8 @@ TEST(FeatureStatisticsValidatorTest, UseWeightedStatistics) {
   TestSchemaUpdate(ValidationConfig(), statistics, Schema(), want);
 }
 
-TEST(FeatureStatisticsValidatorTest, UpdateDriftComparatorInSchema) {
+TEST(FeatureStatisticsValidatorTest,
+     UpdateDriftComparatorInSchemaStringFeature) {
   const Schema old_schema = ParseTextProtoOrDie<Schema>(R"(
     feature {
       name: "annotated_enum"
@@ -609,7 +611,7 @@ TEST(FeatureStatisticsValidatorTest, UpdateDriftComparatorInSchema) {
     }
     string_domain { name: "annotated_enum" value: "a" value: "b" })");
 
-  std::map<string, testing::ExpectedAnomalyInfo> anomalies;
+  std::map<std::string, testing::ExpectedAnomalyInfo> anomalies;
   anomalies["annotated_enum"].new_schema = want_fixed_schema;
   anomalies["annotated_enum"]
       .expected_info_without_diff = ParseTextProtoOrDie<AnomalyInfo>(R"(
@@ -630,6 +632,141 @@ TEST(FeatureStatisticsValidatorTest, UpdateDriftComparatorInSchema) {
   )");
   TestFeatureStatisticsValidator(
       old_schema, ValidationConfig(), statistics, prev_span_statistics,
+      /*prev_version_feature_statistics=*/tensorflow::gtl::nullopt,
+      /*environment=*/gtl::nullopt,
+      /*features_needed=*/gtl::nullopt, anomalies,
+      /*expected_dataset_anomalies=*/gtl::nullopt);
+}
+
+TEST(FeatureStatisticsValidatorTest,
+     UpdateDriftComparatorInSchemaNumericFeature) {
+  const Schema old_schema = ParseTextProtoOrDie<Schema>(R"(
+    feature {
+      name: "annotated_enum"
+      type: INT
+      drift_comparator { jensen_shannon_divergence { threshold: 0.01 } }
+      int_domain: { min: 2 max: 3 }
+    })");
+
+  const DatasetFeatureStatistics statistics = ParseTextProtoOrDie<
+      DatasetFeatureStatistics>(R"(
+    num_examples: 2
+    features: {
+      name: 'annotated_enum'
+      type: INT
+      num_stats: {
+        min: 1
+        max: 3
+        common_stats: { num_non_missing: 1 num_missing: 0 max_num_values: 1 }
+        histograms {
+          buckets { low_value: 1.0 high_value: 2.0 sample_count: 1.0 }
+          buckets { low_value: 2.0 high_value: 3.0 sample_count: 1.0 }
+          type: STANDARD
+        }
+      }
+    })");
+
+  const DatasetFeatureStatistics prev_span_statistics = ParseTextProtoOrDie<
+      DatasetFeatureStatistics>(R"(
+    num_examples: 4
+    features: {
+      name: 'annotated_enum'
+      type: INT
+      num_stats: {
+        common_stats: { num_non_missing: 1 num_missing: 0 max_num_values: 1 }
+        histograms {
+          buckets { low_value: 5.0 high_value: 6.0 sample_count: 2.0 }
+          buckets { low_value: 6.0 high_value: 7.0 sample_count: 2.0 }
+          type: STANDARD
+        }
+      }
+    })");
+
+  const Schema want_fixed_schema = ParseTextProtoOrDie<Schema>(R"(
+    feature {
+      name: "annotated_enum"
+      type: INT
+      drift_comparator { jensen_shannon_divergence { threshold: 1 } }
+      int_domain: { min: 1 max: 3 }
+    })");
+
+  std::map<std::string, testing::ExpectedAnomalyInfo> anomalies;
+  anomalies["annotated_enum"].new_schema = want_fixed_schema;
+  anomalies["annotated_enum"]
+      .expected_info_without_diff = ParseTextProtoOrDie<AnomalyInfo>(R"(
+    description: "Unexpectedly small value: 1. The approximate Jensen-Shannon divergence between current and previous is 1 (up to six significant digits), above the threshold 0.01."
+    severity: ERROR
+    short_description: "Multiple errors"
+    reason {
+      type: INT_TYPE_SMALL_INT
+      short_description: "Out-of-range values"
+      description: "Unexpectedly small value: 1."
+    }
+    reason {
+      type: COMPARATOR_JENSEN_SHANNON_DIVERGENCE_HIGH
+      short_description: "High approximate Jensen-Shannon divergence between current and previous"
+      description: "The approximate Jensen-Shannon divergence between current and previous is 1 (up to six significant digits), above the threshold 0.01."
+    }
+    path: { step: "annotated_enum" }
+  )");
+  TestFeatureStatisticsValidator(
+      old_schema, ValidationConfig(), statistics, prev_span_statistics,
+      /*prev_version_feature_statistics=*/tensorflow::gtl::nullopt,
+      /*environment=*/gtl::nullopt,
+      /*features_needed=*/gtl::nullopt, anomalies,
+      /*expected_dataset_anomalies=*/gtl::nullopt);
+}
+
+TEST(FeatureStatisticsValidatorTest,
+     UpdateDriftComparatorDistributionChangeWithinThreshold) {
+  const Schema schema = ParseTextProtoOrDie<Schema>(R"(
+    feature {
+      name: "annotated_enum"
+      type: INT
+      drift_comparator { jensen_shannon_divergence { threshold: 0.5 } }
+    })");
+
+  // Current and previous statistics have the same distribution of values in the
+  // standard histogram.
+  const DatasetFeatureStatistics statistics = ParseTextProtoOrDie<
+      DatasetFeatureStatistics>(R"(
+    num_examples: 2
+    features: {
+      name: 'annotated_enum'
+      type: INT
+      num_stats: {
+        min: 1
+        max: 3
+        common_stats: { num_non_missing: 1 num_missing: 0 max_num_values: 1 }
+        histograms {
+          buckets { low_value: 1.0 high_value: 2.0 sample_count: 1.0 }
+          buckets { low_value: 2.0 high_value: 3.0 sample_count: 1.0 }
+          type: STANDARD
+        }
+      }
+    })");
+
+  const DatasetFeatureStatistics prev_span_statistics = ParseTextProtoOrDie<
+      DatasetFeatureStatistics>(R"(
+    num_examples: 2
+    features: {
+      name: 'annotated_enum'
+      type: INT
+      num_stats: {
+        min: 1
+        max: 3
+        common_stats: { num_non_missing: 1 num_missing: 0 max_num_values: 1 }
+        histograms {
+          buckets { low_value: 1.0 high_value: 2.0 sample_count: 1.0 }
+          buckets { low_value: 2.0 high_value: 3.0 sample_count: 1.0 }
+          type: STANDARD
+        }
+      }
+    })");
+
+  std::map<std::string, testing::ExpectedAnomalyInfo> anomalies;
+  TestFeatureStatisticsValidator(
+      schema, ValidationConfig(), statistics, prev_span_statistics,
       /*prev_version_feature_statistics=*/tensorflow::gtl::nullopt,
       /*environment=*/gtl::nullopt,
       /*features_needed=*/gtl::nullopt, anomalies,

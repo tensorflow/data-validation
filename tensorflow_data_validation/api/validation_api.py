@@ -47,6 +47,7 @@ _GLOBAL_ONLY_ANOMALY_TYPES = frozenset([
     anomalies_pb2.AnomalyInfo.COMPARATOR_CONTROL_DATA_MISSING,
     anomalies_pb2.AnomalyInfo.COMPARATOR_TREATMENT_DATA_MISSING,
     anomalies_pb2.AnomalyInfo.COMPARATOR_L_INFTY_HIGH,
+    anomalies_pb2.AnomalyInfo.COMPARATOR_JENSEN_SHANNON_DIVERGENCE_HIGH,
     anomalies_pb2.AnomalyInfo.COMPARATOR_LOW_NUM_EXAMPLES,
     anomalies_pb2.AnomalyInfo.COMPARATOR_HIGH_NUM_EXAMPLES,
     anomalies_pb2.AnomalyInfo.NO_DATA_IN_SPAN,

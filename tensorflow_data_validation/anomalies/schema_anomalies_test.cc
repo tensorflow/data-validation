@@ -34,10 +34,10 @@ using ::tensorflow::metadata::v0::FeatureNameStatistics;
 using ::tensorflow::metadata::v0::Schema;
 using testing::ParseTextProtoOrDie;
 
-void TestFindChanges(
-    const Schema& schema, const DatasetStatsView& stats_view,
-    const FeatureStatisticsToProtoConfig& config,
-    const std::map<string, testing::ExpectedAnomalyInfo>& expected_anomalies) {
+void TestFindChanges(const Schema& schema, const DatasetStatsView& stats_view,
+                     const FeatureStatisticsToProtoConfig& config,
+                     const std::map<std::string, testing::ExpectedAnomalyInfo>&
+                         expected_anomalies) {
   SchemaAnomalies anomalies(schema);
   TF_CHECK_OK(anomalies.FindChanges(stats_view, absl::nullopt, config));
   TestAnomalies(anomalies.GetSchemaDiff(/*enable_diff_regions=*/false),
@@ -85,7 +85,7 @@ TEST(SchemaAnomalies, FindChangesNoChanges) {
         })");
   for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
     TestFindChanges(initial, DatasetStatsView(statistics, false), config,
-                    std::map<string, testing::ExpectedAnomalyInfo>());
+                    std::map<std::string, testing::ExpectedAnomalyInfo>());
   }
 }
 
@@ -152,7 +152,7 @@ TEST(SchemaAnomalies, FindNansInFloatDisallowNans) {
           }
         })");
   for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
-    std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
+    std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
     expected_anomalies["income"].new_schema = ParseTextProtoOrDie<Schema>(R"(
       feature {
         name: "income"
@@ -231,9 +231,9 @@ TEST(SchemaAnomalies, NansDisallowedNoNansFound) {
           }
         })");
   for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
-    std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
+    std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
     TestFindChanges(initial, DatasetStatsView(statistics, false), config,
-                    std::map<string, testing::ExpectedAnomalyInfo>());
+                    std::map<std::string, testing::ExpectedAnomalyInfo>());
   }
 }
 
@@ -274,9 +274,9 @@ TEST(SchemaAnomalies, NansInFloatAllowed) {
           }
         })");
   for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
-    std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
+    std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
     TestFindChanges(initial, DatasetStatsView(statistics, false), config,
-                    std::map<string, testing::ExpectedAnomalyInfo>());
+                    std::map<std::string, testing::ExpectedAnomalyInfo>());
   }
 }
 
@@ -305,7 +305,7 @@ TEST(SchemaAnomalies, FindChangesCategoricalIntFeature) {
           }
         })");
   for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
-    std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
+    std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
     expected_anomalies["a_int"].new_schema = ParseTextProtoOrDie<Schema>(R"(
       feature {
         name: "a_int"
@@ -441,7 +441,7 @@ TEST(SchemaAnomalies, FindChangesBooleanFloatFeature) {
           }
         })");
   for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
-    std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
+    std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
     expected_anomalies["a_float_outside_range"].new_schema =
         ParseTextProtoOrDie<Schema>(R"(
           feature {
@@ -595,7 +595,7 @@ TEST(SchemaAnomalies, SemanticTypeUpdates) {
       custom_stats: { name: "domain_info" str: "natural_language_domain {}" }
     })pb");
 
-  std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
+  std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
   // Anomaly for updating an existing feature with semantic type.
   expected_anomalies["old_nl_feature"].new_schema =
       ParseTextProtoOrDie<Schema>(R"pb(
@@ -678,7 +678,7 @@ TEST(SchemaAnomalies, FindChanges) {
         })");
 
   for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
-    std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
+    std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
     expected_anomalies["annotated_enum"].new_schema =
         ParseTextProtoOrDie<Schema>(R"(
           feature {
@@ -721,7 +721,7 @@ TEST(SchemaAnomalies, FindChanges) {
   }
 }
 
-TEST(SchemaAnomalies, FindSkew) {
+TEST(SchemaAnomalies, FindSkewStringFeature) {
   const DatasetFeatureStatistics training =
       testing::GetDatasetFeatureStatisticsForTesting(
           ParseTextProtoOrDie<tensorflow::metadata::v0::FeatureNameStatistics>(
@@ -768,7 +768,7 @@ TEST(SchemaAnomalies, FindSkew) {
 
   SchemaAnomalies skew(schema_proto);
   TF_CHECK_OK(skew.FindSkew(*training_view));
-  std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
+  std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
   expected_anomalies["foo"].new_schema = ParseTextProtoOrDie<Schema>(R"(
     feature {
       name: "foo"
@@ -786,6 +786,163 @@ TEST(SchemaAnomalies, FindSkew) {
       short_description: "High Linfty distance between training and serving"
       description: "The Linfty distance between training and serving is 0.2 (up to six significant digits), above the threshold 0.1. The feature value with maximum difference is: a"
     })");
+  TestAnomalies(skew.GetSchemaDiff(/*enable_diff_regions=*/false), schema_proto,
+                expected_anomalies);
+}
+
+TEST(SchemaAnomalies, FindSkewNumericFeature) {
+  const DatasetFeatureStatistics training =
+      testing::GetDatasetFeatureStatisticsForTesting(
+          ParseTextProtoOrDie<tensorflow::metadata::v0::FeatureNameStatistics>(
+              R"(name: 'foo'
+                 type: INT
+                 num_stats: {
+                   common_stats: { num_missing: 0 max_num_values: 1 }
+                   histograms {
+                     buckets {
+                       low_value: 1.0
+                       high_value: 2.0
+                       sample_count: 1.0
+                     }
+                     buckets {
+                       low_value: 2.0
+                       high_value: 3.0
+                       sample_count: 1.0
+                     }
+                     type: STANDARD
+                   }
+                 })"));
+  const DatasetFeatureStatistics serving =
+      testing::GetDatasetFeatureStatisticsForTesting(
+          ParseTextProtoOrDie<tensorflow::metadata::v0::FeatureNameStatistics>(
+              R"(name: 'foo'
+                 type: INT
+                 num_stats: {
+                   common_stats: { num_missing: 0 max_num_values: 1 }
+                   histograms {
+                     buckets {
+                       low_value: 5.0
+                       high_value: 6.0
+                       sample_count: 1.0
+                     }
+                     buckets {
+                       low_value: 6.0
+                       high_value: 7.0
+                       sample_count: 1.0
+                     }
+                     type: STANDARD
+                   }
+                 })"));
+
+  const Schema schema_proto = ParseTextProtoOrDie<Schema>(R"(
+    feature {
+      name: 'foo'
+      type: INT
+      skew_comparator { jensen_shannon_divergence: { threshold: 0.1 } }
+    })");
+  const std::shared_ptr<DatasetStatsView> serving_view =
+      std::make_shared<DatasetStatsView>(serving);
+  const std::shared_ptr<DatasetStatsView> training_view =
+      std::make_shared<DatasetStatsView>(
+          training,
+          /* by_weight= */ false,
+          /* environment= */ absl::nullopt,
+          /* previous_span= */ std::shared_ptr<DatasetStatsView>(),
+          serving_view,
+          /* previous_version= */ std::shared_ptr<DatasetStatsView>());
+
+  SchemaAnomalies skew(schema_proto);
+  TF_CHECK_OK(skew.FindSkew(*training_view));
+  std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
+  expected_anomalies["foo"].new_schema = ParseTextProtoOrDie<Schema>(R"(
+    feature {
+      name: "foo"
+      type: INT
+      skew_comparator { jensen_shannon_divergence: { threshold: 1.0 } }
+    })");
+  expected_anomalies["foo"].expected_info_without_diff = ParseTextProtoOrDie<
+      tensorflow::metadata::v0::AnomalyInfo>(R"(
+    path { step: "foo" }
+    description: "The approximate Jensen-Shannon divergence between training and serving is 1 (up to six significant digits), above the threshold 0.1."
+    severity: ERROR
+    short_description: "High approximate Jensen-Shannon divergence between training and serving"
+    reason {
+      type: COMPARATOR_JENSEN_SHANNON_DIVERGENCE_HIGH
+      short_description: "High approximate Jensen-Shannon divergence between training and serving"
+      description: "The approximate Jensen-Shannon divergence between training and serving is 1 (up to six significant digits), above the threshold 0.1."
+    })");
+  TestAnomalies(skew.GetSchemaDiff(/*enable_diff_regions=*/false), schema_proto,
+                expected_anomalies);
+}
+
+TEST(SchemaAnomalies,
+     FindSkewDistributionChangeWithinThresholdDoesNotRaiseAnomaly) {
+  // Training and serving statistics have the same distribution of values in the
+  // standard histogram.
+  const DatasetFeatureStatistics training =
+      testing::GetDatasetFeatureStatisticsForTesting(
+          ParseTextProtoOrDie<tensorflow::metadata::v0::FeatureNameStatistics>(
+              R"(name: 'foo'
+                 type: INT
+                 num_stats: {
+                   common_stats: { num_missing: 0 max_num_values: 1 }
+                   histograms {
+                     buckets {
+                       low_value: 1.0
+                       high_value: 2.0
+                       sample_count: 1.0
+                     }
+                     buckets {
+                       low_value: 2.0
+                       high_value: 3.0
+                       sample_count: 1.0
+                     }
+                     type: STANDARD
+                   }
+                 })"));
+  const DatasetFeatureStatistics serving =
+      testing::GetDatasetFeatureStatisticsForTesting(
+          ParseTextProtoOrDie<tensorflow::metadata::v0::FeatureNameStatistics>(
+              R"(name: 'foo'
+                 type: INT
+                 num_stats: {
+                   common_stats: { num_missing: 0 max_num_values: 1 }
+                   histograms {
+                     buckets {
+                       low_value: 1.0
+                       high_value: 2.0
+                       sample_count: 1.0
+                     }
+                     buckets {
+                       low_value: 2.0
+                       high_value: 3.0
+                       sample_count: 1.0
+                     }
+                     type: STANDARD
+                   }
+                 })"));
+
+  const Schema schema_proto = ParseTextProtoOrDie<Schema>(R"(
+    feature {
+      name: 'foo'
+      type: INT
+      skew_comparator { jensen_shannon_divergence: { threshold: 0.5 } }
+    })");
+  const std::shared_ptr<DatasetStatsView> serving_view =
+      std::make_shared<DatasetStatsView>(serving);
+  const std::shared_ptr<DatasetStatsView> training_view =
+      std::make_shared<DatasetStatsView>(
+          training,
+          /* by_weight= */ false,
+          /* environment= */ absl::nullopt,
+          /* previous_span= */ std::shared_ptr<DatasetStatsView>(),
+          serving_view,
+          /* previous_version= */ std::shared_ptr<DatasetStatsView>());
+
+  SchemaAnomalies skew(schema_proto);
+  TF_CHECK_OK(skew.FindSkew(*training_view));
+  // No anomalies are expected.
+  std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
   TestAnomalies(skew.GetSchemaDiff(/*enable_diff_regions=*/false), schema_proto,
                 expected_anomalies);
 }
@@ -910,7 +1067,7 @@ TEST(Schema, FindChangesEmptySchemaProto) {
             rank_histogram: { buckets: { label: "D" } }
           }
         })");
-  std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
+  std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
   expected_anomalies["annotated_enum"].new_schema =
       ParseTextProtoOrDie<Schema>(R"(
         feature {
@@ -978,7 +1135,7 @@ TEST(Schema, FindChangesOnlyValidateSchemaFeatures) {
       domain: "MyAloneEnum"
     })");
 
-  std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
+  std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
   expected_anomalies["new_feature"].new_schema =
       ParseTextProtoOrDie<Schema>(
           R"(
@@ -1071,7 +1228,7 @@ TEST(GetSchemaDiff, BasicTest) {
           }
         }
       )");
-  std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
+  std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
   expected_anomalies["foo"].new_schema = ParseTextProtoOrDie<Schema>(R"(
     feature { name: "bar" type: INT }
     feature {
@@ -1148,7 +1305,7 @@ TEST(GetSchemaDiff, FindSelectedChanges) {
       )"
 
       );
-  std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
+  std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
   expected_anomalies["foo"].new_schema = ParseTextProtoOrDie<Schema>(R"(
     feature {
       name: "bar"
@@ -1307,7 +1464,7 @@ TEST(GetSchemaDiff, SparseFeatureNameCollision) {
   Schema schema_deprecated = schema_proto;
   DeprecateSparseFeature(schema_deprecated.mutable_sparse_feature(0));
   DeprecateFeature(schema_deprecated.mutable_feature(0));
-  std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
+  std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
   expected_anomalies["existing_feature"].new_schema = schema_deprecated;
   expected_anomalies["existing_feature"].expected_info_without_diff =
       ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
@@ -1579,7 +1736,7 @@ TEST(SchemaAnomaliesTest, FindChangesCreateDeep) {
             })pb");
 
   DatasetStatsView view(stats);
-  std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
+  std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
   expected_anomalies["struct"].new_schema =
       ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
         feature {
@@ -1668,7 +1825,7 @@ TEST(SchemaAnomaliesTest, FindChangesCreateDeepSeparately) {
             })pb");
 
   DatasetStatsView view(stats);
-  std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
+  std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
   expected_anomalies["struct.foo"].new_schema =
       ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
         feature {
@@ -1760,7 +1917,7 @@ TEST(SchemaAnomaliesTest, FindChangesCreateDeepDeprecated) {
 
   TestFindChanges(baseline, DatasetStatsView(stats),
                   FeatureStatisticsToProtoConfig(),
-                  std::map<string, testing::ExpectedAnomalyInfo>());
+                  std::map<std::string, testing::ExpectedAnomalyInfo>());
 }
 
 TEST(SchemaAnomalyTest, FeatureIsDeprecated) {
@@ -1859,7 +2016,7 @@ TEST(GetSchemaDiff, MissingFeatureSparseFeature) {
 
   Schema schema_deprecated = schema_proto;
   DeprecateSparseFeature(schema_deprecated.mutable_sparse_feature(0));
-  std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
+  std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
   expected_anomalies["sparse_feature"].new_schema = schema_deprecated;
   expected_anomalies["sparse_feature"]
       .expected_info_without_diff = ParseTextProtoOrDie<
@@ -1940,7 +2097,7 @@ TEST(GetSchemaDiff, LengthMismatchSparseFeature) {
   Schema schema_deprecated = schema_proto;
   DeprecateSparseFeature(schema_deprecated.mutable_sparse_feature(0));
 
-  std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
+  std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
   expected_anomalies["sparse_feature"].new_schema = schema_deprecated;
   expected_anomalies["sparse_feature"]
       .expected_info_without_diff = ParseTextProtoOrDie<
@@ -2024,7 +2181,7 @@ TEST(SchemaAnomalies, GetSchemaDiffTwoReasons) {
   SchemaAnomalies anomalies(initial);
   TF_CHECK_OK(anomalies.FindChanges(stats_view, absl::nullopt, config));
   TF_CHECK_OK(anomalies.FindChanges(stats_view_2, absl::nullopt, config));
-  std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
+  std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
 
   expected_anomalies["bar"].new_schema = ParseTextProtoOrDie<Schema>(R"(
     feature {
@@ -2083,7 +2240,7 @@ TEST(GetSchemaDiff, TwoChanges) {
         }
       )");
 
-  std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
+  std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
 
   expected_anomalies["bar"].new_schema = ParseTextProtoOrDie<Schema>(R"(
     feature {
