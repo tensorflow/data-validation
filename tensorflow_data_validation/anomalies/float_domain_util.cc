@@ -180,6 +180,14 @@ UpdateSummary UpdateFloatDomain(
                  "(upto six significant digits)")});
         float_domain->set_max(range.max);
       }
+
+      if (float_domain->disallow_inf() &&
+          (std::isinf(abs(range.min)) || std::isinf(abs(range.max)))) {
+        float_domain->set_disallow_inf(false);
+        update_summary.descriptions.push_back(
+            {tensorflow::metadata::v0::AnomalyInfo::FLOAT_TYPE_HAS_INF,
+             kInvalidValues, absl::StrCat("Float feature has Inf values.")});
+      }
     }
   }
   // If no interval is found, then assume everything is OK.

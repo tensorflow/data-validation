@@ -204,7 +204,7 @@ condition(s) under which each anomaly type is detected.
 
 -   `FEATURE_TYPE_LOW_UNIQUE`
 
-     -   Schema Fields:
+    -   Schema Fields:
         -   `feature.unique_constraints.min`
     -   Statistics Fields:
         -   `feature.string_stats.unique`
@@ -286,6 +286,19 @@ condition(s) under which each anomaly type is detected.
     -   Detection Condition:
         -   `float_domain.disallow_nan is true` and
         -   `feature.num_stats.histograms.num_nan > 0`
+
+-   `FLOAT_TYPE_HAS_INF`
+
+    -   Schema Fields:
+        -   `feature.float_domain.disallow_inf`
+    -   Statistics Fields:
+        -   `feature.type`
+        -   `feature.num_stats.min`
+        -   `feature.num_stats.max`
+    -   Detection Condition:
+        -   `float_domain.disallow_inf is true` and
+        -   `feature.num_stats.min == inf/-inf` or
+        -   `feature.num_stats.max == inf/-inf`
 
 -   `INT_TYPE_BIG_INT`
 

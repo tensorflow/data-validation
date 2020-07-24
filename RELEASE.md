@@ -44,6 +44,7 @@
     being displayed.
 *   Trigger anomalies when a feature has a number of unique values that does not
     conform to the specified minimum/maximum.
+*   Trigger anomalies when a float feature has unexpected Inf / -Inf values.
 *   Depends on `apache-beam[gcp]>=2.22,<3`.
 *   Depends on `pandas>=0.24,<2`.
 *   Depends on `tensorflow-metadata>=0.22.2,<0.23.0`.
