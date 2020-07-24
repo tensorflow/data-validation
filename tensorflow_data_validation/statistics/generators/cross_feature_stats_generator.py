@@ -28,15 +28,16 @@ import itertools
 import math
 import random
 
+from typing import Dict, Iterable, List, Optional, Text
 import numpy as np
-import pandas as pd
 import pyarrow as pa
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
+from pandas import DataFrame, Series  # pylint: disable=g-multiple-import
+import pandas as pd
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import stats_util
 from tfx_bsl.arrow import array_util
-from typing import Dict, Iterable, List, Optional, Text
 
 from tensorflow_metadata.proto.v0 import path_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -67,7 +68,7 @@ class _PartialCrossFeatureStats(object):
     self.count += other.count
     return self
 
-  def update(self, feature_x: pd.Series, feature_y: pd.Series) -> None:
+  def update(self, feature_x: Series, feature_y: Series) -> None:
     """Updates partial cross feature statistics."""
     self.sum_x += feature_x.sum()
     self.sum_y += feature_y.sum()
@@ -114,7 +115,7 @@ class CrossFeatureStatsGenerator(stats_generator.CombinerStatsGenerator):
     return {}
 
   def _get_univalent_values_with_parent_indices(
-      self, examples: pa.RecordBatch) -> Dict[types.FeatureName, pd.DataFrame]:
+      self, examples: pa.RecordBatch) -> Dict[types.FeatureName, DataFrame]:
     """Extracts univalent values for each feature along with parent indices."""
     result = {}
     for feature_name, feat_arr in zip(examples.schema.names, examples.columns):

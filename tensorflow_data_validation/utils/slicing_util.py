@@ -21,16 +21,17 @@ from __future__ import print_function
 import collections
 import functools
 
+from typing import Any, Dict, Iterable, Optional, Text, Union
 import numpy as np
-import pandas as pd
 import pyarrow as pa
 import six
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
+from pandas import DataFrame
+import pandas as pd
 from tensorflow_data_validation.utils import stats_util
 from tfx_bsl.arrow import table_util
-from typing import Any, Dict, Iterable, Optional, Text, Union
 
 _ValueType = Iterable[Union[Text, int]]
 
@@ -126,8 +127,8 @@ def get_feature_value_slicer(
           feature_array, True)
       non_missing_values = np.asarray(flattened)
       # Create dataframe with feature value and parent index.
-      df = pd.DataFrame({feature_name: non_missing_values,
-                         _PARENT_INDEX_COLUMN: value_parent_indices})
+      df = DataFrame({feature_name: non_missing_values,
+                      _PARENT_INDEX_COLUMN: value_parent_indices})
       df.drop_duplicates(inplace=True)
       # Filter based on slice values
       if values is not None:

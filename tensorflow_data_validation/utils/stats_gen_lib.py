@@ -31,13 +31,13 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from joblib import delayed
 from joblib import Parallel
 import numpy as np
-import pandas as pd
 import tensorflow as tf
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.api import stats_api
 from tensorflow_data_validation.coders import csv_decoder
 from tensorflow_data_validation.coders import tf_example_decoder
+from pandas import DataFrame
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options as options
 from tensorflow_data_validation.statistics.generators import stats_generator
@@ -193,7 +193,7 @@ def generate_statistics_from_csv(
 
 
 def generate_statistics_from_dataframe(
-    dataframe: pd.DataFrame,
+    dataframe: DataFrame,
     stats_options: options.StatsOptions = options.StatsOptions(),
     n_jobs: int = 1
 ) -> statistics_pb2.DatasetFeatureStatisticsList:
@@ -211,7 +211,7 @@ def generate_statistics_from_dataframe(
   Returns:
     A DatasetFeatureStatisticsList proto.
   """
-  if not isinstance(dataframe, pd.DataFrame):
+  if not isinstance(dataframe, DataFrame):
     raise TypeError('dataframe argument is of type {}. Must be a '
                     'pandas DataFrame.'.format(type(dataframe).__name__))
 
@@ -245,7 +245,7 @@ def generate_statistics_from_dataframe(
 
 
 def _generate_partial_statistics_from_df(
-    dataframe: pd.DataFrame,
+    dataframe: DataFrame,
     stats_options: options.StatsOptions,
     stats_generators: List[stats_generator.CombinerStatsGenerator]
 ) -> List[Any]:
