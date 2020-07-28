@@ -337,19 +337,6 @@ class ValidationApiTest(absltest.TestCase):
             type: STRING
             string_stats: {
               common_stats: {
-                num_missing: 0
-                num_non_missing: 7
-                min_num_values: 5
-                max_num_values: 5
-              }
-              unique: 5
-            }
-          }
-          features: {
-            path { step: 'feature3' }
-            type: STRING
-            string_stats: {
-              common_stats: {
                 num_missing: 2
                 num_non_missing: 5
                 min_num_values: 1
@@ -359,7 +346,7 @@ class ValidationApiTest(absltest.TestCase):
             }
           }
           features: {
-            path { step: 'feature4' }
+            path { step: 'feature3' }
             type: STRING
             string_stats: {
               common_stats: {
@@ -367,6 +354,81 @@ class ValidationApiTest(absltest.TestCase):
                 num_non_missing: 7
                 min_num_values: 0
                 max_num_values: 1
+              }
+              unique: 5
+            }
+          }
+          features: {
+            path { step: 'nested_feature1' }
+            type: STRING
+            string_stats: {
+              common_stats: {
+                num_missing: 0
+                num_non_missing: 7
+                min_num_values: 1
+                max_num_values: 1
+                presence_and_valency_stats {
+                  num_missing: 0
+                  num_non_missing: 7
+                  min_num_values: 1
+                  max_num_values: 1
+                }
+                presence_and_valency_stats {
+                  num_missing: 0
+                  num_non_missing: 7
+                  min_num_values: 1
+                  max_num_values: 1
+                }
+              }
+              unique: 3
+            }
+          }
+          features: {
+            path { step: 'nested_feature2' }
+            type: STRING
+            string_stats: {
+              common_stats: {
+                num_missing: 2
+                num_non_missing: 5
+                min_num_values: 1
+                max_num_values: 1
+                presence_and_valency_stats {
+                  num_missing: 2
+                  num_non_missing: 5
+                  min_num_values: 1
+                  max_num_values: 1
+                }
+                presence_and_valency_stats {
+                  num_missing: 2
+                  num_non_missing: 5
+                  min_num_values: 1
+                  max_num_values: 1
+                }
+              }
+              unique: 5
+            }
+          }
+          features: {
+            path { step: 'nested_feature3' }
+            type: STRING
+            string_stats: {
+              common_stats: {
+                num_missing: 0
+                num_non_missing: 7
+                min_num_values: 0
+                max_num_values: 1
+                presence_and_valency_stats {
+                  num_missing: 0
+                  num_non_missing: 7
+                  min_num_values: 0
+                  max_num_values: 1
+                }
+                presence_and_valency_stats {
+                  num_missing: 0
+                  num_non_missing: 7
+                  min_num_values: 0
+                  max_num_values: 1
+                }
               }
               unique: 5
             }
@@ -387,15 +449,6 @@ class ValidationApiTest(absltest.TestCase):
         }
         feature {
           name: "feature2"
-          shape { dim { size: 5 } }
-          presence: {
-            min_fraction: 1.0
-            min_count: 1
-          }
-          type: BYTES
-        }
-        feature {
-          name: "feature3"
           value_count: { min: 1 max: 1}
           presence: {
             min_count: 1
@@ -403,7 +456,42 @@ class ValidationApiTest(absltest.TestCase):
           type: BYTES
         }
         feature {
-          name: "feature4"
+          name: "feature3"
+          presence: {
+            min_fraction: 1.0
+            min_count: 1
+          }
+          type: BYTES
+        }
+        feature {
+          name: "nested_feature1"
+          shape: {
+            dim { size: 1 }
+            dim { size: 1 }
+          }
+          presence: {
+            min_fraction: 1.0
+            min_count: 1
+          }
+          type: BYTES
+        }
+        feature {
+          name: "nested_feature2"
+          value_counts: {
+              value_count { min: 1 max: 1 }
+              value_count { min: 1 max: 1 }
+          }
+          presence: {
+            min_count: 1
+          }
+          type: BYTES
+        }
+        feature {
+          name: "nested_feature3"
+          value_counts: {
+              value_count { }
+              value_count { }
+          }
           presence: {
             min_fraction: 1.0
             min_count: 1

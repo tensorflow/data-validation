@@ -30,14 +30,17 @@ namespace tensorflow {
 namespace data_validation {
 namespace {
 using absl::optional;
+using ::tensorflow::metadata::v0::AnomalyInfo;
 using ::tensorflow::metadata::v0::Feature;
 using ::tensorflow::metadata::v0::FeatureComparator;
 using ::tensorflow::metadata::v0::SparseFeature;
+using ::tensorflow::metadata::v0::ValueCount;
 using ::tensorflow::metadata::v0::WeightedFeature;
 
 constexpr char kSuperfluousValues[] = "Superfluous values";
 constexpr char kMissingValues[] = "Missing values";
 constexpr char kDropped[] = "Column dropped";
+constexpr char kValueNestednessMismatch[] = "Mismatched value nest level";
 
 ComparatorContext GetContext(FeatureComparatorType comparator_type) {
   switch (comparator_type) {
@@ -68,34 +71,100 @@ absl::optional<FeatureStatsView> GetControlStats(
   }
 }
 
-}  // namespace
-
 std::vector<Description> UpdateValueCount(
-    const FeatureStatsView& feature_stats_view,
-    tensorflow::metadata::v0::ValueCount* value_count) {
-  DCHECK_NE(value_count, nullptr);
-
+    const std::vector<std::pair<int, int>>& min_max_num_values,
+    Feature* feature) {
   std::vector<Description> description;
-  if (value_count->has_min() &&
-      feature_stats_view.min_num_values() < value_count->min()) {
+  if (min_max_num_values.size() > 1) {
     description.push_back(
-        {tensorflow::metadata::v0::AnomalyInfo::FEATURE_TYPE_LOW_NUMBER_VALUES,
-         kMissingValues, "Some examples have fewer values than expected."});
-    if (feature_stats_view.min_num_values() == 0) {
-      value_count->clear_min();
+        {AnomalyInfo::VALUE_NESTEDNESS_MISMATCH, kValueNestednessMismatch,
+         "This feature has a value_count, but the nestedness level of the "
+         "feature > 1. For features with nestedness levels greater than 1, "
+         "value_counts, not value_count, should be specified."});
+    feature->clear_value_count();
+    return description;
+  }
+  if (feature->value_count().has_min() &&
+      min_max_num_values[0].first < feature->value_count().min()) {
+    description.push_back({AnomalyInfo::FEATURE_TYPE_LOW_NUMBER_VALUES,
+                           kMissingValues,
+                           "Some examples have fewer values than expected."});
+    if (min_max_num_values[0].first == 0) {
+      feature->mutable_value_count()->clear_min();
     } else {
-      value_count->set_min(feature_stats_view.min_num_values());
+      feature->mutable_value_count()->set_min(min_max_num_values[0].first);
     }
   }
-
-  if (value_count->has_max() &&
-      feature_stats_view.max_num_values() > value_count->max()) {
-    description.push_back(
-        {tensorflow::metadata::v0::AnomalyInfo::FEATURE_TYPE_HIGH_NUMBER_VALUES,
-         kSuperfluousValues, "Some examples have more values than expected."});
-    value_count->set_max(feature_stats_view.max_num_values());
+  if (feature->value_count().has_max() &&
+      min_max_num_values[0].second > feature->value_count().max()) {
+    description.push_back({AnomalyInfo::FEATURE_TYPE_HIGH_NUMBER_VALUES,
+                           kSuperfluousValues,
+                           "Some examples have more values than expected."});
+    feature->mutable_value_count()->set_max(min_max_num_values[0].second);
   }
   return description;
+}
+
+std::vector<Description> UpdateValueCounts(
+    const std::vector<std::pair<int, int>>& min_max_num_values,
+    Feature* feature) {
+  std::vector<Description> description;
+  if (feature->value_counts().value_count_size() != min_max_num_values.size()) {
+    description.push_back(
+        {AnomalyInfo::VALUE_NESTEDNESS_MISMATCH, kValueNestednessMismatch,
+         "The values have a different nest level than expected. Value counts "
+         "will not be checked."});
+    feature->clear_value_counts();
+    return description;
+  }
+  for (int i = 0; i < feature->value_counts().value_count_size(); ++i) {
+    if (feature->value_counts().value_count(i).has_min() &&
+        min_max_num_values[i].first <
+            feature->value_counts().value_count(i).min()) {
+      description.push_back(
+          {AnomalyInfo::FEATURE_TYPE_LOW_NUMBER_VALUES, kMissingValues,
+           absl::StrCat("Some examples have fewer values than expected at "
+                        "nestedness level ",
+                        i, ".")});
+      if (min_max_num_values[i].first == 0) {
+        feature->mutable_value_counts()->mutable_value_count(i)->clear_min();
+      } else {
+        feature->mutable_value_counts()->mutable_value_count(i)->set_min(
+            min_max_num_values[i].first);
+      }
+    }
+    if (feature->mutable_value_counts()->mutable_value_count(i)->has_max() &&
+        min_max_num_values[i].second >
+            feature->value_counts().value_count(i).max()) {
+      description.push_back(
+          {AnomalyInfo::FEATURE_TYPE_HIGH_NUMBER_VALUES, kSuperfluousValues,
+           absl::StrCat("Some examples have more values than expected at "
+                        "nestedness level ",
+                        i, ".")});
+      feature->mutable_value_counts()->mutable_value_count(i)->set_max(
+          min_max_num_values[i].second);
+    }
+  }
+  return description;
+}
+
+}  // namespace
+
+std::vector<Description> UpdateFeatureValueCounts(
+    const FeatureStatsView& feature_stats_view, Feature* feature) {
+  CHECK_NE(feature, nullptr);
+  if (!feature->has_value_count() && !feature->has_value_counts()) {
+    return {};
+  }
+  const std::vector<std::pair<int, int>> min_max_num_values =
+      feature_stats_view.GetMinMaxNumValues();
+  if (feature->has_value_count()) {
+    return UpdateValueCount(min_max_num_values, feature);
+  }
+  if (feature->has_value_counts()) {
+    return UpdateValueCounts(min_max_num_values, feature);
+  }
+  return {};
 }
 
 bool FeatureHasComparator(const Feature& feature,
@@ -284,6 +353,7 @@ std::vector<Description> UpdateFeatureComparatorDirect(
       description.push_back(jensen_shannon_description.value());
     }
     return description;
+
   } else if (HasControlDataset(stats, comparator_type)) {
     // If there is a control dataset, but that dataset does not contain
     // statistics for the feature at issue, generate a missing control data
@@ -294,10 +364,9 @@ std::vector<Description> UpdateFeatureComparatorDirect(
     if (comparator->jensen_shannon_divergence().has_threshold()) {
       comparator->mutable_jensen_shannon_divergence()->clear_threshold();
     }
-    return {
-        {tensorflow::metadata::v0::AnomalyInfo::COMPARATOR_CONTROL_DATA_MISSING,
-         absl::StrCat(context.control_name, " data missing"),
-         absl::StrCat(context.control_name, " data is missing.")}};
+    return {{AnomalyInfo::COMPARATOR_CONTROL_DATA_MISSING,
+             absl::StrCat(context.control_name, " data missing"),
+             absl::StrCat(context.control_name, " data is missing.")}};
   }
   // If there is no control dataset at all, return without generating an
   // anomaly.
@@ -335,19 +404,33 @@ void InitValueCountAndPresence(const FeatureStatsView& feature_stats_view,
     // Required feature.
     feature->mutable_presence()->set_min_fraction(1.0);
   }
-  if (feature_stats_view.min_num_values() > 0) {
-    if (feature_stats_view.min_num_values() ==
-        feature_stats_view.max_num_values()) {
-      // Set min and max value count in the schema if they are same. This would
-      // allow required features with same valency to be parsed as dense tensors
-      // in TFT.
-      feature->mutable_value_count()->set_min(
-          feature_stats_view.min_num_values());
-      feature->mutable_value_count()->set_max(
-          feature_stats_view.min_num_values());
-    } else {
-      feature->mutable_value_count()->set_min(1);
+  // Set value_counts or value_count, depending on whether the feature's values
+  // are nested.
+  const std::vector<std::pair<int, int>> min_max_num_values =
+      feature_stats_view.GetMinMaxNumValues();
+  auto set_value_count = [](int min_num_values, int max_num_values,
+                            ValueCount* value_count) {
+    if (min_num_values > 0) {
+      if (min_num_values == max_num_values) {
+        // Set min and max value count in the schema if they are same. This
+        // would allow required features with same valency to be parsed as dense
+        // tensors in TFT.
+        value_count->set_min(min_num_values);
+        value_count->set_max(max_num_values);
+      } else {
+        value_count->set_min(1);
+      }
     }
+  };
+  if (feature_stats_view.HasNestedValues()) {
+    for (int i = 0; i < min_max_num_values.size(); i++) {
+      set_value_count(min_max_num_values[i].first, min_max_num_values[i].second,
+                      feature->mutable_value_counts()->add_value_count());
+    }
+  } else if (min_max_num_values.size() == 1 &&
+             min_max_num_values[0].first > 0) {
+    set_value_count(min_max_num_values[0].first, min_max_num_values[0].second,
+                    feature->mutable_value_count());
   }
 }
 
@@ -360,9 +443,7 @@ std::vector<Description> UpdatePresence(
     if (*num_present < presence->min_count()) {
       presence->set_min_count(*num_present);
       descriptions.push_back(
-          {tensorflow::metadata::v0::AnomalyInfo::
-               FEATURE_TYPE_LOW_NUMBER_PRESENT,
-           kDropped,
+          {AnomalyInfo::FEATURE_TYPE_LOW_NUMBER_PRESENT, kDropped,
            "The feature was present in fewer examples than expected."});
     }
   }
@@ -372,9 +453,7 @@ std::vector<Description> UpdatePresence(
     if (*fraction_present < presence->min_fraction()) {
       presence->set_min_fraction(*fraction_present);
       descriptions.push_back(
-          {tensorflow::metadata::v0::AnomalyInfo::
-               FEATURE_TYPE_LOW_FRACTION_PRESENT,
-           kDropped,
+          {AnomalyInfo::FEATURE_TYPE_LOW_FRACTION_PRESENT, kDropped,
            "The feature was present in fewer examples than expected."});
     }
     if (presence->min_fraction() == 1.0) {
@@ -386,9 +465,7 @@ std::vector<Description> UpdatePresence(
         // TODO(b/148429185): update the anomaly type here to be unique.
         presence->set_min_fraction(0.9999);
         descriptions.push_back(
-            {tensorflow::metadata::v0::AnomalyInfo::
-                 FEATURE_TYPE_LOW_FRACTION_PRESENT,
-             kDropped,
+            {AnomalyInfo::FEATURE_TYPE_LOW_FRACTION_PRESENT, kDropped,
              absl::StrCat(
                  "The feature was expected everywhere, but was missing in ",
                  feature_stats_view.GetNumMissing(), " examples.")});
@@ -406,8 +483,7 @@ std::vector<Description> UpdateUniqueConstraints(
   if (num_unique) {
     if (num_unique < feature->unique_constraints().min()) {
       descriptions.push_back(
-          {tensorflow::metadata::v0::AnomalyInfo::FEATURE_TYPE_LOW_UNIQUE,
-           "Low number of unique values",
+          {AnomalyInfo::FEATURE_TYPE_LOW_UNIQUE, "Low number of unique values",
            absl::StrCat(
                "Expected at least ", feature->unique_constraints().min(),
                " unique values but found only ", num_unique.value(), ".")});
@@ -415,7 +491,7 @@ std::vector<Description> UpdateUniqueConstraints(
     }
     if (num_unique > feature->unique_constraints().max()) {
       descriptions.push_back(
-          {tensorflow::metadata::v0::AnomalyInfo::FEATURE_TYPE_HIGH_UNIQUE,
+          {AnomalyInfo::FEATURE_TYPE_HIGH_UNIQUE,
            "High number of unique values",
            absl::StrCat("Expected no more than ",
                         feature->unique_constraints().max(),
@@ -424,8 +500,7 @@ std::vector<Description> UpdateUniqueConstraints(
     }
   } else {
     descriptions.push_back(
-        {tensorflow::metadata::v0::AnomalyInfo::FEATURE_TYPE_NO_UNIQUE,
-         "No unique values",
+        {AnomalyInfo::FEATURE_TYPE_NO_UNIQUE, "No unique values",
          absl::StrCat(
              "UniqueConstraints specified for the feature, but unique values "
              "were not counted (i.e., feature is not string or "

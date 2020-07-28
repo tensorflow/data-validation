@@ -3,6 +3,9 @@
 # Current Version(Still in Development)
 
 ## Major Features and Improvements
+*   Data validation is now able to handle arbitrarily nested arrow
+    List/LargeList types. Schema entries for features with multiple nest levels
+    describe the value count at each level in the value_counts field.
 
 ## Bug Fixes and Other Changes
 *   Stopped requiring avro-python3.

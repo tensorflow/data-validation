@@ -752,6 +752,7 @@ std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
     descriptions.push_back({tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
                             "min_fraction should not greater than 1"});
   }
+  // TODO(b/157073026): Add similar checks for value_counts() values.
   if (feature->value_count().min() < 0) {
     feature->mutable_value_count()->clear_min();
     descriptions.push_back({tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
@@ -943,9 +944,9 @@ std::vector<Description> Schema::UpdateFeatureInternal(
     }
   };
 
-  if (feature->has_value_count()) {
-    add_to_descriptions(::tensorflow::data_validation::UpdateValueCount(
-        view, feature->mutable_value_count()));
+  if (feature->has_value_count() || feature->has_value_counts()) {
+    add_to_descriptions(
+        ::tensorflow::data_validation::UpdateFeatureValueCounts(view, feature));
   }
 
   if (feature->has_presence()) {

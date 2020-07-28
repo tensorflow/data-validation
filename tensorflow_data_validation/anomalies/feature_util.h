@@ -27,10 +27,10 @@ limitations under the License.
 namespace tensorflow {
 namespace data_validation {
 
-// If the value count constraints are not satisfied, adjust them.
-std::vector<Description> UpdateValueCount(
+// If the value_count(s) constraints are not satisfied, adjust them.
+std::vector<Description> UpdateFeatureValueCounts(
     const FeatureStatsView& feature_stats_view,
-    tensorflow::metadata::v0::ValueCount* value_count);
+    tensorflow::metadata::v0::Feature* feature);
 
 // If a feature occurs in too few examples, or a feature occurs in too small
 // a fraction of the examples, adjust the presence constraints to account for

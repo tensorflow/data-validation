@@ -1977,6 +1977,81 @@ TEST(SchemaTest, GetSchemaWithOptions) {
   EXPECT_THAT(actual, EqualsProto(GetAnnotatedFieldsMessage()));
 }
 
+TEST(SchemaTest, GetSchemaWithValueCounts) {
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(tensorflow::metadata::v0::Schema()));
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        features: {
+          name: "feature_with_one_nestedness_level"
+          type: INT
+          num_stats {
+            common_stats {
+              num_non_missing: 10
+              num_missing: 10
+              min_num_values: 1
+              max_num_values: 1
+              avg_num_values: 1.0
+              tot_num_values: 10
+            }
+          }
+        },
+        features: {
+          name: "feature_with_multiple_nestedness_levels"
+          type: INT
+          type: INT
+          num_stats {
+            common_stats {
+              num_non_missing: 10
+              num_missing: 10
+              min_num_values: 1
+              max_num_values: 1
+              avg_num_values: 1.0
+              tot_num_values: 10
+              presence_and_valency_stats {
+                num_non_missing: 10
+                num_missing: 10
+                min_num_values: 1
+                max_num_values: 1
+                tot_num_values: 10
+              }
+              presence_and_valency_stats {
+                num_non_missing: 10
+                min_num_values: 2
+                max_num_values: 2
+                tot_num_values: 20
+              }
+              presence_and_valency_stats {
+                num_non_missing: 10
+                min_num_values: 1
+                max_num_values: 2
+                tot_num_values: 15
+              }
+            }
+          }
+        })");
+  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, /*by_weight=*/false),
+                             FeatureStatisticsToProtoConfig()));
+  const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
+  EXPECT_THAT(actual, EqualsProto(R"(
+                feature {
+                  name: "feature_with_one_nestedness_level"
+                  type: INT
+                  value_count { min: 1 max: 1 }
+                  presence { min_count: 1 }
+                },
+                feature {
+                  name: "feature_with_multiple_nestedness_levels"
+                  type: INT
+                  value_counts {
+                    value_count { min: 1 max: 1 }
+                    value_count { min: 2 max: 2 }
+                    value_count { min: 1 }
+                  }
+                  presence { min_count: 1 }
+                })"));
+}
+
 // Construct a schema from a DatasetFeatureStatistics, and then write it to a
 // SchemaProto.
 struct SchemaStatisticsConstructorTest {

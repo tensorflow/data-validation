@@ -425,6 +425,24 @@ FeatureStatsView::GetCommonStatistics() const {
              << data().DebugString();
 }
 
+std::vector<std::pair<int, int>> FeatureStatsView::GetMinMaxNumValues() const {
+  std::vector<std::pair<int, int>> min_max_num_values;
+  for (const auto& presence_and_valency_stats :
+       GetCommonStatistics().presence_and_valency_stats()) {
+    min_max_num_values.push_back(
+        // The number of values should never be negative: instead of
+        // propagating such an error, we treat it as zero.
+        {std::max<int>(presence_and_valency_stats.min_num_values(), 0),
+         presence_and_valency_stats.max_num_values()});
+  }
+  if (min_max_num_values.empty()) {
+    min_max_num_values.push_back(
+        {std::max<int>(GetCommonStatistics().min_num_values(), 0),
+         GetCommonStatistics().max_num_values()});
+  }
+  return min_max_num_values;
+}
+
 // Get the number of examples in which this field is present.
 double FeatureStatsView::GetNumPresent() const {
   if (parent_view_.by_weight()) {

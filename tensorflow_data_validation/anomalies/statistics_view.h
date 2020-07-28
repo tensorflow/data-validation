@@ -142,12 +142,15 @@ class FeatureStatsView {
   // feature is present.
   double GetNumPresent() const;
 
-  // The number of values should never be negative: instead of propagating
-  // such an error, we treat it as zero.
-  int min_num_values() const {
-    return std::max<int>(GetCommonStatistics().min_num_values(), 0);
+  // Returns the minimum and maximum number of values for the feature at each
+  // nestedness level.
+  std::vector<std::pair<int, int>> GetMinMaxNumValues() const;
+
+  // Returns whether the feature contains values with a nestedness level that is
+  // greater than 1.
+  bool HasNestedValues() const {
+    return GetCommonStatistics().presence_and_valency_stats_size() > 1;
   }
-  int max_num_values() const { return GetCommonStatistics().max_num_values(); }
 
   // Get the total (weighted) number of examples, regardless of whether this
   // feature was present or absent (calls the parent_view_).

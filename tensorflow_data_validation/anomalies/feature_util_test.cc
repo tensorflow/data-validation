@@ -17,6 +17,7 @@ limitations under the License.
 
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -26,26 +27,27 @@ limitations under the License.
 #include "tensorflow_data_validation/anomalies/test_util.h"
 #include "tensorflow/core/platform/logging.h"
 #include "tensorflow/core/platform/types.h"
+#include "tensorflow_metadata/proto/v0/anomalies.pb.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
 
 namespace tensorflow {
 namespace data_validation {
 namespace {
+using ::tensorflow::metadata::v0::AnomalyInfo;
 using ::tensorflow::metadata::v0::DatasetFeatureStatistics;
 using ::tensorflow::metadata::v0::Feature;
 using ::tensorflow::metadata::v0::FeatureComparator;
 using ::tensorflow::metadata::v0::FeatureNameStatistics;
 using ::tensorflow::metadata::v0::FeaturePresence;
-using ::tensorflow::metadata::v0::ValueCount;
-using ::tensorflow::metadata::v0::WeightedFeature;
 using ::tensorflow::metadata::v0::SparseFeature;
+using ::tensorflow::metadata::v0::WeightedFeature;
 using testing::AddWeightedStats;
 using testing::EqualsProto;
 using testing::ParseTextProtoOrDie;
 
-string DescriptionsToString(const std::vector<Description>& descriptions) {
-  string result;
+std::string DescriptionsToString(const std::vector<Description>& descriptions) {
+  std::string result;
   for (const Description& description : descriptions) {
     absl::StrAppend(&result, "short:", description.short_description, "\n");
     absl::StrAppend(&result, "long:", description.long_description, "\n");
@@ -55,7 +57,7 @@ string DescriptionsToString(const std::vector<Description>& descriptions) {
 
 Feature GetFeatureProtoOrDie(
     const tensorflow::metadata::v0::Schema& schema_proto,
-    const string& field_name) {
+    const std::string& field_name) {
   for (const Feature& feature_proto :
        schema_proto.feature()) {
     if (field_name == feature_proto.name()) {
@@ -666,20 +668,25 @@ TEST(FeatureTypeTest, ConstructFromFeatureNameStatistics) {
   }
 }
 
-struct UpdateValueCountTest {
-  string name;
+struct UpdateFeatureValueCountsTest {
+  std::string name;
   FeatureNameStatistics statistics;
   // Result of IsValid().
   bool expected_description_empty;
+  std::unordered_set<tensorflow::metadata::v0::AnomalyInfo::Type>
+      expected_anomaly_types;
+  std::unordered_set<std::string> expected_short_descriptions;
   // Initial feature proto.
-  ValueCount original;
+  Feature original;
   // Result of Update().
-  ValueCount expected;
+  Feature expected;
 };
 
-const std::vector<UpdateValueCountTest> GetUpdateValueCountTests() {
+const std::vector<UpdateFeatureValueCountsTest>
+GetUpdateFeatureValueCountsTests() {
   return {
-      {"value_count_valid", ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+      {"value_count_valid",
+       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
          name: 'feature'
          type: FLOAT
          num_stats: {
@@ -690,8 +697,40 @@ const std::vector<UpdateValueCountTest> GetUpdateValueCountTests() {
              max_num_values: 1
            }
          })"),
-       true, ParseTextProtoOrDie<ValueCount>(R"(min: 1 max: 1)"),
-       ParseTextProtoOrDie<ValueCount>(R"(min: 1 max: 1)")},
+       true,
+       {},
+       {},
+       ParseTextProtoOrDie<Feature>(R"(value_count: { min: 1 max: 1 })"),
+       ParseTextProtoOrDie<Feature>(R"(value_count: { min: 1 max: 1 })")},
+      {"value_count_with_nestedness_mismatch",
+       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+         name: 'feature'
+         type: FLOAT
+         num_stats: {
+           common_stats: {
+             num_missing: 0
+             num_non_missing: 10
+             min_num_values: 1
+             max_num_values: 1
+             presence_and_valency_stats {
+               num_missing: 0
+               num_non_missing: 10
+               min_num_values: 1
+               max_num_values: 1
+             }
+             presence_and_valency_stats {
+               num_missing: 0
+               num_non_missing: 10
+               min_num_values: 1
+               max_num_values: 1
+             }
+           }
+         })"),
+       false,
+       {AnomalyInfo::VALUE_NESTEDNESS_MISMATCH},
+       {"Mismatched value nest level"},
+       ParseTextProtoOrDie<Feature>(R"(value_count: { min: 1 max: 1 })"),
+       Feature()},
       {"num_values_outside_value_count_bounds",
        ParseTextProtoOrDie<FeatureNameStatistics>(R"(
          name: 'feature'
@@ -704,8 +743,12 @@ const std::vector<UpdateValueCountTest> GetUpdateValueCountTests() {
              max_num_values: 8
            }
          })"),
-       false, ParseTextProtoOrDie<ValueCount>(R"(min: 5 max: 5)"),
-       ParseTextProtoOrDie<ValueCount>(R"(min: 3 max: 8)")},
+       false,
+       {AnomalyInfo::FEATURE_TYPE_LOW_NUMBER_VALUES,
+        AnomalyInfo::FEATURE_TYPE_HIGH_NUMBER_VALUES},
+       {"Missing values", "Superfluous values"},
+       ParseTextProtoOrDie<Feature>(R"(value_count: { min: 5 max: 5 })"),
+       ParseTextProtoOrDie<Feature>(R"(value_count: { min: 3 max: 8 })")},
       {"num_values_outside_value_count_bounds_clears_min",
        ParseTextProtoOrDie<FeatureNameStatistics>(R"(
          name: 'feature'
@@ -718,18 +761,177 @@ const std::vector<UpdateValueCountTest> GetUpdateValueCountTests() {
              max_num_values: 8
            }
          })"),
-       false, ParseTextProtoOrDie<ValueCount>(R"(min: 5 max: 5)"),
-       ParseTextProtoOrDie<ValueCount>(R"(max: 8)")},
+       false,
+       {AnomalyInfo::FEATURE_TYPE_LOW_NUMBER_VALUES,
+        AnomalyInfo::FEATURE_TYPE_HIGH_NUMBER_VALUES},
+       {"Missing values", "Superfluous values"},
+       ParseTextProtoOrDie<Feature>(R"(value_count: { min: 5 max: 5 })"),
+       ParseTextProtoOrDie<Feature>(R"(value_count: { max: 8 })")},
+      {"value_counts_valid",
+       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+         name: 'feature'
+         type: FLOAT
+         num_stats: {
+           common_stats: {
+             num_missing: 0
+             num_non_missing: 10
+             min_num_values: 1
+             max_num_values: 1
+             presence_and_valency_stats {
+               num_missing: 0
+               num_non_missing: 10
+               min_num_values: 1
+               max_num_values: 1
+             }
+             presence_and_valency_stats {
+               num_missing: 0
+               num_non_missing: 10
+               min_num_values: 1
+               max_num_values: 1
+             }
+           }
+         })"),
+       true,
+       {},
+       {},
+       ParseTextProtoOrDie<Feature>(R"(value_counts: {
+                                         value_count: { min: 1 max: 1 }
+                                         value_count: { min: 1 max: 1 }
+                                       })"),
+       ParseTextProtoOrDie<Feature>(R"(value_counts: {
+                                         value_count: { min: 1 max: 1 }
+                                         value_count: { min: 1 max: 1 }
+                                       })")},
+      {"value_counts_nestedness_mismatch",
+       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+         name: 'feature'
+         type: FLOAT
+         num_stats: {
+           common_stats: {
+             num_missing: 0
+             num_non_missing: 10
+             min_num_values: 1
+             max_num_values: 1
+             presence_and_valency_stats {
+               num_missing: 0
+               num_non_missing: 10
+               min_num_values: 1
+               max_num_values: 1
+             }
+             presence_and_valency_stats {
+               num_missing: 0
+               num_non_missing: 10
+               min_num_values: 1
+               max_num_values: 1
+             }
+             presence_and_valency_stats {
+               num_missing: 0
+               num_non_missing: 10
+               min_num_values: 1
+               max_num_values: 1
+             }
+           }
+         })"),
+       false,
+       {AnomalyInfo::VALUE_NESTEDNESS_MISMATCH},
+       {"Mismatched value nest level"},
+       ParseTextProtoOrDie<Feature>(R"(value_counts: {
+                                         value_count: { min: 1 max: 1 }
+                                         value_count: { min: 1 max: 1 }
+                                       })"),
+       Feature()},
+      {"num_values_outside_value_counts_bounds",
+       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+         name: 'feature'
+         type: FLOAT
+         num_stats: {
+           common_stats: {
+             num_missing: 0
+             num_non_missing: 10
+             min_num_values: 1
+             max_num_values: 1
+             presence_and_valency_stats {
+               num_missing: 0
+               num_non_missing: 10
+               min_num_values: 1
+               max_num_values: 1
+             }
+             presence_and_valency_stats {
+               num_missing: 0
+               num_non_missing: 10
+               min_num_values: 3
+               max_num_values: 8
+             }
+           }
+         })"),
+       false,
+       {AnomalyInfo::FEATURE_TYPE_LOW_NUMBER_VALUES,
+        AnomalyInfo::FEATURE_TYPE_HIGH_NUMBER_VALUES},
+       {"Missing values", "Superfluous values"},
+       ParseTextProtoOrDie<Feature>(R"(value_counts: {
+                                         value_count: { min: 1 max: 1 }
+                                         value_count: { min: 5 max: 5 }
+                                       })"),
+       ParseTextProtoOrDie<Feature>(R"(value_counts: {
+                                         value_count: { min: 1 max: 1 }
+                                         value_count: { min: 3 max: 8 }
+                                       })")},
+      {"num_values_outside_value_counts_bounds_clears_min",
+       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+         name: 'feature'
+         type: FLOAT
+         num_stats: {
+           common_stats: {
+             num_missing: 0
+             num_non_missing: 10
+             min_num_values: 1
+             max_num_values: 1
+             presence_and_valency_stats {
+               num_missing: 0
+               num_non_missing: 10
+               min_num_values: 1
+               max_num_values: 1
+             }
+             presence_and_valency_stats {
+               num_missing: 0
+               num_non_missing: 10
+               min_num_values: 0
+               max_num_values: 8
+             }
+           }
+         })"),
+       false,
+       {AnomalyInfo::FEATURE_TYPE_LOW_NUMBER_VALUES,
+        AnomalyInfo::FEATURE_TYPE_HIGH_NUMBER_VALUES},
+       {"Missing values", "Superfluous values"},
+       ParseTextProtoOrDie<Feature>(R"(value_counts: {
+                                         value_count: { min: 1 max: 1 }
+                                         value_count: { min: 5 max: 5 }
+                                       })"),
+       ParseTextProtoOrDie<Feature>(R"(value_counts: {
+                                         value_count: { min: 1 max: 1 }
+                                         value_count: { max: 8 }
+                                       })")},
   };
 }
 
-TEST(FeatureTypeTest, UpdateValueCountTest) {
-  for (const auto& test : GetUpdateValueCountTests()) {
-    ValueCount to_modify = test.original;
+TEST(FeatureTypeTest, UpdateFeatureValueCountsTest) {
+  for (const auto& test : GetUpdateFeatureValueCountsTests()) {
+    Feature to_modify = test.original;
     testing::DatasetForTesting dataset(test.statistics);
-    std::vector<Description> description =
-        UpdateValueCount(dataset.feature_stats_view(), &to_modify);
+    const std::vector<Description> description =
+        UpdateFeatureValueCounts(dataset.feature_stats_view(), &to_modify);
     EXPECT_EQ(test.expected_description_empty, description.empty());
+    if (!test.expected_description_empty) {
+      std::unordered_set<AnomalyInfo::Type> actual_anomaly_types;
+      std::unordered_set<std::string> actual_short_descriptions;
+      for (const auto& each : description) {
+        actual_anomaly_types.insert(each.type);
+        actual_short_descriptions.insert(each.short_description);
+      }
+      EXPECT_EQ(actual_anomaly_types, test.expected_anomaly_types);
+      EXPECT_EQ(actual_short_descriptions, test.expected_short_descriptions);
+    }
     EXPECT_THAT(to_modify, EqualsProto(test.expected));
   }
 }
@@ -737,7 +939,7 @@ TEST(FeatureTypeTest, UpdateValueCountTest) {
 // Construct a schema from a proto field, and then write it to a
 // DescriptorProto.
 struct UpdatePresenceTest {
-  string name;
+  std::string name;
   FeatureNameStatistics statistics;
   bool expected_description_empty;
   // Initial feature proto.
@@ -1265,8 +1467,7 @@ struct UpdateMaxCadinalityConstraintTest {
   Feature feature_proto;
   // If true then no messages should be generated as part of the update.
   bool empty_messages;
-  //
-  string description;
+  std::string description;
 };
 
 TEST(FeatureTypeTest, ValidateCustomFeatures) {
@@ -1335,8 +1536,8 @@ TEST(FeatureTypeTest, ValidateCustomFeatures) {
 
       std::vector<Description> description_a;
       if (to_modify.has_value_count()) {
-        description_a = UpdateValueCount(dataset.feature_stats_view(),
-                                         to_modify.mutable_value_count());
+        description_a =
+            UpdateFeatureValueCounts(dataset.feature_stats_view(), &to_modify);
       }
       std::vector<Description> description_b;
       if (to_modify.has_presence()) {

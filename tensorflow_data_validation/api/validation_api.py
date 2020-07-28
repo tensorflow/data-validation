@@ -136,13 +136,32 @@ def _may_be_set_legacy_flag(schema: schema_pb2.Schema):
 
 
 def _infer_shape(schema: schema_pb2.Schema):
-  """Infers shapes of the features."""
-  for feature in schema.feature:
+  """Infers shapes of the features in a schema."""
+
+  def _infer_feature_shape(feature: schema_pb2.Feature):
+    if feature.HasField('struct_domain'):
+      for struct_domain_feature in feature.struct_domain.feature:
+        _infer_feature_shape(struct_domain_feature)
     # Currently we infer shape only for required features.
-    if (feature.presence.min_fraction == 1 and
-        feature.value_count.min != 0 and
-        feature.value_count.min == feature.value_count.max):
-      feature.shape.dim.add().size = feature.value_count.min
+    if feature.presence.min_fraction == 1:
+      if (feature.HasField('value_count') and feature.value_count.min != 0 and
+          feature.value_count.min == feature.value_count.max):
+        feature.shape.dim.add().size = feature.value_count.min
+      elif feature.HasField('value_counts'):
+        # Infer shape for a feature that has a nestedness level > 1 if and only
+        # if the min value count equals the max value count at each nestedness
+        # level.
+        dimension_sizes = list()
+        for value_count in feature.value_counts.value_count:
+          if (value_count.min == 0 or value_count.min != value_count.max):
+            return
+          dimension_sizes.append(value_count.min)
+        if len(dimension_sizes) == len(feature.value_counts.value_count):
+          for size in dimension_sizes:
+            feature.shape.dim.add().size = size
+
+  for feature in schema.feature:
+    _infer_feature_shape(feature)
 
 
 # TODO(pachristopher): Add support for updating only a subset of features.

@@ -1345,9 +1345,15 @@ feature {
   struct_domain {
     feature {
       name: "sequence_float_feature"
-      value_count {
-        min: 1
-        max: 1
+      value_counts {
+        value_count {
+          min: 1
+          max: 1
+        }
+        value_count {
+          min: 2
+          max: 2
+        }
       }
       type: FLOAT
       presence {
@@ -1356,8 +1362,12 @@ feature {
     }
     feature {
       name: "sequence_int64_feature"
-      value_count {
-        min: 1
+      value_counts {
+        value_count {
+          min: 1
+        }
+        value_count {
+        }
       }
       type: INT
       presence {
@@ -1400,6 +1410,8 @@ _TEST_CASES = [
 ]
 
 
+# TODO(b/157073026): Expand to cover data validation and schema inference of
+# SequenceExamples.
 class SequenceExampleStatsTest(parameterized.TestCase):
 
   @classmethod

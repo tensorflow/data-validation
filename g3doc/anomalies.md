@@ -124,11 +124,17 @@ condition(s) under which each anomaly type is detected.
 
     -   Schema Fields:
         -   `feature.value_count.max`
+        -   `feature.value_counts.value_count.max`
     -   Statistics Fields:
         -   `feature.common_stats.max_num_values`
+        -   `feature.common_stats.presence_and_valency_stats.max_num_values`
     -   Detection Condition:
         -   `feature.value_count.max` is specified and
-        -   `feature.common_stats.max_num_values` > `feature.value_count.max`
+        -   `feature.common_stats.max_num_values` > `feature.value_count.max`;
+        or
+        -   `feature.value_counts` is specified and
+        -   `feature.common_stats.presence_and_valency_stats.max_num_values` >
+            `feature.value_counts.value_count.max` at a given nestedness level
 
 -   `FEATURE_TYPE_LOW_FRACTION_PRESENT`
 
@@ -160,11 +166,17 @@ condition(s) under which each anomaly type is detected.
 
     -   Schema Fields:
         -   `feature.value_count.min`
+        -   `feature.value_counts.value_count.min`
     -   Statistics Fields:
         -   `feature.common_stats.min_num_values`
+        -   `feature.common_stats.presence_and_valency_stats.min_num_values`
     -   Detection Condition:
         -   `feature.value_count.min` is specified and
-        -   `feature.common_stats.min_num_values` < `feature.value_count.min`
+        -   `feature.common_stats.min_num_values` < `feature.value_count.min`;
+        or
+        -   `feature.value_counts` is specified and
+        -   `feature.common_stats.presence_and_valency_stats.min_num_values` <
+            `feature.value_counts.value_count.min` at a given nestedness level
 
 -   `FEATURE_TYPE_NOT_PRESENT`
 
@@ -573,6 +585,22 @@ condition(s) under which each anomaly type is detected.
             -   `sparse_feature.lifecycle_stage` != `PLANNED`, `ALPHA`, `DEBUG`,
                 or`DEPRECATED` and `weighted_feature.name` ==
                 `sparse_feature.name`
+
+-   `VALUE_NESTEDNESS_MISMATCH`
+
+    -   Schema Fields:
+        -   `feature.value_count`
+        -   `feature.value_counts`
+    -   Statistics Fields:
+        -   `feature.common_stats.presence_and_valency_stats`
+    -   Detection Condition:
+        -   `feature.value_count` is specified, and there is a repeated
+            `presence_and_valency_stats` for the feature (which
+            indicates a nestedness level that is greater than one)
+        -   `feature.value_counts` is specified, and the number of times the
+            `presence_and_valency` stats for the feature is repeated does not
+            match the number of times `value_count` is repeated within
+            `feature.value_counts`
 
 -   `UNKNOWN_TYPE`
 

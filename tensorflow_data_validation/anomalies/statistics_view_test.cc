@@ -32,6 +32,7 @@ using ::tensorflow::data_validation::testing::DatasetForTesting;
 using ::tensorflow::data_validation::testing::ParseTextProtoOrDie;
 using ::tensorflow::metadata::v0::DatasetFeatureStatistics;
 using ::tensorflow::metadata::v0::FeatureNameStatistics;
+using ::testing::ContainerEq;
 using ::testing::ElementsAre;
 using ::testing::IsEmpty;
 using ::testing::Pair;
@@ -105,11 +106,19 @@ TEST(FeatureStatsView, Previous) {
                         std::shared_ptr<DatasetStatsView>(),
                         std::shared_ptr<DatasetStatsView>());
 
-  EXPECT_EQ(view.GetByPath(Path({"bar"}))->GetPreviousSpan()->max_num_values(),
-            10);
-  EXPECT_EQ(view.GetPreviousSpan()->GetByPath(Path({"bar"}))->max_num_values(),
-            10);
-  DatasetStatsView view_no_previous(current, false);
+  const std::vector<std::pair<int, int>>
+      view_by_path_previous_span_min_max_values = view.GetByPath(Path({"bar"}))
+                                                      ->GetPreviousSpan()
+                                                      ->GetMinMaxNumValues();
+  ASSERT_EQ(view_by_path_previous_span_min_max_values.size(), 1);
+  EXPECT_EQ(view_by_path_previous_span_min_max_values[0].first, 3);
+  EXPECT_EQ(view_by_path_previous_span_min_max_values[0].second, 10);
+  const std::vector<std::pair<int, int>> previous_span_by_path_min_max_values =
+      view.GetPreviousSpan()->GetByPath(Path({"bar"}))->GetMinMaxNumValues();
+  ASSERT_EQ(previous_span_by_path_min_max_values.size(), 1);
+  EXPECT_EQ(previous_span_by_path_min_max_values[0].first, 3);
+  EXPECT_EQ(previous_span_by_path_min_max_values[0].second, 10);
+  const DatasetStatsView view_no_previous(current, false);
   EXPECT_FALSE(view_no_previous.GetServing());
   EXPECT_FALSE(view_no_previous.GetByPath(Path({"bar"}))->GetServing());
 }
@@ -141,9 +150,17 @@ TEST(FeatureStatsView, Serving) {
                         std::shared_ptr<DatasetStatsView>(), serving_view,
                         std::shared_ptr<DatasetStatsView>());
 
-  EXPECT_EQ(view.GetServing()->GetByPath(Path({"bar"}))->max_num_values(), 10);
-  EXPECT_EQ(view.GetByPath(Path({"bar"}))->GetServing()->max_num_values(), 10);
-  DatasetStatsView view_no_serving(current, false);
+  const std::vector<std::pair<int, int>> view_serving_by_path_min_max_values =
+      view.GetServing()->GetByPath(Path({"bar"}))->GetMinMaxNumValues();
+  ASSERT_EQ(view_serving_by_path_min_max_values.size(), 1);
+  EXPECT_EQ(view_serving_by_path_min_max_values[0].first, 3);
+  EXPECT_EQ(view_serving_by_path_min_max_values[0].second, 10);
+  const std::vector<std::pair<int, int>> view_by_path_serving_min_max_values =
+      view.GetByPath(Path({"bar"}))->GetServing()->GetMinMaxNumValues();
+  ASSERT_EQ(view_by_path_serving_min_max_values.size(), 1);
+  EXPECT_EQ(view_by_path_serving_min_max_values[0].first, 3);
+  EXPECT_EQ(view_by_path_serving_min_max_values[0].second, 10);
+  const DatasetStatsView view_no_serving(current, false);
   EXPECT_FALSE(view_no_serving.GetServing());
   EXPECT_FALSE(view_no_serving.GetByPath(Path({"bar"}))->GetServing());
 }
@@ -207,7 +224,7 @@ TEST(FeatureStatsView, GetNumPresentForStruct) {
   EXPECT_EQ(dataset.feature_stats_view().GetNumPresent(), 10.0);
 }
 
-TEST(FeatureStatsView, MinNumValues) {
+TEST(FeatureStatsView, MinMaxNumValues) {
   const FeatureNameStatistics input =
       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
         name: 'bar'
@@ -216,21 +233,40 @@ TEST(FeatureStatsView, MinNumValues) {
           common_stats: { num_missing: 3 min_num_values: 3 max_num_values: 7 }
         })");
 
-  EXPECT_THAT(DatasetForTesting(input).feature_stats_view().min_num_values(),
-              3);
+  const std::vector<std::pair<int, int>> min_max_num_values =
+      DatasetForTesting(input).feature_stats_view().GetMinMaxNumValues();
+  ASSERT_EQ(min_max_num_values.size(), 1);
+  EXPECT_EQ(min_max_num_values[0].first, 3);
+  EXPECT_EQ(min_max_num_values[0].second, 7);
 }
 
-TEST(FeatureStatsView, MaxNumValues) {
+TEST(FeatureStatsView, MinMaxNumValuesMultipleNestednessLevels) {
   const FeatureNameStatistics input =
       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
         name: 'bar'
         type: FLOAT
         num_stats: {
-          common_stats: { num_missing: 3 min_num_values: 3 max_num_values: 7 }
+          common_stats: {
+            num_missing: 3
+            min_num_values: 3
+            max_num_values: 7
+            presence_and_valency_stats: {
+              num_missing: 3
+              min_num_values: 3
+              max_num_values: 7
+            }
+            presence_and_valency_stats: {
+              num_missing: 3
+              min_num_values: 4
+              max_num_values: 8
+            }
+          }
         })");
 
-  EXPECT_THAT(DatasetForTesting(input).feature_stats_view().max_num_values(),
-              7);
+  const std::vector<std::pair<int, int>> min_max_num_values =
+      DatasetForTesting(input).feature_stats_view().GetMinMaxNumValues();
+  EXPECT_THAT(min_max_num_values,
+              ContainerEq(std::vector<std::pair<int, int>>{{3, 7}, {4, 8}}));
 }
 
 TEST(FeatureStatsView, GetNumExamples) {
@@ -1190,9 +1226,11 @@ TEST(DatasetStatsView, GetPreviousVersion) {
       current, false, "environment_name", std::shared_ptr<DatasetStatsView>(),
       std::shared_ptr<DatasetStatsView>(), previous_version_view);
 
-  EXPECT_EQ(
-      view.GetPreviousVersion()->GetByPath(Path({"bar"}))->max_num_values(),
-      10);
+  std::vector<std::pair<int, int>> previous_min_max_num_values =
+      view.GetPreviousVersion()->GetByPath(Path({"bar"}))->GetMinMaxNumValues();
+  ASSERT_EQ(previous_min_max_num_values.size(), 1);
+  EXPECT_EQ(previous_min_max_num_values[0].first, 3);
+  EXPECT_EQ(previous_min_max_num_values[0].second, 10);
   DatasetStatsView view_no_previous_version(current, false);
   EXPECT_FALSE(view_no_previous_version.GetPreviousVersion());
 }
