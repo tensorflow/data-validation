@@ -9,6 +9,7 @@
 
 ## Bug Fixes and Other Changes
 *   Stopped requiring avro-python3.
+*   Depends on `pyarrow>=0.17,<0.18`.
 
 ## Known Issues
 

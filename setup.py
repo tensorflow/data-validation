@@ -104,7 +104,7 @@ setup(
         'numpy>=1.16,<2',
         'pandas>=0.24,<2',
         'protobuf>=3.7,<4',
-        'pyarrow>=0.16,<0.17',
+        'pyarrow>=0.17,<0.18',
         'six>=1.12,<2',
         'tensorflow>=1.15,!=2.0.*,<3',
         'tensorflow-metadata>=0.22.2,<0.23',
