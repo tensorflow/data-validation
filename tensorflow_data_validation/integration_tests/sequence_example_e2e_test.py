@@ -30,6 +30,7 @@ from tensorflow_data_validation.utils import test_util
 from tfx_bsl.tfxio import tf_sequence_example_record
 
 from google.protobuf import text_format
+from tensorflow_metadata.proto.v0 import anomalies_pb2
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
@@ -1279,7 +1280,7 @@ datasets {
 """
 
 
-_BASIC_GOLDEN_SCHEMA = """
+_BASIC_GOLDEN_INFERRED_SCHEMA = """
 feature {
   name: "context_bytes_feature"
   type: BYTES
@@ -1379,6 +1380,172 @@ feature {
 }
 """
 
+_BASIC_SCHEMA_FOR_VALIDATION = """
+feature {
+  name: "context_bytes_feature"
+  value_counts {
+    value_count {
+      min: 1
+      max: 1
+    }
+    value_count {
+      min: 1
+      max: 1
+    }
+  }
+  type: BYTES
+  bool_domain {
+    true_value: "1"
+    false_value: "0"
+  }
+  presence {
+    min_fraction: 1.0
+    min_count: 1
+  }
+}
+feature {
+  name: "context_int64_feature"
+  type: INT
+  presence {
+    min_count: 1
+  }
+}
+feature {
+  name: "example_weight"
+  value_count {
+    min: 1
+    max: 1
+  }
+  type: FLOAT
+  presence {
+    min_fraction: 1.0
+    min_count: 1
+  }
+}
+feature {
+  name: "label"
+  value_count {
+    min: 1
+    max: 1
+  }
+  type: FLOAT
+  presence {
+    min_fraction: 1.0
+    min_count: 1
+  }
+}
+feature {
+  name: "##SEQUENCE##"
+  value_count {
+    min: 1
+    max: 1
+  }
+  type: STRUCT
+  presence {
+    min_fraction: 1.0
+    min_count: 1
+  }
+  struct_domain {
+    feature {
+      name: "sequence_float_feature"
+      type: FLOAT
+      presence {
+        min_count: 1
+      }
+      value_count {
+          min: 1
+          max: 1
+      }
+    }
+    feature {
+      name: "sequence_int64_feature"
+      type: INT
+      presence {
+        min_fraction: 1.0
+        min_count: 1
+      }
+      value_counts {
+        value_count {
+          min: 1
+        }
+        value_count {
+          min: 2
+          max: 2
+        }
+      }
+    }
+  }
+}
+"""
+
+_BASIC_GOLDEN_ANOMALIES = """
+anomaly_info {
+  key: "context_bytes_feature"
+  value {
+    description: "The values have a different nest level than expected. Value "
+      "counts will not be checked."
+    severity: ERROR
+    short_description: "Mismatched value nest level"
+    reason {
+      type: VALUE_NESTEDNESS_MISMATCH
+      short_description: "Mismatched value nest level"
+      description: "The values have a different nest level than expected. "
+        "Value counts will not be checked."
+    }
+    path {
+      step: "context_bytes_feature"
+    }
+  }
+}
+anomaly_info {
+  key: "##SEQUENCE##.sequence_float_feature"
+  value {
+    description: "This feature has a value_count, but the nestedness level of "
+      "the feature > 1. For features with nestedness levels greater than 1, "
+      "value_counts, not value_count, should be specified."
+    severity: ERROR
+    short_description: "Mismatched value nest level"
+    reason {
+      type: VALUE_NESTEDNESS_MISMATCH
+      short_description: "Mismatched value nest level"
+      description: "This feature has a value_count, but the nestedness level "
+        "of the feature > 1. For features with nestedness levels greater than "
+        "1, value_counts, not value_count, should be specified."
+    }
+    path {
+      step: "##SEQUENCE##"
+      step: "sequence_float_feature"
+    }
+  }
+}
+anomaly_info {
+  key: "##SEQUENCE##.sequence_int64_feature"
+  value {
+    description: "Some examples have fewer values than expected at nestedness "
+      "level 1. Some examples have more values than expected at nestedness "
+      "level 1."
+    severity: ERROR
+    short_description: "Multiple errors"
+    reason {
+      type: FEATURE_TYPE_LOW_NUMBER_VALUES
+      short_description: "Missing values"
+      description: "Some examples have fewer values than expected at "
+        "nestedness level 1."
+    }
+    reason {
+      type: FEATURE_TYPE_HIGH_NUMBER_VALUES
+      short_description: "Superfluous values"
+      description: "Some examples have more values than expected at "
+        "nestedness level 1."
+    }
+    path {
+      step: "##SEQUENCE##"
+      step: "sequence_int64_feature"
+    }
+  }
+}
+anomaly_name_format: SERIALIZED_PATH
+"""
 
 # Do not inline the goldens in _TEST_CASES. This way indentation is easier to
 # manage. The rule is to have no first level indent for goldens.
@@ -1392,7 +1559,9 @@ _TEST_CASES = [
             num_quantiles_histogram_buckets=3,
             enable_semantic_domain_stats=True),
         expected_stats_pbtxt=_BASIC_GOLDEN_STATS,
-        expected_schema_pbtxt=_BASIC_GOLDEN_SCHEMA,
+        expected_inferred_schema_pbtxt=_BASIC_GOLDEN_INFERRED_SCHEMA,
+        schema_for_validation_pbtxt=_BASIC_SCHEMA_FOR_VALIDATION,
+        expected_anomalies_pbtxt=_BASIC_GOLDEN_ANOMALIES,
     ),
     dict(
         testcase_name='weight_and_label',
@@ -1405,13 +1574,13 @@ _TEST_CASES = [
             num_quantiles_histogram_buckets=3,
             enable_semantic_domain_stats=True),
         expected_stats_pbtxt=_WEIGHT_AND_LABEL_GOLDEN_STATS,
-        expected_schema_pbtxt=_BASIC_GOLDEN_SCHEMA,
+        expected_inferred_schema_pbtxt=_BASIC_GOLDEN_INFERRED_SCHEMA,
+        schema_for_validation_pbtxt=_BASIC_SCHEMA_FOR_VALIDATION,
+        expected_anomalies_pbtxt=_BASIC_GOLDEN_ANOMALIES,
     )
 ]
 
 
-# TODO(b/157073026): Expand to cover data validation and schema inference of
-# SequenceExamples.
 class SequenceExampleStatsTest(parameterized.TestCase):
 
   @classmethod
@@ -1469,7 +1638,8 @@ class SequenceExampleStatsTest(parameterized.TestCase):
 
   @parameterized.named_parameters(*_TEST_CASES)
   def test_e2e(self, stats_options, expected_stats_pbtxt,
-               expected_schema_pbtxt):
+               expected_inferred_schema_pbtxt, schema_for_validation_pbtxt,
+               expected_anomalies_pbtxt):
     tfxio = tf_sequence_example_record.TFSequenceExampleRecord(
         self._input_file, ['tfdv', 'test'])
     stats_file = os.path.join(self._output_dir, 'stats')
@@ -1486,13 +1656,23 @@ class SequenceExampleStatsTest(parameterized.TestCase):
         text_format.Parse(expected_stats_pbtxt,
                           statistics_pb2.DatasetFeatureStatisticsList()))(
                               [actual_stats])
-    actual_schema = tfdv.infer_schema(actual_stats, infer_feature_shape=True)
+    actual_inferred_schema = tfdv.infer_schema(
+        actual_stats, infer_feature_shape=True)
 
-    if hasattr(actual_schema, 'generate_legacy_feature_spec'):
-      actual_schema.ClearField('generate_legacy_feature_spec')
+    if hasattr(actual_inferred_schema, 'generate_legacy_feature_spec'):
+      actual_inferred_schema.ClearField('generate_legacy_feature_spec')
     self._assert_schema_equal(
-        actual_schema,
-        text_format.Parse(expected_schema_pbtxt, schema_pb2.Schema()))
+        actual_inferred_schema,
+        text_format.Parse(expected_inferred_schema_pbtxt, schema_pb2.Schema()))
+
+    schema_for_validation = text_format.Parse(schema_for_validation_pbtxt,
+                                              schema_pb2.Schema())
+    actual_anomalies = tfdv.validate_statistics(actual_stats,
+                                                schema_for_validation)
+    actual_anomalies.ClearField('baseline')
+    self.assertEqual(
+        actual_anomalies,
+        text_format.Parse(expected_anomalies_pbtxt, anomalies_pb2.Anomalies()))
 
 
 if __name__ == '__main__':
