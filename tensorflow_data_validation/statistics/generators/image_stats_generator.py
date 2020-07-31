@@ -330,7 +330,12 @@ class ImageStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     # Add the buckets with sorted image format.
     for image_format in sorted(accumulator.counter_by_format):
       custom_stats.rank_histogram.buckets.add(
+          # LINT.IfChange
           label=image_format if image_format else 'UNKNOWN',
+          # image_domain_util.cc relies on unsupported image formats being
+          # being assigned to the bucket labeled 'UNKNOWN'. If this labeling
+          # changes, change the corresponding code accordingly.
+          # LINT.ThenChange(../../anomalies/image_domain_util.cc)
           sample_count=accumulator.counter_by_format[image_format])
     if self._enable_size_stats:
       result.custom_stats.add(

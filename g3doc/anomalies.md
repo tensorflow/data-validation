@@ -370,6 +370,21 @@ condition(s) under which each anomaly type is detected.
 
     -   Anomaly type not detected in TFDV
 
+-   `LOW_SUPPORTED_IMAGE_FRACTION`
+
+    -   Schema Fields:
+        -   `feature.image_domain.minimum_supported_image_fraction`
+    -   Statistics Fields:
+        -   `feature.custom_stats.rank_histogram` for the custom_stats with name
+             `image_format_histogram`. Note that semantic domain stats must be
+             enabled for the image_format_histogram to be generated and for this
+             validation to be performed. Semantic domain stats are not generated
+             by default.
+    -   Detection Condition:
+        -   The fraction of values that are supported Tensorflow image types to
+            all image types is less than
+            `feature.image_domain.minimum_supported_image_fraction`.
+
 -   `SCHEMA_MISSING_COLUMN`
 
     -   Schema Fields:

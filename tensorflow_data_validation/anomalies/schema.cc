@@ -1,4 +1,4 @@
-/* Copyright 2018 Google LLC
+/* Copyright 2020 Google LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ limitations under the License.
 #include "tensorflow_data_validation/anomalies/dataset_constraints_util.h"
 #include "tensorflow_data_validation/anomalies/feature_util.h"
 #include "tensorflow_data_validation/anomalies/float_domain_util.h"
+#include "tensorflow_data_validation/anomalies/image_domain_util.h"
 #include "tensorflow_data_validation/anomalies/int_domain_util.h"
 #include "tensorflow_data_validation/anomalies/internal_types.h"
 #include "tensorflow_data_validation/anomalies/map_util.h"
@@ -1031,8 +1032,11 @@ std::vector<Description> Schema::UpdateFeatureInternal(
               feature->distribution_constraints()),
           feature->mutable_string_domain()));
       break;
-    case Feature::kNaturalLanguageDomain:
     case Feature::kImageDomain:
+      add_to_descriptions(
+          ::tensorflow::data_validation::UpdateImageDomain(view, feature));
+      break;
+    case Feature::kNaturalLanguageDomain:
     case Feature::kMidDomain:
     case Feature::kUrlDomain:
     case Feature::kTimeDomain:

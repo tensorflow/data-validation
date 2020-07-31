@@ -8,6 +8,8 @@
     describe the value count at each level in the value_counts field.
 
 ## Bug Fixes and Other Changes
+*   Validate that enough supported images are present (if
+    image_domain.minimum_supported_image_fraction is provided).
 *   Stopped requiring avro-python3.
 *   Depends on `pyarrow>=0.17,<0.18`.
 

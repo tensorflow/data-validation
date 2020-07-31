@@ -1,4 +1,4 @@
-/* Copyright 2018 Google LLC
+/* Copyright 2020 Google LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -234,6 +234,74 @@ TEST(SchemaAnomalies, NansDisallowedNoNansFound) {
     std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
     TestFindChanges(initial, DatasetStatsView(statistics, false), config,
                     std::map<std::string, testing::ExpectedAnomalyInfo>());
+  }
+}
+
+TEST(SchemaAnomalies, FindsLowSupportedImageFraction) {
+  const Schema initial = ParseTextProtoOrDie<Schema>(R"(
+    feature {
+      name: "image/encoded"
+      presence: { min_count: 1 min_fraction: 1.0 }
+      value_count: { min: 1 max: 1 }
+      type: BYTES
+      image_domain: { minimum_supported_image_fraction: 0.85 }
+    }
+  )");
+
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        features: {
+          name: 'image/encoded'
+          type: BYTES
+          bytes_stats: {
+            common_stats: {
+              num_non_missing: 10
+              min_num_values: 1
+              max_num_values: 1
+            }}
+          custom_stats: {
+            name: 'image_format_histogram'
+            rank_histogram: {
+              buckets: {
+                label: 'jpeg'
+                sample_count: 5
+              }
+              buckets: {
+                label: 'png'
+                sample_count: 3
+              }
+              buckets: {
+                label: 'UNKNOWN'
+                sample_count: 2
+              }
+            }
+          }
+        })");
+  for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
+    std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
+    expected_anomalies["image/encoded"].new_schema =
+        ParseTextProtoOrDie<Schema>(R""(
+          feature {
+            name: "image/encoded"
+            presence: { min_count: 1 min_fraction: 1.0 }
+            value_count: { min: 1 max: 1 }
+            type: BYTES
+            image_domain: { minimum_supported_image_fraction: 0.8 }
+          }
+        )"");
+    expected_anomalies["image/encoded"].expected_info_without_diff =
+        ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
+          path { step: "image/encoded" }
+          description: "Fraction of values containing TensorFlow supported images: 0.800000 is lower than the threshold set in the Schema: 0.850000."
+          severity: ERROR
+          short_description: "Low supported image fraction"
+          reason {
+            type: LOW_SUPPORTED_IMAGE_FRACTION
+            short_description: "Low supported image fraction"
+            description: "Fraction of values containing TensorFlow supported images: 0.800000 is lower than the threshold set in the Schema: 0.850000."
+          })");
+    TestFindChanges(initial, DatasetStatsView(statistics, false), config,
+                    expected_anomalies);
   }
 }
 

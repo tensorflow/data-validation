@@ -167,6 +167,7 @@ cc_library(
         "dataset_constraints_util.cc",
         "feature_util.cc",
         "float_domain_util.cc",
+        "image_domain_util.cc",
         "int_domain_util.cc",
         "schema.cc",
         "schema_anomalies.cc",
@@ -179,6 +180,7 @@ cc_library(
         "dataset_constraints_util.h",
         "feature_util.h",
         "float_domain_util.h",
+        "image_domain_util.h",
         "int_domain_util.h",
         "schema.h",
         "schema_anomalies.h",
@@ -237,6 +239,20 @@ cc_test(
 cc_test(
     name = "bool_domain_test",
     srcs = ["bool_domain_test.cc"],
+    deps = [
+        ":internal_types",
+        ":schema",
+        ":statistics_view_test_util",
+        ":test_util",
+        "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
+        "@com_google_googletest//:gtest_main",
+        "@org_tensorflow//tensorflow/core:lib",
+    ],
+)
+
+cc_test(
+    name = "image_domain_test",
+    srcs = ["image_domain_test.cc"],
     deps = [
         ":internal_types",
         ":schema",
