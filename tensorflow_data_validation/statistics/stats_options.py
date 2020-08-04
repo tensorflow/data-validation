@@ -37,6 +37,7 @@ from tensorflow_metadata.proto.v0 import schema_pb2
 
 
 # TODO(b/118833241): Set MI default configs when MI is a default generator
+# TODO(b/162776976): Consider deprecating sample_count option.
 class StatsOptions(object):
   """Options for generating statistics."""
 
