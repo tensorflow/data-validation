@@ -68,6 +68,11 @@ SlicedRecordBatch = Tuple[SliceKey, pa.RecordBatch]
 # once we no longer replace Callable in types_compat.
 SliceFunction = Callable
 
+# Type of FeaturePath.steps(). Pickling types.FeaturePath is slow, so we use
+# tuples directly where pickling happens frequently. Ellipsis due to
+# b/152929669.
+FeaturePathTuple = Tuple[FeatureName, ...]
+
 # For use in Beam type annotations, because Beam's support for Python types
 # in Beam type annotations is not complete.
 # TODO(b/111217539): Remove this once Beam supports arbitrary Python types
@@ -102,7 +107,7 @@ class FeaturePath(object):
   def from_proto(path_proto: path_pb2.Path):
     return FeaturePath(path_proto.step)
 
-  def steps(self) -> Tuple[FeatureName, ...]:
+  def steps(self) -> FeaturePathTuple:
     return self._steps
 
   def parent(self) -> "FeaturePath":

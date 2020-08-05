@@ -19,6 +19,7 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
+from typing import Any, Dict, Iterable, Optional, Text
 
 import numpy as np
 import pyarrow as pa
@@ -26,11 +27,10 @@ import six
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.statistics.generators import stats_generator
-from tensorflow_data_validation.statistics.generators import top_k_uniques_stats_generator
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
+from tensorflow_data_validation.utils import top_k_uniques_stats_util
 from tfx_bsl.arrow import array_util
-from typing import Any, Dict, Iterable, List, Optional, Set, Text
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -40,67 +40,6 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 # the weighted counts of each unique value for a given feature.
 _ValueCounts = collections.namedtuple('_ValueCounts',
                                       ['unweighted_counts', 'weighted_counts'])
-
-
-def _make_feature_stats_proto(
-    feature_path: types.FeaturePath,
-    value_count_list: List[top_k_uniques_stats_generator.FeatureValueCount],
-    weighted_value_count_list: List[
-        top_k_uniques_stats_generator.FeatureValueCount], is_categorical: bool,
-    num_top_values: int, frequency_threshold: int,
-    weighted_frequency_threshold: float,
-    num_rank_histogram_buckets: int) -> statistics_pb2.FeatureNameStatistics:
-  """Makes a FeatureNameStatistics proto containing top-k and uniques stats."""
-  # Create a FeatureNameStatistics proto that includes the unweighted top-k
-  # stats.
-  result = (
-      top_k_uniques_stats_generator.make_feature_stats_proto_with_topk_stats(
-          feature_path, value_count_list, is_categorical, False, num_top_values,
-          frequency_threshold, num_rank_histogram_buckets))
-
-  # If weights were provided, create another FeatureNameStatistics proto that
-  # includes the weighted top-k stats, and then copy those weighted top-k stats
-  # into the result proto.
-  if weighted_value_count_list:
-    weighted_result = (
-        top_k_uniques_stats_generator.make_feature_stats_proto_with_topk_stats(
-            feature_path, weighted_value_count_list, is_categorical, True,
-            num_top_values, weighted_frequency_threshold,
-            num_rank_histogram_buckets))
-
-    result.string_stats.weighted_string_stats.CopyFrom(
-        weighted_result.string_stats.weighted_string_stats)
-
-  # Add the number of uniques to the FeatureNameStatistics proto.
-  result.string_stats.unique = len(value_count_list)
-
-  return result
-
-
-def _make_dataset_feature_stats_proto_with_multiple_features(
-    feature_names_to_value_counts: Dict[types.FeaturePath, List[
-        top_k_uniques_stats_generator.FeatureValueCount]],
-    weighted_feature_names_to_value_counts: Dict[types.FeaturePath, List[
-        top_k_uniques_stats_generator.FeatureValueCount]],
-    categorical_features: Set[types.FeaturePath], num_top_values: int,
-    frequency_threshold: int, weighted_frequency_threshold: float,
-    num_rank_histogram_buckets: int) -> statistics_pb2.DatasetFeatureStatistics:
-  """Makes a DatasetFeatureStatistics proto containing multiple features."""
-  result = statistics_pb2.DatasetFeatureStatistics()
-  for feature_path, value_count in six.iteritems(feature_names_to_value_counts):
-    if weighted_feature_names_to_value_counts:
-      weighted_value_count = weighted_feature_names_to_value_counts[
-          feature_path]
-    else:
-      weighted_value_count = None
-    result.features.add().CopyFrom(
-        _make_feature_stats_proto(feature_path, value_count,
-                                  weighted_value_count,
-                                  feature_path in categorical_features,
-                                  num_top_values, frequency_threshold,
-                                  weighted_frequency_threshold,
-                                  num_rank_histogram_buckets))
-  return result
 
 
 class _WeightedCounter(collections.defaultdict):
@@ -231,26 +170,35 @@ class TopKUniquesCombinerStatsGenerator(
 
   def extract_output(self, accumulator: Dict[types.FeaturePath, _ValueCounts]
                     ) -> statistics_pb2.DatasetFeatureStatistics:
-    feature_paths_to_value_counts = dict()
-    feature_paths_to_weighted_value_counts = dict()
 
+    result = statistics_pb2.DatasetFeatureStatistics()
     for feature_path, value_counts in accumulator.items():
-      if value_counts.unweighted_counts:
-        feature_value_counts = [
-            top_k_uniques_stats_generator.FeatureValueCount(key, value)
-            for key, value in value_counts.unweighted_counts.items()
-        ]
-        feature_paths_to_value_counts[feature_path] = feature_value_counts
+      if not value_counts.unweighted_counts:
+        assert not value_counts.weighted_counts
+        continue
+      feature_value_counts = [
+          top_k_uniques_stats_util.FeatureValueCount(key, value)
+          for key, value in value_counts.unweighted_counts.items()
+      ]
+      weighted_feature_value_counts = None
       if value_counts.weighted_counts:
         weighted_feature_value_counts = [
-            top_k_uniques_stats_generator.FeatureValueCount(key, value)
+            top_k_uniques_stats_util.FeatureValueCount(key, value)
             for key, value in value_counts.weighted_counts.items()
         ]
-        feature_paths_to_weighted_value_counts[
-            feature_path] = weighted_feature_value_counts
 
-    return _make_dataset_feature_stats_proto_with_multiple_features(
-        feature_paths_to_value_counts, feature_paths_to_weighted_value_counts,
-        self._categorical_features, self._num_top_values,
-        self._frequency_threshold, self._weighted_frequency_threshold,
-        self._num_rank_histogram_buckets)
+      feature_stats_proto = (
+          top_k_uniques_stats_util.make_feature_stats_proto_topk_uniques(
+              feature_path=feature_path,
+              is_categorical=feature_path in self._categorical_features,
+              frequency_threshold=self._frequency_threshold,
+              weighted_frequency_threshold=self._weighted_frequency_threshold,
+              num_top_values=self._num_top_values,
+              num_rank_histogram_buckets=self._num_rank_histogram_buckets,
+              num_unique=len(feature_value_counts),
+              value_count_list=feature_value_counts,
+              weighted_value_count_list=weighted_feature_value_counts))
+
+      new_feature_stats_proto = result.features.add()
+      new_feature_stats_proto.CopyFrom(feature_stats_proto)
+    return result
