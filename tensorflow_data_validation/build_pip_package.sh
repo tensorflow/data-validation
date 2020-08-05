@@ -43,13 +43,19 @@ function is_windows() {
 set -u -x
 
 if is_windows; then
+  # Newer bazel does not create bazel-genfiles any more (
+  # https://github.com/bazelbuild/bazel/issues/6761). It's merged with bazel-bin
+  GENFILES=bazel-genfiles
+  if [[ ! -d ${BUILD_WORKSPACE_DIRECTORY}/${GENFILES} ]]; then
+    GENFILES=bazel-bin
+  fi
   PYWRAP_TFDV="tensorflow_data_validation/pywrap/tensorflow_data_validation_extension.pyd"
   cp -f "${BUILD_WORKSPACE_DIRECTORY}/bazel-out/x64_windows-opt/bin/${PYWRAP_TFDV}" \
     "${BUILD_WORKSPACE_DIRECTORY}/${PYWRAP_TFDV}"
 
-  cp -f ${BUILD_WORKSPACE_DIRECTORY}/bazel-genfiles/tensorflow_data_validation/anomalies/proto/validation_config_pb2.py \
+  cp -f ${BUILD_WORKSPACE_DIRECTORY}/${GENFILES}/tensorflow_data_validation/anomalies/proto/validation_config_pb2.py \
     ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/anomalies/proto
-  cp -f ${BUILD_WORKSPACE_DIRECTORY}/bazel-genfiles/tensorflow_data_validation/anomalies/proto/validation_metadata_pb2.py \
+  cp -f ${BUILD_WORKSPACE_DIRECTORY}/${GENFILES}/tensorflow_data_validation/anomalies/proto/validation_metadata_pb2.py \
     ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/anomalies/proto
 else
   PYWRAP_TFDV="tensorflow_data_validation/pywrap/tensorflow_data_validation_extension.so"
