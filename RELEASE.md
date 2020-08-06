@@ -6,6 +6,8 @@
 *   Data validation is now able to handle arbitrarily nested arrow
     List/LargeList types. Schema entries for features with multiple nest levels
     describe the value count at each level in the value_counts field.
+*   Add combiner stats generator to estimate top-K and uniques using Misra-Gries
+    and K-Minimum Values sketches.
 
 ## Bug Fixes and Other Changes
 *   Validate that enough supported images are present (if
