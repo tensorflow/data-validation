@@ -93,10 +93,8 @@ class TopKUniquesSketchStatsGeneratorTest(
           }
       }""", statistics_pb2.FeatureNameStatistics())
     }
-    generator = (
-        sketch_generator
-        .TopKUniquesSketchStatsGenerator(
-            num_top_values=4, num_rank_histogram_buckets=3))
+    generator = sketch_generator.TopKUniquesSketchStatsGenerator(
+        num_top_values=4, num_rank_histogram_buckets=3)
 
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
@@ -201,10 +199,8 @@ class TopKUniquesSketchStatsGeneratorTest(
                   }
               }""", statistics_pb2.FeatureNameStatistics())
     }
-    generator = (
-        sketch_generator
-        .TopKUniquesSketchStatsGenerator(
-            weight_feature='w', num_top_values=4, num_rank_histogram_buckets=3))
+    generator = sketch_generator.TopKUniquesSketchStatsGenerator(
+        weight_feature='w', num_top_values=4, num_rank_histogram_buckets=3)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
   def test_topk_uniques_sketch_with_single_unicode_feature(self):
@@ -264,10 +260,8 @@ class TopKUniquesSketchStatsGeneratorTest(
                   }
               }""", statistics_pb2.FeatureNameStatistics())
     }
-    generator = (
-        sketch_generator
-        .TopKUniquesSketchStatsGenerator(
-            num_top_values=4, num_rank_histogram_buckets=3))
+    generator = sketch_generator.TopKUniquesSketchStatsGenerator(
+        num_top_values=4, num_rank_histogram_buckets=3)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
   def test_topk_uniques_sketch_with_multiple_features(self):
@@ -373,10 +367,8 @@ class TopKUniquesSketchStatsGeneratorTest(
                   }
               }""", statistics_pb2.FeatureNameStatistics())
     }
-    generator = (
-        sketch_generator
-        .TopKUniquesSketchStatsGenerator(
-            num_top_values=4, num_rank_histogram_buckets=3))
+    generator = sketch_generator.TopKUniquesSketchStatsGenerator(
+        num_top_values=4, num_rank_histogram_buckets=3)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
   def test_topk_uniques_sketch_zero_row(self):
@@ -385,19 +377,15 @@ class TopKUniquesSketchStatsGeneratorTest(
                                    ['f1'])
     ]
     expected_result = {}
-    generator = (
-        sketch_generator
-        .TopKUniquesSketchStatsGenerator(
-            num_top_values=4, num_rank_histogram_buckets=3))
+    generator = sketch_generator.TopKUniquesSketchStatsGenerator(
+        num_top_values=4, num_rank_histogram_buckets=3)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
   def test_topk_uniques_sketch_empty_record_batch(self):
     batches = [pa.RecordBatch.from_arrays([], [])]
     expected_result = {}
-    generator = (
-        sketch_generator
-        .TopKUniquesSketchStatsGenerator(
-            num_top_values=4, num_rank_histogram_buckets=3))
+    generator = sketch_generator.TopKUniquesSketchStatsGenerator(
+        num_top_values=4, num_rank_histogram_buckets=3)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
   def test_topk_uniques_sketch_with_missing_feature(self):
@@ -502,10 +490,8 @@ class TopKUniquesSketchStatsGeneratorTest(
                   }
               }""", statistics_pb2.FeatureNameStatistics())
     }
-    generator = (
-        sketch_generator
-        .TopKUniquesSketchStatsGenerator(
-            num_top_values=4, num_rank_histogram_buckets=3))
+    generator = sketch_generator.TopKUniquesSketchStatsGenerator(
+        num_top_values=4, num_rank_histogram_buckets=3)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
   def test_topk_uniques_sketch_with_numeric_feature(self):
@@ -568,10 +554,8 @@ class TopKUniquesSketchStatsGeneratorTest(
                   }
               }""", statistics_pb2.FeatureNameStatistics())
     }
-    generator = (
-        sketch_generator
-        .TopKUniquesSketchStatsGenerator(
-            num_top_values=4, num_rank_histogram_buckets=3))
+    generator = sketch_generator.TopKUniquesSketchStatsGenerator(
+        num_top_values=4, num_rank_histogram_buckets=3)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
   def test_topk_uniques_sketch_with_categorical_feature(self):
@@ -639,10 +623,8 @@ class TopKUniquesSketchStatsGeneratorTest(
           }
         }
         """, schema_pb2.Schema())
-    generator = (
-        sketch_generator
-        .TopKUniquesSketchStatsGenerator(
-            schema=schema, num_top_values=4, num_rank_histogram_buckets=3))
+    generator = sketch_generator.TopKUniquesSketchStatsGenerator(
+        schema=schema, num_top_values=4, num_rank_histogram_buckets=3)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
   def test_topk_with_frequency_threshold(self):
@@ -723,12 +705,10 @@ class TopKUniquesSketchStatsGeneratorTest(
         }""", statistics_pb2.FeatureNameStatistics())
     }
 
-    generator = (
-        sketch_generator
-        .TopKUniquesSketchStatsGenerator(
-            weight_feature='w',
-            num_top_values=5, frequency_threshold=2,
-            weighted_frequency_threshold=15, num_rank_histogram_buckets=3))
+    generator = sketch_generator.TopKUniquesSketchStatsGenerator(
+        weight_feature='w',
+        num_top_values=5, frequency_threshold=2,
+        weighted_frequency_threshold=15, num_rank_histogram_buckets=3)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
   def test_topk_struct_leaves(self):
@@ -916,13 +896,11 @@ class TopKUniquesSketchStatsGeneratorTest(
                 step: "f2"
               }""", statistics_pb2.FeatureNameStatistics()),
     }
-    generator = (
-        sketch_generator
-        .TopKUniquesSketchStatsGenerator(
-            schema=schema,
-            weight_feature='w',
-            num_top_values=3,
-            num_rank_histogram_buckets=3))
+    generator = sketch_generator.TopKUniquesSketchStatsGenerator(
+        schema=schema,
+        weight_feature='w',
+        num_top_values=3,
+        num_rank_histogram_buckets=3)
 
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
@@ -1028,10 +1006,8 @@ class TopKUniquesSketchStatsGeneratorTest(
                   }
               }""", statistics_pb2.FeatureNameStatistics())
     }
-    generator = (
-        sketch_generator
-        .TopKUniquesSketchStatsGenerator(
-            weight_feature='w', num_top_values=4, num_rank_histogram_buckets=3))
+    generator = sketch_generator.TopKUniquesSketchStatsGenerator(
+        weight_feature='w', num_top_values=4, num_rank_histogram_buckets=3)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
 if __name__ == '__main__':

@@ -179,16 +179,16 @@ class TopKUniquesSketchStatsGenerator(stats_generator.CombinerStatsGenerator):
       self,
       accumulators: Iterable[Dict[tfdv_types.FeaturePath, _CombinedSketch]]
       ) -> Dict[tfdv_types.FeaturePath, _CombinedSketch]:
-    new_acc = {}
-    for acc in accumulators:
-      for feature_name, combined_sketch in acc.items():
-        existing_sketch = new_acc.get(feature_name, None)
+    result = {}
+    for accumulator in accumulators:
+      for feature_name, combined_sketch in accumulator.items():
+        existing_sketch = result.get(feature_name, None)
         if existing_sketch is None:
-          new_acc[feature_name] = combined_sketch
+          result[feature_name] = combined_sketch
         else:
           existing_sketch.merge(combined_sketch)
-          new_acc[feature_name] = existing_sketch
-    return new_acc
+          result[feature_name] = existing_sketch
+    return result
 
   def extract_output(
       self, accumulator: Dict[tfdv_types.FeaturePath, _CombinedSketch]
