@@ -1547,6 +1547,103 @@ anomaly_info {
 anomaly_name_format: SERIALIZED_PATH
 """
 
+_BASIC_SCHEMA_FROM_UPDATE = """
+feature {
+  name: "context_bytes_feature"
+  value_count {
+    min: 1
+    max: 1
+  }
+  type: BYTES
+  bool_domain {
+    true_value: "1"
+    false_value: "0"
+  }
+  presence {
+    min_fraction: 1.0
+    min_count: 1
+  }
+}
+feature {
+  name: "context_int64_feature"
+  type: INT
+  presence {
+    min_count: 1
+  }
+}
+feature {
+  name: "example_weight"
+  value_count {
+    min: 1
+    max: 1
+  }
+  type: FLOAT
+  presence {
+    min_fraction: 1.0
+    min_count: 1
+  }
+}
+feature {
+  name: "label"
+  value_count {
+    min: 1
+    max: 1
+  }
+  type: FLOAT
+  presence {
+    min_fraction: 1.0
+    min_count: 1
+  }
+}
+feature {
+  name: "##SEQUENCE##"
+  value_count {
+    min: 1
+    max: 1
+  }
+  type: STRUCT
+  presence {
+    min_fraction: 1.0
+    min_count: 1
+  }
+  struct_domain {
+    feature {
+      name: "sequence_float_feature"
+      type: FLOAT
+      presence {
+        min_count: 1
+      }
+      value_counts {
+        value_count {
+          min: 1
+          max: 1
+        }
+        value_count {
+          min: 2
+          max: 2
+        }
+      }
+    }
+    feature {
+      name: "sequence_int64_feature"
+      type: INT
+      presence {
+        min_fraction: 1.0
+        min_count: 1
+      }
+      value_counts {
+        value_count {
+          min: 1
+        }
+        value_count {
+          max: 3
+        }
+      }
+    }
+  }
+}
+"""
+
 # Do not inline the goldens in _TEST_CASES. This way indentation is easier to
 # manage. The rule is to have no first level indent for goldens.
 _TEST_CASES = [
@@ -1562,6 +1659,7 @@ _TEST_CASES = [
         expected_inferred_schema_pbtxt=_BASIC_GOLDEN_INFERRED_SCHEMA,
         schema_for_validation_pbtxt=_BASIC_SCHEMA_FOR_VALIDATION,
         expected_anomalies_pbtxt=_BASIC_GOLDEN_ANOMALIES,
+        expected_updated_schema_pbtxt=_BASIC_SCHEMA_FROM_UPDATE,
     ),
     dict(
         testcase_name='weight_and_label',
@@ -1577,6 +1675,7 @@ _TEST_CASES = [
         expected_inferred_schema_pbtxt=_BASIC_GOLDEN_INFERRED_SCHEMA,
         schema_for_validation_pbtxt=_BASIC_SCHEMA_FOR_VALIDATION,
         expected_anomalies_pbtxt=_BASIC_GOLDEN_ANOMALIES,
+        expected_updated_schema_pbtxt=_BASIC_SCHEMA_FROM_UPDATE,
     )
 ]
 
@@ -1639,7 +1738,7 @@ class SequenceExampleStatsTest(parameterized.TestCase):
   @parameterized.named_parameters(*_TEST_CASES)
   def test_e2e(self, stats_options, expected_stats_pbtxt,
                expected_inferred_schema_pbtxt, schema_for_validation_pbtxt,
-               expected_anomalies_pbtxt):
+               expected_anomalies_pbtxt, expected_updated_schema_pbtxt):
     tfxio = tf_sequence_example_record.TFSequenceExampleRecord(
         self._input_file, ['tfdv', 'test'])
     stats_file = os.path.join(self._output_dir, 'stats')
@@ -1673,6 +1772,12 @@ class SequenceExampleStatsTest(parameterized.TestCase):
     self.assertEqual(
         actual_anomalies,
         text_format.Parse(expected_anomalies_pbtxt, anomalies_pb2.Anomalies()))
+
+    actual_updated_schema = tfdv.update_schema(
+        schema_for_validation, actual_stats, infer_feature_shape=False)
+    self._assert_schema_equal(
+        actual_updated_schema,
+        text_format.Parse(expected_updated_schema_pbtxt, schema_pb2.Schema()))
 
 
 if __name__ == '__main__':

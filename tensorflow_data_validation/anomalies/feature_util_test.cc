@@ -730,7 +730,10 @@ GetUpdateFeatureValueCountsTests() {
        {AnomalyInfo::VALUE_NESTEDNESS_MISMATCH},
        {"Mismatched value nest level"},
        ParseTextProtoOrDie<Feature>(R"(value_count: { min: 1 max: 1 })"),
-       Feature()},
+       ParseTextProtoOrDie<Feature>(R"(value_counts: {
+                                         value_count: { min: 1 max: 1 }
+                                         value_count: { min: 1 max: 1 }
+                                       })")},
       {"num_values_outside_value_count_bounds",
        ParseTextProtoOrDie<FeatureNameStatistics>(R"(
          name: 'feature'
@@ -802,44 +805,50 @@ GetUpdateFeatureValueCountsTests() {
                                          value_count: { min: 1 max: 1 }
                                          value_count: { min: 1 max: 1 }
                                        })")},
-      {"value_counts_nestedness_mismatch",
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-         name: 'feature'
-         type: FLOAT
-         num_stats: {
-           common_stats: {
-             num_missing: 0
-             num_non_missing: 10
-             min_num_values: 1
-             max_num_values: 1
-             presence_and_valency_stats {
-               num_missing: 0
-               num_non_missing: 10
-               min_num_values: 1
-               max_num_values: 1
-             }
-             presence_and_valency_stats {
-               num_missing: 0
-               num_non_missing: 10
-               min_num_values: 1
-               max_num_values: 1
-             }
-             presence_and_valency_stats {
-               num_missing: 0
-               num_non_missing: 10
-               min_num_values: 1
-               max_num_values: 1
-             }
-           }
-         })"),
-       false,
-       {AnomalyInfo::VALUE_NESTEDNESS_MISMATCH},
-       {"Mismatched value nest level"},
-       ParseTextProtoOrDie<Feature>(R"(value_counts: {
-                                         value_count: { min: 1 max: 1 }
-                                         value_count: { min: 1 max: 1 }
-                                       })"),
-       Feature()},
+      {
+          "value_counts_nestedness_mismatch",
+          ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+            name: 'feature'
+            type: FLOAT
+            num_stats: {
+              common_stats: {
+                num_missing: 0
+                num_non_missing: 10
+                min_num_values: 1
+                max_num_values: 1
+                presence_and_valency_stats {
+                  num_missing: 0
+                  num_non_missing: 10
+                  min_num_values: 1
+                  max_num_values: 1
+                }
+                presence_and_valency_stats {
+                  num_missing: 0
+                  num_non_missing: 10
+                  min_num_values: 1
+                  max_num_values: 1
+                }
+                presence_and_valency_stats {
+                  num_missing: 0
+                  num_non_missing: 10
+                  min_num_values: 1
+                  max_num_values: 1
+                }
+              }
+            })"),
+          false,
+          {AnomalyInfo::VALUE_NESTEDNESS_MISMATCH},
+          {"Mismatched value nest level"},
+          ParseTextProtoOrDie<Feature>(R"(value_counts: {
+                                            value_count: { min: 1 max: 1 }
+                                            value_count: { min: 1 max: 1 }
+                                          })"),
+          ParseTextProtoOrDie<Feature>(R"(value_counts: {
+                                            value_count: { min: 1 max: 1 }
+                                            value_count: { min: 1 max: 1 }
+                                            value_count: { min: 1 max: 1 }
+                                          })"),
+      },
       {"num_values_outside_value_counts_bounds",
        ParseTextProtoOrDie<FeatureNameStatistics>(R"(
          name: 'feature'

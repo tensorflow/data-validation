@@ -71,9 +71,42 @@ absl::optional<FeatureStatsView> GetControlStats(
   }
 }
 
+void InitValueCount(const FeatureStatsView& feature_stats_view,
+                    Feature* feature) {
+  // Set value_counts or value_count, depending on whether the feature's values
+  // are nested.
+  const std::vector<std::pair<int, int>> min_max_num_values =
+      feature_stats_view.GetMinMaxNumValues();
+  auto set_value_count = [](int min_num_values, int max_num_values,
+                            ValueCount* value_count) {
+    if (min_num_values > 0) {
+      if (min_num_values == max_num_values) {
+        // Set min and max value count in the schema if they are same. This
+        // would allow required features with same valency to be parsed as dense
+        // tensors in TFT.
+        value_count->set_min(min_num_values);
+        value_count->set_max(max_num_values);
+      } else {
+        value_count->set_min(1);
+      }
+    }
+  };
+  if (feature_stats_view.HasNestedValues()) {
+    for (int i = 0; i < min_max_num_values.size(); i++) {
+      set_value_count(min_max_num_values[i].first, min_max_num_values[i].second,
+                      feature->mutable_value_counts()->add_value_count());
+    }
+  } else if (min_max_num_values.size() == 1 &&
+             min_max_num_values[0].first > 0) {
+    set_value_count(min_max_num_values[0].first, min_max_num_values[0].second,
+                    feature->mutable_value_count());
+  }
+}
+
 std::vector<Description> UpdateValueCount(
-    const std::vector<std::pair<int, int>>& min_max_num_values,
-    Feature* feature) {
+    const FeatureStatsView& feature_stats_view, Feature* feature) {
+  const std::vector<std::pair<int, int>> min_max_num_values =
+      feature_stats_view.GetMinMaxNumValues();
   std::vector<Description> description;
   if (min_max_num_values.size() > 1) {
     description.push_back(
@@ -82,6 +115,7 @@ std::vector<Description> UpdateValueCount(
          "feature > 1. For features with nestedness levels greater than 1, "
          "value_counts, not value_count, should be specified."});
     feature->clear_value_count();
+    InitValueCount(feature_stats_view, feature);
     return description;
   }
   if (feature->value_count().has_min() &&
@@ -106,8 +140,9 @@ std::vector<Description> UpdateValueCount(
 }
 
 std::vector<Description> UpdateValueCounts(
-    const std::vector<std::pair<int, int>>& min_max_num_values,
-    Feature* feature) {
+    const FeatureStatsView& feature_stats_view, Feature* feature) {
+  const std::vector<std::pair<int, int>> min_max_num_values =
+      feature_stats_view.GetMinMaxNumValues();
   std::vector<Description> description;
   if (feature->value_counts().value_count_size() != min_max_num_values.size()) {
     description.push_back(
@@ -115,6 +150,7 @@ std::vector<Description> UpdateValueCounts(
          "The values have a different nest level than expected. Value counts "
          "will not be checked."});
     feature->clear_value_counts();
+    InitValueCount(feature_stats_view, feature);
     return description;
   }
   for (int i = 0; i < feature->value_counts().value_count_size(); ++i) {
@@ -156,13 +192,11 @@ std::vector<Description> UpdateFeatureValueCounts(
   if (!feature->has_value_count() && !feature->has_value_counts()) {
     return {};
   }
-  const std::vector<std::pair<int, int>> min_max_num_values =
-      feature_stats_view.GetMinMaxNumValues();
   if (feature->has_value_count()) {
-    return UpdateValueCount(min_max_num_values, feature);
+    return UpdateValueCount(feature_stats_view, feature);
   }
   if (feature->has_value_counts()) {
-    return UpdateValueCounts(min_max_num_values, feature);
+    return UpdateValueCounts(feature_stats_view, feature);
   }
   return {};
 }
@@ -404,34 +438,7 @@ void InitValueCountAndPresence(const FeatureStatsView& feature_stats_view,
     // Required feature.
     feature->mutable_presence()->set_min_fraction(1.0);
   }
-  // Set value_counts or value_count, depending on whether the feature's values
-  // are nested.
-  const std::vector<std::pair<int, int>> min_max_num_values =
-      feature_stats_view.GetMinMaxNumValues();
-  auto set_value_count = [](int min_num_values, int max_num_values,
-                            ValueCount* value_count) {
-    if (min_num_values > 0) {
-      if (min_num_values == max_num_values) {
-        // Set min and max value count in the schema if they are same. This
-        // would allow required features with same valency to be parsed as dense
-        // tensors in TFT.
-        value_count->set_min(min_num_values);
-        value_count->set_max(max_num_values);
-      } else {
-        value_count->set_min(1);
-      }
-    }
-  };
-  if (feature_stats_view.HasNestedValues()) {
-    for (int i = 0; i < min_max_num_values.size(); i++) {
-      set_value_count(min_max_num_values[i].first, min_max_num_values[i].second,
-                      feature->mutable_value_counts()->add_value_count());
-    }
-  } else if (min_max_num_values.size() == 1 &&
-             min_max_num_values[0].first > 0) {
-    set_value_count(min_max_num_values[0].first, min_max_num_values[0].second,
-                    feature->mutable_value_count());
-  }
+  InitValueCount(feature_stats_view, feature);
 }
 
 std::vector<Description> UpdatePresence(
