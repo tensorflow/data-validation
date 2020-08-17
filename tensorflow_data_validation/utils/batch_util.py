@@ -19,6 +19,8 @@ from __future__ import division
 
 from __future__ import print_function
 
+from typing import Iterable, List, Optional
+
 import apache_beam as beam
 import pyarrow as pa
 from tensorflow_data_validation import constants
@@ -26,11 +28,6 @@ from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import decoded_examples_to_arrow
 from tfx_bsl.coders import batch_util
 from tfx_bsl.coders import example_coder
-from typing import List, Iterable, Optional
-
-
-# DEPRECATED. Use the TFXIO util instead.
-GetBeamBatchKwargs = batch_util.GetBatchElementsKwargs
 
 
 # TODO(pachristopher): Deprecate this.
