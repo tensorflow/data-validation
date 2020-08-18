@@ -55,13 +55,9 @@ function install_numpy() {
   ${PIP_BIN} install "numpy>=1.16,<2"
 }
 
-function bazel_build() {
+function build_wheel() {
   rm -rf dist
-  bazel run -c opt \
-    --cxxopt=-D_GLIBCXX_USE_CXX11_ABI=0 \
-    tensorflow_data_validation:build_pip_package \
-    --\
-    --python_bin_path "${PYTHON_BIN_PATH}"
+  "${PYTHON_BIN_PATH}" setup.py bdist_wheel
 }
 
 function stamp_wheel() {
@@ -72,11 +68,8 @@ function stamp_wheel() {
   rm "${WHEEL_PATH}"
 }
 
-setup_environment
-set -e
 set -x
-install_numpy
-bazel_build
+setup_environment && \
+install_numpy && \
+build_wheel && \
 stamp_wheel
-set +e
-set +x

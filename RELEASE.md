@@ -3,6 +3,10 @@
 # Current Version(Still in Development)
 
 ## Major Features and Improvements
+*  You can now build the TFDV wheel with `python setup.py bdist_wheel`. Note:
+  * If you want to build a manylinux2010 wheel you'll still need
+    to use Docker.
+  * Bazel is still required.
 
 ## Bug Fixes and Other Changes
 
