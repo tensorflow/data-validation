@@ -105,8 +105,6 @@ def infer_schema(
   # these stats, so we remove them at the start.
   dataset_statistics = _remove_features_missing_common_stats(dataset_statistics)
 
-  _check_for_unsupported_stats_fields(dataset_statistics, 'statistics')
-
   schema_proto_string = pywrap_tensorflow_data_validation.InferSchema(
       tf.compat.as_bytes(dataset_statistics.SerializeToString()),
       max_string_domain_size)
@@ -206,8 +204,6 @@ def update_schema(schema: schema_pb2.Schema,
   # This will raise an exception if there are multiple datasets, none of which
   # corresponds to the default slice.
   dataset_statistics = _get_default_dataset_statistics(statistics)
-
-  _check_for_unsupported_stats_fields(dataset_statistics, 'statistics')
 
   schema_proto_string = pywrap_tensorflow_data_validation.UpdateSchema(
       tf.compat.as_bytes(schema.SerializeToString()),
@@ -405,8 +401,6 @@ def validate_statistics_internal(
   else:
     environment = ''
 
-  _check_for_unsupported_stats_fields(dataset_statistics, 'statistics')
-
   if previous_span_statistics is not None:
     if not isinstance(
         previous_span_statistics, statistics_pb2.DatasetFeatureStatisticsList):
@@ -417,8 +411,6 @@ def validate_statistics_internal(
 
     previous_dataset_statistics = _get_default_dataset_statistics(
         previous_span_statistics)
-    _check_for_unsupported_stats_fields(previous_dataset_statistics,
-                                        'previous_statistics')
 
   if serving_statistics is not None:
     if not isinstance(
@@ -430,8 +422,6 @@ def validate_statistics_internal(
 
     serving_dataset_statistics = _get_default_dataset_statistics(
         serving_statistics)
-    _check_for_unsupported_stats_fields(serving_dataset_statistics,
-                                        'serving_statistics')
 
   if previous_version_statistics is not None:
     if not isinstance(previous_version_statistics,
@@ -442,8 +432,6 @@ def validate_statistics_internal(
 
     previous_version_dataset_statistics = _get_default_dataset_statistics(
         previous_version_statistics)
-    _check_for_unsupported_stats_fields(previous_version_dataset_statistics,
-                                        'previous_version_statistics')
 
   # Serialize the input protos.
   serialized_schema = schema.SerializeToString()
@@ -516,16 +504,6 @@ def _remove_features_missing_common_stats(
   del stats.features[:]
   stats.features.extend(valid_features)
   return stats
-
-
-def _check_for_unsupported_stats_fields(
-    stats: statistics_pb2.DatasetFeatureStatistics,
-    stats_type: str):
-  """Logs warnings when we encounter unsupported fields in the statistics."""
-  for feature in stats.features:
-    if feature.HasField('struct_stats'):
-      logging.warning('Feature "%s" in the %s has a struct_stats field which '
-                      'is currently not supported.', feature.name, stats_type)
 
 
 def validate_instance(
