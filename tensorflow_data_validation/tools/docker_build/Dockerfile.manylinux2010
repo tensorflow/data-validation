@@ -15,6 +15,6 @@
 # Dockerfile for building a manylinux2010 TFDV wheel.
 
 # This docker image is essentially pypa/manylinux2010 + bazel.
-FROM us.gcr.io/tfx-oss-testing/manylinux2010-bazel
+FROM us.gcr.io/tfx-oss-testing/manylinux2010-bazel-py38
 WORKDIR /build
 CMD ["tensorflow_data_validation/tools/docker_build/build_manylinux.sh"]

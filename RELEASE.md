@@ -7,6 +7,7 @@
   * If you want to build a manylinux2010 wheel you'll still need
     to use Docker.
   * Bazel is still required.
+*  You can now build manylinux2010 TFDV wheel for Python 3.8.
 
 ## Bug Fixes and Other Changes
 
