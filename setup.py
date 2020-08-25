@@ -149,9 +149,9 @@ setup(
         'Operating System :: Microsoft :: Windows',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3 :: Only',
         'Topic :: Scientific/Engineering',
         'Topic :: Scientific/Engineering :: Artificial Intelligence',
@@ -164,14 +164,14 @@ setup(
     # Make sure to sync the versions of common dependencies (absl-py, numpy,
     # six, and protobuf) with TF.
     install_requires=[
-        'absl-py>=0.7,<0.9',
+        'absl-py>=0.9,<0.11',
         'apache-beam[gcp]>=2.23,<3',
         # TODO(b/139941423): Consider using multi-processing provided by
         # Beam's DirectRunner.
         'joblib>=0.12,<0.15',  # Dependency for multi-processing.
         'numpy>=1.16,<2',
-        'pandas>=0.24,<2',
-        'protobuf>=3.7,<4',
+        'pandas>=1.0,<2',
+        'protobuf>=3.9.2,<4',
         'pyarrow>=0.17,<0.18',
         'six>=1.12,<2',
         'tensorflow>=1.15.2,!=2.0.*,!=2.1.*,!=2.2.*,<3',
@@ -184,7 +184,7 @@ setup(
         'visualization': _make_visualization_requirements(),
         'all': _make_all_extra_requirements(),
     },
-    python_requires='>=3.5,<4',
+    python_requires='>=3.6,<4',
     packages=find_packages(),
     include_package_data=True,
     package_data={'': ['*.lib', '*.pyd', '*.so']},
