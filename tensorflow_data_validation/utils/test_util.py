@@ -152,7 +152,7 @@ def assert_dataset_feature_stats_proto_equal(
       'DatasetFeatureStatistics {}'.format(expected.name, actual.name, actual))
   test.assertEqual(
       expected.num_examples, actual.num_examples,
-      'Expected num_examples to be {}, found {} in DatasetFeatureStatsitics {}'
+      'Expected num_examples to be {}, found {} in DatasetFeatureStatistics {}'
       .format(expected.num_examples, actual.num_examples, actual))
   test.assertLen(actual.features, len(expected.features))
 
