@@ -22,6 +22,7 @@ from distutils.command import build
 import os
 import platform
 import subprocess
+import sys
 
 from setuptools import find_packages
 from setuptools import setup
@@ -84,7 +85,7 @@ class _BazelBuildCommand(setuptools.Command):
         # Bazel should be invoked in a directory containing bazel WORKSPACE
         # file, which is the root directory.
         cwd=os.path.dirname(os.path.realpath(__file__)),
-    )
+        env=os.environ.copy().update({'PYTHON_BIN_PATH': sys.executable}))
 
 
 # TFDV is not a purelib. However because of the extension module is not built
