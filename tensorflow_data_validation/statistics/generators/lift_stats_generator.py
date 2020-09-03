@@ -184,9 +184,13 @@ def _get_example_value_presence(
 
 
 def _to_partial_copresence_counts(
-    sliced_record_batch: types.SlicedRecordBatch, y_path: types.FeaturePath,
-    x_paths: Iterable[types.FeaturePath], y_boundaries: Optional[np.ndarray],
-    weight_column_name: Optional[Text]
+    sliced_record_batch: types.SlicedRecordBatch,
+    y_path: types.FeaturePath,
+    x_paths: Iterable[types.FeaturePath],
+    y_boundaries: Optional[np.ndarray],
+    weight_column_name: Optional[Text],
+    num_xy_pairs_batch_copresent: Optional[
+        beam.metrics.metric.Metrics.DelegatingDistribution] = None
 ) -> Iterator[Tuple[_SlicedXYKey, _CountType]]:
   """Yields per-(slice, path_x, x, y) counts of examples with x and y.
 
@@ -205,6 +209,10 @@ def _to_partial_copresence_counts(
     weight_column_name: Optionally, a weight column to use for weighting
       copresence counts by the example weight in which an X and Y value were
       copresent.
+    num_xy_pairs_batch_copresent: A counter tracking the number of different xy
+      pairs that are copresent within each batch. If the same pair of xy values
+      are copresent in more than one batch, this counter will be incremented
+      once for each batch in which they are copresent.
 
   Yields:
     Tuples of the form (_SlicedXYKey(slice_key, x_path, x, y), count) for each
@@ -233,6 +241,8 @@ def _to_partial_copresence_counts(
       copresence_counts = grouped['weights_x'].sum()
     else:
       copresence_counts = grouped.size()
+    if num_xy_pairs_batch_copresent:
+      num_xy_pairs_batch_copresent.update(len(copresence_counts))
     for (x, y), count in copresence_counts.items():
       yield _SlicedXYKey(slice_key=slice_key, x_path=x_path, x=x, y=y), count
 
@@ -385,9 +395,11 @@ def _cross_join_y_keys(
 
 
 def _join_x_counts(
-    join_info: Tuple[_SlicedXKey, Dict[Text, Sequence[Any]]]
+    join_info: Tuple[_SlicedXKey, Dict[Text, Sequence[Any]]],
     # TODO(b/147153346) update dict value list element type annotation to:
     # Union[_CountType, Tuple[_YType, _CountType]]
+    num_xy_pairs_distinct: beam.metrics.metric.Metrics.DelegatingCounter,
+    num_x_values_distinct: beam.metrics.metric.Metrics.DelegatingCounter,
 ) -> Iterator[Tuple[_SlicedYKey, _ConditionalYRate]]:
   """Joins x_count with all xy_counts for that x.
 
@@ -405,6 +417,10 @@ def _join_x_counts(
 
   Args:
     join_info: A CoGroupByKey result
+    num_xy_pairs_distinct: A beam counter metric for the number of distinct xy
+      pairs across all features.
+    num_x_values_distinct: A beam counter metric for the number of distinct x
+      values across all features.
 
   Yields:
     Per-(slice, x_path, y, x) tuples of the form (_SlicedYKey(slice, y),
@@ -415,7 +431,9 @@ def _join_x_counts(
   if not join_inputs['x_count']:
     return
   x_count = join_inputs['x_count'][0]
+  num_x_values_distinct.inc(1)
   for y, xy_count in join_inputs['xy_counts']:
+    num_xy_pairs_distinct.inc(1)
     yield _SlicedYKey(key.slice_key, y), _ConditionalYRate(
         x_path=key.x_path, x=key.x, xy_count=xy_count, x_count=x_count)
 
@@ -622,6 +640,12 @@ class _GetConditionalYRates(beam.PTransform):
     self._x_paths = x_paths
     self._min_x_count = min_x_count
     self._weight_column_name = weight_column_name
+    self._num_xy_pairs_distinct = beam.metrics.Metrics.counter(
+        constants.METRICS_NAMESPACE, 'num_xy_pairs_distinct')
+    self._num_xy_pairs_batch_copresent = beam.metrics.Metrics.distribution(
+        constants.METRICS_NAMESPACE, 'num_xy_pairs_batch_copresent')
+    self._num_x_values_distinct = beam.metrics.Metrics.counter(
+        constants.METRICS_NAMESPACE, 'num_x_values_distinct')
 
   def expand(self, sliced_record_batchs_and_ys: Tuple[types.SlicedRecordBatch,
                                                       _SlicedYKey]):
@@ -632,9 +656,10 @@ class _GetConditionalYRates(beam.PTransform):
         sliced_record_batchs
         | 'ToPartialCopresenceCounts' >> beam.FlatMap(
             _to_partial_copresence_counts, self._y_path, self._x_paths,
-            self._y_boundaries, self._weight_column_name))
+            self._y_boundaries, self._weight_column_name,
+            self._num_xy_pairs_batch_copresent))
 
-    # Compute placerholder copresence counts.
+    # Compute placeholder copresence counts.
     # partial_copresence_counts will only include x-y pairs that are present,
     # but we would also like to keep track of x-y pairs that never appear, as
     # long as x and y independently occur in the slice.
@@ -671,7 +696,9 @@ class _GetConditionalYRates(beam.PTransform):
         'xy_counts': copresence_counts
     }
             | 'CoGroupByForConditionalYRates' >> beam.CoGroupByKey()
-            | 'JoinXCounts' >> beam.FlatMap(_join_x_counts))
+            | 'JoinXCounts' >>
+            beam.FlatMap(_join_x_counts, self._num_xy_pairs_distinct,
+                         self._num_x_values_distinct))
 
 
 @beam.typehints.with_input_types(types.SlicedRecordBatch)
