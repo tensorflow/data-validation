@@ -11,6 +11,8 @@
 
 ## Bug Fixes and Other Changes
 
+*   Support allowlist and denylist features in `tfdv.visualize_statistics`
+    method.
 *   Depends on `absl-py>=0.9,<0.11`.
 *   Depends on `pandas>=1.0,<2`.
 *   Depends on `protobuf>=3.9.2,<4`.

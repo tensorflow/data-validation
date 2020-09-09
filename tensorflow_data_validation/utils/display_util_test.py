@@ -19,7 +19,9 @@ from __future__ import division
 from __future__ import print_function
 
 from absl.testing import absltest
+from tensorflow_data_validation import types
 from tensorflow_data_validation.utils import display_util
+from tensorflow_data_validation.utils import test_util
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 from google.protobuf import text_format
@@ -28,7 +30,6 @@ from google.protobuf import text_format
 class DisplayUtilTest(absltest.TestCase):
 
   def test_get_statistics_html(self):
-
     statistics = text_format.Parse("""
     datasets {
       num_examples: 3
@@ -192,7 +193,7 @@ class DisplayUtilTest(absltest.TestCase):
         }
       }
       features {
-        name: "b"
+        name: 'b'
         type: STRING
         string_stats {
           common_stats {
@@ -272,6 +273,107 @@ class DisplayUtilTest(absltest.TestCase):
 
     self.assertEqual(display_html, expected_output)
 
+  def test_visualize_statistics_invalid_allowlist_denylist(self):
+    statistics = text_format.Parse("""
+    datasets {
+      name: 'test'
+      features {
+        path { step: 'a' }
+        type: FLOAT
+      }
+      features {
+        path { step: 'c' }
+        type: INT
+      }
+      features {
+        path { step: 'b' }
+        type: STRING
+      }
+    }
+    """, statistics_pb2.DatasetFeatureStatisticsList())
+    with self.assertRaisesRegex(AssertionError, '.*specify one of.*'):
+      display_util.visualize_statistics(
+          statistics, allowlist_features=[types.FeaturePath(['a'])],
+          denylist_features=[types.FeaturePath(['c'])])
+
+  def test_get_combined_statistics_allowlist_features(self):
+    statistics = text_format.Parse("""
+    datasets {
+      name: 'test'
+      features {
+        path { step: 'a' }
+        type: FLOAT
+      }
+      features {
+        path { step: 'c' }
+        type: INT
+      }
+      features {
+        path { step: 'b' }
+        type: STRING
+      }
+    }
+    """, statistics_pb2.DatasetFeatureStatisticsList())
+
+    expected_output = text_format.Parse("""
+    datasets {
+      name: 'test'
+      features {
+        path { step: 'a' }
+        type: FLOAT
+      }
+      features {
+        path { step: 'b' }
+        type: STRING
+      }
+    }
+    """, statistics_pb2.DatasetFeatureStatisticsList())
+
+    actual_output = display_util._get_combined_statistics(
+        statistics, allowlist_features=[
+            types.FeaturePath(['a']), types.FeaturePath(['b'])])
+    self.assertLen(actual_output.datasets, 1)
+    test_util.assert_dataset_feature_stats_proto_equal(
+        self, actual_output.datasets[0], expected_output.datasets[0])
+
+  def test_get_combined_statistics_denylist_features(self):
+    statistics = text_format.Parse("""
+    datasets {
+      name: 'test'
+      features {
+        path { step: 'a' }
+        type: FLOAT
+      }
+      features {
+        path { step: 'c' }
+        type: INT
+      }
+      features {
+        path { step: 'b' }
+        type: STRING
+      }
+    }
+    """, statistics_pb2.DatasetFeatureStatisticsList())
+
+    expected_output = text_format.Parse("""
+    datasets {
+      name: 'test'
+      features {
+        path { step: 'a' }
+        type: FLOAT
+      }
+      features {
+        path { step: 'b' }
+        type: STRING
+      }
+    }
+    """, statistics_pb2.DatasetFeatureStatisticsList())
+
+    actual_output = display_util._get_combined_statistics(
+        statistics, denylist_features=[types.FeaturePath(['c'])])
+    self.assertLen(actual_output.datasets, 1)
+    test_util.assert_dataset_feature_stats_proto_equal(
+        self, actual_output.datasets[0], expected_output.datasets[0])
 
 if __name__ == '__main__':
   absltest.main()

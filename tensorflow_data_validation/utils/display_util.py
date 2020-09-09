@@ -21,7 +21,7 @@ from __future__ import division
 from __future__ import print_function
 
 import base64
-from typing import Optional, Text
+from typing import List, Optional, Text
 from tensorflow_data_validation import types
 import pandas as pd
 from tensorflow_data_validation.utils import stats_util
@@ -174,29 +174,43 @@ def display_anomalies(anomalies: anomalies_pb2.Anomalies) -> None:
     display(anomalies_df)
 
 
-def get_statistics_html(
+def _project_statistics(
+    statistics: statistics_pb2.DatasetFeatureStatisticsList,
+    allowlist_features: Optional[List[types.FeaturePath]] = None,
+    denylist_features: Optional[List[types.FeaturePath]] = None
+) -> statistics_pb2.DatasetFeatureStatisticsList:
+  """Project statistics proto based on allowlist and denylist features."""
+  if allowlist_features is None and denylist_features is None:
+    return statistics
+  result = statistics_pb2.DatasetFeatureStatisticsList()
+  for dataset_stats in statistics.datasets:
+    result_dataset_stats = result.datasets.add()
+    result_dataset_stats.MergeFrom(dataset_stats)
+    del result_dataset_stats.features[:]
+    if allowlist_features is not None:
+      allowlist_features = set(allowlist_features)
+      for feature in dataset_stats.features:
+        if types.FeaturePath.from_proto(feature.path) in allowlist_features:
+          result_dataset_stats.features.add().MergeFrom(feature)
+    else:
+      denylist_features = set(denylist_features)
+      for feature in dataset_stats.features:
+        if types.FeaturePath.from_proto(feature.path) in denylist_features:
+          continue
+        result_dataset_stats.features.add().MergeFrom(feature)
+  return result
+
+
+def _get_combined_statistics(
     lhs_statistics: statistics_pb2.DatasetFeatureStatisticsList,
     rhs_statistics: Optional[
         statistics_pb2.DatasetFeatureStatisticsList] = None,
     lhs_name: Text = 'lhs_statistics',
-    rhs_name: Text = 'rhs_statistics'
-) -> Text:
-  """Build the HTML for visualizing the input statistics using Facets.
-
-  Args:
-    lhs_statistics: A DatasetFeatureStatisticsList protocol buffer.
-    rhs_statistics: An optional DatasetFeatureStatisticsList protocol buffer to
-      compare with lhs_statistics.
-    lhs_name: Name of the lhs_statistics dataset.
-    rhs_name: Name of the rhs_statistics dataset.
-
-  Returns:
-    HTML to be embedded for visualization.
-
-  Raises:
-    TypeError: If the input argument is not of the expected type.
-    ValueError: If the input statistics protos does not have only one dataset.
-  """
+    rhs_name: Text = 'rhs_statistics',
+    allowlist_features: Optional[List[types.FeaturePath]] = None,
+    denylist_features: Optional[List[types.FeaturePath]] = None
+) -> statistics_pb2.DatasetFeatureStatisticsList:
+  """Get combined datatset statistics list proto."""
   if not isinstance(lhs_statistics,
                     statistics_pb2.DatasetFeatureStatisticsList):
     raise TypeError(
@@ -211,6 +225,8 @@ def get_statistics_html(
     lhs_name = lhs_statistics.datasets[0].name
 
   # Add lhs stats.
+  lhs_statistics = _project_statistics(
+      lhs_statistics, allowlist_features, denylist_features)
   combined_statistics = statistics_pb2.DatasetFeatureStatisticsList()
   lhs_stats_copy = combined_statistics.datasets.add()
   lhs_stats_copy.MergeFrom(lhs_statistics.datasets[0])
@@ -233,13 +249,47 @@ def get_statistics_html(
       lhs_name, rhs_name = 'lhs_statistics', 'rhs_statistics'
 
     # Add rhs stats.
+    rhs_statistics = _project_statistics(
+        rhs_statistics, allowlist_features, denylist_features)
     rhs_stats_copy = combined_statistics.datasets.add()
     rhs_stats_copy.MergeFrom(rhs_statistics.datasets[0])
     rhs_stats_copy.name = rhs_name
 
   # Update lhs name.
   lhs_stats_copy.name = lhs_name
+  return combined_statistics
 
+
+def get_statistics_html(
+    lhs_statistics: statistics_pb2.DatasetFeatureStatisticsList,
+    rhs_statistics: Optional[
+        statistics_pb2.DatasetFeatureStatisticsList] = None,
+    lhs_name: Text = 'lhs_statistics',
+    rhs_name: Text = 'rhs_statistics',
+    allowlist_features: Optional[List[types.FeaturePath]] = None,
+    denylist_features: Optional[List[types.FeaturePath]] = None
+) -> Text:
+  """Build the HTML for visualizing the input statistics using Facets.
+
+  Args:
+    lhs_statistics: A DatasetFeatureStatisticsList protocol buffer.
+    rhs_statistics: An optional DatasetFeatureStatisticsList protocol buffer to
+      compare with lhs_statistics.
+    lhs_name: Name of the lhs_statistics dataset.
+    rhs_name: Name of the rhs_statistics dataset.
+    allowlist_features: Set of features to be visualized.
+    denylist_features: Set of features to ignore for visualization.
+
+  Returns:
+    HTML to be embedded for visualization.
+
+  Raises:
+    TypeError: If the input argument is not of the expected type.
+    ValueError: If the input statistics protos does not have only one dataset.
+  """
+  combined_statistics = _get_combined_statistics(
+      lhs_statistics, rhs_statistics, lhs_name, rhs_name, allowlist_features,
+      denylist_features)
   protostr = base64.b64encode(
       combined_statistics.SerializeToString()).decode('utf-8')
 
@@ -272,7 +322,9 @@ def visualize_statistics(
     rhs_statistics: Optional[
         statistics_pb2.DatasetFeatureStatisticsList] = None,
     lhs_name: Text = 'lhs_statistics',
-    rhs_name: Text = 'rhs_statistics') -> None:
+    rhs_name: Text = 'rhs_statistics',
+    allowlist_features: Optional[List[types.FeaturePath]] = None,
+    denylist_features: Optional[List[types.FeaturePath]] = None) -> None:
   """Visualize the input statistics using Facets.
 
   Args:
@@ -281,12 +333,17 @@ def visualize_statistics(
       compare with lhs_statistics.
     lhs_name: Name of the lhs_statistics dataset.
     rhs_name: Name of the rhs_statistics dataset.
+    allowlist_features: Set of features to be visualized.
+    denylist_features: Set of features to ignore for visualization.
 
   Raises:
     TypeError: If the input argument is not of the expected type.
     ValueError: If the input statistics protos does not have only one dataset.
   """
-  html = get_statistics_html(lhs_statistics, rhs_statistics, lhs_name, rhs_name)
+  assert (not allowlist_features or not denylist_features), (
+      'Only specify one of allowlist_features and denylist_features.')
+  html = get_statistics_html(lhs_statistics, rhs_statistics, lhs_name, rhs_name,
+                             allowlist_features, denylist_features)
   display(HTML(html))
 
 
