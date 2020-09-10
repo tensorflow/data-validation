@@ -19,9 +19,9 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
-import logging
 from typing import FrozenSet, List, Optional, Union
 
+import apache_beam as beam
 import six
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
@@ -32,6 +32,10 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 # Tuple to hold feature value and count for an item.
 FeatureValueCount = collections.namedtuple('FeatureValueCount',
                                            ['feature_value', 'count'])
+
+# Beam counter to track the number of non-utf8 values.
+_NON_UTF8_VALUES_COUNTER = beam.metrics.Metrics.counter(
+    constants.METRICS_NAMESPACE, 'num_non_utf8_values_topk_uniques_generator')
 
 
 def make_feature_stats_proto_topk_uniques(
@@ -174,8 +178,7 @@ def _make_feature_stats_proto_topk(
     if isinstance(value, six.binary_type):
       decoded_value = stats_util.maybe_get_utf8(value)
       if decoded_value is None:
-        logging.warning('Feature "%s" has bytes value "%s" which cannot be '
-                        'decoded as a UTF-8 string.', feature_path, value)
+        _NON_UTF8_VALUES_COUNTER.inc()
         value = constants.NON_UTF8_PLACEHOLDER
       else:
         value = decoded_value

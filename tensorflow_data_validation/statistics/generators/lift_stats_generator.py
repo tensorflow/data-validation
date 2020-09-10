@@ -39,7 +39,6 @@ from __future__ import division
 
 from __future__ import print_function
 
-import logging
 import operator
 import typing
 from typing import Any, Dict, Iterator, Iterable, Optional, Sequence, Text, Tuple, Union
@@ -107,6 +106,10 @@ _LiftValue = typing.NamedTuple('_LiftValue', [('x', _XType), ('lift', float),
 _LiftSeries = typing.NamedTuple('_LiftSeries',
                                 [('y', _YType), ('y_count', _CountType),
                                  ('lift_values', Iterable[_LiftValue])])
+
+# Beam counter to track the number of non-utf8 values.
+_NON_UTF8_VALUES_COUNTER = beam.metrics.Metrics.counter(
+    constants.METRICS_NAMESPACE, 'num_non_utf8_values_lift_generator')
 
 
 def _get_example_value_presence(
@@ -279,13 +282,12 @@ def _to_partial_x_counts(
       yield _SlicedXKey(slice_key, x_path, x), x_count
 
 
-def _get_unicode_value(value: Union[Text, bytes], path: types.FeaturePath
-                       ) -> Text:
+def _get_unicode_value(value: Union[Text, bytes]) -> Text:
+  """Get feature value decoded as utf-8."""
   decoded_value = stats_util.maybe_get_utf8(value)
   # Check if we have a valid utf-8 string. If not, assign a placeholder.
   if decoded_value is None:
-    logging.warning('Feature "%s" has bytes value "%s" which cannot be '
-                    'decoded as a UTF-8 string.', path, value)
+    _NON_UTF8_VALUES_COUNTER.inc()
     decoded_value = constants.NON_UTF8_PLACEHOLDER
   return decoded_value
 
@@ -341,7 +343,7 @@ def _make_dataset_feature_stats_proto(
       lift_series_proto.y_string = y
       y_display_val = y
     elif isinstance(y, six.binary_type):
-      y_string = _get_unicode_value(y, y_path)
+      y_string = _get_unicode_value(y)
       lift_series_proto.y_string = y_string
       y_display_val = y_string
     else:
@@ -370,7 +372,7 @@ def _make_dataset_feature_stats_proto(
         lift_value_proto.x_string = x
         x_display_val = x
       elif isinstance(x, six.binary_type):
-        x_string = _get_unicode_value(x, key.x_path)
+        x_string = _get_unicode_value(x)
         lift_value_proto.x_string = x_string
         x_display_val = x_string
       else:
