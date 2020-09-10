@@ -12,22 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Package Setup script for TensorFlow Data Validation."""
-
-# pylint:disable=g-bad-import-order
-# setuptools must be imported prior to distutils.
-import setuptools
-from distutils import spawn
-from distutils.command import build
-# pylint:enable=g-bad-import-order
 import os
 import platform
 import subprocess
 import sys
 
+import setuptools
 from setuptools import find_packages
 from setuptools import setup
 from setuptools.command.install import install
 from setuptools.dist import Distribution
+# pylint:disable=g-bad-import-order
+# setuptools must be imported prior to distutils.
+from distutils import spawn
+from distutils.command import build
+# pylint:enable=g-bad-import-order
 
 
 class _BuildCommand(build.build):
@@ -123,6 +122,19 @@ def _make_all_extra_requirements():
           _make_visualization_requirements())
 
 
+def select_constraint(default, nightly=None, git_master=None):
+  """Select dependency constraint based on TFX_DEPENDENCY_SELECTOR env var."""
+  selector = os.environ.get('TFX_DEPENDENCY_SELECTOR')
+  if selector == 'UNCONSTRAINED':
+    return ''
+  elif selector == 'NIGHTLY' and nightly is not None:
+    return nightly
+  elif selector == 'GIT_MASTER' and git_master is not None:
+    return git_master
+  else:
+    return default
+
+
 # Get version from version module.
 with open('tensorflow_data_validation/version.py') as fp:
   globals_dict = {}
@@ -176,9 +188,18 @@ setup(
         'pyarrow>=0.17,<0.18',
         'six>=1.12,<2',
         'tensorflow>=1.15.2,!=2.0.*,!=2.1.*,!=2.2.*,<3',
-        'tensorflow-metadata>=0.23,<0.24',
-        'tensorflow-transform>=0.23,<0.24',
-        'tfx-bsl>=0.23,<0.24',
+        'tensorflow-metadata' + select_constraint(
+            default='>=0.23,<0.24',
+            nightly='>=0.24.0.dev',
+            git_master='@git+https://github.com/tensorflow/metadata@master'),
+        'tensorflow-transform' + select_constraint(
+            default='>=0.23,<0.24',
+            nightly='>=0.24.0.dev',
+            git_master='@git+https://github.com/tensorflow/transform@master'),
+        'tfx-bsl' + select_constraint(
+            default='>=0.23,<0.24',
+            nightly='>=0.24.0.dev',
+            git_master='@git+https://github.com/tensorflow/tfx-bsl@master'),
     ],
     extras_require={
         'mutual-information': _make_mutual_information_requirements(),
