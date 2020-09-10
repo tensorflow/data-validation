@@ -584,34 +584,6 @@ class StatsAPITest(absltest.TestCase):
           test_util.make_dataset_feature_stats_list_proto_equal_fn(
               self, expected_result))
 
-  def test_stats_pipeline_with_sample_count(self):
-    record_batches = [
-        pa.RecordBatch.from_arrays(
-            [pa.array([np.linspace(1, 3000, 3000, dtype=np.int32)])], ['c']),
-        pa.RecordBatch.from_arrays(
-            [pa.array([np.linspace(1, 3000, 3000, dtype=np.int32)])], ['c']),
-        pa.RecordBatch.from_arrays(
-            [pa.array([np.linspace(1, 3000, 3000, dtype=np.int32)])], ['c']),
-    ]
-
-    with beam.Pipeline() as p:
-      options = stats_options.StatsOptions(
-          sample_count=3000,
-          num_top_values=2,
-          num_rank_histogram_buckets=2,
-          num_values_histogram_buckets=2,
-          num_histogram_buckets=2,
-          num_quantiles_histogram_buckets=2,
-          epsilon=0.001,
-          desired_batch_size=3000)
-      result = (
-          p | beam.Create(record_batches)
-          | stats_api.GenerateStatistics(options))
-      util.assert_that(
-          result,
-          test_util.make_dataset_feature_stats_list_proto_equal_fn(
-              self, self._sampling_test_expected_result))
-
   def test_stats_pipeline_with_sample_rate(self):
     record_batches = [
         pa.RecordBatch.from_arrays(

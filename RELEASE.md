@@ -24,6 +24,8 @@
 ## Deprecations
 
 *   Deprecated Py3.5 support.
+*   Deprecated `sample_count` option in `tfdv.StatsOptions`. Use `sample_rate`
+    option instead.
 
 # Version 0.23.0
 

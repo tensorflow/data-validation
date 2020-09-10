@@ -22,10 +22,9 @@ from __future__ import print_function
 import copy
 import json
 import types as python_types
-
+from typing import List, Optional, Text
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
-from typing import List, Optional, Text
 
 from google.protobuf import json_format
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -37,7 +36,6 @@ from tensorflow_metadata.proto.v0 import schema_pb2
 
 
 # TODO(b/118833241): Set MI default configs when MI is a default generator
-# TODO(b/162776976): Consider deprecating sample_count option.
 class StatsOptions(object):
   """Options for generating statistics."""
 
@@ -49,7 +47,6 @@ class StatsOptions(object):
       label_feature: Optional[types.FeatureName] = None,
       weight_feature: Optional[types.FeatureName] = None,
       slice_functions: Optional[List[types.SliceFunction]] = None,
-      sample_count: Optional[int] = None,
       sample_rate: Optional[float] = None,
       num_top_values: int = 20,
       frequency_threshold: int = 1,
@@ -79,14 +76,8 @@ class StatsOptions(object):
       slice_functions: An optional list of functions that generate slice keys
         for each example. Each slice function should take an example dict as
         input and return a list of zero or more slice keys.
-      sample_count: An optional number of examples to include in the sample. If
-        specified, statistics is computed over the sample. Only one of
-        sample_count or sample_rate can be specified. Note that since TFDV
-        batches input examples, the sample count is only a desired count and we
-        may include more examples in certain cases.
       sample_rate: An optional sampling rate. If specified, statistics is
-        computed over the sample. Only one of sample_count or sample_rate can
-        be specified.
+        computed over the sample.
       num_top_values: An optional number of most frequent feature values to keep
         for string features.
       frequency_threshold: An optional minimum number of examples the most
@@ -126,7 +117,6 @@ class StatsOptions(object):
     self.label_feature = label_feature
     self.weight_feature = weight_feature
     self.slice_functions = slice_functions
-    self.sample_count = sample_count
     self.sample_rate = sample_rate
     self.num_top_values = num_top_values
     self.frequency_threshold = frequency_threshold
@@ -246,29 +236,12 @@ class StatsOptions(object):
     self._slice_functions = slice_functions
 
   @property
-  def sample_count(self) -> Optional[int]:
-    return self._sample_count
-
-  @sample_count.setter
-  def sample_count(self, sample_count: Optional[int]) -> None:
-    if sample_count is not None:
-      if hasattr(self, 'sample_rate') and self.sample_rate is not None:
-        raise ValueError('Only one of sample_count or sample_rate can be '
-                         'specified.')
-      if sample_count < 1:
-        raise ValueError('Invalid sample_count %d' % sample_count)
-    self._sample_count = sample_count
-
-  @property
   def sample_rate(self) -> Optional[float]:
     return self._sample_rate
 
   @sample_rate.setter
   def sample_rate(self, sample_rate: Optional[float]):
     if sample_rate is not None:
-      if hasattr(self, 'sample_count') and self.sample_count is not None:
-        raise ValueError('Only one of sample_count or sample_rate can be '
-                         'specified.')
       if not 0 < sample_rate <= 1:
         raise ValueError('Invalid sample_rate %f' % sample_rate)
     self._sample_rate = sample_rate

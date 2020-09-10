@@ -48,7 +48,6 @@ import random
 from typing import Generator, Text
 import apache_beam as beam
 import pyarrow as pa
-from tensorflow_data_validation import constants
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options
 
@@ -91,27 +90,7 @@ class GenerateStatistics(beam.PTransform):
     self._options = options
 
   def expand(self, dataset: beam.pvalue.PCollection) -> beam.pvalue.PCollection:
-    # Sample input data if sample_count option is provided.
-    # TODO(b/117229955): Consider providing an option to write the sample
-    # to a file.
-    # TODO(zhuo): clean this up once public APIs are changed to accept
-    # PCollection[RecordBatch].
-    if self._options.sample_count is not None:
-      # TODO(pachristopher): Consider moving the sampling logic to decoders.
-      # beam.combiners.Sample.FixedSizeGlobally returns a
-      # PCollection[List[pa.RecordBatch]], which we then flatten to get a
-      # PCollection[pa.RecordBatch].
-      batch_size = (
-          self._options.desired_batch_size if self._options.desired_batch_size
-          and self._options.desired_batch_size > 0 else
-          constants.DEFAULT_DESIRED_INPUT_BATCH_SIZE)
-      batch_count = (
-          int(self._options.sample_count / batch_size) +
-          (1 if self._options.sample_count % batch_size else 0))
-      dataset |= ('SampleExamples(%s)' % self._options.sample_count >>
-                  beam.combiners.Sample.FixedSizeGlobally(batch_count)
-                  | 'FlattenExamples' >> beam.FlatMap(lambda lst: lst))
-    elif self._options.sample_rate is not None:
+    if self._options.sample_rate is not None:
       dataset |= ('SampleExamplesAtRate(%s)' % self._options.sample_rate >>
                   beam.FlatMap(_sample_at_rate,
                                sample_rate=self._options.sample_rate))

@@ -80,32 +80,6 @@ INVALID_STATS_OPTIONS = [
         'error_message': 'slice_functions must contain functions only.'
     },
     {
-        'testcase_name': 'sample_count_zero',
-        'stats_options_kwargs': {
-            'sample_count': 0
-        },
-        'exception_type': ValueError,
-        'error_message': 'Invalid sample_count 0'
-    },
-    {
-        'testcase_name': 'sample_count_negative',
-        'stats_options_kwargs': {
-            'sample_count': -1
-        },
-        'exception_type': ValueError,
-        'error_message': 'Invalid sample_count -1'
-    },
-    {
-        'testcase_name': 'both_sample_count_and_sample_rate',
-        'stats_options_kwargs': {
-            'sample_count': 100,
-            'sample_rate': 0.5
-        },
-        'exception_type': ValueError,
-        'error_message': 'Only one of sample_count or sample_rate can be '
-                         'specified.'
-    },
-    {
         'testcase_name': 'sample_rate_zero',
         'stats_options_kwargs': {
             'sample_rate': 0
@@ -304,7 +278,6 @@ class StatsOptionsTest(parameterized.TestCase):
       "weight_feature": null,
       "label_feature": null,
       "_slice_functions": null,
-      "_sample_count": null,
       "_sample_rate": null,
       "num_top_values": 20,
       "frequency_threshold": 1,
