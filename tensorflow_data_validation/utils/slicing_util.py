@@ -23,13 +23,13 @@ import functools
 
 from typing import Any, Dict, Iterable, Optional, Text, Union
 import numpy as np
+import pandas as pd
+from pandas import DataFrame
 import pyarrow as pa
 import six
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
-from pandas import DataFrame
-import pandas as pd
 from tensorflow_data_validation.utils import stats_util
 from tfx_bsl.arrow import table_util
 

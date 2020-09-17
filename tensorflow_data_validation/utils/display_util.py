@@ -22,8 +22,9 @@ from __future__ import print_function
 
 import base64
 from typing import List, Optional, Text
-from tensorflow_data_validation import types
+
 import pandas as pd
+from tensorflow_data_validation import types
 from tensorflow_data_validation.utils import stats_util
 from tensorflow_metadata.proto.v0 import anomalies_pb2
 from tensorflow_metadata.proto.v0 import schema_pb2

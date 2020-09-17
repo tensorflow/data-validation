@@ -45,14 +45,14 @@ from typing import Any, Dict, Iterator, Iterable, Optional, Sequence, Text, Tupl
 
 import apache_beam as beam
 import numpy as np
+import pandas as pd
+from pandas import DataFrame
 import pyarrow as pa
 import six
 
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
-from pandas import DataFrame
-import pandas as pd
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import bin_util
 from tensorflow_data_validation.utils import schema_util

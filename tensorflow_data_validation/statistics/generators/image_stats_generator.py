@@ -36,13 +36,13 @@ import functools
 import imghdr
 from typing import List, Iterable, Text
 import numpy as np
+import pandas as pd
 import pyarrow as pa
 import six
 import tensorflow as tf
 
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
-import pandas as pd
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import stats_util
 from tensorflow_metadata.proto.v0 import statistics_pb2

@@ -30,11 +30,11 @@ import random
 
 from typing import Dict, Iterable, List, Optional, Text
 import numpy as np
+import pandas as pd
+from pandas import DataFrame, Series  # pylint: disable=g-multiple-import
 import pyarrow as pa
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
-from pandas import DataFrame, Series  # pylint: disable=g-multiple-import
-import pandas as pd
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import stats_util
 from tfx_bsl.arrow import array_util

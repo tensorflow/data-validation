@@ -25,11 +25,11 @@ from __future__ import print_function
 from typing import Any, FrozenSet, Iterable, Iterator, Optional, Text, Tuple, Union
 import apache_beam as beam
 import numpy as np
+import pandas as pd
 import pyarrow as pa
 import six
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
-import pandas as pd
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
