@@ -127,17 +127,19 @@ class BatchUtilTest(absltest.TestCase):
     ]
     expected_record_batches = [
         pa.RecordBatch.from_arrays([
-            pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]], type=pa.list_(
-                pa.float32())),
-            pa.array([['a', 'b', 'c', 'e'], None], type=pa.list_(pa.binary()))
+            pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]],
+                     type=pa.large_list(pa.float32())),
+            pa.array([['a', 'b', 'c', 'e'], None],
+                     type=pa.large_list(pa.large_binary()))
         ], ['a', 'b']),
         pa.RecordBatch.from_arrays([
             pa.array([['d', 'e', 'f'], ['a', 'b', 'c']],
-                     type=pa.list_(pa.binary())),
-            pa.array([[10, 20, 30], None], type=pa.list_(pa.int64()))
+                     type=pa.large_list(pa.large_binary())),
+            pa.array([[10, 20, 30], None], type=pa.large_list(pa.int64()))
         ], ['b', 'd']),
-        pa.RecordBatch.from_arrays(
-            [pa.array([['d', 'e', 'f']], type=pa.list_(pa.binary()))], ['c']),
+        pa.RecordBatch.from_arrays([
+            pa.array([['d', 'e', 'f']], type=pa.large_list(pa.large_binary()))
+        ], ['c']),
     ]
 
     with beam.Pipeline() as p:

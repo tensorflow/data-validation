@@ -40,9 +40,10 @@ _TEST_CASES = [
         column_names=['int_feature', 'float_feature', 'str_feature'],
         expected_result=[
             pa.RecordBatch.from_arrays([
-                pa.array([[1], [5]], pa.list_(pa.int64())),
-                pa.array([[2.0], [12.34]], pa.list_(pa.float32())),
-                pa.array([[b'hello'], [b'world']], pa.list_(pa.binary())),
+                pa.array([[1], [5]], pa.large_list(pa.int64())),
+                pa.array([[2.0], [12.34]], pa.large_list(pa.float32())),
+                pa.array([[b'hello'], [b'world']],
+                         pa.large_list(pa.large_binary())),
             ], ['int_feature', 'float_feature', 'str_feature'])
         ]),
     dict(
@@ -61,10 +62,11 @@ _TEST_CASES = [
         """, schema_pb2.Schema()),
         expected_result=[
             pa.RecordBatch.from_arrays([
-                pa.array([[1], [5]], pa.list_(pa.float32())),
-                pa.array([[1], [5]], pa.list_(pa.int64())),
-                pa.array([[2.0], [12.34]], pa.list_(pa.float32())),
-                pa.array([[b'hello'], [b'world']], pa.list_(pa.binary())),
+                pa.array([[1], [5]], pa.large_list(pa.float32())),
+                pa.array([[1], [5]], pa.large_list(pa.int64())),
+                pa.array([[2.0], [12.34]], pa.large_list(pa.float32())),
+                pa.array([[b'hello'], [b'world']],
+                         pa.large_list(pa.large_binary())),
             ], [
                 'int_feature_parsed_as_float', 'int_feature', 'float_feature',
                 'str_feature'
@@ -76,9 +78,9 @@ _TEST_CASES = [
         column_names=['int_feature', 'float_feature', 'str_feature'],
         expected_result=[
             pa.RecordBatch.from_arrays([
-                pa.array([[1], None], pa.list_(pa.int64())),
-                pa.array([None, [12.34]], pa.list_(pa.float32())),
-                pa.array([[b'hello'], None], pa.list_(pa.binary())),
+                pa.array([[1], None], pa.large_list(pa.int64())),
+                pa.array([None, [12.34]], pa.large_list(pa.float32())),
+                pa.array([[b'hello'], None], pa.large_list(pa.large_binary())),
             ], ['int_feature', 'float_feature', 'str_feature'])
         ]),
     dict(
@@ -87,8 +89,8 @@ _TEST_CASES = [
         column_names=['float_feature1', 'float_feature2'],
         expected_result=[
             pa.RecordBatch.from_arrays([
-                pa.array([[2.0], [1.5]], pa.list_(pa.float32())),
-                pa.array([[1.5], [2.0]], pa.list_(pa.float32())),
+                pa.array([[2.0], [1.5]], pa.large_list(pa.float32())),
+                pa.array([[1.5], [2.0]], pa.large_list(pa.float32())),
             ], ['float_feature1', 'float_feature2'])
         ]),
     dict(
@@ -97,8 +99,8 @@ _TEST_CASES = [
         column_names=['str_feature1', 'str_feature2'],
         expected_result=[
             pa.RecordBatch.from_arrays([
-                pa.array([[b'2'], [b'abc']], pa.list_(pa.binary())),
-                pa.array([[b'abc'], [b'2']], pa.list_(pa.binary())),
+                pa.array([[b'2'], [b'abc']], pa.large_list(pa.large_binary())),
+                pa.array([[b'abc'], [b'2']], pa.large_list(pa.large_binary())),
             ], ['str_feature1', 'str_feature2'])
         ]),
     dict(
@@ -107,8 +109,10 @@ _TEST_CASES = [
         column_names=['str_feature1', 'str_feature2'],
         expected_result=[
             pa.RecordBatch.from_arrays([
-                pa.array([[b'2.3'], [b'abc']], pa.list_(pa.binary())),
-                pa.array([[b'abc'], [b'2.3']], pa.list_(pa.binary())),
+                pa.array([[b'2.3'], [b'abc']], pa.large_list(
+                    pa.large_binary())),
+                pa.array([[b'abc'], [b'2.3']], pa.large_list(
+                    pa.large_binary())),
             ], ['str_feature1', 'str_feature2'])
         ]),
     dict(
@@ -119,11 +123,11 @@ _TEST_CASES = [
         ],
         expected_result=[
             pa.RecordBatch.from_arrays([
-                pa.array([[1]], pa.list_(pa.int64())),
-                pa.array([[22.34]], pa.list_(pa.float32())),
+                pa.array([[1]], pa.large_list(pa.int64())),
+                pa.array([[22.34]], pa.large_list(pa.float32())),
                 pa.array([[u'שקרכלשהו'.encode('utf-8')]],
-                         pa.list_(pa.binary())),
-                pa.array([[b'text field']], pa.list_(pa.binary())),
+                         pa.large_list(pa.large_binary())),
+                pa.array([[b'text field']], pa.large_list(pa.large_binary())),
             ], [
                 'int_feature', 'float_feature', 'unicode_feature', 'str_feature'
             ])
@@ -134,8 +138,9 @@ _TEST_CASES = [
         column_names=['int_feature', 'str_feature'],
         expected_result=[
             pa.RecordBatch.from_arrays([
-                pa.array([[1], [5]], pa.list_(pa.int64())),
-                pa.array([[b'ab,cd,ef'], [b'wx,xy,yz']], pa.list_(pa.binary())),
+                pa.array([[1], [5]], pa.large_list(pa.int64())),
+                pa.array([[b'ab,cd,ef'], [b'wx,xy,yz']],
+                         pa.large_list(pa.large_binary())),
             ], ['int_feature', 'str_feature'])
         ]),
     dict(
@@ -145,8 +150,9 @@ _TEST_CASES = [
         delimiter=' ',
         expected_result=[
             pa.RecordBatch.from_arrays([
-                pa.array([[1], [5]], pa.list_(pa.int64())),
-                pa.array([[b'ab,cd,ef'], [b'wx,xy,yz']], pa.list_(pa.binary())),
+                pa.array([[1], [5]], pa.large_list(pa.int64())),
+                pa.array([[b'ab,cd,ef'], [b'wx,xy,yz']],
+                         pa.large_list(pa.large_binary())),
             ], ['int_feature', 'str_feature'])
         ]),
     dict(
@@ -156,8 +162,9 @@ _TEST_CASES = [
         delimiter='\t',
         expected_result=[
             pa.RecordBatch.from_arrays([
-                pa.array([[1], [5]], pa.list_(pa.int64())),
-                pa.array([[b'this is a \ttext'], None], pa.list_(pa.binary())),
+                pa.array([[1], [5]], pa.large_list(pa.int64())),
+                pa.array([[b'this is a \ttext'], None],
+                         pa.large_list(pa.large_binary())),
             ], ['int_feature', 'str_feature'])
         ]),
     dict(
@@ -166,7 +173,7 @@ _TEST_CASES = [
         column_names=['feature'],
         expected_result=[
             pa.RecordBatch.from_arrays([
-                pa.array([[-34], [45]], pa.list_(pa.int64())),
+                pa.array([[-34], [45]], pa.large_list(pa.int64())),
             ], ['feature'])
         ]),
     dict(
@@ -175,7 +182,7 @@ _TEST_CASES = [
         column_names=['feature'],
         expected_result=[
             pa.RecordBatch.from_arrays([
-                pa.array([[34], [sys.maxsize]], pa.list_(pa.int64())),
+                pa.array([[34], [sys.maxsize]], pa.large_list(pa.int64())),
             ], ['feature'])
         ]),
     dict(
@@ -185,7 +192,7 @@ _TEST_CASES = [
         expected_result=[
             pa.RecordBatch.from_arrays([
                 pa.array([[b'34'], [str(sys.maxsize + 1).encode('utf-8')]],
-                         pa.list_(pa.binary())),
+                         pa.large_list(pa.large_binary())),
             ], ['feature'])
         ]),
     dict(
@@ -195,7 +202,7 @@ _TEST_CASES = [
         expected_result=[
             pa.RecordBatch.from_arrays([
                 pa.array([[b'34'], [str(-(sys.maxsize + 2)).encode('utf-8')]],
-                         pa.list_(pa.binary())),
+                         pa.large_list(pa.large_binary())),
             ], ['feature'])
         ]),
     dict(
@@ -207,7 +214,7 @@ _TEST_CASES = [
             pa.RecordBatch.from_arrays([
                 pa.array([[str(sys.maxsize + 1).encode('utf-8')],
                           [str(-(sys.maxsize + 2)).encode('utf-8')]],
-                         pa.list_(pa.binary())),
+                         pa.large_list(pa.large_binary())),
             ], ['feature'])
         ]),
     dict(
@@ -216,9 +223,9 @@ _TEST_CASES = [
         column_names=['int_feature', 'float_feature', 'str_feature'],
         expected_result=[
             pa.RecordBatch.from_arrays([
-                pa.array([None, [1]], pa.list_(pa.int64())),
-                pa.array([None, [2.0]], pa.list_(pa.float32())),
-                pa.array([None, [b'hello']], pa.list_(pa.binary())),
+                pa.array([None, [1]], pa.large_list(pa.int64())),
+                pa.array([None, [2.0]], pa.large_list(pa.float32())),
+                pa.array([None, [b'hello']], pa.large_list(pa.large_binary())),
             ], ['int_feature', 'float_feature', 'str_feature'])
         ]),
     dict(
@@ -227,8 +234,8 @@ _TEST_CASES = [
         column_names=['int_feature1', 'int_feature2'],
         expected_result=[
             pa.RecordBatch.from_arrays([
-                pa.array([[1]], pa.list_(pa.int64())),
-                pa.array([[2]], pa.list_(pa.int64())),
+                pa.array([[1]], pa.large_list(pa.int64())),
+                pa.array([[2]], pa.large_list(pa.int64())),
             ], ['int_feature1', 'int_feature2'])
         ]),
     dict(
@@ -238,8 +245,8 @@ _TEST_CASES = [
         skip_blank_lines=False,
         expected_result=[
             pa.RecordBatch.from_arrays([
-                pa.array([None, [1]], pa.list_(pa.int64())),
-                pa.array([None, [2.0]], pa.list_(pa.float32())),
+                pa.array([None, [1]], pa.large_list(pa.int64())),
+                pa.array([None, [2.0]], pa.large_list(pa.float32())),
             ], ['int_feature', 'float_feature'])
         ]),
     dict(
@@ -248,7 +255,7 @@ _TEST_CASES = [
         column_names=['int_feature'],
         expected_result=[
             pa.RecordBatch.from_arrays([
-                pa.array([[1]], pa.list_(pa.int64())),
+                pa.array([[1]], pa.large_list(pa.int64())),
             ], ['int_feature'])
         ]),
     dict(
@@ -258,7 +265,7 @@ _TEST_CASES = [
         skip_blank_lines=False,
         expected_result=[
             pa.RecordBatch.from_arrays([
-                pa.array([None, [1]], pa.list_(pa.int64())),
+                pa.array([None, [1]], pa.large_list(pa.int64())),
             ], ['int_feature'])
         ]),
     dict(
@@ -274,7 +281,8 @@ _TEST_CASES = [
         secondary_delimiter='|',
         expected_result=[
             pa.RecordBatch.from_arrays(
-                [pa.array([[12, 14]], pa.list_(pa.int64()))], ['int_feature'])
+                [pa.array([[12, 14]], pa.large_list(pa.int64()))],
+                ['int_feature'])
         ]),
     dict(
         testcase_name='multivalent_schema',
@@ -288,8 +296,8 @@ _TEST_CASES = [
         secondary_delimiter='|',
         expected_result=[
             pa.RecordBatch.from_arrays([
-                pa.array([[1, 2.3]], pa.list_(pa.float32())),
-                pa.array([[b'test']], pa.list_(pa.binary()))
+                pa.array([[1, 2.3]], pa.large_list(pa.float32())),
+                pa.array([[b'test']], pa.large_list(pa.large_binary()))
             ], ['multivalent_feature', 'test_feature'])
         ]),
     dict(
@@ -301,7 +309,7 @@ _TEST_CASES = [
         expected_result=[
             pa.RecordBatch.from_arrays([
                 pa.array([None], pa.null()),
-                pa.array([[b'test']], pa.list_(pa.binary()))
+                pa.array([[b'test']], pa.large_list(pa.large_binary()))
             ], ['empty_feature', 'test_feature'])
         ]),
     dict(
@@ -312,8 +320,10 @@ _TEST_CASES = [
         secondary_delimiter='|',
         expected_result=[
             pa.RecordBatch.from_arrays([
-                pa.array([[b'', b''], [b'a', b'b']], pa.list_(pa.binary())),
-                pa.array([[b'test'], [b'test']], pa.list_(pa.binary()))
+                pa.array([[b'', b''], [b'a', b'b']],
+                         pa.large_list(pa.large_binary())),
+                pa.array([[b'test'], [b'test']], pa.large_list(
+                    pa.large_binary()))
             ], ['string_feature', 'test_feature'])
         ]),
     dict(
@@ -324,8 +334,8 @@ _TEST_CASES = [
         secondary_delimiter='|',
         expected_result=[
             pa.RecordBatch.from_arrays([
-                pa.array([[1, 2.3]], pa.list_(pa.float32())),
-                pa.array([[b'test']], pa.list_(pa.binary()))
+                pa.array([[1, 2.3]], pa.large_list(pa.float32())),
+                pa.array([[b'test']], pa.large_list(pa.large_binary()))
             ], ['float_feature', 'test_feature'])
         ]),
     dict(
@@ -336,8 +346,8 @@ _TEST_CASES = [
         secondary_delimiter='|',
         expected_result=[
             pa.RecordBatch.from_arrays([
-                pa.array([[b'2.3', b'abc']], pa.list_(pa.binary())),
-                pa.array([[b'test']], pa.list_(pa.binary()))
+                pa.array([[b'2.3', b'abc']], pa.large_list(pa.large_binary())),
+                pa.array([[b'test']], pa.large_list(pa.large_binary()))
             ], ['string_feature', 'test_feature'])
         ]),
     dict(
@@ -348,8 +358,10 @@ _TEST_CASES = [
         secondary_delimiter='|',
         expected_result=[
             pa.RecordBatch.from_arrays([
-                pa.array([[b'1', b'abc'], [b'2', b'2']], pa.list_(pa.binary())),
-                pa.array([[b'test'], [b'test']], pa.list_(pa.binary()))
+                pa.array([[b'1', b'abc'], [b'2', b'2']],
+                         pa.large_list(pa.large_binary())),
+                pa.array([[b'test'], [b'test']], pa.large_list(
+                    pa.large_binary()))
             ], ['string_feature', 'test_feature'])
         ])
 ]

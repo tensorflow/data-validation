@@ -51,12 +51,12 @@ BEAM_TF_EXAMPLE_DECODER_TESTS = [
           }
         ''',
         'decoded_record_batch': pa.RecordBatch.from_arrays([
-            pa.array([[0]], pa.list_(pa.int64())),
-            pa.array([[1, 2, 3]], pa.list_(pa.int64())),
-            pa.array([[4.0]], pa.list_(pa.float32())),
-            pa.array([[5.0, 6.0]], pa.list_(pa.float32())),
-            pa.array([[b'female']], pa.list_(pa.binary())),
-            pa.array([[b'string', b'list']], pa.list_(pa.binary()))
+            pa.array([[0]], pa.large_list(pa.int64())),
+            pa.array([[1, 2, 3]], pa.large_list(pa.int64())),
+            pa.array([[4.0]], pa.large_list(pa.float32())),
+            pa.array([[5.0, 6.0]], pa.large_list(pa.float32())),
+            pa.array([[b'female']], pa.large_list(pa.large_binary())),
+            pa.array([[b'string', b'list']], pa.large_list(pa.large_binary()))
         ], ['int_feature_1', 'int_feature_2', 'float_feature_1',
             'float_feature_2', 'str_feature_1', 'str_feature_2'])
     },
