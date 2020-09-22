@@ -10,9 +10,9 @@ py_binary(
     python_version = "PY3",
     srcs_version = "PY2AND3",
     deps = [
+        "//tensorflow_data_validation",
         "//third_party/py/absl:app",
         "//third_party/py/apache_beam",
-        "//tensorflow_data_validation",
         "//third_party/py/tensorflow_docs/api_generator",
     ],
 )
