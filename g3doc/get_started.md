@@ -356,6 +356,10 @@ serving dataset:
         statistics=train_stats, schema=schema, serving_statistics=serving_stats)
 ```
 
+NOTE To detect skew for numeric features, specify a
+`jensen_shannon_divergence` threshold instead of an `infinity_norm` threshold in
+the `skew_comparator`.
+
 Same with checking whether a dataset conform to the expectations set in the
 schema, the result is also an instance of the
 [Anomalies](https://github.com/tensorflow/metadata/tree/master/tensorflow_metadata/proto/v0/anomalies.proto)
@@ -388,6 +392,10 @@ way
     drift_anomalies = tfdv.validate_statistics(
         statistics=train_day2_stats, schema=schema, previous_statistics=train_day1_stats)
 ```
+
+NOTE To detect skew for numeric features, specify a
+`jensen_shannon_divergence` threshold instead of an `infinity_norm` threshold in
+the `drift_comparator`.
 
 ## Writing custom data connector
 

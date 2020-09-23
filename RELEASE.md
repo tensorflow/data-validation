@@ -4,6 +4,8 @@
 
 ## Major Features and Improvements
 
+* Add support for detecting drift and distribution skew in numeric features.
+
 ## Bug Fixes and Other Changes
 
 ## Known Issues

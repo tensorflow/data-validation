@@ -269,15 +269,13 @@ def validate_statistics(
         example, previous day's data). If provided, the `validate_statistics`
         method will detect if there exists drift between current data and
         previous data. Configuration for drift detection can be done by
-        specifying a `drift_comparator` in the schema. For now drift detection
-        is only supported for categorical features.
+        specifying a `drift_comparator` in the schema.
     serving_statistics: An optional DatasetFeatureStatisticsList protocol
         buffer denoting the statistics computed over the serving data. If
         provided, the `validate_statistics` method will identify if there exists
         distribution skew between current data and serving data. Configuration
         for skew detection can be done by specifying a `skew_comparator` in the
-        schema. For now skew detection is only supported for categorical
-        features.
+        schema.
 
   Returns:
     An Anomalies protocol buffer.
@@ -353,14 +351,12 @@ def validate_statistics_internal(
         `validate_statistics_internal` method will detect if there exists drift
         between current data and previous data. Configuration for drift
         detection can be done by specifying a `drift_comparator` in the schema.
-        For now drift detection is only supported for categorical features.
     serving_statistics: An optional DatasetFeatureStatisticsList protocol
         buffer denoting the statistics computed over the serving data. If
         provided, the `validate_statistics_internal` method will identify if
         there exists distribution skew between current data and serving data.
         Configuration for skew detection can be done by specifying a
-        `skew_comparator` in the schema. For now skew detection is only
-        supported for categorical features.
+        `skew_comparator` in the schema.
     previous_version_statistics: An optional DatasetFeatureStatisticsList
         protocol buffer denoting the statistics computed over an earlier data
         (typically, previous run's data within the same day). If provided,

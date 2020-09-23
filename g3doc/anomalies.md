@@ -451,6 +451,23 @@ condition(s) under which each anomaly type is detected.
             `feature.skew_comparator.infinity_norm.threshold` or
             `feature.drift_comparator.infinity_norm.threshold`
 
+-   `COMPARATOR_JENSEN_SHANNON_DIVERGENCE_HIGH`
+
+    -   Schema Fields:
+        -   `feature.skew_comparator.jensen_shannon_divergence.threshold`
+        -   `feature.drift_comparator.jensen_shannon_divergence.threshold`
+    -   Statistics Fields:
+        -   `feature.num_stats.histograms`* of type `STANDARD`
+    -   Detection Condition:
+        -   Approximate Jensen-Shannon divergence computed between
+            in the control statistics (i.e., serving statistics for skew or
+            previous statistics for drift) and the treatment statistics (i.e.,
+            training statistics for skew or current statistics for drift) >
+            `feature.skew_comparator.jensen_shannon_divergence.threshold` or
+            `feature.drift_comparator.jensen_shannon_divergence.threshold`. The
+            approximate Jensen-Shannon divergence is computed based on the
+            normalized sample counts in the num_stats standard histogram.
+
 -   `NO_DATA_IN_SPAN`
 
     -   Anomaly type not detected in TFDV
