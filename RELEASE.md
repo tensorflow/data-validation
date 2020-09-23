@@ -2,7 +2,7 @@
 
 ## Major Features and Improvements
 
-*   Deprecated python 3.8 support.
+*   Added python 3.8 support.
 
 ## Bug Fixes and Other Changes
 
