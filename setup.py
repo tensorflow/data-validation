@@ -13,16 +13,84 @@
 # limitations under the License.
 """Package Setup script for TensorFlow Data Validation."""
 
+# pylint:disable=g-bad-import-order
+# setuptools must be imported prior to distutils.
+import setuptools
+from distutils import spawn
+from distutils.command import build
+# pylint:enable=g-bad-import-order
+import os
+import platform
+import subprocess
+
 from setuptools import find_packages
 from setuptools import setup
 from setuptools.command.install import install
 from setuptools.dist import Distribution
 
 
+class _BuildCommand(build.build):
+  """Build everything that is needed to install.
+
+  This overrides the original distutils "build" command to to run bazel_build
+  command before any sub_commands.
+
+  build command is also invoked from bdist_wheel and install command, therefore
+  this implementation covers the following commands:
+    - pip install . (which invokes bdist_wheel)
+    - python setup.py install (which invokes install command)
+    - python setup.py bdist_wheel (which invokes bdist_wheel command)
+  """
+
+  def _build_cc_extensions(self):
+    return True
+
+  # Add "bazel_build" command as the first sub_command of "build". Each
+  # sub_command of "build" (e.g. "build_py", "build_ext", etc.) is executed
+  # sequentially when running a "build" command, if the second item in the tuple
+  # (predicate method) is evaluated to true.
+  sub_commands = [
+      ('bazel_build', _build_cc_extensions),
+  ] + build.build.sub_commands
+
+
+class _BazelBuildCommand(setuptools.Command):
+  """Build TFDV C++ extensions and public protos with Bazel.
+
+  Running this command will populate foo_pb2.py file next to your foo.proto
+  file.
+  """
+
+  def initialize_options(self):
+    pass
+
+  def finalize_options(self):
+    self._bazel_cmd = spawn.find_executable('bazel')
+    if not self._bazel_cmd:
+      raise RuntimeError(
+          'Could not find "bazel" binary. Please visit '
+          'https://docs.bazel.build/versions/master/install.html for '
+          'installation instruction.')
+    self._additional_build_options = []
+    if platform.system() == 'Darwin':
+      self._additional_build_options = ['--macos_minimum_os=10.9']
+    elif platform.system() == 'Windows':
+      self._additional_build_options = ['--copt=-DWIN32_LEAN_AND_MEAN']
+
+  def run(self):
+    subprocess.check_call(
+        [self._bazel_cmd, 'run', '-c', 'opt'] + self._additional_build_options +
+        ['//tensorflow_data_validation:move_generated_files'],
+        # Bazel should be invoked in a directory containing bazel WORKSPACE
+        # file, which is the root directory.
+        cwd=os.path.dirname(os.path.realpath(__file__)),
+    )
+
+
 # TFDV is not a purelib. However because of the extension module is not built
 # by setuptools, it will be incorrectly treated as a purelib. The following
 # works around that bug.
-class _InstallPlatlib(install):
+class _InstallPlatlibCommand(install):
 
   def finalize_options(self):
     install.finalize_options(self)
@@ -57,7 +125,7 @@ def _make_all_extra_requirements():
 # Get version from version module.
 with open('tensorflow_data_validation/version.py') as fp:
   globals_dict = {}
-  exec (fp.read(), globals_dict)  # pylint: disable=exec-used
+  exec(fp.read(), globals_dict)  # pylint: disable=exec-used
 __version__ = globals_dict['__version__']
 
 # Get the long description from the README file.
@@ -81,7 +149,6 @@ setup(
         'Operating System :: Microsoft :: Windows',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3 :: Only',
@@ -129,5 +196,9 @@ setup(
     url='https://www.tensorflow.org/tfx/data_validation',
     download_url='https://github.com/tensorflow/data-validation/tags',
     requires=[],
-    cmdclass={'install': _InstallPlatlib})
+    cmdclass={
+        'install': _InstallPlatlibCommand,
+        'build': _BuildCommand,
+        'bazel_build': _BazelBuildCommand,
+    })
 

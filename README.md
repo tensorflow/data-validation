@@ -111,17 +111,12 @@ branch), pass `-b <branchname>` to the `git clone` command.
 
 ### 3. Build the pip package
 
-TFDV uses Bazel to build the pip package from source. Before invoking the
-following commands, make sure the `python` in your `$PATH` is the one of the
-target version and has NumPy installed.
+`TFDV` wheel is Python version dependent -- to build the pip package that
+works for a specific Python version, use that Python binary to run:
 
 ```shell
-bazel run -c opt --cxxopt=-D_GLIBCXX_USE_CXX11_ABI=0 tensorflow_data_validation:build_pip_package
+python setup.py bdist_wheel
 ```
-
-Note that we are assuming here that dependent packages (e.g. PyArrow) are built
-with a GCC older than 5.1 and use the flag `D_GLIBCXX_USE_CXX11_ABI=0` to be
-[compatible with the old std::string ABI](https://gcc.gnu.org/onlinedocs/libstdc++/manual/using_dual_abi.html).
 
 You can find the generated `.whl` file in the `dist` subdirectory.
 
