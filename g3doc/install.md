@@ -64,15 +64,14 @@ branch), pass `-b <branchname>` to the `git clone` command.
 
 ### 3. Build the pip package
 
-Then, run the following at the project root:
+`TFDV` wheel is Python version dependent -- to build the pip package that
+works for a specific Python version, use that Python binary to run:
 
-```bash
-sudo docker-compose build manylinux2010
-sudo docker-compose run -e PYTHON_VERSION=${PYTHON_VERSION} manylinux2010
+```shell
+python setup.py bdist_wheel
 ```
-where `PYTHON_VERSION` is one of `{35, 36, 37}`.
 
-A wheel will be produced under `dist/`.
+You can find the generated `.whl` file in the `dist` subdirectory.
 
 ### 4. Install the pip package
 
