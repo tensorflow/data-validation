@@ -1,24 +1,12 @@
-# Version 0.23.0
+# Version 0.23.1
 
 ## Major Features and Improvements
 
-*   Data validation is now able to handle arbitrarily nested arrow
-    List/LargeList types. Schema entries for features with multiple nest levels
-    describe the value count at each level in the value_counts field.
-*   Add combiner stats generator to estimate top-K and uniques using Misra-Gries
-    and K-Minimum Values sketches.
+*   Added python 3.8 support.
 
 ## Bug Fixes and Other Changes
 
-*   Validate that enough supported images are present (if
-    image_domain.minimum_supported_image_fraction is provided).
-*   Stopped requiring avro-python3.
-*   Depends on `apache-beam[gcp]>=2.23,<3`.
-*   Depends on `pyarrow>=0.17,<0.18`.
-*   Depends on `tensorflow>=1.15.2,!=2.0.*,!=2.1.*,!=2.2.*,<3`.
-*   Depends on `tensorflow-metadata>=0.23,<0.24`.
-*   Depends on `tensorflow-transform>=0.23,<0.24`.
-*   Depends on `tfx-bsl>=0.23,<0.24`.
+*   Depends on `apache-beam[gcp]>=2.24,<3`.
 
 ## Known Issues
 
@@ -30,4 +18,4 @@
 
 ## Deprecations
 
-*   N/A
+*   Deprecated python 3.5 support.
