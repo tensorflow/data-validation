@@ -2,7 +2,7 @@
 
 ## Major Features and Improvements
 
-*   Added python 3.8 support.
+*   N/A
 
 ## Bug Fixes and Other Changes
 
