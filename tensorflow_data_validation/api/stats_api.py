@@ -110,8 +110,8 @@ def _sample_at_rate(example: pa.RecordBatch, sample_rate: float
 
 @beam.typehints.with_input_types(statistics_pb2.DatasetFeatureStatisticsList)
 @beam.typehints.with_output_types(beam.pvalue.PDone)
-class WriteStatisticsToText(beam.PTransform):
-  """API for writing serialized data statistics to text file."""
+class WriteStatisticsToBinaryFile(beam.PTransform):
+  """API for writing serialized data statistics to a binary file."""
 
   def __init__(self, output_path: Text) -> None:
     """Initializes the transform.
@@ -129,6 +129,13 @@ class WriteStatisticsToText(beam.PTransform):
                 append_trailing_newlines=False,
                 coder=beam.coders.ProtoCoder(
                     statistics_pb2.DatasetFeatureStatisticsList)))
+
+
+# TODO(b/169606222): Remove this once all the usages are replaced.
+WriteStatisticsToText = WriteStatisticsToBinaryFile
+WriteStatisticsToText.__doc__ = (
+    'Deprecated. Use `WriteStatisticsToBinaryFile` instead. '
+    + WriteStatisticsToBinaryFile.__doc__)
 
 
 @beam.typehints.with_input_types(statistics_pb2.DatasetFeatureStatisticsList)

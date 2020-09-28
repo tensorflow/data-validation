@@ -148,6 +148,15 @@ class StatsUtilTest(absltest.TestCase):
                      stats_util.load_stats_tfrecord(input_path=stats_path))
     self.assertEqual(stats, stats_util.load_statistics(input_path=stats_path))
 
+  def test_load_stats_binary(self):
+    stats = text_format.Parse("""
+      datasets { name: 'abc' }
+    """, statistics_pb2.DatasetFeatureStatisticsList())
+    stats_path = os.path.join(FLAGS.test_tmpdir, 'stats.binpb')
+    with open(stats_path, 'w+b') as f:
+      f.write(stats.SerializeToString())
+    self.assertEqual(stats, stats_util.load_stats_binary(input_path=stats_path))
+
   def test_write_stats_text_invalid_stats_input(self):
     with self.assertRaisesRegexp(
         TypeError, '.*should be a DatasetFeatureStatisticsList proto.'):

@@ -19,13 +19,14 @@ from __future__ import division
 from __future__ import print_function
 
 import logging
+from typing import Dict, Optional, Text, Union
+
 import numpy as np
 import pyarrow as pa
 import tensorflow as tf
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.utils import io_util
-from typing import Dict, Optional, Text, Union
 from google.protobuf import text_format
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
@@ -216,6 +217,23 @@ def load_stats_text(
   return stats_proto
 
 
+def load_stats_binary(
+    input_path: Text) -> statistics_pb2.DatasetFeatureStatisticsList:
+  """Loads a serialized DatasetFeatureStatisticsList proto from a file.
+
+  Args:
+    input_path: File path from which to load the DatasetFeatureStatisticsList
+      proto.
+
+  Returns:
+    A DatasetFeatureStatisticsList proto.
+  """
+  stats_proto = statistics_pb2.DatasetFeatureStatisticsList()
+  stats_proto.ParseFromString(io_util.read_file_to_string(
+      input_path, binary_mode=True))
+  return stats_proto
+
+
 def load_stats_tfrecord(
     input_path: Text) -> statistics_pb2.DatasetFeatureStatisticsList:
   """Loads data statistics proto from TFRecord file.
@@ -323,7 +341,8 @@ def load_statistics(
 
   Args:
     input_path: Data statistics file path. The file should be a one-record
-      TFRecord file or a plain file containing the serialized statistics proto.
+      TFRecord file or a plain file containing the statistics proto in Proto
+      Text Format.
 
   Returns:
     A DatasetFeatureStatisticsList proto.

@@ -7,10 +7,16 @@
 *   Add support for detecting drift and distribution skew in numeric features.
 
 ## Bug Fixes and Other Changes
+*  Added `tfdv.load_stats_binary` to load stats what were written using
+   `tfdv.WriteStatisticsToText` (now `tfdv.WriteStatisticsToBinaryFile`).
 
 ## Known Issues
 
 ## Breaking Changes
+
+*   `tfdv.WriteStatisticsToText` is renamed as
+    `tfdv.WriteStatisticsToBinaryFile`. The former is still available but will
+    be removed in a future release.
 
 ## Deprecations
 
