@@ -131,7 +131,7 @@ condition(s) under which each anomaly type is detected.
     -   Detection Condition:
         -   `feature.value_count.max` is specified and
         -   `feature.common_stats.max_num_values` > `feature.value_count.max`;
-        or
+            or
         -   `feature.value_counts` is specified and
         -   `feature.common_stats.presence_and_valency_stats.max_num_values` >
             `feature.value_counts.value_count.max` at a given nestedness level
@@ -173,7 +173,7 @@ condition(s) under which each anomaly type is detected.
     -   Detection Condition:
         -   `feature.value_count.min` is specified and
         -   `feature.common_stats.min_num_values` < `feature.value_count.min`;
-        or
+            or
         -   `feature.value_counts` is specified and
         -   `feature.common_stats.presence_and_valency_stats.min_num_values` <
             `feature.value_counts.value_count.min` at a given nestedness level
@@ -376,10 +376,10 @@ condition(s) under which each anomaly type is detected.
         -   `feature.image_domain.minimum_supported_image_fraction`
     -   Statistics Fields:
         -   `feature.custom_stats.rank_histogram` for the custom_stats with name
-             `image_format_histogram`. Note that semantic domain stats must be
-             enabled for the image_format_histogram to be generated and for this
-             validation to be performed. Semantic domain stats are not generated
-             by default.
+            `image_format_histogram`. Note that semantic domain stats must be
+            enabled for the image_format_histogram to be generated and for this
+            validation to be performed. Semantic domain stats are not generated
+            by default.
     -   Detection Condition:
         -   The fraction of values that are supported Tensorflow image types to
             all image types is less than
@@ -459,10 +459,10 @@ condition(s) under which each anomaly type is detected.
     -   Statistics Fields:
         -   `feature.num_stats.histograms`* of type `STANDARD`
     -   Detection Condition:
-        -   Approximate Jensen-Shannon divergence computed between
-            in the control statistics (i.e., serving statistics for skew or
-            previous statistics for drift) and the treatment statistics (i.e.,
-            training statistics for skew or current statistics for drift) >
+        -   Approximate Jensen-Shannon divergence computed between in the
+            control statistics (i.e., serving statistics for skew or previous
+            statistics for drift) and the treatment statistics (i.e., training
+            statistics for skew or current statistics for drift) >
             `feature.skew_comparator.jensen_shannon_divergence.threshold` or
             `feature.drift_comparator.jensen_shannon_divergence.threshold`. The
             approximate Jensen-Shannon divergence is computed based on the
@@ -627,36 +627,67 @@ condition(s) under which each anomaly type is detected.
         -   `feature.common_stats.presence_and_valency_stats`
     -   Detection Condition:
         -   `feature.value_count` is specified, and there is a repeated
-            `presence_and_valency_stats` for the feature (which
-            indicates a nestedness level that is greater than one)
+            `presence_and_valency_stats` for the feature (which indicates a
+            nestedness level that is greater than one)
         -   `feature.value_counts` is specified, and the number of times the
             `presence_and_valency` stats for the feature is repeated does not
             match the number of times `value_count` is repeated within
             `feature.value_counts`
 
--   `UNKNOWN_TYPE`
+-   `DOMAIN_INVALID_FOR_TYPE`
 
-    NOTE: There are various different reasons why an anomaly of `UNKNOWN_TYPE`
-    may be generated. Each bullet in the Detection Condition below lists an
-    independent reason.
+    -   Schema Fields:
+
+        -   `feature.type`
+        -   `feature.domain_info`
+
+    -   Statistics Fields:
+
+        -   `type` for each feature
+
+    -   Detection Condition:
+
+        -   `feature.domain_info` does not match feature's `type` (e.g.,
+            `int_domain` is specified, but feature's `type` is float)
+        -   feature is of type `BYTES` in statistics but `feature.domain_info`
+            is of an incompatible type
+
+-   `UNEXPECTED_DATA_TYPE`
+
+    -   Schema Fields:
+        -   `feature.type`
+    -   Statistics Fields:
+        -   `type` for each feature
+    -   Detection Condition:
+        -   feature's `type` is not of type specified in `feature.type`
+
+-   `FEATURE_MISSING_NAME`
 
     -   Schema Fields:
         -   `feature.name`
+    -   Detection Condition:
+        -   `feature.name` is not specified
+
+-   `FEATURE_MISSING_TYPE`
+
+    -   Schema Fields:
         -   `feature.type`
-        -   `schema.string_domain`, `schema.float_domain`, and
-            `schema.int_domain`
+    -   Detection Condition:
+        -   `feature.type` is not specified
+
+-   `INVALID_SCHEMA_SPECIFICATION`
+
+    NOTE: There are various different reasons why an anomaly of
+    `INVALID_SCHEMA_SPECIFICATION` may be generated. Each bullet in the
+    Detection Condition below lists an independent reason.
+
+    -   Schema Fields:
         -   `feature.domain_info`
         -   `feature.presence.min_fraction`
         -   `feature.value_count.min`
         -   `feature.value_count.max`
         -   `feature.distribution_constraints`
-    -   Statistics Fields:
-        -   `type` for each feature
     -   Detection Condition:
-        -   `feature.name` is not specified
-        -   `feature.type` is not specified
-        -   `feature.domain_info` does not match feature's `type` (e.g.,
-            `int_domain` is specified, but feature's `type` is float)
         -   `feature.domain` is specified, but there is no matching domain
             specified at the schema level
         -   `feature.presence.min_fraction` < 0.0 or > 1.0
@@ -668,9 +699,6 @@ condition(s) under which each anomaly type is detected.
             neither a schema-level domain nor `feature.string_domain` is
             specified for that feature
         -   unknown feature.domain_info type is specified
-        -   feature's `type` is not of type specified in `feature.type`
-        -   feature is of type `BYTES` in statistics but `feature.domain_info`
-            is of an incompatible type
 
 --------------------------------------------------------------------------------
 

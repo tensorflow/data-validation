@@ -15,6 +15,8 @@ limitations under the License.
 
 #include "tensorflow_data_validation/anomalies/int_domain_util.h"
 
+#include <limits.h>
+
 #include <string>
 #include <vector>
 
@@ -26,6 +28,7 @@ limitations under the License.
 #include "tensorflow/core/platform/logging.h"
 #include "tensorflow/core/platform/types.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
+#include "tensorflow_metadata/proto/v0/schema.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
 
 namespace tensorflow {
@@ -74,6 +77,16 @@ IntIntervalResult GetIntInterval(const FeatureStatsView& feature_stats_view) {
       return absl::nullopt;
     case FeatureNameStatistics::INT: {
       if (string_values.empty()) {
+        // IntDomain is interpreted as being castable to Int64, so we validate
+        // that this can be done and consider as a non-conformant IntDomain if
+        // it cannot. Note: if the IntDomain has no min and max specified, this
+        // will not trigger an anomaly.
+        if (feature_stats_view.num_stats().min() < INT_MIN) {
+          return std::to_string(feature_stats_view.num_stats().min());
+        }
+        if (feature_stats_view.num_stats().max() > INT_MAX) {
+          return std::to_string(feature_stats_view.num_stats().max());
+        }
         return IntInterval{
             static_cast<int64>(feature_stats_view.num_stats().min()),
             static_cast<int64>(feature_stats_view.num_stats().max())};
@@ -134,13 +147,32 @@ UpdateSummary UpdateIntDomain(const FeatureStatsView& feature_stats,
   if (result) {
     const variant<IntInterval, ExampleStringNotInt> actual_result = *result;
     if (absl::holds_alternative<ExampleStringNotInt>(actual_result)) {
-      update_summary.descriptions.push_back(
-          {tensorflow::metadata::v0::AnomalyInfo::INT_TYPE_NOT_INT_STRING,
-           kInvalidValues,
-           absl::StrCat(
-               "String values that were not ints were found, such as \"",
-               *absl::get_if<ExampleStringNotInt>(&actual_result), "\".")});
-      update_summary.clear_field = true;
+      if (feature_stats.GetFeatureType() == metadata::v0::BYTES) {
+        update_summary.descriptions.push_back(
+            {tensorflow::metadata::v0::AnomalyInfo::INT_TYPE_NOT_INT_STRING,
+             kInvalidValues,
+             absl::StrCat(
+                 "String values that were not ints were found, such as \"",
+                 *absl::get_if<ExampleStringNotInt>(&actual_result), "\".")});
+        update_summary.clear_field = true;
+      } else if (feature_stats.GetFeatureType() == metadata::v0::INT) {
+        if (int_domain->has_max() || int_domain->has_min()) {
+          update_summary.descriptions.push_back(
+              {tensorflow::metadata::v0::AnomalyInfo::DOMAIN_INVALID_FOR_TYPE,
+               kInvalidValues,
+               absl::StrCat(
+                   "Integer had values that were not valid Int64, such as \"",
+                   *absl::get_if<ExampleStringNotInt>(&actual_result), "\".")});
+          update_summary.clear_field = true;
+        }
+      } else {
+        update_summary.descriptions.push_back(
+            {tensorflow::metadata::v0::AnomalyInfo::DOMAIN_INVALID_FOR_TYPE,
+             kInvalidValues,
+             absl::StrCat("IntDomain incompatible with feature type ",
+                          feature_stats.GetFeatureType())});
+        update_summary.clear_field = true;
+      }
       return update_summary;
     }
     if (absl::holds_alternative<IntInterval>(actual_result)) {

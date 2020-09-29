@@ -10,6 +10,10 @@
 *  Added `tfdv.load_stats_binary` to load stats what were written using
    `tfdv.WriteStatisticsToText` (now `tfdv.WriteStatisticsToBinaryFile`).
 
+*   Anomalies previously (un)classified as UKNOWN_TYPE now trigger more specific
+    anomaly types: DOMAIN_INVALID_FOR_TYPE, UNEXPECTED_DATA_TYPE,
+    FEATURE_MISSING_NAME, FEATURE_MISSING_TYPE, INVALID_SCHEMA_SPECIFICATION
+
 ## Known Issues
 
 ## Breaking Changes

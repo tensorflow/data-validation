@@ -89,6 +89,256 @@ TEST(SchemaAnomalies, FindChangesNoChanges) {
   }
 }
 
+TEST(SchemaAnomalies, SimpleBadSchemaConfigurations) {
+  const Schema initial = ParseTextProtoOrDie<Schema>(R"(
+    feature {
+      name: "no_type"
+      presence: { min_count: 1 min_fraction: 1.0 }
+      value_count: { min: 1 max: 1 }
+      float_domain: { disallow_nan: true }
+    }
+    feature {
+      name: "invalid_value_count"
+      presence: { min_count: 1 }
+      value_count: { min: -1 max: 3 }
+      type: BYTES
+    }
+    feature {
+      name: "invalid_presence"
+      presence: { min_fraction: 1.5 }
+      type: BYTES
+    }
+    feature {
+      name: "nl_float"
+      presence: { min_fraction: 1.0 }
+      natural_language_domain: {}
+      type: FLOAT
+    }
+    feature {
+      name: "struct_bytes"
+      presence: { min_fraction: 1.0 }
+      struct_domain: {}
+      type: BYTES
+    }
+    feature {
+      name: "distribution_constraints_bool"
+      presence: { min_fraction: 1.0 }
+      bool_domain: {}
+      distribution_constraints: { min_domain_mass: .8 }
+      type: FLOAT
+    }
+  )");
+
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        features: {
+          name: "no_type"
+          type: FLOAT
+          num_stats: {
+            common_stats: {
+              num_missing: 0
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 1
+              avg_num_values: 1
+            }
+            histograms: {
+              num_nan: 5
+              buckets: { high_value: 1 }
+              buckets: { low_value: 0 high_value: 1 sample_count: 100 }
+              type: QUANTILES
+            }
+            mean: .5
+            std_dev: .25
+            max: 1.0
+          }
+        }
+        features: {
+          name: "invalid_value_count"
+          type: STRING
+          string_stats: {
+            common_stats: {
+              num_missing: 10
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 3
+              avg_num_values: 1.5
+            }
+          }
+        }
+        features: {
+          name: "invalid_presence"
+          type: STRING
+          string_stats: {
+            common_stats: {
+              num_missing: 10
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 3
+              avg_num_values: 1.5
+            }
+          }
+        }
+        features: {
+          name: "nl_float"
+          type: FLOAT
+          num_stats: {
+            common_stats: {
+              num_missing: 10
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 3
+              avg_num_values: 1.5
+            }
+          }
+        }
+        features: {
+          name: "struct_bytes"
+          type: BYTES
+          num_stats: {
+            common_stats: {
+              num_missing: 10
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 3
+              avg_num_values: 1.5
+            }
+          }
+        }
+        features: {
+          name: "distribution_constraints_bool"
+          type: FLOAT
+          num_stats: {
+            common_stats: {
+              num_missing: 10
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 3
+              avg_num_values: 1.5
+            }
+          }
+        })");
+  for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
+    std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
+    expected_anomalies["no_type"].new_schema = ParseTextProtoOrDie<Schema>(R"(
+      feature {
+        name: "no_type"
+        presence: { min_count: 1 min_fraction: 1.0 }
+        value_count: { min: 1 max: 1 }
+        float_domain: { disallow_nan: true }
+      })");
+    expected_anomalies["invalid_value_count"].new_schema =
+        ParseTextProtoOrDie<Schema>(R"(
+          feature {
+            name: "invalid_value_count"
+            presence: { min_count: 1 }
+            value_count: { min: -1 max: 3 }
+            type: BYTES
+          })");
+    expected_anomalies["invalid_presence"].new_schema =
+        ParseTextProtoOrDie<Schema>(R"(
+          feature {
+            name: "invalid_presence"
+            presence: { min_fraction: 1.5 }
+            type: BYTES
+          })");
+    expected_anomalies["nl_float"].new_schema = ParseTextProtoOrDie<Schema>(R"(
+      feature {
+        name: "nl_float"
+        presence: { min_fraction: 1.0 }
+        type: FLOAT
+      })");
+    expected_anomalies["struct_bytes"].new_schema =
+        ParseTextProtoOrDie<Schema>(R"(
+          feature {
+            name: "struct_bytes"
+            presence: { min_fraction: 1.0 }
+            type: BYTES
+          })");
+    expected_anomalies["distribution_constraints_bool"].new_schema =
+        ParseTextProtoOrDie<Schema>(R"(
+          feature {
+            name: "distribution_constraints_bool"
+            presence: { min_fraction: 1.0 }
+            bool_domain: {}
+            distribution_constraints: { min_domain_mass: .8 }
+            type: FLOAT
+          })");
+    expected_anomalies["no_type"]
+        .expected_info_without_diff = ParseTextProtoOrDie<
+        tensorflow::metadata::v0::AnomalyInfo>(R"(
+      path { step: "no_type" }
+      description: ""
+      severity: ERROR
+      short_description: "unspecified type: determine the type and set it, rather than deprecating."
+      reason {
+        type: FEATURE_MISSING_TYPE
+        short_description: "unspecified type: determine the type and set it, rather than deprecating."
+        description: ""
+      })");
+    expected_anomalies["invalid_value_count"].expected_info_without_diff =
+        ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
+          path { step: "invalid_value_count" }
+          description: ""
+          severity: ERROR
+          short_description: "ValueCount.min should not be negative"
+          reason {
+            type: INVALID_SCHEMA_SPECIFICATION
+            short_description: "ValueCount.min should not be negative"
+            description: ""
+          })");
+    expected_anomalies["invalid_presence"].expected_info_without_diff =
+        ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
+          path { step: "invalid_presence" }
+          description: ""
+          severity: ERROR
+          short_description: "min_fraction should not greater than 1"
+          reason {
+            type: INVALID_SCHEMA_SPECIFICATION
+            short_description: "min_fraction should not greater than 1"
+            description: ""
+          })");
+    expected_anomalies["distribution_constraints_bool"]
+        .expected_info_without_diff = ParseTextProtoOrDie<
+        tensorflow::metadata::v0::AnomalyInfo>(R"(
+      path { step: "distribution_constraints_bool" }
+      description: ""
+      severity: ERROR
+      short_description: "distribution constraints not supported for bool domains."
+      reason {
+        type: INVALID_SCHEMA_SPECIFICATION
+        short_description: "distribution constraints not supported for bool domains."
+        description: ""
+      })");
+    expected_anomalies["nl_float"]
+        .expected_info_without_diff = ParseTextProtoOrDie<
+        tensorflow::metadata::v0::AnomalyInfo>(R"(
+      path { step: "nl_float" }
+      short_description: "The domain does not match the type"
+      severity: ERROR
+      description: "The domain \"natural_language_domain\" does not match the type: FLOAT"
+      reason {
+        type: DOMAIN_INVALID_FOR_TYPE
+        description: "The domain \"natural_language_domain\" does not match the type: FLOAT"
+        short_description: "The domain does not match the type"
+      })");
+    expected_anomalies["struct_bytes"]
+        .expected_info_without_diff = ParseTextProtoOrDie<
+        tensorflow::metadata::v0::AnomalyInfo>(R"(
+      path { step: "struct_bytes" }
+      short_description: "The domain does not match the type"
+      severity: ERROR
+      description: "The domain \"struct_domain\" does not match the type: BYTES"
+      reason {
+        type: DOMAIN_INVALID_FOR_TYPE
+        description: "The domain \"struct_domain\" does not match the type: BYTES"
+        short_description: "The domain does not match the type"
+      })");
+    TestFindChanges(initial, DatasetStatsView(statistics, false), config,
+                    expected_anomalies);
+  }
+}
+
 TEST(SchemaAnomalies, FindNansInFloatDisallowNans) {
   const Schema initial = ParseTextProtoOrDie<Schema>(R"(
     feature {

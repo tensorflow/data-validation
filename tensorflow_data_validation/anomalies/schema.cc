@@ -181,6 +181,17 @@ bool ContainsPath(const absl::optional<std::set<Path>>& paths_to_consider,
   return ContainsKey(*paths_to_consider, path);
 }
 
+absl::string_view GetDomainInfoName(const Feature& feature) {
+  const ::tensorflow::protobuf::OneofDescriptor* oneof =
+      feature.GetDescriptor()->FindOneofByName("domain_info");
+  const ::tensorflow::protobuf::FieldDescriptor* domain_info_field =
+      feature.GetReflection()->GetOneofFieldDescriptor(feature, oneof);
+  if (domain_info_field) {
+    return domain_info_field->name();
+  }
+  return "UNSET";
+}
+
 }  // namespace
 
 Status Schema::Init(const tensorflow::metadata::v0::Schema& input) {
@@ -704,7 +715,6 @@ bool Schema::IsExistenceRequired(
   return IsFeatureInEnvironment(feature, environment);
 }
 
-// TODO(b/148406400): Switch AnomalyInfo::Type from UNKNOWN_TYPE.
 // TODO(b/148406994): Handle missing FeatureType more elegantly, inferring it
 // when necessary.
 std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
@@ -714,7 +724,7 @@ std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
   }
   if (!feature->has_name()) {
     descriptions.push_back(
-        {tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
+        {tensorflow::metadata::v0::AnomalyInfo::FEATURE_MISSING_NAME,
          absl::StrCat(
              "unspecified name (maybe meant to be the empty string): find "
              "name rather than deprecating.")});
@@ -724,17 +734,15 @@ std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
   }
 
   if (!feature->has_type()) {
-    // TODO(b/148406400): UNKNOWN_TYPE means the anomaly type is unknown.
-
     if (feature->has_domain() || feature->has_string_domain()) {
       descriptions.push_back(
-          {tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
+          {tensorflow::metadata::v0::AnomalyInfo::FEATURE_MISSING_TYPE,
            absl::StrCat("unspecified type: inferring the type to "
                         "be BYTES, given the domain specified.")});
       feature->set_type(tensorflow::metadata::v0::BYTES);
     } else {
       descriptions.push_back(
-          {tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
+          {tensorflow::metadata::v0::AnomalyInfo::FEATURE_MISSING_TYPE,
            absl::StrCat("unspecified type: determine the type and "
                         "set it, rather than deprecating.")});
       // Deprecating the feature is the only possible "fix" here.
@@ -745,33 +753,40 @@ std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
   if (feature->presence().min_fraction() < 0.0) {
     feature->mutable_presence()->clear_min_fraction();
     descriptions.push_back(
-        {tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
+        {tensorflow::metadata::v0::AnomalyInfo::INVALID_SCHEMA_SPECIFICATION,
          "min_fraction should not be negative: clear is equal to zero"});
   }
   if (feature->presence().min_fraction() > 1.0) {
     feature->mutable_presence()->set_min_fraction(1.0);
-    descriptions.push_back({tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
-                            "min_fraction should not greater than 1"});
+    descriptions.push_back(
+        {tensorflow::metadata::v0::AnomalyInfo::INVALID_SCHEMA_SPECIFICATION,
+         "min_fraction should not greater than 1"});
   }
   // TODO(b/157073026): Add similar checks for value_counts() values.
   if (feature->value_count().min() < 0) {
     feature->mutable_value_count()->clear_min();
-    descriptions.push_back({tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
-                            "min should not be negative"});
+    descriptions.push_back(
+        {tensorflow::metadata::v0::AnomalyInfo::INVALID_SCHEMA_SPECIFICATION,
+         "ValueCount.min should not be negative"});
   }
   if (feature->value_count().has_max() &&
       feature->value_count().max() < feature->value_count().min()) {
-    descriptions.push_back({tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
-                            "max should not be less than min"});
+    descriptions.push_back(
+        {tensorflow::metadata::v0::AnomalyInfo::INVALID_SCHEMA_SPECIFICATION,
+         "ValueCount.max should not be less than min"});
     feature->mutable_value_count()->set_max(feature->value_count().min());
   }
   if (!ContainsKey(AllowedFeatureTypes(feature->domain_info_case()),
                    feature->type())) {
+    descriptions.push_back(
+        {tensorflow::metadata::v0::AnomalyInfo::DOMAIN_INVALID_FOR_TYPE,
+         "The domain does not match the type",
+         absl::StrCat(
+             "The domain \"", GetDomainInfoName(*feature),
+             "\" does not match the type: ",
+             tensorflow::metadata::v0::FeatureType_Name(feature->type()))});
     // Note that this clears the oneof field domain_info.
     ::tensorflow::data_validation::ClearDomain(feature);
-    // TODO(b/148406400): Give more detail here.
-    descriptions.push_back({tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
-                            "The domain does not match the type"});
   }
 
   switch (feature->domain_info_case()) {
@@ -780,7 +795,8 @@ std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
         // Note that this clears the oneof field domain_info.
         feature->clear_domain();
         descriptions.push_back(
-            {tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
+            {tensorflow::metadata::v0::AnomalyInfo::
+                 INVALID_SCHEMA_SPECIFICATION,
              absl::StrCat("missing domain: ", feature->domain())});
       }
       break;
@@ -788,7 +804,8 @@ std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
       if (feature->has_distribution_constraints()) {
         feature->clear_distribution_constraints();
         descriptions.push_back(
-            {tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
+            {tensorflow::metadata::v0::AnomalyInfo::
+                 INVALID_SCHEMA_SPECIFICATION,
              "distribution constraints not supported for bool domains."});
       }
       UpdateBoolDomainSelf(feature->mutable_bool_domain());
@@ -797,7 +814,8 @@ std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
       if (feature->has_distribution_constraints()) {
         feature->clear_distribution_constraints();
         descriptions.push_back(
-            {tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
+            {tensorflow::metadata::v0::AnomalyInfo::
+                 INVALID_SCHEMA_SPECIFICATION,
              "distribution constraints not supported for int domains."});
       }
       break;
@@ -805,7 +823,8 @@ std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
       if (feature->has_distribution_constraints()) {
         feature->clear_distribution_constraints();
         descriptions.push_back(
-            {tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
+            {tensorflow::metadata::v0::AnomalyInfo::
+                 INVALID_SCHEMA_SPECIFICATION,
              "distribution constraints not supported for float domains."});
       }
       break;
@@ -816,7 +835,8 @@ std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
       if (feature->has_distribution_constraints()) {
         feature->clear_distribution_constraints();
         descriptions.push_back(
-            {tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
+            {tensorflow::metadata::v0::AnomalyInfo::
+                 INVALID_SCHEMA_SPECIFICATION,
              "distribution constraints not supported for struct domains."});
       }
       break;
@@ -828,7 +848,8 @@ std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
       if (feature->has_distribution_constraints()) {
         feature->clear_distribution_constraints();
         descriptions.push_back(
-            {tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
+            {tensorflow::metadata::v0::AnomalyInfo::
+                 INVALID_SCHEMA_SPECIFICATION,
              "distribution constraints not supported for semantic domains."});
       }
       break;
@@ -836,7 +857,8 @@ std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
       if (feature->has_distribution_constraints()) {
         feature->clear_distribution_constraints();
         descriptions.push_back(
-            {tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
+            {tensorflow::metadata::v0::AnomalyInfo::
+                 INVALID_SCHEMA_SPECIFICATION,
              "distribution constraints require domain or string domain."});
       }
       break;
@@ -974,7 +996,7 @@ std::vector<Description> Schema::UpdateFeatureInternal(
             ? absl::StrCat("unknown(", feature->type(), ")")
             : schema_descriptor->name();
     descriptions.push_back(
-        {tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
+        {tensorflow::metadata::v0::AnomalyInfo::UNEXPECTED_DATA_TYPE,
          absl::StrCat("Expected data of type: ", schema_type_name, " but got ",
                       data_type_name)});
   }
@@ -988,7 +1010,7 @@ std::vector<Description> Schema::UpdateFeatureInternal(
     // Note that this clears the oneof field domain_info.
     ::tensorflow::data_validation::ClearDomain(feature);
     descriptions.push_back(
-        {tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
+        {tensorflow::metadata::v0::AnomalyInfo::DOMAIN_INVALID_FOR_TYPE,
          absl::StrCat("Data is marked as BYTES with incompatible "
                       "domain_info: ",
                       feature->DebugString())});
