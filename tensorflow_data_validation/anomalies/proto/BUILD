@@ -2,8 +2,6 @@ package(default_visibility = ["//tensorflow_data_validation:__subpackages__"])
 
 licenses(["notice"])  # Apache 2.0
 
-exports_files(["LICENSE"])
-
 load("//tensorflow_data_validation:data_validation.bzl", "tfdv_proto_library", "tfdv_proto_library_py")
 
 tfdv_proto_library(

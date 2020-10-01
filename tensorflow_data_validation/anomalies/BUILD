@@ -6,8 +6,6 @@ package(default_visibility = ["//tensorflow_data_validation:__subpackages__"])
 
 licenses(["notice"])  # Apache 2.0
 
-exports_files(["LICENSE"])
-
 cc_library(
     name = "features_needed",
     srcs = ["features_needed.cc"],
