@@ -49,17 +49,13 @@ std::pair<string, double> GetLInftyNorm(const std::map<string, double>& vec) {
   return best_so_far;
 }
 
-// Returns a histogram consisting of the buckets in the input histogram and a
-// bucket containing NaNs.
-Histogram GetHistogramWithNanBucket(const Histogram& histogram,
-                                    const double nan_count) {
-  Histogram histogram_with_nans;
-  histogram_with_nans.CopyFrom(histogram);
-  Histogram::Bucket* nan_bucket = histogram_with_nans.add_buckets();
+// Appends a bucket representing nans to `histogram`.
+void AddNanBucket(Histogram& histogram) {
+  const double nan_count = histogram.num_nan();
+  Histogram::Bucket* nan_bucket = histogram.add_buckets();
   nan_bucket->set_low_value(std::numeric_limits<double>::quiet_NaN());
   nan_bucket->set_high_value(std::numeric_limits<double>::quiet_NaN());
   nan_bucket->set_sample_count(nan_count);
-  return histogram_with_nans;
 }
 
 // Returns a set of all of the bucket boundaries in the input histogram.
@@ -93,12 +89,12 @@ void AddBucketsToHistogram(std::vector<double> bucket_boundaries,
   }
 }
 
-// Returns a new histogram with value counts redistributed into new buckets that
-// are defined by the specified boundaries.
-// This function assumes a uniform distribution of values within a given bucket
-// in the original histogram.
-Histogram RebucketHistogram(const Histogram& histogram,
-                            const std::vector<double>& boundaries) {
+// Rebuckets `histogram` so that its value counts are redistributed into new
+// buckets that are defined by the specified boundaries. This function assumes a
+// uniform distribution of values within a given bucket in the original
+// histogram.
+void RebucketHistogram(
+    const std::vector<double>& boundaries, Histogram& histogram) {
   Histogram rebucketed_histogram;
   const int max_boundaries_index = boundaries.size() - 1;
   int index = 0;
@@ -115,7 +111,7 @@ Histogram RebucketHistogram(const Histogram& histogram,
       new_bucket->set_high_value(boundaries[index]);
       new_bucket->set_sample_count(0);
     }
-    if (low_value == high_value == boundaries[index]) {
+    if ((low_value == high_value) && (low_value == boundaries[index])) {
       Histogram::Bucket* new_bucket = rebucketed_histogram.add_buckets();
       new_bucket->set_low_value(boundaries[index]);
       ++index;
@@ -148,19 +144,13 @@ Histogram RebucketHistogram(const Histogram& histogram,
     new_bucket->set_high_value(boundaries[i + 1]);
     new_bucket->set_sample_count(0);
   }
-  return rebucketed_histogram;
+  histogram = std::move(rebucketed_histogram);
 }
 
-// Returns a pair of histograms built from each of the input histograms
-// with their values rebucketed so that both histograms have the same bucket
-// boundaries.
-// This function assumes a uniform distribution of values within a given bucket
-// in the original histogram.
-std::pair<tensorflow::metadata::v0::Histogram,
-          tensorflow::metadata::v0::Histogram>
-GetHistogramsWithAlignedBucketBoundaries(
-    const tensorflow::metadata::v0::Histogram& histogram_1,
-    const tensorflow::metadata::v0::Histogram& histogram_2) {
+// Aligns histogram_1 and histogram_2 so that they have the same bucket
+// boundaries. This function assumes a uniform distribution of values within a
+// given bucket in the original histogram.
+void AlignHistograms(Histogram& histogram_1, Histogram& histogram_2) {
   const std::set<double> histogram_1_boundaries =
       GetHistogramBoundaries(histogram_1);
   const std::set<double> histogram_2_boundaries =
@@ -168,7 +158,7 @@ GetHistogramsWithAlignedBucketBoundaries(
   // If the histograms have the same bucket boundaries, there is no need to
   // rebucket them. Just return the original histograms.
   if (histogram_1_boundaries == histogram_2_boundaries) {
-    return std::make_pair(histogram_1, histogram_2);
+    return;
   }
   std::set<double> boundaries_set;
   std::set_union(histogram_1_boundaries.begin(), histogram_1_boundaries.end(),
@@ -190,27 +180,30 @@ GetHistogramsWithAlignedBucketBoundaries(
         std::upper_bound(boundaries.begin(), boundaries.end(), bucket_value);
     boundaries.insert(it, bucket_value);
   }
-  return {RebucketHistogram(histogram_1, boundaries),
-          RebucketHistogram(histogram_2, boundaries)};
+  RebucketHistogram(boundaries, histogram_1);
+  RebucketHistogram(boundaries, histogram_2);
 }
 
-// Returns a histogram that is based on the input histogram with its sample
-// counts normalized so that the sum of all sample counts in the histogram
+// Normalizes `histogram` so that the sum of all sample counts in the histogram
 // equals 1.
-Histogram GetHistogramsWithNormalizedSampleCounts(const Histogram& histogram) {
+Status NormalizeHistogram(Histogram& histogram) {
+  Histogram normalized_histogram;
   double total_sample_count = 0;
   for (const auto& bucket : histogram.buckets()) {
     total_sample_count += bucket.sample_count();
   }
-  Histogram normalized_histogram;
-  Histogram::Bucket* new_bucket;
+  if (total_sample_count == 0) {
+    return tensorflow::errors::InvalidArgument(
+        "Unable to normalize an empty histogram");
+  }
   for (const auto& bucket : histogram.buckets()) {
-    new_bucket = normalized_histogram.add_buckets();
+    Histogram::Bucket* new_bucket = normalized_histogram.add_buckets();
     new_bucket->set_low_value(bucket.low_value());
     new_bucket->set_high_value(bucket.high_value());
     new_bucket->set_sample_count(bucket.sample_count() / total_sample_count);
   }
-  return normalized_histogram;
+  histogram = std::move(normalized_histogram);
+  return Status::OK();
 }
 
 // Returns an approximate Kullback-Leibler divergence
@@ -261,20 +254,14 @@ Status UpdateJensenShannonDivergenceResult(const FeatureStatsView& a,
   // Generate new histograms with the same bucket boundaries.
   Histogram histogram_1 = std::move(maybe_histogram_1.value());
   Histogram histogram_2 = std::move(maybe_histogram_2.value());
-  std::pair<Histogram, Histogram> aligned_histograms =
-      GetHistogramsWithAlignedBucketBoundaries(histogram_1, histogram_2);
+  AlignHistograms(histogram_1, histogram_2);
   // If one or more of histograms have NaN values, add a NaN bucket.
   if (histogram_1.num_nan() > 0 || histogram_2.num_nan() > 0) {
-    histogram_1 = GetHistogramWithNanBucket(aligned_histograms.first,
-                                            histogram_1.num_nan());
-    histogram_2 = GetHistogramWithNanBucket(aligned_histograms.second,
-                                            histogram_2.num_nan());
-  } else {
-    histogram_1 = std::move(aligned_histograms.first);
-    histogram_2 = std::move(aligned_histograms.second);
+    AddNanBucket(histogram_1);
+    AddNanBucket(histogram_2);
   }
-  histogram_1 = GetHistogramsWithNormalizedSampleCounts(histogram_1);
-  histogram_2 = GetHistogramsWithNormalizedSampleCounts(histogram_2);
+  TF_RETURN_IF_ERROR(NormalizeHistogram(histogram_1));
+  TF_RETURN_IF_ERROR(NormalizeHistogram(histogram_2));
 
   // JSD(P||Q) = (D(P||M) + D(Q||M))/2
   // where D(P||Q) is the Kullback-Leibler divergence, and M = (P + Q)/2.

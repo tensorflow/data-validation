@@ -23,6 +23,7 @@ limitations under the License.
 #include "tensorflow_data_validation/anomalies/statistics_view_test_util.h"
 #include "tensorflow_data_validation/anomalies/test_util.h"
 #include "tensorflow/core/lib/core/status_test_util.h"
+#include "tensorflow/core/platform/errors.h"
 #include "tensorflow/core/platform/types.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
 
@@ -229,6 +230,81 @@ TEST(JensenShannonDivergence, AllValuesInOneBucket) {
   TF_ASSERT_OK(UpdateJensenShannonDivergenceResult(
       dataset_1.feature_stats_view(), dataset_2.feature_stats_view(), result));
   EXPECT_NEAR(result, 1, 1e-5);
+}
+
+TEST(JensenShannonDivergence, OneHasOneBucketTheOtherHasMany) {
+  const DatasetForTesting dataset_1(
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'float'
+        type: FLOAT
+        num_stats {
+          common_stats {}
+          histograms {
+            buckets { low_value: 10 high_value: 10 sample_count: 21 }
+            type: STANDARD
+          }
+        })"));
+  const DatasetForTesting dataset_2(
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'float'
+        type: FLOAT
+        num_stats {
+          common_stats {}
+          histograms {
+            buckets { low_value: 0 high_value: 4 sample_count: 150 }
+            buckets { low_value: 4 high_value: 12 sample_count: 200 }
+            buckets { low_value: 12 high_value: 20 sample_count: 20 }
+            type: STANDARD
+          }
+        })"));
+  double result;
+  TF_ASSERT_OK(UpdateJensenShannonDivergenceResult(
+      dataset_1.feature_stats_view(), dataset_2.feature_stats_view(), result));
+  EXPECT_NEAR(result, 1, 1e-5);
+}
+
+TEST(JensenShannonDivergence, EmptyHistogram) {
+  const DatasetForTesting empty_dataset_1(
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'float'
+        type: FLOAT
+        num_stats {
+          common_stats {}
+          histograms {
+          }
+        })"));
+  const DatasetForTesting empty_dataset_2(
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'float'
+        type: FLOAT
+        num_stats {
+          common_stats {}
+          histograms {
+            buckets { low_value: 0 high_value: 4 sample_count: 0 }
+            type: STANDARD
+          }
+        })"));
+  const DatasetForTesting non_empty_dataset(
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'float'
+        type: FLOAT
+        num_stats {
+          common_stats {}
+          histograms {
+            buckets { low_value: 0 high_value: 4 sample_count: 10 }
+            type: STANDARD
+          }
+        })"));
+  double result;
+  auto error = UpdateJensenShannonDivergenceResult(
+      empty_dataset_1.feature_stats_view(),
+      non_empty_dataset.feature_stats_view(), result);
+  EXPECT_TRUE(tensorflow::errors::IsInvalidArgument(error));
+
+  error = UpdateJensenShannonDivergenceResult(
+      non_empty_dataset.feature_stats_view(),
+      empty_dataset_2.feature_stats_view(), result);
+  EXPECT_TRUE(tensorflow::errors::IsInvalidArgument(error));
 }
 
 TEST(JensenShannonDivergence, WithNaNs) {
