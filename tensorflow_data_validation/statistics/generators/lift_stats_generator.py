@@ -39,14 +39,13 @@ from __future__ import division
 
 from __future__ import print_function
 
+import collections
 import operator
 import typing
 from typing import Any, Dict, Iterator, Iterable, Optional, Sequence, Text, Tuple, Union
 
 import apache_beam as beam
 import numpy as np
-import pandas as pd
-from pandas import DataFrame
 import pyarrow as pa
 import six
 
@@ -106,6 +105,10 @@ _LiftValue = typing.NamedTuple('_LiftValue', [('x', _XType), ('lift', float),
 _LiftSeries = typing.NamedTuple('_LiftSeries',
                                 [('y', _YType), ('y_count', _CountType),
                                  ('lift_values', Iterable[_LiftValue])])
+_ValuePresence = typing.NamedTuple('_ValuePresence',
+                                   [('example_indices', np.ndarray),
+                                    ('values', np.ndarray),
+                                    ('weights', np.ndarray)])
 
 # Beam counter to track the number of non-utf8 values.
 _NON_UTF8_VALUES_COUNTER = beam.metrics.Metrics.counter(
@@ -115,8 +118,7 @@ _NON_UTF8_VALUES_COUNTER = beam.metrics.Metrics.counter(
 def _get_example_value_presence(
     record_batch: pa.RecordBatch, path: types.FeaturePath,
     boundaries: Optional[Sequence[float]],
-    weight_column_name: Optional[Text]) -> Optional[DataFrame]:
-
+    weight_column_name: Optional[Text]) -> Optional[_ValuePresence]:
   """Returns information about which examples contained which values.
 
   This function treats all values for a given path within a single example
@@ -138,17 +140,13 @@ def _get_example_value_presence(
       value and example index.
 
   Returns:
-    A Pandas DataFrame containing distinct pairs of array values and example
-    indices, along with the corresponding flattened example weights. The index
-    will be the example indices and the values will be stored in a column named
-    'values'. If weight_column_name is provided, a second column will be
-    returned containing the array values, and 'weights' containing the weights
-    for the example from which each value came.
+    A _ValuePresence tuple which contains three numpy arrays: example indices,
+    values, and weights.
   """
   arr, example_indices = arrow_util.get_array(
       record_batch, path, return_example_indices=True)
   if stats_util.get_feature_type_from_arrow_type(path, arr.type) is None:
-    return None
+    return
 
   arr_flat, parent_indices = arrow_util.flatten_nested(
       arr, return_parent_indices=True)
@@ -167,7 +165,7 @@ def _get_example_value_presence(
   else:
     rows = np.vstack([example_indices_flat, np.asarray(arr_flat)])
   if not rows.size:
-    return None
+    return
   # Deduplicate values which show up more than once in the same example. This
   # makes P(X=x|Y=y) in the standard lift definition behave as
   # P(x \in Xs | y \in Ys) if examples contain more than one value of X and Y.
@@ -177,13 +175,15 @@ def _get_example_value_presence(
   if is_binary_like:
     # return binary like values a pd.Categorical wrapped in a Series. This makes
     # subsqeuent operations like pd.Merge cheaper.
-    values = pd.Categorical.from_codes(values, categories=arr_flat_dict)
-  columns = {'example_indices': example_indices, 'values': values}
+    values = arr_flat_dict[values]
+  else:
+    values = values.tolist()  # converts values to python native types.
   if weight_column_name:
     weights = arrow_util.get_weight_feature(record_batch, weight_column_name)
-    columns['weights'] = np.asarray(weights)[example_indices]
-  df = pd.DataFrame(columns)
-  return df.set_index('example_indices')
+    weights = np.asarray(weights)[example_indices]
+  else:
+    weights = np.ones(len(example_indices), dtype=int).tolist()
+  return _ValuePresence(example_indices, values, weights)
 
 
 def _to_partial_copresence_counts(
@@ -222,28 +222,31 @@ def _to_partial_copresence_counts(
     combination of  x_path, x, and y  in the input record batch.
   """
   slice_key, record_batch = sliced_record_batch
-  y_df = _get_example_value_presence(record_batch, y_path, y_boundaries,
-                                     weight_column_name)
-  if y_df is None:
+  y_presence = _get_example_value_presence(
+      record_batch, y_path, y_boundaries, weight_column_name=None)
+  if y_presence is None:
     return
+  ys_by_example = collections.defaultdict(list)
+  for example_index, y in zip(y_presence.example_indices, y_presence.values):
+    ys_by_example[example_index].append(y)
   for x_path in x_paths:
-    x_df = _get_example_value_presence(
+    x_presence = _get_example_value_presence(
         record_batch,
         x_path,
         boundaries=None,
         weight_column_name=weight_column_name)
-    if x_df is None:
+    if x_presence is None:
       continue
-    # merge using inner join implicitly drops null entries.
-    copresence_df = pd.merge(
-        x_df, y_df, how='inner', left_index=True, right_index=True)
-    # pd.merge automatically appends '_x' and '_y' to the first and second join
-    # args respectively.
-    grouped = copresence_df.groupby(['values_x', 'values_y'], observed=True)
     if weight_column_name:
-      copresence_counts = grouped['weights_x'].sum()
+      copresence_counts = collections.defaultdict(float)
     else:
-      copresence_counts = grouped.size()
+      copresence_counts = collections.defaultdict(int)
+
+    for example_index, x, weight in zip(x_presence.example_indices,
+                                        x_presence.values, x_presence.weights):
+      for y in ys_by_example[example_index]:
+        copresence_counts[(x, y)] += weight
+
     if num_xy_pairs_batch_copresent:
       num_xy_pairs_batch_copresent.update(len(copresence_counts))
     for (x, y), count in copresence_counts.items():
@@ -256,15 +259,20 @@ def _to_partial_counts(
 ) -> Iterator[Tuple[Tuple[types.SliceKey, Union[_XType, _YType]], _CountType]]:
   """Yields per-(slice, value) counts of the examples with value in path."""
   slice_key, record_batch = sliced_record_batch
-  df = _get_example_value_presence(record_batch, path, boundaries,
-                                   weight_column_name)
-  if df is None:
-    return
-  for value, group in df.groupby('values'):
-    if weight_column_name:
-      count = group['weights'].sum()
-    else:
-      count = group['values'].size
+  value_presence = _get_example_value_presence(record_batch, path, boundaries,
+                                               weight_column_name)
+  if value_presence is None:
+    return value_presence
+
+  if weight_column_name:
+    grouped_values = collections.defaultdict(float)
+  else:
+    grouped_values = collections.defaultdict(int)
+
+  for value, weight in zip(value_presence.values, value_presence.weights):
+    grouped_values[value] += weight
+
+  for value, count in grouped_values.items():
     yield (slice_key, value), count
 
 

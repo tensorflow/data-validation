@@ -18,6 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from typing import Optional, Sequence, Text
 from absl.testing import absltest
 import apache_beam as beam
 import numpy as np
@@ -33,6 +34,22 @@ from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
+def _get_example_value_presence_as_dataframe(
+    record_batch: pa.RecordBatch, path: types.FeaturePath,
+    boundaries: Optional[Sequence[float]],
+    weight_column_name: Optional[Text]) -> Optional[pd.DataFrame]:
+  value_presence = lift_stats_generator._get_example_value_presence(
+      record_batch, path, boundaries, weight_column_name)
+  if not value_presence:
+    return
+  df = pd.DataFrame({
+      'example_indices': value_presence.example_indices,
+      'values': value_presence.values,
+      'weights': value_presence.weights,
+  })
+  return df.set_index('example_indices')
+
+
 class GetExampleValuePresenceTest(absltest.TestCase):
   """Tests for _get_example_value_presence."""
 
@@ -40,13 +57,18 @@ class GetExampleValuePresenceTest(absltest.TestCase):
     t = pa.RecordBatch.from_arrays([
         pa.array([[1], [1, 1], [1, 2], [2]]),
     ], ['x'])
-    expected_df = pd.DataFrame({'values': [1, 1, 1, 2, 2]},
-                               index=pd.Index([0, 1, 2, 2, 3],
-                                              name='example_indices'))
+    expected_df = pd.DataFrame(
+        {
+            'values': [1, 1, 1, 2, 2],
+            'weights': [1, 1, 1, 1, 1],
+        },
+        index=pd.Index([0, 1, 2, 2, 3], name='example_indices'))
     pd.testing.assert_frame_equal(
         expected_df,
-        lift_stats_generator._get_example_value_presence(
-            t, types.FeaturePath(['x']), boundaries=None,
+        _get_example_value_presence_as_dataframe(
+            t,
+            types.FeaturePath(['x']),
+            boundaries=None,
             weight_column_name=None))
 
   def test_example_value_presence_weighted(self):
@@ -62,20 +84,27 @@ class GetExampleValuePresenceTest(absltest.TestCase):
         index=pd.Index([0, 1, 2, 2, 3], name='example_indices'))
     pd.testing.assert_frame_equal(
         expected_df,
-        lift_stats_generator._get_example_value_presence(
-            t, types.FeaturePath(['x']), boundaries=None,
+        _get_example_value_presence_as_dataframe(
+            t,
+            types.FeaturePath(['x']),
+            boundaries=None,
             weight_column_name='w'))
 
   def test_example_value_presence_none_value(self):
     t = pa.RecordBatch.from_arrays([
         pa.array([[1], None]),
     ], ['x'])
-    expected_df = pd.DataFrame({'values': [1]},
+    expected_df = pd.DataFrame({
+        'values': [1],
+        'weights': [1],
+    },
                                index=pd.Index([0], name='example_indices'))
     pd.testing.assert_frame_equal(
         expected_df,
-        lift_stats_generator._get_example_value_presence(
-            t, types.FeaturePath(['x']), boundaries=None,
+        _get_example_value_presence_as_dataframe(
+            t,
+            types.FeaturePath(['x']),
+            boundaries=None,
             weight_column_name=None))
 
   def test_example_value_presence_null_array(self):
@@ -83,8 +112,10 @@ class GetExampleValuePresenceTest(absltest.TestCase):
         pa.array([None, None], type=pa.null()),
     ], ['x'])
     self.assertIsNone(
-        lift_stats_generator._get_example_value_presence(
-            t, types.FeaturePath(['x']), boundaries=None,
+        _get_example_value_presence_as_dataframe(
+            t,
+            types.FeaturePath(['x']),
+            boundaries=None,
             weight_column_name=None))
 
   def test_example_value_presence_struct_leaf(self):
@@ -99,17 +130,150 @@ class GetExampleValuePresenceTest(absltest.TestCase):
                 {'y': [1, 4]},
             ]
         ])], ['x'])
-    expected_df = pd.DataFrame({'values': [1, 2, 3, 1, 4]},
-                               index=pd.Index([0, 0, 0, 1, 1],
-                                              name='example_indices'))
+    expected_df = pd.DataFrame(
+        {
+            'values': [1, 2, 3, 1, 4],
+            'weights': [1, 1, 1, 1, 1],
+        },
+        index=pd.Index([0, 0, 0, 1, 1], name='example_indices'))
     pd.testing.assert_frame_equal(
         expected_df,
-        lift_stats_generator._get_example_value_presence(
-            t, types.FeaturePath(['x', 'y']), boundaries=None,
+        _get_example_value_presence_as_dataframe(
+            t,
+            types.FeaturePath(['x', 'y']),
+            boundaries=None,
             weight_column_name=None))
 
 
+class ToPartialCountsTest(absltest.TestCase):
+
+  def test_text_to_partial_counts_unweighted(self):
+    t = pa.RecordBatch.from_arrays([
+        pa.array([['a'], ['b'], ['a']]),
+    ], ['x'])
+    x_path = types.FeaturePath(['x'])
+    expected_counts = [
+        (lift_stats_generator._SlicedXYKey('', x_path, x='a', y=None), 2),
+        (lift_stats_generator._SlicedXYKey('', x_path, x='b', y=None), 1),
+    ]
+    for (expected_key,
+         expected_count), ((actual_key, actual_value), actual_count) in zip(
+             expected_counts,
+             lift_stats_generator._to_partial_counts(
+                 ('', t),
+                 path=types.FeaturePath(['x']),
+                 boundaries=None,
+                 weight_column_name=None)):
+      self.assertEqual('', actual_key)
+      self.assertEqual(expected_key.x, actual_value)
+      self.assertEqual(expected_count, actual_count)
+
+  def test_float_to_partial_counts_unweighted(self):
+    t = pa.RecordBatch.from_arrays([
+        pa.array([[100.], [200.], [100.]]),
+    ], ['x'])
+    x_path = types.FeaturePath(['x'])
+    expected_counts = [
+        (lift_stats_generator._SlicedXYKey('', x_path, x=100., y=None), 2),
+        (lift_stats_generator._SlicedXYKey('', x_path, x=200., y=None), 1),
+    ]
+    for (expected_key,
+         expected_count), ((actual_key, actual_value), actual_count) in zip(
+             expected_counts,
+             lift_stats_generator._to_partial_counts(
+                 ('', t),
+                 path=types.FeaturePath(['x']),
+                 boundaries=None,
+                 weight_column_name=None)):
+      self.assertEqual('', actual_key)
+      self.assertEqual(expected_key.x, actual_value)
+      self.assertEqual(expected_count, actual_count)
+
+  def test_to_partial_counts_weighted(self):
+    t = pa.RecordBatch.from_arrays([
+        pa.array([[1], [2], [1]]),
+        pa.array([[0.5], [0.5], [2.0]]),
+    ], ['x', 'w'])
+    x_path = types.FeaturePath(['x'])
+    expected_counts = [
+        (lift_stats_generator._SlicedXYKey('', x_path, x=1, y=None), 2.5),
+        (lift_stats_generator._SlicedXYKey('', x_path, x=2, y=None), 0.5),
+    ]
+    for (expected_key,
+         expected_count), ((actual_key, actual_value), actual_count) in zip(
+             expected_counts,
+             lift_stats_generator._to_partial_counts(
+                 ('', t),
+                 path=types.FeaturePath(['x']),
+                 boundaries=None,
+                 weight_column_name='w')):
+      self.assertEqual('', actual_key)
+      self.assertEqual(expected_key.x, actual_value)
+      self.assertEqual(expected_count, actual_count)
+
+
+class ToPartialXCountsTest(absltest.TestCase):
+
+  def test_to_partial_x_counts_unweighted(self):
+    t = pa.RecordBatch.from_arrays([
+        pa.array([[1], [2], [1]]),
+    ], ['x'])
+    x_path = types.FeaturePath(['x'])
+    expected_counts = [
+        (lift_stats_generator._SlicedXYKey('', x_path, x=1, y=None), 2),
+        (lift_stats_generator._SlicedXYKey('', x_path, x=2, y=None), 1),
+    ]
+    for (expected_key, expected_count), (actual_key, actual_count) in zip(
+        expected_counts,
+        lift_stats_generator._to_partial_x_counts(
+            ('', t),
+            x_paths=[types.FeaturePath(['x'])],
+            weight_column_name=None)):
+      self.assertEqual(str(expected_key.x_path), str(actual_key.x_path))
+      self.assertEqual(expected_key.x, actual_key.x)
+      self.assertEqual(expected_count, actual_count)
+
+  def test_to_partial_x_counts_weighted(self):
+    t = pa.RecordBatch.from_arrays([
+        pa.array([[1], [2], [1]]),
+        pa.array([[0.5], [0.5], [2.0]]),
+    ], ['x', 'w'])
+    x_path = types.FeaturePath(['x'])
+    expected_counts = [
+        (lift_stats_generator._SlicedXYKey('', x_path, x=1, y=None), 2.5),
+        (lift_stats_generator._SlicedXYKey('', x_path, x=2, y=None), 0.5),
+    ]
+    for (expected_key, expected_count), (actual_key, actual_count) in zip(
+        expected_counts,
+        lift_stats_generator._to_partial_x_counts(
+            ('', t), x_paths=[types.FeaturePath(['x'])],
+            weight_column_name='w')):
+      self.assertEqual(str(expected_key.x_path), str(actual_key.x_path))
+      self.assertEqual(expected_key.x, actual_key.x)
+      self.assertEqual(expected_count, actual_count)
+
+
 class ToPartialCopresenceCountsTest(absltest.TestCase):
+
+  def test_to_partial_copresence_counts_unweighted(self):
+    t = pa.RecordBatch.from_arrays([
+        pa.array([[1], [2], [1]]),
+        pa.array([['a'], ['a'], ['b']]),
+    ], ['x', 'y'])
+    x_path = types.FeaturePath(['x'])
+    expected_counts = [
+        (lift_stats_generator._SlicedXYKey('', x_path, x=1, y='a'), 1),
+        (lift_stats_generator._SlicedXYKey('', x_path, x=1, y='b'), 1),
+        (lift_stats_generator._SlicedXYKey('', x_path, x=2, y='a'), 1)
+    ]
+    actual_counts = list(
+        lift_stats_generator._to_partial_copresence_counts(
+            ('', t),
+            y_path=types.FeaturePath(['y']),
+            x_paths=[types.FeaturePath(['x'])],
+            y_boundaries=None,
+            weight_column_name=None))
+    self.assertSameElements(expected_counts, actual_counts)
 
   def test_to_partial_copresence_counts_weighted(self):
     t = pa.RecordBatch.from_arrays([
@@ -123,18 +287,14 @@ class ToPartialCopresenceCountsTest(absltest.TestCase):
         (lift_stats_generator._SlicedXYKey('', x_path, x=1, y='b'), 2.0),
         (lift_stats_generator._SlicedXYKey('', x_path, x=2, y='a'), 0.5)
     ]
-    for (expected_key, expected_count), (actual_key, actual_count) in zip(
-        expected_counts,
+    actual_counts = list(
         lift_stats_generator._to_partial_copresence_counts(
             ('', t),
             y_path=types.FeaturePath(['y']),
             x_paths=[types.FeaturePath(['x'])],
             y_boundaries=None,
-            weight_column_name='w')):
-      self.assertEqual(str(expected_key.x_path), str(actual_key.x_path))
-      self.assertEqual(expected_key.x, actual_key.x)
-      self.assertEqual(expected_key.y, actual_key.y)
-      self.assertEqual(expected_count, actual_count)
+            weight_column_name='w'))
+    self.assertSameElements(expected_counts, actual_counts)
 
 
 class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
