@@ -102,6 +102,20 @@ TEST(IntDomainTest, IsValid) {
          })"),
        true, ParseTextProtoOrDie<IntDomain>("max: 1000 is_categorical: true"),
        AnomalyInfo::DOMAIN_INVALID_FOR_TYPE},
+      {"Valid large int with bounds",
+       ParseTextProtoOrDie<IntDomain>(
+           "max: 1528000000000000000 is_categorical: true"),
+       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+         name: 'bar'
+         type: INT
+         num_stats: {
+           common_stats: { num_missing: 3 max_num_values: 2 }
+           max: 1527900000000000000
+           min: -1527900000000000000
+         })"),
+       false,
+       ParseTextProtoOrDie<IntDomain>(
+           "max: 1528000000000000000 is_categorical: true")},
       {"Large int no bounds", IntDomain(),
        ParseTextProtoOrDie<FeatureNameStatistics>(R"(
          name: 'bar'

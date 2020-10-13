@@ -81,10 +81,10 @@ IntIntervalResult GetIntInterval(const FeatureStatsView& feature_stats_view) {
         // that this can be done and consider as a non-conformant IntDomain if
         // it cannot. Note: if the IntDomain has no min and max specified, this
         // will not trigger an anomaly.
-        if (feature_stats_view.num_stats().min() < INT_MIN) {
+        if (feature_stats_view.num_stats().min() < LLONG_MIN) {
           return std::to_string(feature_stats_view.num_stats().min());
         }
-        if (feature_stats_view.num_stats().max() > INT_MAX) {
+        if (feature_stats_view.num_stats().max() > LLONG_MAX) {
           return std::to_string(feature_stats_view.num_stats().max());
         }
         return IntInterval{
