@@ -14,6 +14,9 @@
     anomaly types: DOMAIN_INVALID_FOR_TYPE, UNEXPECTED_DATA_TYPE,
     FEATURE_MISSING_NAME, FEATURE_MISSING_TYPE, INVALID_SCHEMA_SPECIFICATION
 
+*  Fixed a bug that `import tensorflow_data_validation` would fail if IPython
+   is not installed. IPython is an optional dependency of TFDV.
+
 ## Known Issues
 
 ## Breaking Changes
