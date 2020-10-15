@@ -133,7 +133,8 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
                         generator.__class__.__name__)
     if combiner_stats_generators:
       # TODO(b/162543416): Obviate the need for explicit fanout.
-      fanout = 5 * int(math.ceil(math.sqrt(len(combiner_stats_generators))))
+      fanout = max(
+          32, 5 * int(math.ceil(math.sqrt(len(combiner_stats_generators)))))
       result_protos.append(dataset
                            | 'RunCombinerStatsGenerators'
                            >> beam.CombinePerKey(
