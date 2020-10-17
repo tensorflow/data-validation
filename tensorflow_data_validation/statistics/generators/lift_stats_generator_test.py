@@ -625,6 +625,30 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
               }
             }""", statistics_pb2.DatasetFeatureStatistics()),
     ]
+
+    def metrics_verify_fn(metric_results):
+      num_xy_pairs_distinct_counters = metric_results.query(
+          beam.metrics.metric.MetricsFilter().with_name(
+              'num_xy_pairs_distinct'))['counters']
+      self.assertLen(num_xy_pairs_distinct_counters, 1)
+      self.assertEqual(4, num_xy_pairs_distinct_counters[0].committed)
+
+      num_x_values_distinct_counters = metric_results.query(
+          beam.metrics.metric.MetricsFilter().with_name(
+              'num_x_values_distinct'))['counters']
+      self.assertLen(num_x_values_distinct_counters, 1)
+      self.assertEqual(2, num_x_values_distinct_counters[0].committed)
+
+      num_xy_pairs_batch_copresent_dists = metric_results.query(
+          beam.metrics.metric.MetricsFilter().with_name(
+              'num_xy_pairs_batch_copresent'))['distributions']
+      self.assertLen(num_xy_pairs_batch_copresent_dists, 1)
+      num_xy_pairs_batch_copresent_dist = num_xy_pairs_batch_copresent_dists[0]
+      self.assertEqual(3, num_xy_pairs_batch_copresent_dist.committed.sum)
+      self.assertEqual(1, num_xy_pairs_batch_copresent_dist.committed.count)
+      self.assertEqual(3, num_xy_pairs_batch_copresent_dist.committed.min)
+      self.assertEqual(3, num_xy_pairs_batch_copresent_dist.committed.max)
+
     generator = lift_stats_generator.LiftStatsGenerator(
         schema=schema,
         y_path=types.FeaturePath(['int_y']),
@@ -633,6 +657,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         examples,
         generator,
         expected_result,
+        metrics_verify_fn=metrics_verify_fn,
         add_default_slice_key_to_input=True,
         add_default_slice_key_to_output=True)
 

@@ -20,6 +20,7 @@ from __future__ import print_function
 
 import traceback
 
+from typing import Callable, Dict, List, Optional, Tuple, Union
 from absl.testing import absltest
 import apache_beam as beam
 from apache_beam.testing import util
@@ -27,7 +28,6 @@ import numpy as np
 import pyarrow as pa
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
-from typing import Callable, Dict, List, Optional, Tuple, Union
 
 from tensorflow.python.util.protobuf import compare
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -288,11 +288,14 @@ class TransformStatsGeneratorTest(absltest.TestCase):
   # Runs the provided slicing aware transform statistics generator and tests
   # if the output matches the expected result.
   def assertSlicingAwareTransformOutputEqual(
-      self, examples: List[Union[types.SlicedExample, types.Example]],
+      self,
+      examples: List[Union[types.SlicedExample, types.Example]],
       generator: stats_generator.TransformStatsGenerator,
       expected_results: List[Union[
           statistics_pb2.DatasetFeatureStatistics,
           Tuple[types.SliceKey, statistics_pb2.DatasetFeatureStatistics]]],
+      metrics_verify_fn: Optional[Callable[[beam.metrics.metric.MetricResults],
+                                           None]] = None,
       add_default_slice_key_to_input: bool = False,
       add_default_slice_key_to_output: bool = False,
   ) -> None:
@@ -302,6 +305,8 @@ class TransformStatsGeneratorTest(absltest.TestCase):
       examples: Input sliced examples.
       generator: A TransformStatsGenerator.
       expected_results: Expected statistics proto results.
+      metrics_verify_fn: A callable which will be invoked on the resulting
+        beam.metrics.metric.MetricResults object.
       add_default_slice_key_to_input: If True, adds the default slice key to
         the input examples.
       add_default_slice_key_to_output: If True, adds the default slice key to
@@ -341,6 +346,9 @@ class TransformStatsGeneratorTest(absltest.TestCase):
     with beam.Pipeline(options=options) as p:
       result = p | beam.Create(examples) | generator.ptransform
       util.assert_that(result, _make_result_matcher(self, expected_results))
+      pipeline_result = p.run()
+      if metrics_verify_fn:
+        metrics_verify_fn(pipeline_result.metrics())
 
 
 class CombinerFeatureStatsGeneratorTest(absltest.TestCase):
