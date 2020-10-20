@@ -32,8 +32,6 @@ from __future__ import print_function
 
 import abc
 import collections
-import functools
-import imghdr
 from typing import List, Iterable, Text
 import numpy as np
 import pandas as pd
@@ -56,6 +54,16 @@ _IMAGE_FORMAT_HISTOGRAM = 'image_format_histogram'
 # ImageStatsGenerator default initialization values.
 _IS_IMAGE_RATIO = 0.8
 _VALUES_THRESHOLD = 100
+
+# Magic bytes (hex) signature for each image format.
+# Source: https://en.wikipedia.org/wiki/List_of_file_signatures.
+_IMAGE_FORMAT_SIGNATURES = {
+    'bmp': b'\x42\x4d',
+    'gif': b'\x47\x49\x46\x38',
+    # The 4th byte of JPEG is '\xe0' or '\xe1', so check just the first three.
+    'jpeg': b'\xff\xd8\xff',
+    'png': b'\x89\x50\x4E\x47\x0D\x0A\x1A\x0A'
+}
 
 
 class ImageDecoderInterface(six.with_metaclass(abc.ABCMeta)):
@@ -146,8 +154,12 @@ class TfImageDecoder(ImageDecoderInterface):
       A list of image format name (e.g. 'JPG'/'GIF'/etc, or None if the
       value is not an image) in the same order as the input value list.
     """
-    get_format = functools.partial(imghdr.what, None)
-    return np.vectorize(get_format, otypes=[np.object])(values)
+    def get_image_format(image_bytes):
+      for image_format, signature in _IMAGE_FORMAT_SIGNATURES.items():
+        if bytes(image_bytes[:len(signature)]) == signature:
+          return image_format
+      return None
+    return np.vectorize(get_image_format, otypes=[np.object])(values)
 
   def get_sizes(self, values: np.ndarray) -> np.ndarray:
     """Returns the image size for each value if it represents an image.

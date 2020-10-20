@@ -341,6 +341,8 @@ class ImageStatsGeneratorRealImageTest(
             [
                 _read_file(os.path.join(test_data_dir, 'image1.gif')),
                 _read_file(os.path.join(test_data_dir, 'image2.png')),
+                _read_file(os.path.join(test_data_dir, 'image5.jpg')),
+                _read_file(os.path.join(test_data_dir, 'image6.jpg')),
                 _read_file(os.path.join(test_data_dir, 'not_a_image.abc'))
             ],
             [
@@ -374,6 +376,10 @@ class ImageStatsGeneratorRealImageTest(
                   sample_count: 1
                 }
                 buckets {
+                  label: 'jpeg'
+                  sample_count: 2
+                }
+                buckets {
                   label: 'png'
                   sample_count: 2
                 }
@@ -381,11 +387,11 @@ class ImageStatsGeneratorRealImageTest(
             }
             custom_stats {
               name: 'image_max_width'
-              num: 51.0
+              num: 300.0
             }
             custom_stats {
               name: 'image_max_height'
-              num: 26.0
+              num: 300.0
             }
             """, statistics_pb2.FeatureNameStatistics())
     generator = image_stats_generator.ImageStatsGenerator(
