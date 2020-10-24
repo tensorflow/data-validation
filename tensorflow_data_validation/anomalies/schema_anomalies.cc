@@ -194,10 +194,12 @@ SchemaAnomaly::SchemaAnomaly() : SchemaAnomalyBase() {}
 SchemaAnomaly::SchemaAnomaly(SchemaAnomaly&& schema_anomaly)
     : SchemaAnomalyBase(std::move(schema_anomaly)) {
   path_ = std::move(schema_anomaly.path_);
+  drift_skew_info_ = std::move(schema_anomaly.drift_skew_info_);
 }
 
 SchemaAnomaly& SchemaAnomaly::operator=(SchemaAnomaly&& schema_anomaly) {
   path_ = std::move(schema_anomaly.path_);
+  drift_skew_info_ = std::move(schema_anomaly.drift_skew_info_);
   SchemaAnomalyBase::operator=(std::move(schema_anomaly));
   return *this;
 }
@@ -217,7 +219,8 @@ tensorflow::Status SchemaAnomaly::Update(
   std::vector<Description> new_descriptions;
   tensorflow::metadata::v0::AnomalyInfo::Severity new_severity;
   TF_RETURN_IF_ERROR(schema_->UpdateFeature(updater, feature_stats_view,
-                                            &new_descriptions, &new_severity));
+                                            &new_descriptions,
+                                            &drift_skew_info_, &new_severity));
   descriptions_.insert(descriptions_.end(), new_descriptions.begin(),
                        new_descriptions.end());
   UpgradeSeverity(new_severity);
@@ -244,13 +247,20 @@ tensorflow::Status SchemaAnomaly::CreateNewField(
 
 void SchemaAnomaly::UpdateSkewComparator(
     const FeatureStatsView& feature_stats_view) {
-  const std::vector<Description> new_descriptions =
+  auto feature_comparison_result =
       schema_->UpdateSkewComparator(feature_stats_view);
-  if (!new_descriptions.empty()) {
+  if (!feature_comparison_result.descriptions.empty()) {
     UpgradeSeverity(tensorflow::metadata::v0::AnomalyInfo::ERROR);
   }
-  descriptions_.insert(descriptions_.end(), new_descriptions.begin(),
-                       new_descriptions.end());
+  descriptions_.insert(descriptions_.end(),
+                       feature_comparison_result.descriptions.begin(),
+                       feature_comparison_result.descriptions.end());
+  if (!feature_comparison_result.measurements.empty()) {
+    drift_skew_info_.emplace();
+    for (const auto& measurement : feature_comparison_result.measurements) {
+      *drift_skew_info_->add_skew_measurements() = measurement;
+    }
+  }
 }
 
 bool SchemaAnomaly::FeatureIsDeprecated(const Path& path) {
@@ -296,10 +306,14 @@ tensorflow::metadata::v0::Anomalies SchemaAnomalies::GetSchemaDiff(
     result_schemas[feature_path.Serialize()] =
         anomaly.GetAnomalyInfo(schema_proto, enable_diff_regions);
   }
-  if (dataset_anomalies_.has_value()) {
+  if (dataset_anomalies_) {
     *result.mutable_dataset_anomaly_info() =
-        dataset_anomalies_.value().GetAnomalyInfo(schema_proto,
-                                                  enable_diff_regions);
+        dataset_anomalies_->GetAnomalyInfo(schema_proto, enable_diff_regions);
+  }
+  for (const auto& pair : drift_skew_infos_) {
+    auto* drift_skew_info = result.add_drift_skew_info();
+    *drift_skew_info = pair.second;
+    *drift_skew_info->mutable_path() = pair.first.AsProto();
   }
   return result;
 }
@@ -311,16 +325,28 @@ tensorflow::Status SchemaAnomalies::InitSchema(Schema* schema) const {
 tensorflow::Status SchemaAnomalies::GenericUpdate(
     const std::function<tensorflow::Status(SchemaAnomaly* anomaly)>& update,
     const Path& path) {
-  if (ContainsKey(anomalies_, path)) {
-    return update(&anomalies_[path]);
+  auto iter = anomalies_.find(path);
+  // schema_anomaly always points to the SchemaAnomaly passed to `update`.
+  // It may not exist or be inserted in anomalies_. But we always want to
+  // get the drift_skew_info from it.
+  SchemaAnomaly* schema_anomaly;
+  SchemaAnomaly new_schema_anomaly;
+  if (iter != anomalies_.end()) {
+    schema_anomaly = &iter->second;
+    TF_RETURN_IF_ERROR(update(schema_anomaly));
   } else {
-    SchemaAnomaly schema_anomaly;
-    TF_RETURN_IF_ERROR(schema_anomaly.InitSchema(serialized_baseline_));
-    schema_anomaly.set_path(path);
-    TF_RETURN_IF_ERROR(update(&schema_anomaly));
-    if (schema_anomaly.is_problem()) {
-      anomalies_[path] = std::move(schema_anomaly);
+    schema_anomaly = &new_schema_anomaly;
+    TF_RETURN_IF_ERROR(schema_anomaly->InitSchema(serialized_baseline_));
+    schema_anomaly->set_path(path);
+    TF_RETURN_IF_ERROR(update(schema_anomaly));
+    if (schema_anomaly->is_problem()) {
+      auto iter_and_inserted = anomalies_.insert(
+          std::make_pair(path, std::move(*schema_anomaly)));
+      schema_anomaly = &iter_and_inserted.first->second;
     }
+  }
+  if (schema_anomaly->drift_skew_info()) {
+    drift_skew_infos_[path].MergeFrom(*schema_anomaly->drift_skew_info());
   }
   return Status::OK();
 }

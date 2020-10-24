@@ -238,6 +238,10 @@ def validate_statistics(
   The optional `previous_statistics` and `serving_statistics` are the statistics
   computed over the control data for drift- and skew-detection, respectively.
 
+  If drift- or skew-detection is conducted, then the raw skew/drift measurements
+  for each feature that is compared will be recorded in the `drift_skew_info`
+  field in the returned `Anomalies` proto.
+
   Args:
     statistics: A DatasetFeatureStatisticsList protocol buffer denoting the
        statistics computed over the current data. Validation is currently

@@ -35,6 +35,7 @@ namespace {
 using ::tensorflow::metadata::v0::AnomalyInfo;
 using ::tensorflow::metadata::v0::DatasetFeatureStatistics;
 using ::tensorflow::metadata::v0::Schema;
+using ::tensorflow::metadata::v0::DriftSkewInfo;
 using testing::EqualsProto;
 using testing::ParseTextProtoOrDie;
 
@@ -61,14 +62,17 @@ void TestFeatureStatisticsValidator(
     const std::map<std::string, testing::ExpectedAnomalyInfo>&
         expected_anomalies,
     const absl::optional<testing::ExpectedAnomalyInfo>&
-        expected_dataset_anomalies) {
+        expected_dataset_anomalies,
+    const std::vector<tensorflow::metadata::v0::DriftSkewInfo>&
+        expected_drift_skew_infos) {
   tensorflow::metadata::v0::Anomalies result;
   TF_CHECK_OK(ValidateFeatureStatistics(
       feature_statistics, old_schema, environment, prev_span_feature_statistics,
       /*serving_feature_statistics=*/gtl::nullopt,
       prev_version_feature_statistics, features_needed, validation_config,
       /*enable_diff_regions=*/false, &result));
-  TestAnomalies(result, old_schema, expected_anomalies);
+  TestAnomalies(result, old_schema, expected_anomalies,
+                expected_drift_skew_infos);
   if (expected_dataset_anomalies != gtl::nullopt) {
     TestAnomalyInfo(result.dataset_anomaly_info(), old_schema,
                     expected_dataset_anomalies.value(),
@@ -162,7 +166,8 @@ TEST(FeatureStatisticsValidatorTest, EndToEnd) {
       /*prev_version_feature_statistics=*/tensorflow::gtl::nullopt,
       /*environment=*/gtl::nullopt,
       /*features_needed=*/gtl::nullopt, anomalies,
-      /*expected_dataset_anomalies=*/gtl::nullopt);
+      /*expected_dataset_anomalies=*/gtl::nullopt,
+      /*expected_drift_skew_infos=*/{});
 }
 
 TEST(FeatureStatisticsValidatorTest, MissingColumn) {
@@ -207,7 +212,8 @@ TEST(FeatureStatisticsValidatorTest, MissingColumn) {
       /*prev_version_feature_statistics=*/tensorflow::gtl::nullopt,
       /*environment=*/gtl::nullopt,
       /*features_needed=*/gtl::nullopt, anomalies,
-      /*expected_dataset_anomalies=*/gtl::nullopt);
+      /*expected_dataset_anomalies=*/gtl::nullopt,
+      /*expected_drift_skew_infos=*/{});
 }
 
 TEST(FeatureStatisticsValidatorTest, MissingFeatureAndEnvironments) {
@@ -283,13 +289,15 @@ TEST(FeatureStatisticsValidatorTest, MissingFeatureAndEnvironments) {
       /*prev_version_feature_statistics=*/tensorflow::gtl::nullopt,
       /*environment=*/gtl::nullopt,
       /*features_needed=*/gtl::nullopt, anomalies,
-      /*expected_dataset_anomalies=*/gtl::nullopt);
+      /*expected_dataset_anomalies=*/gtl::nullopt,
+      /*expected_drift_skew_infos=*/{});
   TestFeatureStatisticsValidator(
       schema, ValidationConfig(), statistics,
       /*prev_span_feature_statistics=*/tensorflow::gtl::nullopt,
       /*prev_version_feature_statistics=*/tensorflow::gtl::nullopt, "TRAINING",
       /*features_needed=*/gtl::nullopt, anomalies,
-      /*expected_dataset_anomalies=*/gtl::nullopt);
+      /*expected_dataset_anomalies=*/gtl::nullopt,
+      /*expected_drift_skew_infos=*/{});
 
   // Running for environment "SERVING" should not generate anomalies.
   TestFeatureStatisticsValidator(
@@ -297,7 +305,8 @@ TEST(FeatureStatisticsValidatorTest, MissingFeatureAndEnvironments) {
       /*prev_span_feature_statistics=*/tensorflow::gtl::nullopt,
       /*prev_version_feature_statistics=*/tensorflow::gtl::nullopt, "SERVING",
       /*features_needed=*/gtl::nullopt,
-      /*expected_anomalies=*/{}, /*expected_dataset_anomalies=*/gtl::nullopt);
+      /*expected_anomalies=*/{}, /*expected_dataset_anomalies=*/gtl::nullopt,
+      /*expected_drift_skew_infos=*/{});
 }
 
 TEST(FeatureStatisticsValidatorTest, FeaturesNeeded) {
@@ -357,7 +366,8 @@ TEST(FeatureStatisticsValidatorTest, FeaturesNeeded) {
       /*prev_version_feature_statistics=*/tensorflow::gtl::nullopt,
       /*environment=*/gtl::nullopt,
       /*features_needed=*/FeaturesNeeded({{Path({"feature1"}), {reason}}}),
-      anomalies, /*expected_dataset_anomalies=*/gtl::nullopt);
+      anomalies, /*expected_dataset_anomalies=*/gtl::nullopt,
+      /*expected_drift_skew_infos=*/{});
 }
 
 // If there are no examples, then we don't crazily fire every exception, we
@@ -635,7 +645,11 @@ TEST(FeatureStatisticsValidatorTest,
       /*prev_version_feature_statistics=*/tensorflow::gtl::nullopt,
       /*environment=*/gtl::nullopt,
       /*features_needed=*/gtl::nullopt, anomalies,
-      /*expected_dataset_anomalies=*/gtl::nullopt);
+      /*expected_dataset_anomalies=*/gtl::nullopt,
+      /*expected_drift_skew_infos=*/{ParseTextProtoOrDie<DriftSkewInfo>(R"(
+        path { step: "annotated_enum" }
+        drift_measurements { type: L_INFTY value: 0.25 threshold: 0.01 }
+      )")});
 }
 
 TEST(FeatureStatisticsValidatorTest,
@@ -714,7 +728,15 @@ TEST(FeatureStatisticsValidatorTest,
       /*prev_version_feature_statistics=*/tensorflow::gtl::nullopt,
       /*environment=*/gtl::nullopt,
       /*features_needed=*/gtl::nullopt, anomalies,
-      /*expected_dataset_anomalies=*/gtl::nullopt);
+      /*expected_dataset_anomalies=*/gtl::nullopt,
+      /*expected_drift_skew_infos=*/{ParseTextProtoOrDie<DriftSkewInfo>(R"(
+        path { step: "annotated_enum" }
+        drift_measurements {
+          type: JENSEN_SHANNON_DIVERGENCE
+          value: 1
+          threshold: 0.01
+        }
+      )")});
 }
 
 TEST(FeatureStatisticsValidatorTest,
@@ -770,7 +792,15 @@ TEST(FeatureStatisticsValidatorTest,
       /*prev_version_feature_statistics=*/tensorflow::gtl::nullopt,
       /*environment=*/gtl::nullopt,
       /*features_needed=*/gtl::nullopt, anomalies,
-      /*expected_dataset_anomalies=*/gtl::nullopt);
+      /*expected_dataset_anomalies=*/gtl::nullopt,
+      /*expected_drift_skew_infos=*/{ParseTextProtoOrDie<DriftSkewInfo>(R"(
+        path { step: "annotated_enum" }
+        drift_measurements {
+          type: JENSEN_SHANNON_DIVERGENCE
+          value: 0
+          threshold: 0.5
+        }
+      )")});
 }
 
 TEST(FeatureStatisticsValidatorTest,
@@ -835,7 +865,8 @@ TEST(FeatureStatisticsValidatorTest,
       /*prev_version_feature_statistics=*/prev_statistics,
       /*environment=*/gtl::nullopt,
       /*features_needed=*/gtl::nullopt,
-      /*expected_anomalies=*/{}, dataset_anomalies);
+      /*expected_anomalies=*/{}, dataset_anomalies,
+      /*expected_drift_skew_infos=*/{});
 }
 
 TEST(FeatureStatisticsValidatorUpdateSchema, TestLargeStringDomain) {

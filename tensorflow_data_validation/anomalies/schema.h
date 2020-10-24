@@ -23,6 +23,7 @@ limitations under the License.
 #include <vector>
 
 #include "absl/types/optional.h"
+#include "tensorflow_data_validation/anomalies/feature_util.h"
 #include "tensorflow_data_validation/anomalies/internal_types.h"
 #include "tensorflow_data_validation/anomalies/path.h"
 #include "tensorflow_data_validation/anomalies/proto/feature_statistics_to_proto.pb.h"
@@ -147,10 +148,11 @@ class Schema {
   tensorflow::Status UpdateFeature(
       const Updater& updater, const FeatureStatsView& feature_stats_view,
       std::vector<Description>* descriptions,
+      absl::optional<tensorflow::metadata::v0::DriftSkewInfo>* drift_skew_info,
       tensorflow::metadata::v0::AnomalyInfo::Severity* severity);
 
   // A method for updating the skew comparator.
-  std::vector<Description> UpdateSkewComparator(
+  FeatureComparisonResult UpdateSkewComparator(
       const FeatureStatsView& feature_stats_view);
 
   // Clears the schema, so that IsEmpty()==true.
@@ -239,9 +241,10 @@ class Schema {
   // Gets a new feature. Assumes that the feature does not already exist.
   Feature* GetNewFeature(const Path& path);
 
-  std::vector<Description> UpdateFeatureInternal(const Updater& updater,
-                                                 const FeatureStatsView& view,
-                                                 Feature* feature);
+  void UpdateFeatureInternal(
+      const Updater& updater, const FeatureStatsView& view, Feature* feature,
+      std::vector<Description>* descriptions,
+      absl::optional<tensorflow::metadata::v0::DriftSkewInfo>* drift_skew_info);
 
   // Validates the dataset_stats of a sparse feature:
   // - Ensures that referred features are either all present, or all absent.

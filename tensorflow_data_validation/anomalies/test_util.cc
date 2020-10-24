@@ -23,6 +23,7 @@ limitations under the License.
 #include <gtest/gtest.h>
 #include "absl/strings/str_cat.h"
 #include "tensorflow_data_validation/anomalies/map_util.h"
+#include "tensorflow_data_validation/anomalies/path.h"
 #include "tensorflow/core/lib/core/status.h"
 #include "tensorflow/core/lib/core/status_test_util.h"
 #include "tensorflow/core/platform/logging.h"
@@ -90,8 +91,11 @@ ProtoStringMatcher::ProtoStringMatcher(
 void TestAnomalies(
     const tensorflow::metadata::v0::Anomalies& actual,
     const tensorflow::metadata::v0::Schema& old_schema,
-    const std::map<string, ExpectedAnomalyInfo>& expected_anomalies) {
+    const std::map<string, ExpectedAnomalyInfo>& expected_anomalies,
+    const std::vector<tensorflow::metadata::v0::DriftSkewInfo>&
+        expected_drift_skew_infos) {
   EXPECT_THAT(actual.baseline(), EqualsProto(old_schema));
+
   for (const auto& pair : expected_anomalies) {
     const string& name = pair.first;
     const ExpectedAnomalyInfo& expected = pair.second;
@@ -111,6 +115,21 @@ void TestAnomalies(
         << "Unexpected anomaly: " << name << " "
         << simple_anomaly_info.DebugString()
         << " New schema: " << actual_new_schema.DebugString();
+  }
+  std::map<Path, tensorflow::metadata::v0::DriftSkewInfo>
+      path_to_expected_drift_skew_info;
+  for (const auto& drift_skew_info : expected_drift_skew_infos) {
+    path_to_expected_drift_skew_info[Path(drift_skew_info.path())] =
+        drift_skew_info;
+  }
+  EXPECT_EQ(path_to_expected_drift_skew_info.size(),
+            actual.drift_skew_info_size())
+      << actual.DebugString();
+  for (const auto& actual_drift_skew_info : actual.drift_skew_info()) {
+    const Path path(actual_drift_skew_info.path());
+    ASSERT_TRUE(ContainsKey(path_to_expected_drift_skew_info, path));
+    EXPECT_THAT(actual_drift_skew_info,
+                EqualsProto(path_to_expected_drift_skew_info.at(path)));
   }
 }
 

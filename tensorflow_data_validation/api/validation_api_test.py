@@ -153,7 +153,7 @@ IDENTIFY_ANOMALOUS_EXAMPLES_VALID_INPUTS = [{
 }]
 
 
-class ValidationApiTest(absltest.TestCase):
+class ValidationApiTest(parameterized.TestCase):
 
   def test_infer_schema(self):
     statistics = text_format.Parse(
@@ -769,6 +769,34 @@ class ValidationApiTest(absltest.TestCase):
     self.assertEqual(
         len(actual_anomalies.anomaly_info), len(expected_anomalies))
 
+  def _assert_drift_skew_info(
+      self, actual_drift_skew_infos, expected_drift_skew_infos):
+    self.assertLen(actual_drift_skew_infos, len(expected_drift_skew_infos))
+    expected_drift_skew_infos = [
+        text_format.Parse(e, anomalies_pb2.DriftSkewInfo())
+        for e in expected_drift_skew_infos
+    ]
+    path_to_expected = {
+        tuple(e.path.step): e for e in expected_drift_skew_infos
+    }
+    def check_measurements(actual_measurements, expected_measurements):
+      for actual_measurement, expected_measurement in zip(
+          actual_measurements, expected_measurements):
+        self.assertEqual(actual_measurement.type, expected_measurement.type)
+        self.assertAlmostEqual(actual_measurement.value,
+                               expected_measurement.value)
+        self.assertAlmostEqual(actual_measurement.threshold,
+                               expected_measurement.threshold)
+
+    for actual in actual_drift_skew_infos:
+      expected = path_to_expected[tuple(actual.path.step)]
+      self.assertIsNotNone(
+          expected, 'Did not expect a DriftSkewInfo for {}'.format(
+              tuple(actual.path.step)))
+
+      check_measurements(actual.drift_measurements, expected.drift_measurements)
+      check_measurements(actual.skew_measurements, expected.skew_measurements)
+
   def test_update_schema(self):
     schema = text_format.Parse(
         """
@@ -1382,12 +1410,29 @@ class ValidationApiTest(absltest.TestCase):
         'annotated_enum': text_format.Parse(self._annotated_enum_anomaly_info,
                                             anomalies_pb2.AnomalyInfo())
     }
+
     # Validate the stats.
     anomalies = validation_api.validate_statistics(
         statistics, schema, previous_statistics=previous_statistics)
+    self._assert_drift_skew_info(anomalies.drift_skew_info, [
+        """
+        path { step: ["annotated_enum"] }
+        drift_measurements {
+          type: L_INFTY
+          value: 0.25
+          threshold: 0.01
+        }
+        """,
+    ])
     self._assert_equal_anomalies(anomalies, expected_anomalies)
 
-  def test_validate_stats_with_serving_stats(self):
+  @parameterized.named_parameters(*[
+      dict(testcase_name='no_skew',
+           has_skew=False),
+      dict(testcase_name='with_skew',
+           has_skew=True),
+  ])
+  def test_validate_stats_with_serving_stats(self, has_skew):
     statistics = text_format.Parse(
         """
         datasets {
@@ -1432,24 +1477,35 @@ class ValidationApiTest(absltest.TestCase):
           }
         }""", statistics_pb2.DatasetFeatureStatisticsList())
 
+    threshold = 0.1 if has_skew else 1.0
     schema = text_format.Parse(
         """
         feature {
           name: 'bar'
           type: BYTES
           skew_comparator {
-            infinity_norm { threshold: 0.1}
+            infinity_norm { threshold: %f }
           }
-        }""", schema_pb2.Schema())
+        }""" % threshold, schema_pb2.Schema())
 
-    expected_anomalies = {
-        'bar': text_format.Parse(self._bar_anomaly_info,
-                                 anomalies_pb2.AnomalyInfo())
-    }
+    expected_anomalies = {}
+    if has_skew:
+      expected_anomalies['bar'] = text_format.Parse(
+          self._bar_anomaly_info, anomalies_pb2.AnomalyInfo())
     # Validate the stats.
     anomalies = validation_api.validate_statistics(
         statistics, schema, serving_statistics=serving_statistics)
     self._assert_equal_anomalies(anomalies, expected_anomalies)
+    self._assert_drift_skew_info(anomalies.drift_skew_info, [
+        """
+        path { step: ["bar"] }
+        skew_measurements {
+          type: L_INFTY
+          value: 0.2
+          threshold: %f
+        }
+        """ % threshold,
+    ])
 
   def test_validate_stats_with_environment(self):
     statistics = text_format.Parse(
@@ -1659,6 +1715,25 @@ class ValidationApiTest(absltest.TestCase):
         previous_statistics=previous_statistics,
         serving_statistics=serving_statistics)
     self._assert_equal_anomalies(anomalies, expected_anomalies)
+    self._assert_drift_skew_info(anomalies.drift_skew_info, [
+        """
+        path { step: ["bar"] }
+        skew_measurements {
+          type: L_INFTY
+          value: 0.2
+          threshold: 0.1
+        }
+        """,
+        """
+        path { step: ["annotated_enum"] }
+        drift_measurements {
+          type: L_INFTY
+          value: 0.25
+          threshold: 0.01
+        }
+        """,
+    ])
+
   # pylint: enable=line-too-long
 
   def test_validate_stats_with_previous_and_serving_stats_with_default_slices(

@@ -80,7 +80,6 @@ class SchemaAnomalyBase {
   std::vector<Description> descriptions_;
   // The severity of the anomaly.
   tensorflow::metadata::v0::AnomalyInfo::Severity severity_;
-  //
 };
 
 // DatasetSchemaAnomaly represents all dataset-level issues.
@@ -123,6 +122,11 @@ class SchemaAnomaly : public SchemaAnomalyBase {
 
   void set_path(const Path& path) { path_ = path; }
 
+  const absl::optional<tensorflow::metadata::v0::DriftSkewInfo>&
+  drift_skew_info() const {
+    return drift_skew_info_;
+  }
+
   // Returns true iff the feature is deprecated after changes in this anomaly
   // have been applied.
   bool FeatureIsDeprecated(const Path& path);
@@ -137,6 +141,7 @@ class SchemaAnomaly : public SchemaAnomalyBase {
  private:
   // The name of the feature being fixed.
   Path path_;
+  absl::optional<tensorflow::metadata::v0::DriftSkewInfo> drift_skew_info_;
 };
 
 // A class for tracking all anomalies that occur based upon the feature that
@@ -206,6 +211,8 @@ class SchemaAnomalies {
 
   // A map from feature columns to anomalies in that column.
   std::map<Path, SchemaAnomaly> anomalies_;
+
+  std::map<Path, tensorflow::metadata::v0::DriftSkewInfo> drift_skew_infos_;
 
   // Dataset-level anomalies.
   absl::optional<DatasetSchemaAnomaly> dataset_anomalies_;

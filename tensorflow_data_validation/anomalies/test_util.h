@@ -31,6 +31,7 @@ limitations under the License.
 #include "absl/strings/str_join.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "tensorflow/core/lib/core/status.h"
 #include "tensorflow/core/platform/logging.h"
 #include "tensorflow/core/platform/protobuf.h"
@@ -146,7 +147,9 @@ struct ExpectedAnomalyInfo {
 void TestAnomalies(
     const tensorflow::metadata::v0::Anomalies& actual,
     const tensorflow::metadata::v0::Schema& old_schema,
-    const std::map<string, ExpectedAnomalyInfo>& expected_anomalies);
+    const std::map<string, ExpectedAnomalyInfo>& expected_anomalies,
+    const std::vector<tensorflow::metadata::v0::DriftSkewInfo>&
+        expected_drift_skew_infos = {});
 
 void TestAnomalyInfo(const tensorflow::metadata::v0::AnomalyInfo& actual,
                      const tensorflow::metadata::v0::Schema& baseline,

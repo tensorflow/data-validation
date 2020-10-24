@@ -23,6 +23,7 @@ limitations under the License.
 #include "tensorflow_data_validation/anomalies/internal_types.h"
 #include "tensorflow_data_validation/anomalies/statistics_view.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
+#include "tensorflow_metadata/proto/v0/anomalies.pb.h"
 
 namespace tensorflow {
 namespace data_validation {
@@ -51,9 +52,15 @@ tensorflow::metadata::v0::FeatureComparator* GetFeatureComparator(
 // that lifecycle stage is considered depreacted.
 bool LifecycleStageIsDeprecated(const metadata::v0::LifecycleStage stage);
 
+struct FeatureComparisonResult {
+  std::vector<Description> descriptions;
+  std::vector<tensorflow::metadata::v0::DriftSkewInfo::Measurement>
+      measurements;
+};
+
 // Updates comparator from the feature stats.
 // Note that if the "control" was missing, we have deprecated the column.
-std::vector<Description> UpdateFeatureComparatorDirect(
+FeatureComparisonResult UpdateFeatureComparatorDirect(
     const FeatureStatsView& stats, const FeatureComparatorType comparator_type,
     tensorflow::metadata::v0::FeatureComparator* comparator);
 

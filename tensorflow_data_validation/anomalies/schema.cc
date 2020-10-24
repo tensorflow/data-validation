@@ -218,6 +218,7 @@ Status Schema::Update(const DatasetStatsView& dataset_stats,
 tensorflow::Status Schema::UpdateFeature(
     const Updater& updater, const FeatureStatsView& feature_stats_view,
     std::vector<Description>* descriptions,
+    absl::optional<tensorflow::metadata::v0::DriftSkewInfo>* drift_skew_info,
     tensorflow::metadata::v0::AnomalyInfo::Severity* severity) {
   *severity = tensorflow::metadata::v0::AnomalyInfo::UNKNOWN;
 
@@ -271,7 +272,8 @@ tensorflow::Status Schema::UpdateFeature(
   }
 
   if (feature != nullptr) {
-    *descriptions = UpdateFeatureInternal(updater, feature_stats_view, feature);
+    UpdateFeatureInternal(updater, feature_stats_view, feature, descriptions,
+                          drift_skew_info);
     updater.UpdateSeverityForAnomaly(*descriptions, severity);
     return Status::OK();
   } else {
@@ -313,8 +315,10 @@ Status Schema::UpdateRecursively(
   if (!ContainsPath(paths_to_consider, feature_stats_view.GetPath())) {
     return Status::OK();
   }
-  TF_RETURN_IF_ERROR(
-      UpdateFeature(updater, feature_stats_view, descriptions, severity));
+  absl::optional<tensorflow::metadata::v0::DriftSkewInfo>
+      unused_drift_skew_info;
+  TF_RETURN_IF_ERROR(UpdateFeature(updater, feature_stats_view, descriptions,
+                                   &unused_drift_skew_info, severity));
   if (!FeatureIsDeprecated(feature_stats_view.GetPath())) {
     for (const FeatureStatsView& child : feature_stats_view.GetChildren()) {
       std::vector<Description> child_descriptions;
@@ -873,7 +877,7 @@ std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
   return descriptions;
 }
 
-std::vector<Description> Schema::UpdateSkewComparator(
+FeatureComparisonResult Schema::UpdateSkewComparator(
     const FeatureStatsView& feature_stats_view) {
   Feature* feature = GetExistingFeature(feature_stats_view.GetPath());
   if (feature != nullptr &&
@@ -893,13 +897,15 @@ void Schema::ClearStringDomain(const string& domain_name) {
            });
 }
 
-std::vector<Description> Schema::UpdateFeatureInternal(
-    const Updater& updater, const FeatureStatsView& view, Feature* feature) {
-  std::vector<Description> descriptions = UpdateFeatureSelf(feature);
+void Schema::UpdateFeatureInternal(
+    const Updater& updater, const FeatureStatsView& view, Feature* feature,
+    std::vector<Description>* descriptions,
+    absl::optional<tensorflow::metadata::v0::DriftSkewInfo>* drift_skew_info) {
+  *descriptions = UpdateFeatureSelf(feature);
 
   // feature can be deprecated inside of UpdateFeatureSelf.
   if (::tensorflow::data_validation::FeatureIsDeprecated(*feature)) {
-    return descriptions;
+    return;
   }
 
   // This is to cover the rare case where there is actually no examples with
@@ -910,13 +916,13 @@ std::vector<Description> Schema::UpdateFeatureInternal(
   // Otherwise, return without checking anything else.
   if (feature_missing) {
     if (IsExistenceRequired(*feature, view.environment())) {
-      descriptions.push_back(
+      descriptions->push_back(
           {tensorflow::metadata::v0::AnomalyInfo::FEATURE_TYPE_NOT_PRESENT,
            "Column dropped", "The feature was not present in any examples."});
       ::tensorflow::data_validation::DeprecateFeature(feature);
-      return descriptions;
+      return;
     } else {
-      return descriptions;
+      return;
     }
   }
 
@@ -940,7 +946,7 @@ std::vector<Description> Schema::UpdateFeatureInternal(
     if (!IsFeatureInEnvironment(*feature, view.environment())) {
       feature->add_in_environment(view_environment);
     }
-    descriptions.push_back(
+    descriptions->push_back(
         {tensorflow::metadata::v0::AnomalyInfo::SCHEMA_NEW_COLUMN,
          "Column missing in environment",
          absl::StrCat("New column ", view.GetPath().Serialize(),
@@ -950,17 +956,16 @@ std::vector<Description> Schema::UpdateFeatureInternal(
   }
 
   auto add_to_descriptions =
-      [&descriptions](const std::vector<Description>& other_descriptions) {
-        descriptions.insert(descriptions.end(), other_descriptions.begin(),
-                            other_descriptions.end());
+      [descriptions](const std::vector<Description>& other_descriptions) {
+        descriptions->insert(descriptions->end(), other_descriptions.begin(),
+                             other_descriptions.end());
       };
 
   // Clear domain_info if clear_field is set.
   // Either way, append descriptions.
-  auto handle_update_summary = [&descriptions,
-                                feature](const UpdateSummary& update_summary) {
-    descriptions.insert(descriptions.end(), update_summary.descriptions.begin(),
-                        update_summary.descriptions.end());
+  auto handle_update_summary = [feature, &add_to_descriptions](
+                                   const UpdateSummary& update_summary) {
+    add_to_descriptions(update_summary.descriptions);
     if (update_summary.clear_field) {
       // Note that this clears the oneof field domain_info.
       ::tensorflow::data_validation::ClearDomain(feature);
@@ -995,7 +1000,7 @@ std::vector<Description> Schema::UpdateFeatureInternal(
         (schema_descriptor == nullptr)
             ? absl::StrCat("unknown(", feature->type(), ")")
             : schema_descriptor->name();
-    descriptions.push_back(
+    descriptions->push_back(
         {tensorflow::metadata::v0::AnomalyInfo::UNEXPECTED_DATA_TYPE,
          absl::StrCat("Expected data of type: ", schema_type_name, " but got ",
                       data_type_name)});
@@ -1009,7 +1014,7 @@ std::vector<Description> Schema::UpdateFeatureInternal(
           feature->domain_info_case())) {
     // Note that this clears the oneof field domain_info.
     ::tensorflow::data_validation::ClearDomain(feature);
-    descriptions.push_back(
+    descriptions->push_back(
         {tensorflow::metadata::v0::AnomalyInfo::DOMAIN_INVALID_FOR_TYPE,
          absl::StrCat("Data is marked as BYTES with incompatible "
                       "domain_info: ",
@@ -1024,9 +1029,7 @@ std::vector<Description> Schema::UpdateFeatureInternal(
                   feature->distribution_constraints()),
               CHECK_NOTNULL(GetExistingStringDomain(feature->domain())));
 
-      descriptions.insert(descriptions.end(),
-                          update_summary.descriptions.begin(),
-                          update_summary.descriptions.end());
+      add_to_descriptions(update_summary.descriptions);
       if (update_summary.clear_field) {
         // Note that this clears the oneof field domain_info.
         const string domain = feature->domain();
@@ -1071,7 +1074,7 @@ std::vector<Description> Schema::UpdateFeatureInternal(
       // If the domain_info is not set, it is safe to try best-effort
       // semantic type update.
       if (BestEffortUpdateCustomDomain(view.custom_stats(), feature)) {
-        descriptions.push_back(
+        descriptions->push_back(
             {tensorflow::metadata::v0::AnomalyInfo::SEMANTIC_DOMAIN_UPDATE,
              "Updated semantic domain",
              absl::StrCat("Updated semantic domain for feature: ",
@@ -1095,13 +1098,29 @@ std::vector<Description> Schema::UpdateFeatureInternal(
   // Handle comparators here.
   for (const auto& comparator_type : all_comparator_types) {
     if (FeatureHasComparator(*feature, comparator_type)) {
-      add_to_descriptions(UpdateFeatureComparatorDirect(
+      auto feature_comparison_result = UpdateFeatureComparatorDirect(
           view, comparator_type,
-          GetFeatureComparator(feature, comparator_type)));
+          GetFeatureComparator(feature, comparator_type));
+      add_to_descriptions(feature_comparison_result.descriptions);
+      if (!feature_comparison_result.measurements.empty()) {
+        if (!drift_skew_info->has_value()) {
+          drift_skew_info->emplace();
+          *(*drift_skew_info)->mutable_path() = view.GetPath().AsProto();
+        }
+        if (comparator_type == FeatureComparatorType::DRIFT) {
+          for (const auto& measurement :
+               feature_comparison_result.measurements) {
+            *(*drift_skew_info)->add_drift_measurements() = measurement;
+          }
+        } else if (comparator_type == FeatureComparatorType::SKEW) {
+          for (const auto& measurement :
+               feature_comparison_result.measurements) {
+            *(*drift_skew_info)->add_skew_measurements() = measurement;
+          }
+        }
+      }
     }
   }
-
-  return descriptions;
 }
 
 std::vector<Description> Schema::UpdateSparseFeature(

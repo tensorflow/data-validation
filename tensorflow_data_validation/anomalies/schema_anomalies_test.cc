@@ -23,6 +23,7 @@ limitations under the License.
 #include "tensorflow_data_validation/anomalies/test_util.h"
 #include "tensorflow/core/lib/core/status_test_util.h"
 #include "tensorflow/core/platform/types.h"
+#include "tensorflow_metadata/proto/v0/anomalies.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
 
 namespace tensorflow {
@@ -1290,8 +1291,18 @@ TEST(SchemaAnomalies, FindSkewStringFeature) {
       short_description: "High Linfty distance between training and serving"
       description: "The Linfty distance between training and serving is 0.2 (up to six significant digits), above the threshold 0.1. The feature value with maximum difference is: a"
     })");
+  const std::vector<tensorflow::metadata::v0::DriftSkewInfo>
+      expected_drift_skew_infos = {
+          ParseTextProtoOrDie<tensorflow::metadata::v0::DriftSkewInfo>(R"(
+            path { step: "foo" }
+            skew_measurements {
+              type: L_INFTY
+              value: 0.19999999999999998
+              threshold: 0.1
+            }
+          )")};
   TestAnomalies(skew.GetSchemaDiff(/*enable_diff_regions=*/false), schema_proto,
-                expected_anomalies);
+                expected_anomalies, expected_drift_skew_infos);
 }
 
 TEST(SchemaAnomalies, FindSkewNumericFeature) {
@@ -1375,8 +1386,18 @@ TEST(SchemaAnomalies, FindSkewNumericFeature) {
       short_description: "High approximate Jensen-Shannon divergence between training and serving"
       description: "The approximate Jensen-Shannon divergence between training and serving is 1 (up to six significant digits), above the threshold 0.1."
     })");
+  const std::vector<tensorflow::metadata::v0::DriftSkewInfo>
+      expected_drift_skew_infos = {
+          ParseTextProtoOrDie<tensorflow::metadata::v0::DriftSkewInfo>(R"(
+            path { step: "foo" }
+            skew_measurements {
+              type: JENSEN_SHANNON_DIVERGENCE
+              value: 1
+              threshold: 0.1
+            }
+          )")};
   TestAnomalies(skew.GetSchemaDiff(/*enable_diff_regions=*/false), schema_proto,
-                expected_anomalies);
+                expected_anomalies, expected_drift_skew_infos);
 }
 
 TEST(SchemaAnomalies,
@@ -1447,8 +1468,18 @@ TEST(SchemaAnomalies,
   TF_CHECK_OK(skew.FindSkew(*training_view));
   // No anomalies are expected.
   std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
+  const std::vector<tensorflow::metadata::v0::DriftSkewInfo>
+      expected_drift_skew_infos = {
+          ParseTextProtoOrDie<tensorflow::metadata::v0::DriftSkewInfo>(R"(
+            path { step: "foo" }
+            skew_measurements {
+              type: JENSEN_SHANNON_DIVERGENCE
+              value: 0
+              threshold: 0.5
+            }
+          )")};
   TestAnomalies(skew.GetSchemaDiff(/*enable_diff_regions=*/false), schema_proto,
-                expected_anomalies);
+                expected_anomalies, expected_drift_skew_infos);
 }
 
 TEST(SchemaAnomalies, UniqueNotInRange) {

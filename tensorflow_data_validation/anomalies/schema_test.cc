@@ -27,6 +27,7 @@ limitations under the License.
 #include "tensorflow_data_validation/anomalies/test_util.h"
 #include "tensorflow/core/lib/core/status_test_util.h"
 #include "tensorflow/core/platform/types.h"
+#include "tensorflow_metadata/proto/v0/anomalies.pb.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
 
@@ -793,11 +794,11 @@ TEST(SchemaTest, UpdateColumnsWithNewEnvironmentDescription) {
                                       nullptr, nullptr, nullptr);
   std::vector<Description> descriptions;
   tensorflow::metadata::v0::AnomalyInfo::Severity severity;
-
+  absl::optional<tensorflow::metadata::v0::DriftSkewInfo> drift_skew_info;
   TF_ASSERT_OK(
       schema.UpdateFeature(Schema::Updater(FeatureStatisticsToProtoConfig()),
                            *dataset_stats_view.GetByPath(Path({"feature"})),
-                           &descriptions, &severity));
+                           &descriptions, &drift_skew_info, &severity));
   ASSERT_EQ(descriptions.size(), 1);
   EXPECT_EQ(descriptions[0].type,
             tensorflow::metadata::v0::AnomalyInfo::SCHEMA_NEW_COLUMN);
@@ -908,12 +909,21 @@ TEST(SchemaTest, FindSkew) {
           type: BYTES
           skew_comparator { infinity_norm: { threshold: 0.19999999999999998 } }
         })");
-  const std::vector<Description> result =
+  FeatureComparisonResult result =
       schema.UpdateSkewComparator(*training_view->GetByPath(Path({"foo"})));
 
   EXPECT_THAT(schema.GetSchema(), EqualsProto(expected_schema));
   // We're not particular about the description, just that there be one.
-  ASSERT_FALSE(result.empty());
+  ASSERT_FALSE(result.descriptions.empty());
+  ASSERT_EQ(result.measurements.size(), 1);
+  EXPECT_THAT(
+      result.measurements[0],
+      EqualsProto(ParseTextProtoOrDie<
+                  tensorflow::metadata::v0::DriftSkewInfo::Measurement>(R"(
+        type: L_INFTY
+        value: 0.19999999999999998
+        threshold: 0.1
+      )")));
 }
 
 TEST(SchemaTest, FindDrift) {
@@ -980,15 +990,29 @@ TEST(SchemaTest, FindDrift) {
         })");
   std::vector<Description> descriptions;
   tensorflow::metadata::v0::AnomalyInfo::Severity severity;
-  TF_ASSERT_OK(schema.UpdateFeature(
-      Schema::Updater(FeatureStatisticsToProtoConfig()),
-      *training_view->GetByPath(Path({"foo"})), &descriptions, &severity));
+  absl::optional<tensorflow::metadata::v0::DriftSkewInfo> drift_skew_info;
+  TF_ASSERT_OK(
+      schema.UpdateFeature(Schema::Updater(FeatureStatisticsToProtoConfig()),
+                           *training_view->GetByPath(Path({"foo"})),
+                           &descriptions, &drift_skew_info, &severity));
 
   EXPECT_THAT(schema.GetSchema(), EqualsProto(expected_schema));
   // We're not particular about the description, just that there be one.
   EXPECT_FALSE(descriptions.empty());
   // Drift is always an error.
   EXPECT_EQ(tensorflow::metadata::v0::AnomalyInfo::ERROR, severity);
+  ASSERT_TRUE(drift_skew_info.has_value());
+  EXPECT_THAT(
+      *drift_skew_info,
+      EqualsProto(
+          ParseTextProtoOrDie<tensorflow::metadata::v0::DriftSkewInfo>(R"(
+            path { step: [ "foo" ] }
+            drift_measurements {
+              type: L_INFTY
+              value: 0.19999999999999998
+              threshold: 0.1
+            }
+          )")));
 }
 
 TEST(SchemaTest, FindNumExamplesDrift) {
@@ -1784,9 +1808,11 @@ TEST(SchemaTest, UpdateStruct) {
   DatasetStatsView view(stats);
   std::vector<Description> descriptions;
   metadata::v0::AnomalyInfo::Severity severity;
-  TF_ASSERT_OK(schema.UpdateFeature(
-      Schema::Updater(FeatureStatisticsToProtoConfig()),
-      *view.GetByPath(Path({"struct"})), &descriptions, &severity));
+  absl::optional<tensorflow::metadata::v0::DriftSkewInfo> drift_skew_info;
+  TF_ASSERT_OK(
+      schema.UpdateFeature(Schema::Updater(FeatureStatisticsToProtoConfig()),
+                           *view.GetByPath(Path({"struct"})), &descriptions,
+                           &drift_skew_info, &severity));
   EXPECT_THAT(schema.GetSchema(), EqualsProto(initial));
 }
 

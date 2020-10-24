@@ -258,30 +258,42 @@ bool FeatureTypeIsDeprecated(const T& feature) {
   return false;
 }
 
+struct SingleFeatureComparisonResult {
+  absl::optional<Description> description;
+  absl::optional<tensorflow::metadata::v0::DriftSkewInfo::Measurement>
+      measurement;
+};
+
 // If the comparator contains an infinity norm threshold, checks whether the
 // L-infinity distance between the stats and control stats is within that
 // threshold. If not, updates the comparator and returns a description of the
 // anomaly.
-absl::optional<Description> UpdateInfinityNormComparator(
+SingleFeatureComparisonResult UpdateInfinityNormComparator(
     const FeatureStatsView& stats, const FeatureStatsView& control_stats,
     const ComparatorContext& context,
     tensorflow::metadata::v0::FeatureComparator* comparator) {
+  SingleFeatureComparisonResult result;
   if (!comparator->infinity_norm().has_threshold()) {
-    return absl::nullopt;
+    return result;
   }
   const double linf_threshold = comparator->infinity_norm().threshold();
   const std::pair<std::string, double> linf_distance =
       LInftyDistance(stats, control_stats);
   const std::string max_difference_value = linf_distance.first;
   const double stats_infinity_norm = linf_distance.second;
+  result.measurement.emplace();
+  result.measurement->set_value(stats_infinity_norm);
+  result.measurement->set_threshold(linf_threshold);
+  result.measurement->set_type(
+      metadata::v0::DriftSkewInfo_Measurement_Type_L_INFTY);
   if (stats_infinity_norm <= linf_threshold) {
-    return absl::nullopt;
+    return result;
   }
   // TODO(b/68711199): Add support for Linf with numeric features, or log a
   // warning where the user has specified an infinity_norm threshold for a
   // numeric feature.
   comparator->mutable_infinity_norm()->set_threshold(stats_infinity_norm);
-  return Description(
+  result.description = Description(
       {tensorflow::metadata::v0::AnomalyInfo::COMPARATOR_L_INFTY_HIGH,
        absl::StrCat("High Linfty distance between ", context.treatment_name,
                     " and ", context.control_name),
@@ -292,18 +304,20 @@ absl::optional<Description> UpdateInfinityNormComparator(
                     absl::SixDigits(linf_threshold),
                     ". The feature value with maximum difference is: ",
                     max_difference_value)});
+  return result;
 }
 
 // If the comparator contains a Jensen-Shannon Divergence threshold, checks
 // whether the approximate Jensen-Shannon Divergence between the stats and
 // control stats is within that threshold. If not, updates the comparator and
 // returns a description of the anomaly.
-absl::optional<Description> UpdateJensenShannonDivergenceComparator(
+SingleFeatureComparisonResult UpdateJensenShannonDivergenceComparator(
     const FeatureStatsView& stats, const FeatureStatsView& control_stats,
     const ComparatorContext& context,
     tensorflow::metadata::v0::FeatureComparator* comparator) {
+  SingleFeatureComparisonResult result;
   if (!comparator->jensen_shannon_divergence().has_threshold()) {
-    return absl::nullopt;
+    return result;
   }
   const double jensen_shannon_threshold =
       comparator->jensen_shannon_divergence().threshold();
@@ -311,8 +325,13 @@ absl::optional<Description> UpdateJensenShannonDivergenceComparator(
   if (UpdateJensenShannonDivergenceResult(stats, control_stats,
                                           jensen_shannon_divergence)
           .ok()) {
+    result.measurement.emplace();
+    result.measurement->set_value(jensen_shannon_divergence);
+    result.measurement->set_threshold(jensen_shannon_threshold);
+    result.measurement->set_type(
+        metadata::v0::DriftSkewInfo_Measurement_Type_JENSEN_SHANNON_DIVERGENCE);
     if (jensen_shannon_divergence > jensen_shannon_threshold) {
-      return Description(
+      result.description = Description(
           {tensorflow::metadata::v0::AnomalyInfo::
                COMPARATOR_JENSEN_SHANNON_DIVERGENCE_HIGH,
            absl::StrCat("High approximate Jensen-Shannon divergence between ",
@@ -332,7 +351,7 @@ absl::optional<Description> UpdateJensenShannonDivergenceComparator(
                     "jensen_shannon_divergence can be specified for a "
                     "numeric feature only.";
   }
-  return absl::nullopt;
+  return result;
 }
 
 }  // namespace
@@ -361,32 +380,38 @@ bool WeightedFeatureIsDeprecated(const WeightedFeature& weighted_feature) {
   return LifecycleStageIsDeprecated(weighted_feature.lifecycle_stage());
 }
 
-std::vector<Description> UpdateFeatureComparatorDirect(
+FeatureComparisonResult UpdateFeatureComparatorDirect(
     const FeatureStatsView& stats, const FeatureComparatorType comparator_type,
     tensorflow::metadata::v0::FeatureComparator* comparator) {
+  FeatureComparisonResult result;
   if (!comparator->infinity_norm().has_threshold() &&
       !comparator->jensen_shannon_divergence().has_threshold()) {
     // There is nothing to check.
-    return {};
+    return result;
   }
   const ComparatorContext& context = GetContext(comparator_type);
   const absl::optional<FeatureStatsView> control_stats =
       GetControlStats(stats, comparator_type);
   if (control_stats) {
-    std::vector<Description> description;
-    const absl::optional<Description> linfty_description =
+    const SingleFeatureComparisonResult linfty_result =
         UpdateInfinityNormComparator(stats, control_stats.value(), context,
                                      comparator);
-    if (linfty_description) {
-      description.push_back(linfty_description.value());
+    if (linfty_result.description) {
+      result.descriptions.push_back(*linfty_result.description);
     }
-    const absl::optional<Description> jensen_shannon_description =
+    if (linfty_result.measurement) {
+      result.measurements.push_back(*linfty_result.measurement);
+    }
+    const SingleFeatureComparisonResult jensen_shannon_result =
         UpdateJensenShannonDivergenceComparator(stats, control_stats.value(),
                                                 context, comparator);
-    if (jensen_shannon_description) {
-      description.push_back(jensen_shannon_description.value());
+    if (jensen_shannon_result.description) {
+      result.descriptions.push_back(*jensen_shannon_result.description);
     }
-    return description;
+    if (jensen_shannon_result.measurement) {
+      result.measurements.push_back(*jensen_shannon_result.measurement);
+    }
+    return result;
 
   } else if (HasControlDataset(stats, comparator_type)) {
     // If there is a control dataset, but that dataset does not contain
@@ -398,13 +423,15 @@ std::vector<Description> UpdateFeatureComparatorDirect(
     if (comparator->jensen_shannon_divergence().has_threshold()) {
       comparator->mutable_jensen_shannon_divergence()->clear_threshold();
     }
-    return {{AnomalyInfo::COMPARATOR_CONTROL_DATA_MISSING,
-             absl::StrCat(context.control_name, " data missing"),
-             absl::StrCat(context.control_name, " data is missing.")}};
+    result.descriptions = {
+        {AnomalyInfo::COMPARATOR_CONTROL_DATA_MISSING,
+         absl::StrCat(context.control_name, " data missing"),
+         absl::StrCat(context.control_name, " data is missing.")}};
+    return result;
   }
   // If there is no control dataset at all, return without generating an
   // anomaly.
-  return {};
+  return result;
 }
 
 double GetMaxOffDomain(const tensorflow::metadata::v0::DistributionConstraints&

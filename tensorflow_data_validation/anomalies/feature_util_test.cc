@@ -188,12 +188,14 @@ TEST(FeatureUtilTest,
   FeatureComparator comparator = ParseTextProtoOrDie<FeatureComparator>(R"(
     infinity_norm: { threshold: 0.1 })");
 
-  UpdateFeatureComparatorDirect(feature_stats_view,
-                                FeatureComparatorType::DRIFT, &comparator);
+  auto result = UpdateFeatureComparatorDirect(
+      feature_stats_view, FeatureComparatorType::DRIFT, &comparator);
 
   FeatureComparator expected_comparator =
       ParseTextProtoOrDie<FeatureComparator>(R"(infinity_norm: {})");
   EXPECT_THAT(comparator, EqualsProto(expected_comparator));
+  // No comparison was done, thus no distance was measured.
+  EXPECT_TRUE(result.measurements.empty());
 }
 
 TEST(FeatureUtilTest,
@@ -231,9 +233,10 @@ TEST(FeatureUtilTest,
     infinity_norm: { threshold: 0.1 }
     jensen_shannon_divergence: { threshold: 0.1 })");
 
-  std::vector<Description> actual_descriptions = UpdateFeatureComparatorDirect(
+  auto result = UpdateFeatureComparatorDirect(
       feature_stats_view, FeatureComparatorType::DRIFT, &comparator);
 
+  const std::vector<Description>& actual_descriptions = result.descriptions;
   EXPECT_EQ(actual_descriptions.size(), 1);
   EXPECT_EQ(
       actual_descriptions[0].type,
@@ -244,6 +247,9 @@ TEST(FeatureUtilTest,
   // Confirm that missing control data clears the comparator threshold.
   EXPECT_FALSE(comparator.infinity_norm().has_threshold());
   EXPECT_FALSE(comparator.jensen_shannon_divergence().has_threshold());
+
+  // No comparison was done, thus no distance was measured.
+  EXPECT_TRUE(result.measurements.empty());
 }
 
 TEST(FeatureUtilTest,
@@ -271,12 +277,15 @@ TEST(FeatureUtilTest,
   FeatureComparator comparator;
   comparator.CopyFrom(original_comparator);
 
-  std::vector<Description> actual_descriptions = UpdateFeatureComparatorDirect(
+  auto result = UpdateFeatureComparatorDirect(
       feature_stats_view, FeatureComparatorType::DRIFT, &comparator);
-
+  const std::vector<Description>& actual_descriptions = result.descriptions;
   // The comparator is not changed, and no anomalies are generated.
   EXPECT_THAT(comparator, EqualsProto(original_comparator));
   EXPECT_EQ(actual_descriptions.size(), 0);
+
+  // No comparison was done, thus no distance was measured.
+  EXPECT_TRUE(result.measurements.empty());
 }
 
 TEST(FeatureUtilTest, UpdateUniqueConstraintsNoChange) {

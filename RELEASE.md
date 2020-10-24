@@ -5,6 +5,10 @@
 ## Major Features and Improvements
 
 *   Add support for detecting drift and distribution skew in numeric features.
+*   `tfdv.validate_statistics` now also reports the raw measurements of
+    distribution skew/drift (if any is done), regardless whether skew/drift
+    is detected. The report is in the `drift_skew_info` of the `Anomalies`
+    proto (return value of `validate_statistics`).
 
 ## Bug Fixes and Other Changes
 *  Added `tfdv.load_stats_binary` to load stats what were written using
