@@ -71,7 +71,7 @@ follows:
 ```sh
 pip download tensorflow_data_validation \
   --no-deps \
-  --platform manylinux1_x86_64 \
+  --platform manylinux2010_x86_64 \
   --only-binary=:all:
 
 ```
