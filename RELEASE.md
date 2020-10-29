@@ -6,11 +6,25 @@
 
 *   Add support for detecting drift and distribution skew in numeric features.
 *   `tfdv.validate_statistics` now also reports the raw measurements of
-    distribution skew/drift (if any is done), regardless whether skew/drift
-    is detected. The report is in the `drift_skew_info` of the `Anomalies`
-    proto (return value of `validate_statistics`).
+    distribution skew/drift (if any is done), regardless whether skew/drift is
+    detected. The report is in the `drift_skew_info` of the `Anomalies` proto
+    (return value of `validate_statistics`).
+*   From this release TFDV will also be hosting nightly packages on
+    https://pypi-nightly.tensorflow.org. To install the nightly package use the
+    following command:
+
+    ```
+    pip install -i https://pypi-nightly.tensorflow.org/simple tensorflow-data-validation
+    ```
+
+    Note: These nightly packages are unstable and breakages are likely to
+    happen. The fix could often take a week or more depending on the complexity
+    involved for the wheels to be available on the PyPI cloud service. You can
+    always use the stable version of TFDV available on PyPI by running the
+    command `pip install tensorflow-data-validation` .
 
 ## Bug Fixes and Other Changes
+
 *  Added `tfdv.load_stats_binary` to load stats what were written using
    `tfdv.WriteStatisticsToText` (now `tfdv.WriteStatisticsToBinaryFile`).
 
