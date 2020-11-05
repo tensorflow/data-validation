@@ -4,6 +4,16 @@
 
 ## Major Features and Improvements
 
+## Bug Fixes and Other Changes
+
+## Breaking changes
+
+## Deprecations
+
+# Version 0.25.0
+
+## Major Features and Improvements
+
 *   Add support for detecting drift and distribution skew in numeric features.
 *   `tfdv.validate_statistics` now also reports the raw measurements of
     distribution skew/drift (if any is done), regardless whether skew/drift is
@@ -25,17 +35,21 @@
 
 ## Bug Fixes and Other Changes
 
-*  Added `tfdv.load_stats_binary` to load stats what were written using
-   `tfdv.WriteStatisticsToText` (now `tfdv.WriteStatisticsToBinaryFile`).
-
+*   Added `tfdv.load_stats_binary` to load stats what were written using
+    `tfdv.WriteStatisticsToText` (now `tfdv.WriteStatisticsToBinaryFile`).
 *   Anomalies previously (un)classified as UKNOWN_TYPE now trigger more specific
     anomaly types: DOMAIN_INVALID_FOR_TYPE, UNEXPECTED_DATA_TYPE,
     FEATURE_MISSING_NAME, FEATURE_MISSING_TYPE, INVALID_SCHEMA_SPECIFICATION
-
-*  Fixed a bug that `import tensorflow_data_validation` would fail if IPython
-   is not installed. IPython is an optional dependency of TFDV.
+*   Fixed a bug that `import tensorflow_data_validation` would fail if IPython
+    is not installed. IPython is an optional dependency of TFDV.
+*   Depends on `apache-beam[gcp]>=2.25,<3`.
+*   Depends on `tensorflow-metadata>=0.25,<0.26`.
+*   Depends on `tensorflow-transform>=0.25,<0.26`.
+*   Depends on `tfx-bsl>=0.25,<0.26`.
 
 ## Known Issues
+
+*   N/A
 
 ## Breaking Changes
 
@@ -44,6 +58,8 @@
     be removed in a future release.
 
 ## Deprecations
+
+*   N/A
 
 # Version 0.24.1
 
