@@ -89,14 +89,14 @@ struct LifecycleStageIsDeprecatedTest {
 
 std::vector<LifecycleStageIsDeprecatedTest>
 GetLifecycleStageIsDeprecatedTests() {
-  return {
-      {tensorflow::metadata::v0::DEPRECATED, true},
-      {tensorflow::metadata::v0::ALPHA, true},
-      {tensorflow::metadata::v0::PLANNED, true},
-      {tensorflow::metadata::v0::DEBUG_ONLY, true},
-      {tensorflow::metadata::v0::PRODUCTION, false},
-      {tensorflow::metadata::v0::BETA, false},
-      {tensorflow::metadata::v0::UNKNOWN_STAGE, false}};
+  return {{tensorflow::metadata::v0::DEPRECATED, true},
+          {tensorflow::metadata::v0::DISABLED, true},
+          {tensorflow::metadata::v0::ALPHA, true},
+          {tensorflow::metadata::v0::PLANNED, true},
+          {tensorflow::metadata::v0::DEBUG_ONLY, true},
+          {tensorflow::metadata::v0::PRODUCTION, false},
+          {tensorflow::metadata::v0::BETA, false},
+          {tensorflow::metadata::v0::UNKNOWN_STAGE, false}};
 }
 
 TEST(FeatureUtilTest, LifecycleStageIsDeprecated) {

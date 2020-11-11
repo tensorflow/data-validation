@@ -5,6 +5,8 @@
 ## Major Features and Improvements
 
 ## Bug Fixes and Other Changes
+*  Newly added LifecycleStage.DISABLED is now exempt from validation (similar
+   to LifecycleStage.DEPRECATED, etc).
 
 ## Breaking changes
 

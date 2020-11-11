@@ -227,6 +227,7 @@ bool LifecycleStageIsDeprecated(const metadata::v0::LifecycleStage stage) {
     case tensorflow::metadata::v0::ALPHA:
     case tensorflow::metadata::v0::DEPRECATED:
     case tensorflow::metadata::v0::DEBUG_ONLY:
+    case tensorflow::metadata::v0::DISABLED:
       return true;
     case tensorflow::metadata::v0::UNKNOWN_STAGE:
     case tensorflow::metadata::v0::BETA:
