@@ -1010,5 +1010,84 @@ class TopKUniquesSketchStatsGeneratorTest(
         weight_feature='w', num_top_values=4, num_rank_histogram_buckets=3)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
+  def test_topk_uniques_sketch_with_weights_custom_stats(self):
+    # non-weighted ordering
+    # 3 'a', 2 'e', 2 'd', 2 'c', 1 'b'
+    # weighted ordering
+    # fa: 20 'e', 20 'd', 15 'a', 10 'c', 5 'b'
+    batches = [
+        pa.RecordBatch.from_arrays([
+            pa.array([['a', 'b', 'c', 'e'], ['a', 'c', 'd', 'a']]),
+            pa.array([[5.0], [5.0]]),
+        ], ['fa', 'w']),
+        pa.RecordBatch.from_arrays([
+            pa.array([['d', 'e']]),
+            pa.array([[15.0]]),
+        ], ['fa', 'w']),
+    ]
+    expected_result = {
+        types.FeaturePath(['fa']):
+            text_format.Parse(
+                """
+                path {
+                  step: 'fa'
+                }
+                type: STRING
+                custom_stats {
+                  name: 'topk_sketch_rank_histogram'
+                  rank_histogram {
+                    buckets {
+                      low_rank: 0
+                      high_rank: 0
+                      label: "a"
+                      sample_count: 3.0
+                    }
+                    buckets {
+                      low_rank: 1
+                      high_rank: 1
+                      label: "e"
+                      sample_count: 2.0
+                    }
+                    buckets {
+                      low_rank: 2
+                      high_rank: 2
+                      label: "d"
+                      sample_count: 2.0
+                    }
+                  }
+                }
+                custom_stats {
+                  name: 'weighted_topk_sketch_rank_histogram'
+                    rank_histogram {
+                      buckets {
+                        low_rank: 0
+                        high_rank: 0
+                        label: "e"
+                        sample_count: 20.0
+                      }
+                      buckets {
+                        low_rank: 1
+                        high_rank: 1
+                        label: "d"
+                        sample_count: 20.0
+                      }
+                      buckets {
+                        low_rank: 2
+                        high_rank: 2
+                        label: "a"
+                        sample_count: 15.0
+                      }
+                    }
+                }
+                custom_stats {
+                  name: 'uniques_sketch_num_uniques'
+                  num: 5
+                }""", statistics_pb2.FeatureNameStatistics())
+    }
+    generator = sketch_generator.TopKUniquesSketchStatsGenerator(
+        weight_feature='w', num_top_values=4, num_rank_histogram_buckets=3,
+        store_output_in_custom_stats=True)
+    self.assertCombinerOutputEqual(batches, generator, expected_result)
+
 if __name__ == '__main__':
   absltest.main()

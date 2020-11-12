@@ -97,7 +97,8 @@ class TopKUniquesSketchStatsGenerator(stats_generator.CombinerStatsGenerator):
       frequency_threshold: int = 1,
       weighted_frequency_threshold: float = 1.0,
       num_misragries_buckets: int = 128,
-      num_kmv_buckets: int = 128
+      num_kmv_buckets: int = 128,
+      store_output_in_custom_stats: bool = False
   ):
     """Initializes a top-k and uniques sketch combiner statistics generator.
 
@@ -117,7 +118,9 @@ class TopKUniquesSketchStatsGenerator(stats_generator.CombinerStatsGenerator):
         to 1.0).
       num_misragries_buckets: Number of buckets to use for MisraGries sketch.
       num_kmv_buckets: Number of buckets to use for KMV sketch.
-
+      store_output_in_custom_stats: Boolean to indicate if the output stats need
+        to be stored in custom stats. If False, the output is stored in
+        `uniques` and `rank_histogram` fields.
     """
     super(
         TopKUniquesSketchStatsGenerator,
@@ -132,6 +135,7 @@ class TopKUniquesSketchStatsGenerator(stats_generator.CombinerStatsGenerator):
         schema_util.get_categorical_numeric_features(schema) if schema else [])
     self._frequency_threshold = frequency_threshold
     self._weighted_frequency_threshold = weighted_frequency_threshold
+    self._store_output_in_custom_stats = store_output_in_custom_stats
 
   def _update_combined_sketch_for_feature(
       self, feature_name: tfdv_types.FeaturePath, values: pa.Array,
@@ -199,8 +203,15 @@ class TopKUniquesSketchStatsGenerator(stats_generator.CombinerStatsGenerator):
       if not combined_estimate.topk_unweighted:
         assert not combined_estimate.topk_weighted
         continue
+      make_feature_stats_proto = (
+          top_k_uniques_stats_util.make_feature_stats_proto_topk_uniques)
+      if self._store_output_in_custom_stats:
+        make_feature_stats_proto = (
+            top_k_uniques_stats_util.
+            make_feature_stats_proto_topk_uniques_custom_stats)
+
       feature_stats_proto = (
-          top_k_uniques_stats_util.make_feature_stats_proto_topk_uniques(
+          make_feature_stats_proto(
               feature_path=feature_path,
               is_categorical=feature_path in self._categorical_features,
               frequency_threshold=self._frequency_threshold,

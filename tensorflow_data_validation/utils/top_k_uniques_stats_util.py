@@ -33,6 +33,11 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 FeatureValueCount = collections.namedtuple('FeatureValueCount',
                                            ['feature_value', 'count'])
 
+# Custom stats names.
+_TOPK_SKETCH_CUSTOM_STATS_NAME = 'topk_sketch_rank_histogram'
+_WEIGHTED_TOPK_SKETCH_CUSTOM_STATS_NAME = 'weighted_topk_sketch_rank_histogram'
+_UNIQUES_SKETCH_CUSTOM_STATS_NAME = 'uniques_sketch_num_uniques'
+
 # Beam counter to track the number of non-utf8 values.
 _NON_UTF8_VALUES_COUNTER = beam.metrics.Metrics.counter(
     constants.METRICS_NAMESPACE, 'num_non_utf8_values_topk_uniques_generator')
@@ -64,6 +69,7 @@ def make_feature_stats_proto_topk_uniques(
       must be present in.
     weighted_frequency_threshold: The minimum weighted number of examples the
       most frequent weighted values must be present in. Optional.
+
   Returns:
     A FeatureNameStatistics proto containing the top-k and uniques stats.
   """
@@ -89,6 +95,78 @@ def make_feature_stats_proto_topk_uniques(
 
   # Add the number of uniques to the FeatureNameStatistics proto.
   result.string_stats.unique = num_unique
+  return result
+
+
+def make_feature_stats_proto_topk_uniques_custom_stats(
+    feature_path: types.FeaturePath, is_categorical: bool,
+    num_top_values: int, num_rank_histogram_buckets: int,
+    num_unique: int,
+    value_count_list: List[FeatureValueCount],
+    weighted_value_count_list: Optional[List[FeatureValueCount]] = None,
+    frequency_threshold: int = 1,
+    weighted_frequency_threshold: Optional[float] = None
+    ) -> statistics_pb2.FeatureNameStatistics:
+  """Makes a FeatureNameStatistics proto containing top-k and uniques stats.
+
+  Args:
+    feature_path: The path of the feature.
+    is_categorical: Whether the feature is categorical.
+    num_top_values: The number of most frequent feature values to keep for
+      string features.
+    num_rank_histogram_buckets: The number of buckets in the rank histogram for
+      string features.
+    num_unique: The number of unique values in the feature.
+    value_count_list: A list of FeatureValueCount tuples.
+    weighted_value_count_list: An optional list of FeatureValueCount tuples for
+      weighted features.
+    frequency_threshold: The minimum number of examples the most frequent values
+      must be present in.
+    weighted_frequency_threshold: The minimum weighted number of examples the
+      most frequent weighted values must be present in. Optional.
+
+  Returns:
+    A FeatureNameStatistics proto containing the top-k and uniques stats.
+  """
+
+  result = statistics_pb2.FeatureNameStatistics()
+  result.path.CopyFrom(feature_path.to_proto())
+  # If we have a categorical feature, we preserve the type to be the original
+  # INT type.
+  result.type = (statistics_pb2.FeatureNameStatistics.INT if is_categorical
+                 else statistics_pb2.FeatureNameStatistics.STRING)
+
+  # Create a FeatureNameStatistics proto that includes the unweighted top-k
+  # stats.
+  topk_stats = _make_feature_stats_proto_topk(
+      feature_path, value_count_list, is_categorical, False, num_top_values,
+      frequency_threshold, num_rank_histogram_buckets)
+
+  # Topk rank histogram.
+  topk_custom_stats = result.custom_stats.add(
+      name=_TOPK_SKETCH_CUSTOM_STATS_NAME)
+  topk_custom_stats.rank_histogram.CopyFrom(
+      topk_stats.string_stats.rank_histogram)
+
+  # If weights were provided, create another FeatureNameStatistics proto that
+  # includes the weighted top-k stats, and then copy those weighted top-k stats
+  # into the result proto.
+  if weighted_value_count_list:
+    assert weighted_frequency_threshold is not None
+    weighted_topk_stats = _make_feature_stats_proto_topk(
+        feature_path, weighted_value_count_list, is_categorical, True,
+        num_top_values, weighted_frequency_threshold,
+        num_rank_histogram_buckets)
+
+    # Weighted Topk rank histogram.
+    weighted_topk_custom_stats = result.custom_stats.add(
+        name=_WEIGHTED_TOPK_SKETCH_CUSTOM_STATS_NAME)
+    weighted_topk_custom_stats.rank_histogram.CopyFrom(
+        weighted_topk_stats.string_stats.weighted_string_stats.rank_histogram)
+
+  # Add the number of uniques to the FeatureNameStatistics proto.
+  result.custom_stats.add(
+      name=_UNIQUES_SKETCH_CUSTOM_STATS_NAME, num=num_unique)
   return result
 
 

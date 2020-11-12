@@ -116,6 +116,75 @@ class TopKUniquesStatsUtilTest(absltest.TestCase):
             weighted_value_count_list=top_k_value_count_list_weighted))
     test_util.assert_feature_proto_equal(self, result, expected_result)
 
+  def test_make_feature_stats_proto_topk_uniques_custom_stats(self):
+    expected_result = text_format.Parse(
+        """
+        path {
+            step: "fa"
+          }
+        type: STRING
+        custom_stats {
+          name: "topk_sketch_rank_histogram"
+          rank_histogram {
+            buckets {
+              label: "a"
+              sample_count: 3.0
+            }
+            buckets {
+              low_rank: 1
+              high_rank: 1
+              label: "e"
+              sample_count: 2.0
+            }
+          }
+        }
+        custom_stats {
+          name: "weighted_topk_sketch_rank_histogram"
+          rank_histogram {
+              buckets {
+                label: "e"
+                sample_count: 20.0
+              }
+              buckets {
+                low_rank: 1
+                high_rank: 1
+                label: "d"
+                sample_count: 20.0
+              }
+          }
+        }
+        custom_stats {
+          name: "uniques_sketch_num_uniques"
+          num: 5
+        }
+        """, statistics_pb2.FeatureNameStatistics())
+
+    unweighted_value_counts = [('a', 3), ('e', 2), ('d', 2), ('c', 2), ('b', 1)]
+    weighted_value_counts = [
+        ('e', 20), ('d', 20), ('a', 15), ('c', 10), ('b', 5)]
+    top_k_value_count_list = [
+        top_k_uniques_stats_util.FeatureValueCount(
+            value_count[0], value_count[1])
+        for value_count in unweighted_value_counts
+    ]
+    top_k_value_count_list_weighted = [
+        top_k_uniques_stats_util.FeatureValueCount(
+            value_count[0], value_count[1])
+        for value_count in weighted_value_counts
+    ]
+    result = (
+        top_k_uniques_stats_util.
+        make_feature_stats_proto_topk_uniques_custom_stats(
+            types.FeaturePath(['fa']),
+            is_categorical=False,
+            num_top_values=3, frequency_threshold=1,
+            weighted_frequency_threshold=1.,
+            num_rank_histogram_buckets=2,
+            num_unique=5,
+            value_count_list=top_k_value_count_list,
+            weighted_value_count_list=top_k_value_count_list_weighted))
+    test_util.assert_feature_proto_equal(self, result, expected_result)
+
   def test_make_feature_stats_proto_topk_uniques_categorical(self):
     expected_result = text_format.Parse(
         """
