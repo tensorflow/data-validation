@@ -17,11 +17,6 @@
 This generator computes these values for string and categorical features.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-
-from __future__ import print_function
-
 from typing import Any, FrozenSet, Iterable, Iterator, Optional, Text, Tuple, Union
 import apache_beam as beam
 import numpy as np
@@ -34,6 +29,7 @@ from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
 from tensorflow_data_validation.utils import top_k_uniques_stats_util
+from tensorflow_data_validation.utils.example_weight_map import ExampleWeightMap
 from tfx_bsl.arrow import array_util
 
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -70,15 +66,16 @@ def _to_topk_tuples(
     sliced_record_batch: Tuple[types.SliceKey, pa.RecordBatch],
     bytes_features: FrozenSet[types.FeaturePath],
     categorical_features: FrozenSet[types.FeaturePath],
-    weight_feature: Optional[Text]
+    example_weight_map: ExampleWeightMap,
 ) -> Iterable[Tuple[Tuple[types.SliceKey, types.FeaturePathTuple, Any], Union[
     int, Tuple[int, Union[int, float]]]]]:
   """Generates tuples for computing top-k and uniques from the input."""
   slice_key, record_batch = sliced_record_batch
 
+  has_any_weight = bool(example_weight_map.all_weight_features())
   for feature_path, feature_array, weights in arrow_util.enumerate_arrays(
       record_batch,
-      weight_column=weight_feature,
+      example_weight_map=example_weight_map,
       enumerate_leaves_only=True):
     feature_array_type = feature_array.type
     feature_type = stats_util.get_feature_type_from_arrow_type(
@@ -103,23 +100,27 @@ def _to_topk_tuples(
         value_counts = array_util.ValueCounts(flattened_values)
         values = value_counts.field('values').to_pylist()
         counts = value_counts.field('counts').to_pylist()
-        for value, count in six.moves.zip(values, counts):
-          yield ((slice_key, feature_path.steps(), value), count)
+        if has_any_weight:
+          for value, count in six.moves.zip(values, counts):
+            yield ((slice_key, feature_path.steps(), value), (count, 1))
+        else:
+          for value, count in six.moves.zip(values, counts):
+            yield ((slice_key, feature_path.steps(), value), count)
 
 
 class _ComputeTopKUniquesStats(beam.PTransform):
   """A ptransform that computes top-k and uniques for string features."""
 
   def __init__(self, schema: schema_pb2.Schema,
-               weight_feature: types.FeatureName, num_top_values: int,
+               example_weight_map: ExampleWeightMap, num_top_values: int,
                frequency_threshold: int, weighted_frequency_threshold: float,
                num_rank_histogram_buckets: int):
     """Initializes _ComputeTopKUniquesStats.
 
     Args:
       schema: An schema for the dataset. None if no schema is available.
-      weight_feature: Feature name whose numeric value represents the weight
-          of an example. None if there is no weight feature.
+      example_weight_map: an ExampleWeightMap that maps a FeaturePath to its
+          corresponding weight column.
       num_top_values: The number of most frequent feature values to keep for
           string features.
       frequency_threshold: The minimum number of examples the most frequent
@@ -133,7 +134,7 @@ class _ComputeTopKUniquesStats(beam.PTransform):
         schema_util.get_bytes_features(schema) if schema else [])
     self._categorical_features = frozenset(
         schema_util.get_categorical_numeric_features(schema) if schema else [])
-    self._weight_feature = weight_feature
+    self._example_weight_map = example_weight_map
     self._num_top_values = num_top_values
     self._frequency_threshold = frequency_threshold
     self._weighted_frequency_threshold = weighted_frequency_threshold
@@ -155,7 +156,8 @@ class _ComputeTopKUniquesStats(beam.PTransform):
             iter_of_pairs, dtype=[('c', np.int64), ('w', np.float)])
       return arr['c'].sum(), arr['w'].sum()
 
-    if self._weight_feature is not None:
+    has_any_weight = bool(self._example_weight_map.all_weight_features())
+    if has_any_weight:
       sum_fn = _sum_pairwise
     else:
       # For non-weighted case, use sum combine fn over integers to allow Beam
@@ -167,13 +169,13 @@ class _ComputeTopKUniquesStats(beam.PTransform):
             _to_topk_tuples,
             bytes_features=self._bytes_features,
             categorical_features=self._categorical_features,
-            weight_feature=self._weight_feature)
+            example_weight_map=self._example_weight_map)
         | 'CombineCountsAndWeights' >> beam.CombinePerKey(sum_fn)
         | 'Rearrange' >> beam.MapTuple(lambda k, v: ((k[0], k[1]), (v, k[2]))))
     # (slice_key, feature_path_steps), (count_and_maybe_weight, value)
 
     top_k = top_k_tuples_combined
-    if self._weight_feature is not None:
+    if has_any_weight:
       top_k |= 'Unweighted_DropWeightsAndRearrange' >> beam.MapTuple(
           lambda k, v: (k, (v[0][0], v[1])))
       # (slice_key, feature_path_steps), (count, value)
@@ -225,7 +227,7 @@ class _ComputeTopKUniquesStats(beam.PTransform):
 
     result_protos = [top_k, uniques]
 
-    if self._weight_feature is not None:
+    if has_any_weight:
       weighted_top_k = (
           top_k_tuples_combined
           | 'Weighted_DropCountsAndRearrange'
@@ -269,7 +271,7 @@ class TopKUniquesStatsGenerator(stats_generator.TransformStatsGenerator):
   def __init__(self,
                name: Text = 'TopKUniquesStatsGenerator',
                schema: Optional[schema_pb2.Schema] = None,
-               weight_feature: Optional[types.FeatureName] = None,
+               example_weight_map: ExampleWeightMap = ExampleWeightMap(),
                num_top_values: int = 2,
                frequency_threshold: int = 1,
                weighted_frequency_threshold: float = 1.0,
@@ -279,7 +281,7 @@ class TopKUniquesStatsGenerator(stats_generator.TransformStatsGenerator):
     Args:
       name: An optional unique name associated with the statistics generator.
       schema: An optional schema for the dataset.
-      weight_feature: An optional feature name whose numeric value
+      example_weight_map: An optional feature name whose numeric value
           (must be of type INT or FLOAT) represents the weight of an example.
       num_top_values: An optional number of most frequent feature values to keep
           for string features (defaults to 2).
@@ -296,7 +298,7 @@ class TopKUniquesStatsGenerator(stats_generator.TransformStatsGenerator):
         schema=schema,
         ptransform=_ComputeTopKUniquesStats(
             schema=schema,
-            weight_feature=weight_feature,
+            example_weight_map=example_weight_map,
             num_top_values=num_top_values,
             frequency_threshold=frequency_threshold,
             weighted_frequency_threshold=weighted_frequency_threshold,

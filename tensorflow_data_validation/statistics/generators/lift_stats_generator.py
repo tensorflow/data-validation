@@ -34,11 +34,6 @@ Y, where Y is a single, user-configured feature and X is either a manually
 specified list of features, or all categorical features in the provided schema.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-
-from __future__ import print_function
-
 import collections
 import operator
 import typing
@@ -56,6 +51,7 @@ from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import bin_util
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
+from tensorflow_data_validation.utils.example_weight_map import ExampleWeightMap
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -191,7 +187,7 @@ def _to_partial_copresence_counts(
     y_path: types.FeaturePath,
     x_paths: Iterable[types.FeaturePath],
     y_boundaries: Optional[np.ndarray],
-    weight_column_name: Optional[Text],
+    example_weight_map: ExampleWeightMap,
     num_xy_pairs_batch_copresent: Optional[
         beam.metrics.metric.Metrics.DelegatingDistribution] = None
 ) -> Iterator[Tuple[_SlicedXYKey, _CountType]]:
@@ -209,9 +205,8 @@ def _to_partial_copresence_counts(
     x_paths: A set of x_paths for which to compute lift.
     y_boundaries: Optionally, a set of bin boundaries to use for binning y_path
       values.
-    weight_column_name: Optionally, a weight column to use for weighting
-      copresence counts by the example weight in which an X and Y value were
-      copresent.
+    example_weight_map: an ExampleWeightMap that maps a FeaturePath to its
+        corresponding weight column.
     num_xy_pairs_batch_copresent: A counter tracking the number of different xy
       pairs that are copresent within each batch. If the same pair of xy values
       are copresent in more than one batch, this counter will be incremented
@@ -230,6 +225,7 @@ def _to_partial_copresence_counts(
   for example_index, y in zip(y_presence.example_indices, y_presence.values):
     ys_by_example[example_index].append(y)
   for x_path in x_paths:
+    weight_column_name = example_weight_map.get(x_path)
     x_presence = _get_example_value_presence(
         record_batch,
         x_path,
@@ -237,7 +233,7 @@ def _to_partial_copresence_counts(
         weight_column_name=weight_column_name)
     if x_presence is None:
       continue
-    if weight_column_name:
+    if weight_column_name is not None:
       copresence_counts = collections.defaultdict(float)
     else:
       copresence_counts = collections.defaultdict(int)
@@ -264,7 +260,7 @@ def _to_partial_counts(
   if value_presence is None:
     return value_presence
 
-  if weight_column_name:
+  if weight_column_name is not None:
     grouped_values = collections.defaultdict(float)
   else:
     grouped_values = collections.defaultdict(int)
@@ -278,7 +274,7 @@ def _to_partial_counts(
 
 def _to_partial_x_counts(
     sliced_record_batch: types.SlicedRecordBatch,
-    x_paths: Iterable[types.FeaturePath], weight_column_name: Optional[Text]
+    x_paths: Iterable[types.FeaturePath], example_weight_map: ExampleWeightMap
 ) -> Iterator[Tuple[_SlicedXKey, _CountType]]:
   """Yields per-(slice, x_path, x) counts of the examples with x in x_path."""
   for x_path in x_paths:
@@ -286,7 +282,7 @@ def _to_partial_x_counts(
         sliced_record_batch,
         x_path,
         boundaries=None,
-        weight_column_name=weight_column_name):
+        weight_column_name=example_weight_map.get(x_path)):
       yield _SlicedXKey(slice_key, x_path, x), x_count
 
 
@@ -644,12 +640,12 @@ class _GetConditionalYRates(beam.PTransform):
   def __init__(self, y_path: types.FeaturePath,
                y_boundaries: Optional[np.ndarray],
                x_paths: Iterable[types.FeaturePath], min_x_count: int,
-               weight_column_name: Optional[Text]):
+               example_weight_map: Optional[ExampleWeightMap]):
     self._y_path = y_path
     self._y_boundaries = y_boundaries
     self._x_paths = x_paths
     self._min_x_count = min_x_count
-    self._weight_column_name = weight_column_name
+    self._example_weight_map = example_weight_map
     self._num_xy_pairs_distinct = beam.metrics.Metrics.counter(
         constants.METRICS_NAMESPACE, 'num_xy_pairs_distinct')
     self._num_xy_pairs_batch_copresent = beam.metrics.Metrics.distribution(
@@ -666,7 +662,7 @@ class _GetConditionalYRates(beam.PTransform):
         sliced_record_batchs
         | 'ToPartialCopresenceCounts' >> beam.FlatMap(
             _to_partial_copresence_counts, self._y_path, self._x_paths,
-            self._y_boundaries, self._weight_column_name,
+            self._y_boundaries, self._example_weight_map,
             self._num_xy_pairs_batch_copresent))
 
     # Compute placeholder copresence counts.
@@ -678,7 +674,7 @@ class _GetConditionalYRates(beam.PTransform):
     x_counts = (
         sliced_record_batchs
         | 'ToPartialXCounts' >> beam.FlatMap(
-            _to_partial_x_counts, self._x_paths, self._weight_column_name)
+            _to_partial_x_counts, self._x_paths, self._example_weight_map)
         | 'SumXCounts' >> beam.CombinePerKey(sum))
     if self._min_x_count:
       x_counts = x_counts | 'FilterXCounts' >> beam.Filter(
@@ -772,7 +768,7 @@ class _LiftStatsGenerator(beam.PTransform):
                x_paths: Optional[Iterable[types.FeaturePath]],
                y_boundaries: Optional[Sequence[float]], min_x_count: int,
                top_k_per_y: Optional[int], bottom_k_per_y: Optional[int],
-               weight_column_name: Optional[Text],
+               example_weight_map: ExampleWeightMap,
                output_custom_stats: bool, name: Text) -> None:
     """Initializes a lift statistics generator.
 
@@ -798,8 +794,11 @@ class _LiftStatsGenerator(beam.PTransform):
       bottom_k_per_y: Optionally, the number of bottom x values per y value,
         ordered by descending lift, for which to output lift. If both
         top_k_per_y and bottom_k_per_y are unset, all values will be output.
-      weight_column_name: Optionally, a weight column to use for converting
-        counts of x or y into weighted counts.
+      example_weight_map: Optionally, an ExampleWeightMap that maps a
+        FeaturePath to its corresponding weight column. If provided and if
+        it's not an empty map (i.e. no feature has a corresponding weight column
+        ), unweighted lift stats will be populated, otherwise weighted lift
+        stats will be populated.
       output_custom_stats: Whether to output custom stats for use with Facets.
       name: An optional unique name associated with the statistics generator.
     """
@@ -812,7 +811,7 @@ class _LiftStatsGenerator(beam.PTransform):
     self._output_custom_stats = output_custom_stats
     self._y_boundaries = (
         np.array(sorted(set(y_boundaries))) if y_boundaries else None)
-    self._weight_column_name = weight_column_name
+    self._example_weight_map = example_weight_map
 
     # If a schema is provided, we can do some additional validation of the
     # provided y_feature and boundaries.
@@ -841,7 +840,8 @@ class _LiftStatsGenerator(beam.PTransform):
     # Compute P(Y=y)
     # _SlicedYKey(slice, y), _YRate(y_count, example_count)
     y_rates = sliced_record_batchs | 'GetYRates' >> _GetYRates(
-        self._y_path, self._y_boundaries, self._weight_column_name)
+        self._y_path, self._y_boundaries,
+        self._example_weight_map.get(self._y_path))
     y_keys = y_rates | 'ExtractYKeys' >> beam.Keys()
 
     # Compute P(Y=y | X=x)
@@ -849,7 +849,7 @@ class _LiftStatsGenerator(beam.PTransform):
     conditional_y_rates = ((sliced_record_batchs, y_keys)
                            | 'GetConditionalYRates' >> _GetConditionalYRates(
                                self._y_path, self._y_boundaries, self._x_paths,
-                               self._min_x_count, self._weight_column_name))
+                               self._min_x_count, self._example_weight_map))
 
     return (
         {
@@ -860,10 +860,10 @@ class _LiftStatsGenerator(beam.PTransform):
         | 'ComputeLifts' >> beam.FlatMap(_compute_lifts)
         | 'FilterLifts' >> _FilterLifts(self._top_k_per_y, self._bottom_k_per_y)
         | 'GroupLiftsForOutput' >> beam.GroupByKey()
-        | 'MakeProtos' >> beam.Map(_make_dataset_feature_stats_proto,
-                                   self._y_path, self._y_boundaries,
-                                   self._weight_column_name is not None,
-                                   self._output_custom_stats))
+        | 'MakeProtos' >> beam.Map(
+            _make_dataset_feature_stats_proto, self._y_path, self._y_boundaries,
+            bool(self._example_weight_map.all_weight_features()),
+            self._output_custom_stats))
 
 
 @beam.typehints.with_input_types(types.SlicedRecordBatch)
@@ -880,20 +880,20 @@ class _UnweightedAndWeightedLiftStatsGenerator(beam.PTransform):
   slice: one for the unweighted lift and one for the weighted lift.
   """
 
-  def __init__(self, weight_column_name: Optional[Text], **kwargs):
+  def __init__(self, example_weight_map: ExampleWeightMap, **kwargs):
     """Initializes a weighted lift statistics generator.
 
     Args:
-      weight_column_name: Optionally, a weight column to use for converting
-        counts of x or y into weighted counts.
+      example_weight_map: an ExampleWeightMap that maps a FeaturePath to its
+        corresponding weight column.
       **kwargs: The set of args to be passed to _LiftStatsGenerator.
     """
     self._unweighted_generator = _LiftStatsGenerator(
-        weight_column_name=None, **kwargs)
-    self._weight_column_name = weight_column_name
-    if weight_column_name:
+        example_weight_map=ExampleWeightMap(), **kwargs)
+    self._has_any_weight = bool(example_weight_map.all_weight_features())
+    if self._has_any_weight:
       self._weighted_generator = _LiftStatsGenerator(
-          weight_column_name=weight_column_name, **kwargs)
+          example_weight_map=example_weight_map, **kwargs)
 
   def expand(
       self,
@@ -901,7 +901,7 @@ class _UnweightedAndWeightedLiftStatsGenerator(beam.PTransform):
     unweighted_protos = (
         sliced_record_batchs
         | 'ComputeUnweightedLift' >> self._unweighted_generator)
-    if not self._weight_column_name:
+    if not self._has_any_weight:
       # If no weight column name is given, only compute unweighted lift.
       return unweighted_protos
 
@@ -924,13 +924,13 @@ class LiftStatsGenerator(stats_generator.TransformStatsGenerator):
                min_x_count: int = 0,
                top_k_per_y: Optional[int] = None,
                bottom_k_per_y: Optional[int] = None,
-               weight_column_name: Optional[Text] = None,
+               example_weight_map: ExampleWeightMap = ExampleWeightMap(),
                output_custom_stats: Optional[bool] = False,
                name: Text = 'LiftStatsGenerator') -> None:
     super(LiftStatsGenerator, self).__init__(
         name,
         ptransform=_UnweightedAndWeightedLiftStatsGenerator(
-            weight_column_name=weight_column_name,
+            example_weight_map=example_weight_map,
             schema=schema,
             y_path=y_path,
             x_paths=x_paths,

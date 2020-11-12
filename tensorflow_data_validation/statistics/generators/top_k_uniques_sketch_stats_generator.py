@@ -18,11 +18,6 @@ Uses the Misra-Gries sketch to estimate top unweighted item counts and weighted
 unique items.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-
-from __future__ import print_function
-
 import collections
 from typing import Dict, Iterable, Optional, Text
 
@@ -34,6 +29,7 @@ from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
 from tensorflow_data_validation.utils import top_k_uniques_stats_util
+from tensorflow_data_validation.utils.example_weight_map import ExampleWeightMap
 
 from tfx_bsl.sketches import KmvSketch
 from tfx_bsl.sketches import MisraGriesSketch
@@ -91,7 +87,7 @@ class TopKUniquesSketchStatsGenerator(stats_generator.CombinerStatsGenerator):
       self,
       name: Text = "TopKUniquesSketchStatsGenerator",
       schema: Optional[schema_pb2.Schema] = None,
-      weight_feature: Optional[tfdv_types.FeatureName] = None,
+      example_weight_map: ExampleWeightMap = ExampleWeightMap(),
       num_top_values: int = 2,
       num_rank_histogram_buckets: int = 128,
       frequency_threshold: int = 1,
@@ -105,8 +101,8 @@ class TopKUniquesSketchStatsGenerator(stats_generator.CombinerStatsGenerator):
     Args:
       name: An optional unique name associated with the statistics generator.
       schema: An optional schema for the dataset.
-      weight_feature: Feature name whose numeric value represents the weight of
-        an example. None if there is no weight feature.
+      example_weight_map: an ExampleWeightMap that maps a FeaturePath to its
+        corresponding weight column.
       num_top_values: The number of most frequent feature values to keep for
         string features.
       num_rank_histogram_buckets: The number of buckets in the rank histogram
@@ -129,7 +125,7 @@ class TopKUniquesSketchStatsGenerator(stats_generator.CombinerStatsGenerator):
     self._num_misragries_buckets = num_misragries_buckets
     self._num_kmv_buckets = num_kmv_buckets
     self._num_top_values = num_top_values
-    self._weight_feature = weight_feature
+    self._example_weight_map = example_weight_map
     self._num_rank_histogram_buckets = num_rank_histogram_buckets
     self._categorical_features = set(
         schema_util.get_categorical_numeric_features(schema) if schema else [])
@@ -168,7 +164,7 @@ class TopKUniquesSketchStatsGenerator(stats_generator.CombinerStatsGenerator):
       ) -> Dict[tfdv_types.FeaturePath, _CombinedSketch]:
     for feature_path, leaf_array, weights in arrow_util.enumerate_arrays(
         input_record_batch,
-        weight_column=self._weight_feature,
+        example_weight_map=self._example_weight_map,
         enumerate_leaves_only=True):
       feature_type = stats_util.get_feature_type_from_arrow_type(
           feature_path, leaf_array.type)

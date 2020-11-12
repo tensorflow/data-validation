@@ -3,6 +3,9 @@
 # Current Version(Still in Development)
 
 ## Major Features and Improvements
+*  Added support for per-feature example weights which allows associating each
+   column its specific weight column. See the `per_feature_weight_override`
+   parameter in `StatsOptions.__init__`.
 
 ## Bug Fixes and Other Changes
 *  Newly added LifecycleStage.DISABLED is now exempt from validation (similar

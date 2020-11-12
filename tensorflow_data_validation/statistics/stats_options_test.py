@@ -191,7 +191,7 @@ class StatsOptionsTest(parameterized.TestCase):
   @parameterized.named_parameters(*INVALID_STATS_OPTIONS)
   def test_stats_options(self, stats_options_kwargs, exception_type,
                          error_message):
-    with self.assertRaisesRegexp(exception_type, error_message):
+    with self.assertRaisesRegex(exception_type, error_message):
       stats_options.StatsOptions(**stats_options_kwargs)
 
   def test_stats_options_json_round_trip(self):
@@ -219,6 +219,7 @@ class StatsOptionsTest(parameterized.TestCase):
     desired_batch_size = 100
     enable_semantic_domain_stats = True
     semantic_domain_stats_sample_rate = 0.1
+    per_feature_weight_override = {types.FeaturePath(['a']): 'w'}
 
     options = stats_options.StatsOptions(
         generators=generators,
@@ -239,7 +240,8 @@ class StatsOptionsTest(parameterized.TestCase):
         infer_type_from_schema=infer_type_from_schema,
         desired_batch_size=desired_batch_size,
         enable_semantic_domain_stats=enable_semantic_domain_stats,
-        semantic_domain_stats_sample_rate=semantic_domain_stats_sample_rate)
+        semantic_domain_stats_sample_rate=semantic_domain_stats_sample_rate,
+        per_feature_weight_override=per_feature_weight_override)
 
     options_json = options.to_json()
     options = stats_options.StatsOptions.from_json(options_json)
@@ -269,6 +271,8 @@ class StatsOptionsTest(parameterized.TestCase):
                      options.enable_semantic_domain_stats)
     self.assertEqual(semantic_domain_stats_sample_rate,
                      options.semantic_domain_stats_sample_rate)
+    self.assertEqual(per_feature_weight_override,
+                     options._per_feature_weight_override)
 
   def test_stats_options_from_json(self):
     options_json = """{
@@ -290,12 +294,33 @@ class StatsOptionsTest(parameterized.TestCase):
       "infer_type_from_schema": false,
       "_desired_batch_size": null,
       "enable_semantic_domain_stats": false,
-      "_semantic_domain_stats_sample_rate": null
+      "_semantic_domain_stats_sample_rate": null,
+      "_per_feature_weight_override": null
     }"""
     actual_options = stats_options.StatsOptions.from_json(options_json)
     expected_options_dict = stats_options.StatsOptions().__dict__
     self.assertEqual(expected_options_dict, actual_options.__dict__)
 
+  def test_example_weight_map(self):
+    options = stats_options.StatsOptions()
+    self.assertIsNone(options.example_weight_map.get(types.FeaturePath(['f'])))
+    self.assertEqual(frozenset([]),
+                     options.example_weight_map.all_weight_features())
+
+    options = stats_options.StatsOptions(weight_feature='w')
+    self.assertEqual('w',
+                     options.example_weight_map.get(types.FeaturePath(['f'])))
+    self.assertEqual(
+        frozenset(['w']),
+        options.example_weight_map.all_weight_features())
+
+    options = stats_options.StatsOptions(
+        per_feature_weight_override={types.FeaturePath(['x']): 'w'})
+    self.assertIsNone(options.example_weight_map.get(types.FeaturePath(['f'])))
+    self.assertEqual('w',
+                     options.example_weight_map.get(types.FeaturePath(['x'])))
+    self.assertEqual(frozenset(['w']),
+                     options.example_weight_map.all_weight_features())
 
 if __name__ == '__main__':
   absltest.main()

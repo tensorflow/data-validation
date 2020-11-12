@@ -14,14 +14,10 @@
 
 """Implementation of statistics generators."""
 
-from __future__ import absolute_import
-from __future__ import division
-
-from __future__ import print_function
-
 import itertools
 import math
 import random
+from typing import Any, Callable, Dict, Iterable, List, Optional, Text, Tuple
 
 import apache_beam as beam
 import numpy as np
@@ -45,7 +41,6 @@ from tensorflow_data_validation.statistics.generators import weighted_feature_st
 from tensorflow_data_validation.utils import slicing_util
 from tensorflow_data_validation.utils import stats_util
 from tfx_bsl.arrow import table_util
-from typing import Any, Callable, Dict, Iterable, List, Optional, Text, Tuple
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -189,7 +184,6 @@ def get_generators(options: stats_options.StatsOptions,
     generators.append(
         CombinerFeatureStatsWrapperGenerator(
             semantic_domain_feature_stats_generators,
-            weight_feature=options.weight_feature,
             sample_rate=options.semantic_domain_stats_sample_rate))
   if options.schema is not None:
     if _schema_has_sparse_features(options.schema):
@@ -207,7 +201,7 @@ def get_generators(options: stats_options.StatsOptions,
           lift_stats_generator.LiftStatsGenerator(
               y_path=types.FeaturePath([options.label_feature]),
               schema=options.schema,
-              weight_column_name=options.weight_feature,
+              example_weight_map=options.example_weight_map,
               output_custom_stats=True))
 
   # Replace all CombinerFeatureStatsGenerator with a single
@@ -221,8 +215,7 @@ def get_generators(options: stats_options.StatsOptions,
         x for x in generators
         if not isinstance(x, stats_generator.CombinerFeatureStatsGenerator)
     ] + [
-        CombinerFeatureStatsWrapperGenerator(
-            feature_generators, weight_feature=options.weight_feature)
+        CombinerFeatureStatsWrapperGenerator(feature_generators)
     ]
   if in_memory:
     for generator in generators:
@@ -250,7 +243,7 @@ def _get_default_generators(
   stats_generators = [
       basic_stats_generator.BasicStatsGenerator(
           schema=options.schema,
-          weight_feature=options.weight_feature,
+          example_weight_map=options.example_weight_map,
           num_values_histogram_buckets=options.num_values_histogram_buckets,
           num_histogram_buckets=options.num_histogram_buckets,
           num_quantiles_histogram_buckets=\
@@ -263,7 +256,7 @@ def _get_default_generators(
         top_k_uniques_combiner_stats_generator
         .TopKUniquesCombinerStatsGenerator(
             schema=options.schema,
-            weight_feature=options.weight_feature,
+            example_weight_map=options.example_weight_map,
             num_top_values=options.num_top_values,
             frequency_threshold=options.frequency_threshold,
             weighted_frequency_threshold=options.weighted_frequency_threshold,
@@ -272,7 +265,7 @@ def _get_default_generators(
     stats_generators.extend([
         top_k_uniques_stats_generator.TopKUniquesStatsGenerator(
             schema=options.schema,
-            weight_feature=options.weight_feature,
+            example_weight_map=options.example_weight_map,
             num_top_values=options.num_top_values,
             frequency_threshold=options.frequency_threshold,
             weighted_frequency_threshold=options.weighted_frequency_threshold,
@@ -826,7 +819,6 @@ class CombinerFeatureStatsWrapperGenerator(
                    stats_generator.CombinerFeatureStatsGenerator],
                name: Text = 'CombinerFeatureStatsWrapperGenerator',
                schema: Optional[schema_pb2.Schema] = None,
-               weight_feature: Optional[types.FeatureName] = None,
                sample_rate: Optional[float] = None) -> None:
     """Initializes a CombinerFeatureStatsWrapperGenerator.
 
@@ -834,15 +826,11 @@ class CombinerFeatureStatsWrapperGenerator(
       feature_stats_generators: A list of CombinerFeatureStatsGenerator.
       name: An optional unique name associated with the statistics generator.
       schema: An optional schema for the dataset.
-      weight_feature: An optional feature name whose numeric value represents
-        the weight of an example. Currently the weight feature is ignored by
-        feature level stats generators.
       sample_rate: An optional sampling rate. If specified, statistics is
         computed over the sample.
     """
     super(CombinerFeatureStatsWrapperGenerator, self).__init__(name, schema)
     self._feature_stats_generators = feature_stats_generators
-    self._weight_feature = weight_feature
     self._sample_rate = sample_rate
 
   def _perhaps_initialize_for_feature_path(
@@ -883,7 +871,7 @@ class CombinerFeatureStatsWrapperGenerator(
 
     for feature_path, feature_array, _ in arrow_util.enumerate_arrays(
         input_record_batch,
-        weight_column=self._weight_feature,
+        example_weight_map=None,
         enumerate_leaves_only=True):
       for index, generator in enumerate(self._feature_stats_generators):
         self._perhaps_initialize_for_feature_path(wrapper_accumulator,

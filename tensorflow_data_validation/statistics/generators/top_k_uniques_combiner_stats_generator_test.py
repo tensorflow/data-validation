@@ -13,15 +13,12 @@
 # limitations under the License.
 """Tests for TopK and Uniques statistics generator."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 from absl.testing import absltest
 import pyarrow as pa
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import top_k_uniques_combiner_stats_generator
 from tensorflow_data_validation.utils import test_util
+from tensorflow_data_validation.utils.example_weight_map import ExampleWeightMap
 
 from google.protobuf import text_format
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -101,18 +98,24 @@ class TopKUniquesCombinerStatsGeneratorTest(
 
   def test_topk_uniques_combiner_with_weights(self):
     # non-weighted ordering
-    # 3 'a', 2 'e', 2 'd', 2 'c', 1 'b'
+    # fa: 3 'a', 2 'e', 2 'd', 2 'c', 1 'b'
+    # fb: 1 'v', 1 'w', 1 'x', 1 'y', 1 'z'
     # weighted ordering
     # fa: 20 'e', 20 'd', 15 'a', 10 'c', 5 'b'
+    # fb: 6 'z', 4 'x', 4 'y', 4 'w', 2 'v'
     batches = [
         pa.RecordBatch.from_arrays([
             pa.array([['a', 'b', 'c', 'e'], ['a', 'c', 'd', 'a']]),
+            pa.array([['v'], ['w', 'x', 'y']]),
             pa.array([[5.0], [5.0]]),
-        ], ['fa', 'w']),
+            pa.array([[2.0], [4.0]]),
+        ], ['fa', 'fb', 'w', 'w_b']),
         pa.RecordBatch.from_arrays([
             pa.array([['d', 'e']]),
+            pa.array([['z']]),
             pa.array([[15.0]]),
-        ], ['fa', 'w']),
+            pa.array([[6.0]]),
+        ], ['fa', 'fb', 'w', 'w_b']),
     ]
     expected_result = {
         types.FeaturePath(['fa']):
@@ -198,12 +201,96 @@ class TopKUniquesCombinerStatsGeneratorTest(
                       }
                     }
                   }
-              }""", statistics_pb2.FeatureNameStatistics())
+              }""", statistics_pb2.FeatureNameStatistics()),
+        types.FeaturePath(['fb']):
+                text_format.Parse(
+                    """
+                  type: STRING
+                  string_stats {
+                    unique: 5
+                    top_values {
+                      value: "z"
+                      frequency: 1.0
+                    }
+                    top_values {
+                      value: "y"
+                      frequency: 1.0
+                    }
+                    top_values {
+                      value: "x"
+                      frequency: 1.0
+                    }
+                    top_values {
+                      value: "w"
+                      frequency: 1.0
+                    }
+                    rank_histogram {
+                      buckets {
+                        label: "z"
+                        sample_count: 1.0
+                      }
+                      buckets {
+                        low_rank: 1
+                        high_rank: 1
+                        label: "y"
+                        sample_count: 1.0
+                      }
+                      buckets {
+                        low_rank: 2
+                        high_rank: 2
+                        label: "x"
+                        sample_count: 1.0
+                      }
+                    }
+                    weighted_string_stats {
+                      top_values {
+                        value: "z"
+                        frequency: 6.0
+                      }
+                      top_values {
+                        value: "y"
+                        frequency: 4.0
+                      }
+                      top_values {
+                        value: "x"
+                        frequency: 4.0
+                      }
+                      top_values {
+                        value: "w"
+                        frequency: 4.0
+                      }
+                      rank_histogram {
+                        buckets {
+                          label: "z"
+                          sample_count: 6.0
+                        }
+                        buckets {
+                          low_rank: 1
+                          high_rank: 1
+                          label: "y"
+                          sample_count: 4.0
+                        }
+                        buckets {
+                          low_rank: 2
+                          high_rank: 2
+                          label: "x"
+                          sample_count: 4.0
+                        }
+                      }
+                    }
+                  }
+                  path {
+                    step: "fb"
+                  }""", statistics_pb2.FeatureNameStatistics()),
     }
     generator = (
         top_k_uniques_combiner_stats_generator
         .TopKUniquesCombinerStatsGenerator(
-            weight_feature='w', num_top_values=4, num_rank_histogram_buckets=3))
+            example_weight_map=ExampleWeightMap(
+                weight_feature='w',
+                per_feature_override={types.FeaturePath(['fb']): 'w_b'}),
+            num_top_values=4,
+            num_rank_histogram_buckets=3))
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
   def test_topk_uniques_combiner_with_single_unicode_feature(self):
@@ -727,7 +814,7 @@ class TopKUniquesCombinerStatsGeneratorTest(
     generator = (
         top_k_uniques_combiner_stats_generator
         .TopKUniquesCombinerStatsGenerator(
-            weight_feature='w',
+            example_weight_map=ExampleWeightMap(weight_feature='w'),
             num_top_values=5, frequency_threshold=2,
             weighted_frequency_threshold=15, num_rank_histogram_buckets=3))
     self.assertCombinerOutputEqual(batches, generator, expected_result)
@@ -921,7 +1008,7 @@ class TopKUniquesCombinerStatsGeneratorTest(
         top_k_uniques_combiner_stats_generator
         .TopKUniquesCombinerStatsGenerator(
             schema=schema,
-            weight_feature='w',
+            example_weight_map=ExampleWeightMap(weight_feature='w'),
             num_top_values=3,
             num_rank_histogram_buckets=3))
 

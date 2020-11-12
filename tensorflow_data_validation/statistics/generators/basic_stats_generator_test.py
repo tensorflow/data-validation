@@ -14,10 +14,6 @@
 
 """Tests for basic statistics generator."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
@@ -26,6 +22,7 @@ import six
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import basic_stats_generator
 from tensorflow_data_validation.utils import test_util
+from tensorflow_data_validation.utils.example_weight_map import ExampleWeightMap
 
 from google.protobuf import text_format
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -470,7 +467,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             """, statistics_pb2.FeatureNameStatistics()),
     }
     generator = basic_stats_generator.BasicStatsGenerator(
-        weight_feature='w',
+        example_weight_map=ExampleWeightMap(weight_feature='w'),
         num_values_histogram_buckets=4, num_histogram_buckets=3,
         num_quantiles_histogram_buckets=4)
     self.assertCombinerOutputEqual(
@@ -910,10 +907,314 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             """, statistics_pb2.FeatureNameStatistics())
     }
     generator = basic_stats_generator.BasicStatsGenerator(
-        weight_feature='w',
+        example_weight_map=ExampleWeightMap(weight_feature='w'),
         num_values_histogram_buckets=4, num_histogram_buckets=3,
         num_quantiles_histogram_buckets=4)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
+
+  def test_basic_stats_generator_with_per_feature_weight(self):
+    # input with two batches: first batch has two examples and second batch
+    # has a single example.
+    b1 = pa.RecordBatch.from_arrays([
+        pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]]),
+        pa.array([[1, 2], [3, 4, 5]]),
+        pa.array([[1.0], [2.0]]),
+        pa.array([[2.0], [1.0]]),
+    ], ['a', 'b', 'w_a', 'w_b'])
+    b2 = pa.RecordBatch.from_arrays([
+        pa.array([[1.0, np.NaN, np.NaN, np.NaN], None]),
+        pa.array([[1], None]),
+        pa.array([[3.0], [2.0]]),
+        pa.array([[2.0], [3.0]]),
+    ], ['a', 'b', 'w_a', 'w_b'])
+
+    batches = [b1, b2]
+    expected_result = {
+        types.FeaturePath(['a']):
+            text_format.Parse(
+                """
+            path {
+              step: 'a'
+            }
+            type: FLOAT
+            num_stats {
+              common_stats {
+                num_non_missing: 3
+                min_num_values: 2
+                max_num_values: 4
+                avg_num_values: 3.0
+                tot_num_values: 9
+                num_values_histogram {
+                  buckets {
+                    low_value: 2.0
+                    high_value: 2.0
+                    sample_count: 0.75
+                  }
+                  buckets {
+                    low_value: 2.0
+                    high_value: 3.0
+                    sample_count: 0.75
+                  }
+                  buckets {
+                    low_value: 3.0
+                    high_value: 4.0
+                    sample_count: 0.75
+                  }
+                  buckets {
+                    low_value: 4.0
+                    high_value: 4.0
+                    sample_count: 0.75
+                  }
+                  type: QUANTILES
+                }
+                weighted_common_stats {
+                  num_non_missing: 6.0
+                  avg_num_values: 3.33333333
+                  tot_num_values: 20.0
+                }
+              }
+              mean: 2.66666666
+              std_dev: 1.49071198
+              num_zeros: 0
+              min: 1.0
+              max: 5.0
+              median: 3.0
+              histograms {
+                num_nan: 3
+                buckets {
+                  low_value: 1.0
+                  high_value: 2.3333333
+                  sample_count: 2.9866667
+                }
+                buckets {
+                  low_value: 2.3333333
+                  high_value: 3.6666667
+                  sample_count: 1.0066667
+                }
+                buckets {
+                  low_value: 3.6666667
+                  high_value: 5.0
+                  sample_count: 2.0066667
+                }
+                type: STANDARD
+              }
+              histograms {
+                num_nan: 3
+                buckets {
+                  low_value: 1.0
+                  high_value: 1.0
+                  sample_count: 1.5
+                }
+                buckets {
+                  low_value: 1.0
+                  high_value: 3.0
+                  sample_count: 1.5
+                }
+                buckets {
+                  low_value: 3.0
+                  high_value: 4.0
+                  sample_count: 1.5
+                }
+                buckets {
+                  low_value: 4.0
+                  high_value: 5.0
+                  sample_count: 1.5
+                }
+                type: QUANTILES
+              }
+              weighted_numeric_stats {
+                mean: 2.7272727
+                std_dev: 1.5427784
+                median: 3.0
+                histograms {
+                  num_nan: 3
+                  buckets {
+                    low_value: 1.0
+                    high_value: 2.3333333
+                    sample_count: 4.9988889
+                  }
+                  buckets {
+                    low_value: 2.3333333
+                    high_value: 3.6666667
+                    sample_count: 1.9922222
+                  }
+                  buckets {
+                    low_value: 3.6666667
+                    high_value: 5.0
+                    sample_count: 4.0088889
+                  }
+                }
+                histograms {
+                  num_nan: 3
+                  buckets {
+                    low_value: 1.0
+                    high_value: 1.0
+                    sample_count: 2.75
+                  }
+                  buckets {
+                    low_value: 1.0
+                    high_value: 3.0
+                    sample_count: 2.75
+                  }
+                  buckets {
+                    low_value: 3.0
+                    high_value: 4.0
+                    sample_count: 2.75
+                  }
+                  buckets {
+                    low_value: 4.0
+                    high_value: 5.0
+                    sample_count: 2.75
+                  }
+                  type: QUANTILES
+                }
+              }
+            }
+            """, statistics_pb2.FeatureNameStatistics()),
+        types.FeaturePath(['b']):
+            text_format.Parse(
+                """
+            num_stats {
+              common_stats {
+                num_non_missing: 3
+                min_num_values: 1
+                max_num_values: 3
+                avg_num_values: 2.0
+                num_values_histogram {
+                  buckets {
+                    low_value: 1.0
+                    high_value: 1.0
+                    sample_count: 0.75
+                  }
+                  buckets {
+                    low_value: 1.0
+                    high_value: 2.0
+                    sample_count: 0.75
+                  }
+                  buckets {
+                    low_value: 2.0
+                    high_value: 3.0
+                    sample_count: 0.75
+                  }
+                  buckets {
+                    low_value: 3.0
+                    high_value: 3.0
+                    sample_count: 0.75
+                  }
+                  type: QUANTILES
+                }
+                weighted_common_stats {
+                  num_non_missing: 5.0
+                  avg_num_values: 1.8
+                  tot_num_values: 9.0
+                }
+                tot_num_values: 6
+              }
+              mean: 2.6666667
+              std_dev: 1.490712
+              min: 1.0
+              median: 3.0
+              max: 5.0
+              histograms {
+                buckets {
+                  low_value: 1.0
+                  high_value: 2.3333333
+                  sample_count: 2.9866667
+                }
+                buckets {
+                  low_value: 2.3333333
+                  high_value: 3.6666667
+                  sample_count: 1.0066667
+                }
+                buckets {
+                  low_value: 3.6666667
+                  high_value: 5.0
+                  sample_count: 2.0066667
+                }
+              }
+              histograms {
+                buckets {
+                  low_value: 1.0
+                  high_value: 1.0
+                  sample_count: 1.5
+                }
+                buckets {
+                  low_value: 1.0
+                  high_value: 3.0
+                  sample_count: 1.5
+                }
+                buckets {
+                  low_value: 3.0
+                  high_value: 4.0
+                  sample_count: 1.5
+                }
+                buckets {
+                  low_value: 4.0
+                  high_value: 5.0
+                  sample_count: 1.5
+                }
+                type: QUANTILES
+              }
+              weighted_numeric_stats {
+                mean: 2.2222222
+                std_dev: 1.396645
+                median: 2.0
+                histograms {
+                  buckets {
+                    low_value: 1.0
+                    high_value: 2.3333333
+                    sample_count: 5.98
+                  }
+                  buckets {
+                    low_value: 2.3333333
+                    high_value: 3.6666667
+                    sample_count: 1.03
+                  }
+                  buckets {
+                    low_value: 3.6666667
+                    high_value: 5.0
+                    sample_count: 1.99
+                  }
+                }
+                histograms {
+                  buckets {
+                    low_value: 1.0
+                    high_value: 1.0
+                    sample_count: 2.25
+                  }
+                  buckets {
+                    low_value: 1.0
+                    high_value: 2.0
+                    sample_count: 2.25
+                  }
+                  buckets {
+                    low_value: 2.0
+                    high_value: 3.0
+                    sample_count: 2.25
+                  }
+                  buckets {
+                    low_value: 3.0
+                    high_value: 5.0
+                    sample_count: 2.25
+                  }
+                  type: QUANTILES
+                }
+              }
+            }
+            path {
+              step: "b"
+            }
+            """, statistics_pb2.FeatureNameStatistics()),
+    }
+    generator = basic_stats_generator.BasicStatsGenerator(
+        example_weight_map=ExampleWeightMap(
+            weight_feature='w_a',
+            per_feature_override={types.FeaturePath(['b']): 'w_b'}),
+        num_values_histogram_buckets=4,
+        num_histogram_buckets=3,
+        num_quantiles_histogram_buckets=4)
+    self.assertCombinerOutputEqual(batches, generator, expected_result,
+                                   only_match_expected_feature_stats=True)
 
   def test_basic_stats_generator_with_entire_feature_value_list_missing(self):
     # input with two batches: first batch has three examples and second batch
@@ -2509,7 +2810,7 @@ class BasicStatsGeneratorStructStatsTest(test_util.CombinerStatsGeneratorTest,
     """, statistics_pb2.FeatureNameStatistics()),
     }
     generator = basic_stats_generator.BasicStatsGenerator(
-        weight_feature='w',
+        example_weight_map=ExampleWeightMap(weight_feature='w'),
         num_values_histogram_buckets=2, num_histogram_buckets=3,
         num_quantiles_histogram_buckets=4)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
@@ -2698,7 +2999,8 @@ class BasicStatsGeneratorNestedListTest(
   def test_nested_list(self, batches, expected_result, weight_column=None):
     generator = basic_stats_generator.BasicStatsGenerator(
         num_values_histogram_buckets=2, num_histogram_buckets=3,
-        num_quantiles_histogram_buckets=4, weight_feature=weight_column)
+        num_quantiles_histogram_buckets=4,
+        example_weight_map=ExampleWeightMap(weight_feature=weight_column))
     expected_result = {
         path: text_format.Parse(pbtxt, statistics_pb2.FeatureNameStatistics())
         for path, pbtxt in expected_result.items()

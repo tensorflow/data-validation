@@ -54,11 +54,6 @@ array contained in some struct column):
   - Average length of the values for this feature.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-
-from __future__ import print_function
-
 import collections
 import itertools
 import math
@@ -76,6 +71,7 @@ from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import quantiles_util
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
+from tensorflow_data_validation.utils.example_weight_map import ExampleWeightMap
 from tfx_bsl.arrow import array_util
 
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -983,7 +979,7 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
       self,  # pylint: disable=useless-super-delegation
       name: Text = 'BasicStatsGenerator',
       schema: Optional[schema_pb2.Schema] = None,
-      weight_feature: Optional[types.FeatureName] = None,
+      example_weight_map: ExampleWeightMap = ExampleWeightMap(),
       num_values_histogram_buckets: Optional[int] = 10,
       num_histogram_buckets: Optional[int] = 10,
       num_quantiles_histogram_buckets: Optional[int] = 10,
@@ -993,8 +989,8 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
     Args:
       name: An optional unique name associated with the statistics generator.
       schema: An optional schema for the dataset.
-      weight_feature: An optional feature name whose numeric value represents
-          the weight of an example.
+      example_weight_map: an ExampleWeightMap that maps a FeaturePath to its
+          corresponding weight column.
       num_values_histogram_buckets: An optional number of buckets in a quantiles
           histogram for the number of values per Feature, which is stored in
           CommonStatistics.num_values_histogram.
@@ -1014,7 +1010,7 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
         schema_util.get_bytes_features(schema) if schema else [])
     self._categorical_features = set(
         schema_util.get_categorical_numeric_features(schema) if schema else [])
-    self._weight_feature = weight_feature
+    self._example_weight_map = example_weight_map
     self._num_values_histogram_buckets = num_values_histogram_buckets
     # Initialize quantiles combiner for histogram over number of values.
     self._num_values_quantiles_combiner = quantiles_util.QuantilesCombiner(
@@ -1043,11 +1039,11 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
       ) -> Dict[types.FeaturePath, _PartialBasicStats]:
     for feature_path, feature_array, weights in arrow_util.enumerate_arrays(
         examples,
-        weight_column=self._weight_feature,
+        example_weight_map=self._example_weight_map,
         enumerate_leaves_only=False):
       stats_for_feature = accumulator.get(feature_path)
       if stats_for_feature is None:
-        stats_for_feature = _PartialBasicStats(self._weight_feature is not None)
+        stats_for_feature = _PartialBasicStats(weights is not None)
         # Store empty summary for each of the quantiles computations.
         stats_for_feature.numeric_stats.quantiles_summary = (
             self._values_quantiles_combiner.create_accumulator())
@@ -1081,8 +1077,7 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
     result = {}
     num_values_summaries_per_feature = collections.defaultdict(list)
     values_summary_per_feature = collections.defaultdict(list)
-    if self._weight_feature:
-      weighted_values_summary_per_feature = collections.defaultdict(list)
+    weighted_values_summary_per_feature = collections.defaultdict(list)
 
     for accumulator in accumulators:
       for feature_path, basic_stats in six.iteritems(accumulator):
@@ -1129,7 +1124,7 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
               basic_stats.numeric_stats.quantiles_summary)
 
           # Keep track of values weighted quantile summaries per feature.
-          if self._weight_feature:
+          if basic_stats.numeric_stats.has_weights:
             weighted_values_summary_per_feature[feature_path].append(
                 basic_stats.numeric_stats.weighted_quantiles_summary)
 
@@ -1148,12 +1143,11 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
               quantiles_summaries))
 
     # Merge the values weighted quantiles summaries per feature.
-    if self._weight_feature:
-      for feature_path, weighted_quantiles_summaries in (
-          six.iteritems(weighted_values_summary_per_feature)):
-        result[feature_path].numeric_stats.weighted_quantiles_summary = (
-            self._values_quantiles_combiner.merge_accumulators(
-                weighted_quantiles_summaries))
+    for feature_path, weighted_quantiles_summaries in (
+        six.iteritems(weighted_values_summary_per_feature)):
+      result[feature_path].numeric_stats.weighted_quantiles_summary = (
+          self._values_quantiles_combiner.merge_accumulators(
+              weighted_quantiles_summaries))
 
     return result
 
@@ -1179,7 +1173,7 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
           self._num_quantiles_histogram_buckets,
           feature_path in self._bytes_features,
           feature_path in self._categorical_features,
-          self._weight_feature is not None)
+          self._example_weight_map.get(feature_path) is not None)
       # Copy the constructed FeatureNameStatistics proto into the
       # DatasetFeatureStatistics proto.
       new_feature_stats_proto = result.features.add()

@@ -13,11 +13,6 @@
 # limitations under the License.
 """Module that computes the top-k and uniques statistics for string features."""
 
-from __future__ import absolute_import
-from __future__ import division
-
-from __future__ import print_function
-
 import collections
 from typing import Any, Dict, Iterable, Optional, Text
 
@@ -30,6 +25,7 @@ from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
 from tensorflow_data_validation.utils import top_k_uniques_stats_util
+from tensorflow_data_validation.utils.example_weight_map import ExampleWeightMap
 from tfx_bsl.arrow import array_util
 
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -75,7 +71,7 @@ class TopKUniquesCombinerStatsGenerator(
       self,  # pylint: disable=useless-super-delegation
       name: Text = 'TopKUniquesCombinerStatsGenerator',
       schema: Optional[schema_pb2.Schema] = None,
-      weight_feature: Optional[types.FeatureName] = None,
+      example_weight_map: ExampleWeightMap = ExampleWeightMap(),
       num_top_values: int = 2,
       frequency_threshold: int = 1,
       weighted_frequency_threshold: float = 1.0,
@@ -85,8 +81,8 @@ class TopKUniquesCombinerStatsGenerator(
     Args:
       name: An optional unique name associated with the statistics generator.
       schema: An optional schema for the dataset.
-      weight_feature: Feature name whose numeric value represents the weight of
-        an example. None if there is no weight feature.
+      example_weight_map: an ExampleWeightMap that maps a FeaturePath to its
+          corresponding weight column.
       num_top_values: The number of most frequent feature values to keep for
         string features.
       frequency_threshold: An optional minimum number of examples
@@ -100,7 +96,7 @@ class TopKUniquesCombinerStatsGenerator(
     super(TopKUniquesCombinerStatsGenerator, self).__init__(name, schema)
     self._categorical_features = set(
         schema_util.get_categorical_numeric_features(schema) if schema else [])
-    self._weight_feature = weight_feature
+    self._example_weight_map = example_weight_map
     self._num_top_values = num_top_values
     self._frequency_threshold = frequency_threshold
     self._weighted_frequency_threshold = weighted_frequency_threshold
@@ -115,7 +111,7 @@ class TopKUniquesCombinerStatsGenerator(
   ) -> Dict[types.FeaturePath, _ValueCounts]:
     for feature_path, leaf_array, weights in arrow_util.enumerate_arrays(
         input_record_batch,
-        weight_column=self._weight_feature,
+        example_weight_map=self._example_weight_map,
         enumerate_leaves_only=True):
       feature_type = stats_util.get_feature_type_from_arrow_type(
           feature_path, leaf_array.type)

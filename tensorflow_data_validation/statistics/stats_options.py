@@ -22,13 +22,17 @@ from __future__ import print_function
 import copy
 import json
 import types as python_types
-from typing import List, Optional, Text
+from typing import Dict, List, Optional, Text
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
+from tensorflow_data_validation.utils import example_weight_map
 
 from google.protobuf import json_format
 from tensorflow_metadata.proto.v0 import schema_pb2
 
+
+_SCHEMA_JSON_KEY = 'schema_json'
+_PER_FEATURE_WEIGHT_OVERRIDE_JSON_KEY = 'per_feature_weight_override_json'
 
 # TODO(b/68277922): Currently we use a single epsilon (error tolerance)
 # parameter for all histograms. Set this parameter specific to each
@@ -59,7 +63,9 @@ class StatsOptions(object):
       infer_type_from_schema: bool = False,
       desired_batch_size: Optional[int] = None,
       enable_semantic_domain_stats: bool = False,
-      semantic_domain_stats_sample_rate: Optional[float] = None):
+      semantic_domain_stats_sample_rate: Optional[float] = None,
+      per_feature_weight_override: Optional[Dict[types.FeaturePath,
+                                                 types.FeatureName]] = None):
     """Initializes statistics options.
 
     Args:
@@ -110,6 +116,9 @@ class StatsOptions(object):
       semantic_domain_stats_sample_rate: An optional sampling rate for semantic
         domain statistics. If specified, semantic domain statistics is computed
         over a sample.
+      per_feature_weight_override: If specified, the "example weight" paired
+        with a feature will be first looked up in this map and if not found,
+        fall back to `weight_feature`.
     """
     self.generators = generators
     self.feature_whitelist = feature_whitelist
@@ -130,6 +139,7 @@ class StatsOptions(object):
     self.desired_batch_size = desired_batch_size
     self.enable_semantic_domain_stats = enable_semantic_domain_stats
     self.semantic_domain_stats_sample_rate = semantic_domain_stats_sample_rate
+    self._per_feature_weight_override = per_feature_weight_override
 
   def to_json(self) -> Text:
     """Convert from an object to JSON representation of the __dict__ attribute.
@@ -145,9 +155,14 @@ class StatsOptions(object):
     options_dict = copy.copy(self.__dict__)
     options_dict['_slice_functions'] = None
     options_dict['_generators'] = None
-    if self.schema:
+    if self.schema is not None:
       del options_dict['_schema']
-      options_dict['schema_json'] = json_format.MessageToJson(self.schema)
+      options_dict[_SCHEMA_JSON_KEY] = json_format.MessageToJson(self.schema)
+    if self._per_feature_weight_override is not None:
+      del options_dict['_per_feature_weight_override']
+      options_dict[_PER_FEATURE_WEIGHT_OVERRIDE_JSON_KEY] = {
+          k.to_json(): v for k, v in self._per_feature_weight_override.items()
+      }
     return json.dumps(options_dict)
 
   @classmethod
@@ -163,10 +178,18 @@ class StatsOptions(object):
       the deserialized value of options_json.
     """
     options_dict = json.loads(options_json)
-    if 'schema_json' in options_dict:
-      options_dict['_schema'] = json_format.Parse(options_dict['schema_json'],
-                                                  schema_pb2.Schema())
-      del options_dict['schema_json']
+    if _SCHEMA_JSON_KEY in options_dict:
+      options_dict['_schema'] = json_format.Parse(
+          options_dict[_SCHEMA_JSON_KEY], schema_pb2.Schema())
+      del options_dict[_SCHEMA_JSON_KEY]
+    per_feature_weight_override_json = options_dict.get(
+        _PER_FEATURE_WEIGHT_OVERRIDE_JSON_KEY)
+    if per_feature_weight_override_json is not None:
+      options_dict['_per_feature_weight_override'] = {
+          types.FeaturePath.from_json(k): v
+          for k, v in per_feature_weight_override_json.items()
+      }
+      del options_dict[_PER_FEATURE_WEIGHT_OVERRIDE_JSON_KEY]
     options = cls()
     options.__dict__ = options_dict
     return options
@@ -307,3 +330,9 @@ class StatsOptions(object):
         raise ValueError('Invalid semantic_domain_stats_sample_rate %f'
                          % semantic_domain_stats_sample_rate)
     self._semantic_domain_stats_sample_rate = semantic_domain_stats_sample_rate
+
+  @property
+  def example_weight_map(self):
+    return example_weight_map.ExampleWeightMap(
+        self.weight_feature, self._per_feature_weight_override)
+

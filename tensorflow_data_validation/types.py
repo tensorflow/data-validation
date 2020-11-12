@@ -12,26 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Types."""
-
-from __future__ import absolute_import
-from __future__ import division
-
-from __future__ import print_function
+import json
+from typing import Callable, Dict, Iterable, List, Optional, Text, Tuple
 
 import apache_beam as beam
 import numpy as np
 import pyarrow as pa
-import six
-from typing import Callable, Dict, Iterable, List, Optional, Text, Tuple, Union
 
 from tensorflow_metadata.proto.v0 import path_pb2
 
-# Type for representing a CSV record and a field value.
-CSVRecord = Union[bytes, Text]
-CSVCell = Union[bytes, Text]
-
 # Type of the feature name we support in the input batch.
-FeatureName = Union[bytes, Text]
+FeatureName = Text
 
 # Type of the feature cross.
 FeatureCross = Tuple[FeatureName, FeatureName]
@@ -49,7 +40,7 @@ ValueBatch = List[Optional[np.ndarray]]
 ExampleBatch = Dict[FeatureName, ValueBatch]
 
 # Type of slice keys.
-SliceKey = Optional[Union[bytes, Text]]
+SliceKey = Optional[Text]
 
 # Type of list of slice keys.
 SliceKeysList = List[SliceKey]
@@ -77,16 +68,12 @@ FeaturePathTuple = Tuple[FeatureName, ...]
 # in Beam type annotations is not complete.
 # TODO(b/111217539): Remove this once Beam supports arbitrary Python types
 # to be used in the type annotations.
-BeamFeatureName = beam.typehints.Union[bytes, Text]
-BeamExample = beam.typehints.Dict[BeamFeatureName, beam.typehints
+BeamExample = beam.typehints.Dict[FeatureName, beam.typehints
                                   .Optional[np.ndarray]]
-BeamSliceKey = beam.typehints.Optional[beam.typehints.Union[bytes, Text]]
+BeamSliceKey = beam.typehints.Optional[Text]
 BeamSlicedRecordBatch = beam.typehints.Tuple[BeamSliceKey, pa.RecordBatch]
-BeamCSVRecord = beam.typehints.Union[bytes, Text]
-BeamCSVCell = beam.typehints.Union[bytes, Text]
 
 
-@six.python_2_unicode_compatible
 class FeaturePath(object):
   """Represents the path to a feature in an input example.
 
@@ -97,15 +84,27 @@ class FeaturePath(object):
   __slot__ = ["_steps"]
 
   def __init__(self, steps: Iterable[FeatureName]):
-    self._steps = tuple(
-        s if isinstance(s, six.text_type) else s.decode("utf-8") for s in steps)
+    self._steps = tuple(steps)
 
   def to_proto(self) -> path_pb2.Path:
     return path_pb2.Path(step=self._steps)
 
+  def to_json(self) -> Text:
+    return json.dumps(self._steps)
+
   @staticmethod
   def from_proto(path_proto: path_pb2.Path):
     return FeaturePath(path_proto.step)
+
+  @staticmethod
+  def from_json(path_json: Text):
+    steps = json.loads(path_json)
+    if not isinstance(steps, list):
+      raise TypeError("Invalid FeaturePath json: %s" % path_json)
+    for s in steps:
+      if not isinstance(s, str):
+        raise TypeError("Invalid FeaturePath json: %s" % path_json)
+    return FeaturePath(steps)
 
   def steps(self) -> FeaturePathTuple:
     return self._steps
@@ -116,12 +115,10 @@ class FeaturePath(object):
     return FeaturePath(self._steps[:-1])
 
   def child(self, child_step: FeatureName) -> "FeaturePath":
-    if isinstance(child_step, six.text_type):
-      return FeaturePath(self._steps + (child_step,))
-    return FeaturePath(self._steps + (child_step.decode("utf-8"),))
+    return FeaturePath(self._steps + (child_step,))
 
   def __str__(self) -> Text:
-    return u".".join(self._steps)
+    return ".".join(self._steps)
 
   def __eq__(self, other) -> bool:
     return self._steps == other._steps  # pylint: disable=protected-access

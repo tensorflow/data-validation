@@ -13,21 +13,17 @@
 # limitations under the License.
 
 """Tests for LiftStatsGenerator."""
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 from typing import Optional, Sequence, Text
+
 from absl.testing import absltest
 import apache_beam as beam
 import numpy as np
 import pandas as pd
 import pyarrow as pa
-
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import lift_stats_generator
 from tensorflow_data_validation.utils import test_util
+from tensorflow_data_validation.utils.example_weight_map import ExampleWeightMap
 
 from google.protobuf import text_format
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -228,7 +224,7 @@ class ToPartialXCountsTest(absltest.TestCase):
         lift_stats_generator._to_partial_x_counts(
             ('', t),
             x_paths=[types.FeaturePath(['x'])],
-            weight_column_name=None)):
+            example_weight_map=ExampleWeightMap())):
       self.assertEqual(str(expected_key.x_path), str(actual_key.x_path))
       self.assertEqual(expected_key.x, actual_key.x)
       self.assertEqual(expected_count, actual_count)
@@ -247,7 +243,7 @@ class ToPartialXCountsTest(absltest.TestCase):
         expected_counts,
         lift_stats_generator._to_partial_x_counts(
             ('', t), x_paths=[types.FeaturePath(['x'])],
-            weight_column_name='w')):
+            example_weight_map=ExampleWeightMap(weight_feature='w'))):
       self.assertEqual(str(expected_key.x_path), str(actual_key.x_path))
       self.assertEqual(expected_key.x, actual_key.x)
       self.assertEqual(expected_count, actual_count)
@@ -272,7 +268,7 @@ class ToPartialCopresenceCountsTest(absltest.TestCase):
             y_path=types.FeaturePath(['y']),
             x_paths=[types.FeaturePath(['x'])],
             y_boundaries=None,
-            weight_column_name=None))
+            example_weight_map=ExampleWeightMap()))
     self.assertSameElements(expected_counts, actual_counts)
 
   def test_to_partial_copresence_counts_weighted(self):
@@ -293,7 +289,7 @@ class ToPartialCopresenceCountsTest(absltest.TestCase):
             y_path=types.FeaturePath(['y']),
             x_paths=[types.FeaturePath(['x'])],
             y_boundaries=None,
-            weight_column_name='w'))
+            example_weight_map=ExampleWeightMap(weight_feature='w')))
     self.assertSameElements(expected_counts, actual_counts)
 
 
@@ -918,14 +914,23 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
     examples = [
         pa.RecordBatch.from_arrays([
             pa.array([['a'], ['a'], ['b'], ['a']]),
+            pa.array([['x'], ['x'], ['y'], ['x']]),
             pa.array([['cat'], ['dog'], ['cat'], ['dog']]),
+            pa.array([[.1], [.1], [.5], [.2]]),
             pa.array([[.5], [.5], [2], [1]]),
-        ], ['categorical_x', 'string_y', 'weight']),
+        ], [
+            'categorical_x1', 'categorical_x2', 'string_y', 'weight_x2',
+            'weight'
+        ]),
     ]
     schema = text_format.Parse(
         """
         feature {
-          name: 'categorical_x'
+          name: 'categorical_x1'
+          type: BYTES
+        }
+        feature {
+          name: 'categorical_x2'
           type: BYTES
         }
         feature {
@@ -936,13 +941,17 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
           name: 'weight'
           type: FLOAT
         }
+        feature {
+          name: 'weight_x2'
+          type: FLOAT
+        }
         """, schema_pb2.Schema())
     expected_results = [
         text_format.Parse(
             """
             cross_features {
               path_x {
-                step: "categorical_x"
+                step: "categorical_x1"
               }
               path_y {
                 step: "string_y"
@@ -988,7 +997,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
             """
             cross_features {
               path_x {
-                step: "categorical_x"
+                step: "categorical_x1"
               }
               path_y {
                 step: "string_y"
@@ -1029,10 +1038,105 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
                 }
               }
             }""", statistics_pb2.DatasetFeatureStatistics()),
+        text_format.Parse(
+            """
+            cross_features {
+              path_x {
+                step: "categorical_x2"
+              }
+              path_y {
+                step: "string_y"
+              }
+              categorical_cross_stats {
+                lift {
+                  lift_series {
+                    y_string: "cat"
+                    weighted_y_count: 2.5
+                    lift_values {
+                      x_string: "y"
+                      lift: 1.6
+                      weighted_x_count: 0.5
+                      weighted_x_and_y_count: 0.5
+                    }
+                    lift_values {
+                      x_string: "x"
+                      lift: 0.4
+                      weighted_x_count: 0.4
+                      weighted_x_and_y_count: 0.1
+                    }
+                  }
+                  lift_series {
+                    y_string: "dog"
+                    weighted_y_count: 1.5
+                    lift_values {
+                      x_string: "x"
+                      lift: 2.0
+                      weighted_x_count: 0.4
+                      weighted_x_and_y_count: 0.3
+                    }
+                    lift_values {
+                      x_string: "y"
+                      weighted_x_count: 0.5
+                      weighted_x_and_y_count: 0.0
+                    }
+                  }
+                }
+              }
+            }""", statistics_pb2.DatasetFeatureStatistics()),
+        text_format.Parse(
+            """
+            cross_features {
+              path_x {
+                step: "categorical_x2"
+              }
+              path_y {
+                step: "string_y"
+              }
+              categorical_cross_stats {
+                lift {
+                  lift_series {
+                    y_string: "cat"
+                    y_count: 2
+                    lift_values {
+                      x_string: "y"
+                      lift: 2.0
+                      x_count: 1
+                      x_and_y_count: 1
+                    }
+                    lift_values {
+                      x_string: "x"
+                      lift: 0.6666667
+                      x_count: 3
+                      x_and_y_count: 1
+                    }
+                  }
+                  lift_series {
+                    y_string: "dog"
+                    y_count: 2
+                    lift_values {
+                      x_string: "x"
+                      lift: 1.3333333
+                      x_count: 3
+                      x_and_y_count: 2
+                    }
+                    lift_values {
+                      x_string: "y"
+                      x_count: 1
+                      x_and_y_count: 0
+                    }
+                  }
+                }
+              }
+            }""", statistics_pb2.DatasetFeatureStatistics()),
     ]
     generator = lift_stats_generator.LiftStatsGenerator(
-        schema=schema, y_path=types.FeaturePath(['string_y']),
-        weight_column_name='weight')
+        schema=schema,
+        y_path=types.FeaturePath(['string_y']),
+        example_weight_map=ExampleWeightMap(
+            weight_feature='weight',
+            per_feature_override={
+                types.FeaturePath(['categorical_x2']): 'weight_x2'
+            }))
     self.assertSlicingAwareTransformOutputEqual(
         examples,
         generator,
@@ -1065,7 +1169,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         """, schema_pb2.Schema())
     generator = lift_stats_generator.LiftStatsGenerator(
         schema=schema, y_path=types.FeaturePath(['string_y']),
-        weight_column_name='weight')
+        example_weight_map=ExampleWeightMap(weight_feature='weight'))
     examples = [(None, e) for e in examples]
     with self.assertRaisesRegex(ValueError,
                                 r'Weight column "weight" must have exactly one '
@@ -1098,7 +1202,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         """, schema_pb2.Schema())
     generator = lift_stats_generator.LiftStatsGenerator(
         schema=schema, y_path=types.FeaturePath(['string_y']),
-        weight_column_name='weight')
+        example_weight_map=ExampleWeightMap(weight_feature='weight'))
     examples = [(None, e) for e in examples]
     with self.assertRaisesRegex(ValueError,
                                 r'Weight column "weight" cannot be null.*'):

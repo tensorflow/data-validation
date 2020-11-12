@@ -18,17 +18,18 @@ from __future__ import division
 
 from __future__ import print_function
 
+from typing import List, Optional, Text, Union
+
 import apache_beam as beam
 import pyarrow as pa
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tfx_bsl.coders import csv_decoder
-from typing import List, Optional, Text, Union
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 
 
-@beam.typehints.with_input_types(types.BeamCSVRecord)
+@beam.typehints.with_input_types(Text)
 @beam.typehints.with_output_types(pa.RecordBatch)
 class DecodeCSV(beam.PTransform):
   """Decodes CSV records into Arrow RecordBatches."""

@@ -14,14 +14,12 @@
 
 """Tests for TopKUniques statistics generator."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 from absl.testing import absltest
 import pyarrow as pa
+from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import top_k_uniques_stats_generator
 from tensorflow_data_validation.utils import test_util
+from tensorflow_data_validation.utils.example_weight_map import ExampleWeightMap
 
 from google.protobuf import text_format
 
@@ -118,10 +116,11 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
 
   def test_topk_uniques_with_weights(self):
     # non-weighted ordering
-    # 3 'a', 2 'e', 2 'd', 2 'c', 1 'b'
+    # fa: 3 'a', 2 'e', 2 'd', 2 'c', 1 'b'
+    # fb: 1 'v', 1 'w', 1 'x', 1 'y', 1 'z'
     # weighted ordering
     # fa: 20 'e', 20 'd', 15 'a', 10 'c', 5 'b'
-
+    # fb: 6 'z', 4 'x', 4 'y', 4 'w', 2 'v'
     examples = [
         pa.RecordBatch.from_arrays([
             pa.array([
@@ -129,8 +128,10 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
                 ['a', 'c', 'd', 'a'],
                 ['d', 'e'],
             ]),
-            pa.array([[5.0], [5.0], [15.0]])
-        ], ['fa', 'w'])
+            pa.array([[5.0], [5.0], [15.0]]),
+            pa.array([['v'], ['w', 'x', 'y'], ['z']]),
+            pa.array([[2], [4], [6]]),
+        ], ['fa', 'w', 'fb', 'w_b'])
     ]
 
     expected_result = [
@@ -183,6 +184,50 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         text_format.Parse(
             """
             features {
+              type: STRING
+              string_stats {
+                top_values {
+                  value: "z"
+                  frequency: 1.0
+                }
+                top_values {
+                  value: "y"
+                  frequency: 1.0
+                }
+                top_values {
+                  value: "x"
+                  frequency: 1.0
+                }
+                top_values {
+                  value: "w"
+                  frequency: 1.0
+                }
+                rank_histogram {
+                  buckets {
+                    label: "z"
+                    sample_count: 1.0
+                  }
+                  buckets {
+                    low_rank: 1
+                    high_rank: 1
+                    label: "y"
+                    sample_count: 1.0
+                  }
+                  buckets {
+                    low_rank: 2
+                    high_rank: 2
+                    label: "x"
+                    sample_count: 1.0
+                  }
+                }
+              }
+              path {
+                step: "fb"
+              }
+            }""", statistics_pb2.DatasetFeatureStatistics()),
+        text_format.Parse(
+            """
+            features {
               path {
                 step: 'fa'
               }
@@ -227,22 +272,82 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
                   }
                 }
               }
-        }""", statistics_pb2.DatasetFeatureStatistics()),
+            }""", statistics_pb2.DatasetFeatureStatistics()),
         text_format.Parse(
             """
-      features {
-        path {
-          step: 'fa'
-        }
-        type: STRING
-        string_stats {
-          unique: 5
-        }
-      }""", statistics_pb2.DatasetFeatureStatistics()),
+            features {
+              type: STRING
+              string_stats {
+                weighted_string_stats {
+                  top_values {
+                    value: "z"
+                    frequency: 6.0
+                  }
+                  top_values {
+                    value: "y"
+                    frequency: 4.0
+                  }
+                  top_values {
+                    value: "x"
+                    frequency: 4.0
+                  }
+                  top_values {
+                    value: "w"
+                    frequency: 4.0
+                  }
+                  rank_histogram {
+                    buckets {
+                      label: "z"
+                      sample_count: 6.0
+                    }
+                    buckets {
+                      low_rank: 1
+                      high_rank: 1
+                      label: "y"
+                      sample_count: 4.0
+                    }
+                    buckets {
+                      low_rank: 2
+                      high_rank: 2
+                      label: "x"
+                      sample_count: 4.0
+                    }
+                  }
+                }
+              }
+              path {
+                step: "fb"
+              }
+            }""", statistics_pb2.DatasetFeatureStatistics()),
+        text_format.Parse(
+            """
+            features {
+              path {
+                step: 'fa'
+              }
+              type: STRING
+              string_stats {
+                unique: 5
+              }
+            }""", statistics_pb2.DatasetFeatureStatistics()),
+        text_format.Parse(
+            """
+            features {
+              type: STRING
+              string_stats {
+                unique: 5
+              }
+              path {
+                step: "fb"
+              }
+            }""", statistics_pb2.DatasetFeatureStatistics()),
     ]
 
     generator = top_k_uniques_stats_generator.TopKUniquesStatsGenerator(
-        weight_feature='w', num_top_values=4, num_rank_histogram_buckets=3)
+        example_weight_map=ExampleWeightMap(
+            weight_feature='w',
+            per_feature_override={types.FeaturePath(['fb']): 'w_b'}),
+        num_top_values=4, num_rank_histogram_buckets=3)
     self.assertSlicingAwareTransformOutputEqual(
         examples,
         generator,
@@ -960,7 +1065,7 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
     ]
 
     generator = top_k_uniques_stats_generator.TopKUniquesStatsGenerator(
-        weight_feature='w',
+        example_weight_map=ExampleWeightMap(weight_feature='w'),
         num_top_values=5,
         frequency_threshold=2,
         weighted_frequency_threshold=15,
@@ -1474,7 +1579,8 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         """, schema_pb2.Schema())
     generator = top_k_uniques_stats_generator.TopKUniquesStatsGenerator(
         schema=schema,
-        weight_feature='w', num_top_values=3, num_rank_histogram_buckets=3)
+        example_weight_map=ExampleWeightMap(weight_feature='w'),
+        num_top_values=3, num_rank_histogram_buckets=3)
     self.assertSlicingAwareTransformOutputEqual(
         inputs,
         generator,

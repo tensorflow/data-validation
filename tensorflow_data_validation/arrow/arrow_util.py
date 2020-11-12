@@ -13,16 +13,13 @@
 # limitations under the License
 """Util functions regarding to Arrow objects."""
 
-from __future__ import absolute_import
-from __future__ import division
-
-from __future__ import print_function
+from typing import Dict, Iterable, Optional, Text, Tuple
 
 import numpy as np
 import pyarrow as pa
 from tensorflow_data_validation import types
+from tensorflow_data_validation.utils.example_weight_map import ExampleWeightMap
 from tfx_bsl.arrow import array_util
-from typing import Iterable, Optional, Text, Tuple
 
 
 def get_weight_feature(input_record_batch: pa.RecordBatch,
@@ -209,7 +206,7 @@ def flatten_nested(
 
 def enumerate_arrays(
     record_batch: pa.RecordBatch,
-    weight_column: Optional[Text],
+    example_weight_map: Optional[ExampleWeightMap],
     enumerate_leaves_only: bool,
     wrap_flat_struct_in_list: bool = True,
 ) -> Iterable[Tuple[types.FeaturePath, pa.Array, Optional[np.ndarray]]]:
@@ -246,9 +243,8 @@ def enumerate_arrays(
 
   Args:
     record_batch: The RecordBatch whose arrays to be visited.
-    weight_column: The name of the weight column, or None. The elements of
-      the weight column should be lists of numerics, and each list should
-      contain only one value.
+    example_weight_map: an ExampleWeightMap that maps a FeaturePath to its
+      corresponding weight column.
     enumerate_leaves_only: If True, only enumerate leaf arrays. A leaf array
       is an array whose type does not have any struct nested in.
       Otherwise, also enumerate the struct arrays where the leaf arrays are
@@ -270,13 +266,14 @@ def enumerate_arrays(
 
   def _recursion_helper(
       feature_path: types.FeaturePath, array: pa.Array,
-      weights: Optional[np.ndarray]
+      all_weights: Dict[types.FeatureName, np.ndarray],
   ) -> Iterable[Tuple[types.FeaturePath, pa.Array, Optional[np.ndarray]]]:
     """Recursion helper."""
     array_type = array.type
     innermost_nested_type = get_innermost_nested_type(array_type)
     if pa.types.is_struct(innermost_nested_type):
       if not enumerate_leaves_only:
+        weights = all_weights.get(example_weight_map.get(feature_path))
         # special handing for a flat struct array -- wrap it in a ListArray
         # whose elements are singleton lists. This way downstream can keep
         # assuming the enumerated arrays are list<*>.
@@ -285,27 +282,34 @@ def enumerate_arrays(
           to_yield = array_util.ToSingletonListArray(array)
         yield (feature_path, to_yield, weights)
       flat_struct_array, parent_indices = flatten_nested(
-          array, weights is not None)
-      flat_weights = None if weights is None else weights[parent_indices]
+          array, bool(all_weights))
+      # Potential optimization:
+      # Only flatten weights that we know will be used in the recursion.
+      flat_all_weights = {
+          weight_feature_name: w[parent_indices]
+          for weight_feature_name, w in all_weights.items()
+      }
       for field in flat_struct_array.type:
         field_name = field.name
-        # use "yield from" after PY 3.3.
-        for e in _recursion_helper(
-            feature_path.child(field_name),
-            flat_struct_array.field(field_name), flat_weights):
-          yield e
+        yield from _recursion_helper(
+            feature_path.child(field_name), flat_struct_array.field(field_name),
+            flat_all_weights)
     else:
+      weights = all_weights.get(example_weight_map.get(feature_path))
       yield (feature_path, array, weights)
 
-  weights = None
-  if weight_column is not None:
-    weights = get_weight_feature(record_batch, weight_column)
+  if example_weight_map is None:
+    example_weight_map = ExampleWeightMap(
+        weight_feature=None, per_feature_override=None)
+  all_weights = {
+      weight_column: get_weight_feature(record_batch, weight_column)
+      for weight_column in example_weight_map.all_weight_features()
+  }
+
   for column_name, column in zip(record_batch.schema.names,
                                  record_batch.columns):
-    # use "yield from" after PY 3.3.
-    for e in _recursion_helper(
-        types.FeaturePath([column_name]), column, weights):
-      yield e
+    yield from _recursion_helper(
+        types.FeaturePath([column_name]), column, all_weights)
 
 
 def get_innermost_nested_type(arrow_type: pa.DataType) -> pa.DataType:
