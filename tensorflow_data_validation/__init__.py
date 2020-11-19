@@ -74,6 +74,7 @@ from tensorflow_data_validation.utils.stats_gen_lib import generate_statistics_f
 from tensorflow_data_validation.utils.stats_gen_lib import generate_statistics_from_tfrecord
 
 # Import stats utilities.
+from tensorflow_data_validation.utils.stats_util import get_feature_stats
 from tensorflow_data_validation.utils.stats_util import get_slice_stats
 from tensorflow_data_validation.utils.stats_util import load_statistics
 from tensorflow_data_validation.utils.stats_util import load_stats_binary
