@@ -63,7 +63,6 @@ from typing import Any, Dict, Iterable, List, Optional, Text
 import apache_beam as beam
 import numpy as np
 import pyarrow as pa
-import six
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
@@ -825,19 +824,25 @@ def _make_feature_stats_proto(
   result = statistics_pb2.FeatureNameStatistics()
   result.path.CopyFrom(feature_path.to_proto())
   # Set the feature type.
-  # If we have a categorical feature, we preserve the type to be the original
-  # INT type. Currently we don't set the type if we cannot infer it, which
-  # happens when all the values are missing. We need to add an UNKNOWN type
-  # to the stats proto to handle this case.
-  if is_categorical:
-    result.type = statistics_pb2.FeatureNameStatistics.INT
+  inferred_type = basic_stats.common_stats.type
+  if inferred_type is not None:
+    # The user claims the feature to be BYTES. Only trust them if the inferred
+    # type is STRING (which means the actual data is in strings/bytes). We
+    # never infer BYTES.
+    if (is_bytes and
+        inferred_type == statistics_pb2.FeatureNameStatistics.STRING):
+      result.type = statistics_pb2.FeatureNameStatistics.BYTES
+    else:
+      result.type = basic_stats.common_stats.type
+  # The inferred type being None means we don't see any value for this feature.
+  # We trust user's claim.
   elif is_bytes:
     result.type = statistics_pb2.FeatureNameStatistics.BYTES
-  elif basic_stats.common_stats.type is None:
-    # If a feature is completely missing, we assume the type to be STRING.
-    result.type = statistics_pb2.FeatureNameStatistics.STRING
+  elif is_categorical:
+    result.type = statistics_pb2.FeatureNameStatistics.INT
   else:
-    result.type = basic_stats.common_stats.type
+    # We don't have an "unknown" type so use STRING here.
+    result.type = statistics_pb2.FeatureNameStatistics.STRING
 
   # Construct common statistics proto.
   common_stats_proto = _make_common_stats_proto(
@@ -855,15 +860,16 @@ def _make_feature_stats_proto(
   # Copy the common stats into appropriate numeric/string stats.
   # If the type is not set, we currently wrap the common stats
   # within numeric stats.
-  if is_bytes:
+  if result.type == statistics_pb2.FeatureNameStatistics.BYTES:
     # Construct bytes statistics proto.
     bytes_stats_proto = _make_bytes_stats_proto(
         basic_stats.bytes_stats, common_stats_proto.tot_num_values)
     # Add the common stats into bytes stats.
     bytes_stats_proto.common_stats.CopyFrom(common_stats_proto)
     result.bytes_stats.CopyFrom(bytes_stats_proto)
-  if (is_categorical or
-      result.type == statistics_pb2.FeatureNameStatistics.STRING):
+  if (result.type == statistics_pb2.FeatureNameStatistics.STRING or
+      (is_categorical and
+       result.type == statistics_pb2.FeatureNameStatistics.INT)):
     # Construct string statistics proto.
     string_stats_proto = _make_string_stats_proto(basic_stats.string_stats,
                                                   total_num_values)
@@ -907,7 +913,7 @@ def _update_tfdv_telemetry(
       statistics_pb2.FeatureNameStatistics.STRUCT: _TFDVMetrics(),
   }
 
-  for basic_stats in six.itervalues(accumulator):
+  for basic_stats in accumulator.values():
     common_stats = basic_stats.common_stats
     if common_stats.type is None:
       continue
@@ -1057,16 +1063,28 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
                                             feature_array, feature_type,
                                             self._num_values_quantiles_combiner,
                                             weights)
-      if feature_path in self._bytes_features:
-        stats_for_feature.bytes_stats.update(feature_array)
-      elif (feature_path in self._categorical_features or
-            feature_type == statistics_pb2.FeatureNameStatistics.STRING):
-        stats_for_feature.string_stats.update(feature_array)
-      elif feature_type in (statistics_pb2.FeatureNameStatistics.INT,
-                            statistics_pb2.FeatureNameStatistics.FLOAT):
-        stats_for_feature.numeric_stats.update(feature_array,
-                                               self._values_quantiles_combiner,
-                                               weights)
+      # The user may make certain claims about a feature's data type
+      # (e.g. _bytes_features imply string data type). However we should not
+      # trust those claims because TFDV is also responsible for detecting
+      # mismatching types. We collect stats according to the actual type, and
+      # only when the actual type matches the claim do we collect the
+      # type-specific stats (like for categorical int and bytes features).
+      if feature_type == statistics_pb2.FeatureNameStatistics.STRING:
+        if feature_path in self._bytes_features:
+          stats_for_feature.bytes_stats.update(feature_array)
+        else:
+          stats_for_feature.string_stats.update(feature_array)
+      elif feature_type == statistics_pb2.FeatureNameStatistics.INT:
+        if feature_path in self._categorical_features:
+          stats_for_feature.string_stats.update(feature_array)
+        else:
+          stats_for_feature.numeric_stats.update(
+              feature_array,
+              self._values_quantiles_combiner, weights)
+      elif feature_type == statistics_pb2.FeatureNameStatistics.FLOAT:
+        stats_for_feature.numeric_stats.update(
+            feature_array,
+            self._values_quantiles_combiner, weights)
 
     return accumulator
 
@@ -1080,7 +1098,7 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
     weighted_values_summary_per_feature = collections.defaultdict(list)
 
     for accumulator in accumulators:
-      for feature_path, basic_stats in six.iteritems(accumulator):
+      for feature_path, basic_stats in accumulator.items():
         is_categorical = feature_path in self._categorical_features
         current_type = basic_stats.common_stats.type
         existing_stats = result.get(feature_path)
@@ -1130,21 +1148,21 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
 
     # Merge the summaries per feature.
     for feature_path, num_values_summaries in (
-        six.iteritems(num_values_summaries_per_feature)):
+        num_values_summaries_per_feature.items()):
       result[feature_path].common_stats.merge_num_values_summaries(
           feature_path,
           self._num_values_quantiles_combiner, num_values_summaries)
 
     # Merge the values quantiles summaries per feature.
     for feature_path, quantiles_summaries in (
-        six.iteritems(values_summary_per_feature)):
+        values_summary_per_feature.items()):
       result[feature_path].numeric_stats.quantiles_summary = (
           self._values_quantiles_combiner.merge_accumulators(
               quantiles_summaries))
 
     # Merge the values weighted quantiles summaries per feature.
     for feature_path, weighted_quantiles_summaries in (
-        six.iteritems(weighted_values_summary_per_feature)):
+        weighted_values_summary_per_feature.items()):
       result[feature_path].numeric_stats.weighted_quantiles_summary = (
           self._values_quantiles_combiner.merge_accumulators(
               weighted_quantiles_summaries))
@@ -1161,7 +1179,7 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
     # Create a new DatasetFeatureStatistics proto.
     result = statistics_pb2.DatasetFeatureStatistics()
 
-    for feature_path, basic_stats in six.iteritems(accumulator):
+    for feature_path, basic_stats in accumulator.items():
       # Construct the FeatureNameStatistics proto from the partial
       # basic stats.
       feature_stats_proto = _make_feature_stats_proto(

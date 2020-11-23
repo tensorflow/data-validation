@@ -1182,5 +1182,21 @@ class TopKUniquesSketchStatsGeneratorTest(
         store_output_in_custom_stats=True)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
+  def test_schema_claims_categorical_but_actually_float(self):
+    schema = text_format.Parse("""
+    feature {
+      name: "a"
+      type: INT
+      int_domain { is_categorical: true }
+    }""", schema_pb2.Schema())
+    batches = [pa.RecordBatch.from_arrays([
+        pa.array([], type=pa.list_(pa.float32()))], ['a'])]
+    generator = sketch_generator.TopKUniquesSketchStatsGenerator(
+        schema=schema,
+        num_top_values=4, num_rank_histogram_buckets=3)
+    self.assertCombinerOutputEqual(
+        batches, generator, expected_feature_stats={})
+
+
 if __name__ == '__main__':
   absltest.main()

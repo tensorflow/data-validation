@@ -169,7 +169,8 @@ class TopKUniquesSketchStatsGenerator(stats_generator.CombinerStatsGenerator):
       feature_type = stats_util.get_feature_type_from_arrow_type(
           feature_path, leaf_array.type)
       # Only compute top-k and unique stats for categorical and string features.
-      if (feature_path in self._categorical_features or
+      if ((feature_type == statistics_pb2.FeatureNameStatistics.INT and
+           feature_path in self._categorical_features) or
           feature_type == statistics_pb2.FeatureNameStatistics.STRING):
         self._update_combined_sketch_for_feature(
             feature_path, leaf_array, weights, accumulator)

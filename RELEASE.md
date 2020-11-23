@@ -10,6 +10,10 @@
 ## Bug Fixes and Other Changes
 *  Newly added LifecycleStage.DISABLED is now exempt from validation (similar
    to LifecycleStage.DEPRECATED, etc).
+*  Fixed a bug where TFDV blindly trusts the claim type in the provided schema.
+   TFDV now computes the stats according to the actual type of the data, and
+   only when the actual type matches the claim in the schema will it compute
+   type-specific stats (e.g. categorical ints).
 
 ## Breaking changes
 

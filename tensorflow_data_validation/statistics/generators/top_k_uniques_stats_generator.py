@@ -22,7 +22,6 @@ import apache_beam as beam
 import numpy as np
 import pandas as pd
 import pyarrow as pa
-import six
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.statistics.generators import stats_generator
@@ -58,8 +57,7 @@ def _weighted_unique(values: np.ndarray, weights: np.ndarray
   })
   gb = df.groupby(
       'value', as_index=False, sort=False)['count', 'weight'].sum()
-  return six.moves.zip(
-      gb['value'].tolist(), gb['count'].tolist(), gb['weight'].tolist())
+  return zip(gb['value'].tolist(), gb['count'].tolist(), gb['weight'].tolist())
 
 
 def _to_topk_tuples(
@@ -80,12 +78,10 @@ def _to_topk_tuples(
     feature_array_type = feature_array.type
     feature_type = stats_util.get_feature_type_from_arrow_type(
         feature_path, feature_array_type)
-    # Skip null columns.
-    if feature_type is None:
-      continue
     if feature_path in bytes_features:
       continue
-    if (feature_path in categorical_features or
+    if ((feature_type == statistics_pb2.FeatureNameStatistics.INT and
+         feature_path in categorical_features) or
         feature_type == statistics_pb2.FeatureNameStatistics.STRING):
       flattened_values, parent_indices = arrow_util.flatten_nested(
           feature_array, weights is not None)
@@ -101,10 +97,10 @@ def _to_topk_tuples(
         values = value_counts.field('values').to_pylist()
         counts = value_counts.field('counts').to_pylist()
         if has_any_weight:
-          for value, count in six.moves.zip(values, counts):
+          for value, count in zip(values, counts):
             yield ((slice_key, feature_path.steps(), value), (count, 1))
         else:
-          for value, count in six.moves.zip(values, counts):
+          for value, count in zip(values, counts):
             yield ((slice_key, feature_path.steps(), value), count)
 
 

@@ -18,7 +18,6 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 import pyarrow as pa
-import six
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import basic_stats_generator
 from tensorflow_data_validation.utils import test_util
@@ -31,7 +30,7 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 
 class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
 
-  def test_basic_stats_generator_single_feature(self):
+  def test_single_feature(self):
     # input with two batches: first batch has two examples and second batch
     # has a single example.
     b1 = pa.RecordBatch.from_arrays([pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]])],
@@ -130,7 +129,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         num_quantiles_histogram_buckets=4)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_basic_stats_generator_infinity(self):
+  def test_infinity(self):
     # input with two batches: first batch has two examples and second batch
     # has a single example.
     b1 = pa.RecordBatch.from_arrays([
@@ -235,7 +234,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         num_quantiles_histogram_buckets=4)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_basic_stats_generator_no_runtime_warnings_close_to_max_int(self):
+  def test_no_runtime_warnings_close_to_max_int(self):
     # input has batches with values that are slightly smaller than the maximum
     # integer value.
     less_than_max_int_value = np.iinfo(np.int64).max - 1
@@ -253,7 +252,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     generator.merge_accumulators(accumulators)
     np.seterr(**old_nperr)
 
-  def test_basic_stats_generator_handle_null_column(self):
+  def test_handle_null_column(self):
     # Feature 'a' covers null coming before non-null.
     # Feature 'b' covers null coming after non-null.
     b1 = pa.RecordBatch.from_arrays([
@@ -440,7 +439,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         num_quantiles_histogram_buckets=4)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_basic_stats_generator_pure_null_column(self):
+  def test_pure_null_column(self):
     batches = [
         pa.RecordBatch.from_arrays([
             pa.array([None, None], type=pa.null()),
@@ -474,7 +473,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         batches, generator, expected_result,
         only_match_expected_feature_stats=True)
 
-  def test_basic_stats_generator_with_weight_feature(self):
+  def test_with_weight_feature(self):
     # input with two batches: first batch has two examples and second batch
     # has a single example.
     b1 = pa.RecordBatch.from_arrays([
@@ -912,7 +911,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         num_quantiles_histogram_buckets=4)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_basic_stats_generator_with_per_feature_weight(self):
+  def test_with_per_feature_weight(self):
     # input with two batches: first batch has two examples and second batch
     # has a single example.
     b1 = pa.RecordBatch.from_arrays([
@@ -1216,7 +1215,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     self.assertCombinerOutputEqual(batches, generator, expected_result,
                                    only_match_expected_feature_stats=True)
 
-  def test_basic_stats_generator_with_entire_feature_value_list_missing(self):
+  def test_with_entire_feature_value_list_missing(self):
     # input with two batches: first batch has three examples and second batch
     # has two examples.
     b1 = pa.RecordBatch.from_arrays([
@@ -1349,7 +1348,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         num_quantiles_histogram_buckets=4)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_basic_stats_generator_with_individual_feature_value_missing(self):
+  def test_with_individual_feature_value_missing(self):
     # input with two batches: first batch has two examples and second batch
     # has a single example.
     b1 = pa.RecordBatch.from_arrays(
@@ -1446,7 +1445,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         num_quantiles_histogram_buckets=4)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_basic_stats_generator_with_multiple_features(self):
+  def test_with_multiple_features(self):
 
     # Test that columns of ListArray, LargeListArray can be handled. Also test
     # that columns whose values are LargeBinaryArray can be handled.
@@ -1671,7 +1670,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         num_quantiles_histogram_buckets=4, epsilon=0.001)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_basic_stats_generator_with_bytes_features(self):
+  def test_with_bytes_features(self):
 
     b1 = pa.RecordBatch.from_arrays([
         pa.array([[b'x', b'y', b'z', b'w'], [b'qwe', b'abc']]),], ['b'])
@@ -1730,7 +1729,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         num_quantiles_histogram_buckets=4, epsilon=0.001)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_basic_stats_generator_categorical_feature(self):
+  def test_categorical_feature(self):
     batches = [
         pa.RecordBatch.from_arrays([pa.array([[1, 5, 10], [0]])], ['c']),
         pa.RecordBatch.from_arrays([pa.array([[1, 1, 1, 5, 15], [-1]])], ['c']),
@@ -1788,7 +1787,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         num_quantiles_histogram_buckets=4)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_basic_stats_generator_empty_batch(self):
+  def test_empty_batch(self):
     batches = [
         pa.RecordBatch.from_arrays([pa.array([], type=pa.list_(pa.binary()))],
                                    ['a'])
@@ -1810,7 +1809,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     generator = basic_stats_generator.BasicStatsGenerator()
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_basic_stats_generator_no_value_in_batch(self):
+  def test_no_value_in_batch(self):
     batches = [
         pa.RecordBatch.from_arrays([
             pa.array([[], [], []], type=pa.list_(pa.int64()))], ['a'])]
@@ -1861,7 +1860,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     generator = basic_stats_generator.BasicStatsGenerator()
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_basic_stats_generator_only_nan(self):
+  def test_only_nan(self):
     b1 = pa.RecordBatch.from_arrays(
         [pa.array([[np.NaN]], type=pa.list_(pa.float32()))], ['a'])
     batches = [b1]
@@ -1908,14 +1907,66 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         num_quantiles_histogram_buckets=4)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_basic_stats_generator_column_not_list(self):
+  def test_schema_claims_bytes_but_actually_int(self):
+    schema = text_format.Parse("""
+        feature {
+          name: "a"
+          type: BYTES
+          image_domain { }
+        }""", schema_pb2.Schema())
+    batches = [pa.RecordBatch.from_arrays([
+        pa.array([], type=pa.list_(pa.int64()))], ['a'])]
+    expected_result = {
+        types.FeaturePath(['a']): text_format.Parse("""
+            type: INT
+            num_stats {
+              common_stats {
+              }
+            }
+            path {
+              step: "a"
+            }
+            """, statistics_pb2.FeatureNameStatistics())}
+    generator = basic_stats_generator.BasicStatsGenerator(
+        schema=schema,
+        num_values_histogram_buckets=2, num_histogram_buckets=3,
+        num_quantiles_histogram_buckets=4)
+    self.assertCombinerOutputEqual(batches, generator, expected_result)
+
+  def test_schema_claims_categorical_but_actually_float(self):
+    schema = text_format.Parse("""
+    feature {
+      name: "a"
+      type: INT
+      int_domain { is_categorical: true }
+    }""", schema_pb2.Schema())
+    batches = [pa.RecordBatch.from_arrays([
+        pa.array([], type=pa.list_(pa.float32()))], ['a'])]
+    expected_result = {
+        types.FeaturePath(['a']): text_format.Parse("""
+            type: FLOAT
+            num_stats {
+              common_stats {
+              }
+            }
+            path {
+              step: "a"
+            }
+            """, statistics_pb2.FeatureNameStatistics())}
+    generator = basic_stats_generator.BasicStatsGenerator(
+        schema=schema,
+        num_values_histogram_buckets=2, num_histogram_buckets=3,
+        num_quantiles_histogram_buckets=4)
+    self.assertCombinerOutputEqual(batches, generator, expected_result)
+
+  def test_column_not_list(self):
     batches = [pa.RecordBatch.from_arrays([pa.array([1, 2, 3])], ['a'])]
     generator = basic_stats_generator.BasicStatsGenerator()
     with self.assertRaisesRegex(  # pylint: disable=g-error-prone-assert-raises
         TypeError, r'Expected feature column to be a \(Large\)List'):
       self.assertCombinerOutputEqual(batches, generator, None)
 
-  def test_basic_stats_generator_invalid_value_numpy_dtype(self):
+  def test_invalid_value_numpy_dtype(self):
     batches = [pa.RecordBatch.from_arrays(
         [pa.array([[]], type=pa.list_(pa.date32()))], ['a'])]
     generator = basic_stats_generator.BasicStatsGenerator()
@@ -1923,7 +1974,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         TypeError, 'Feature a has unsupported arrow type'):
       self.assertCombinerOutputEqual(batches, generator, None)
 
-  def test_basic_stats_generator_feature_with_different_types(self):
+  def test_feature_with_inconsistent_types(self):
     batches = [
         pa.RecordBatch.from_arrays([pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]])],
                                    ['a']),
@@ -2450,7 +2501,7 @@ class BasicStatsGeneratorStructStatsTest(test_util.CombinerStatsGeneratorTest,
     ]
 
     expected_result = {}
-    for k, v in six.iteritems(expected_result_text_protos):
+    for k, v in expected_result_text_protos.items():
       feature_stats = text_format.Parse(
           v, statistics_pb2.FeatureNameStatistics())
       feature_path = types.FeaturePath(k)

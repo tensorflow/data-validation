@@ -18,7 +18,6 @@ from typing import Any, Dict, Iterable, Optional, Text
 
 import numpy as np
 import pyarrow as pa
-import six
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.statistics.generators import stats_generator
@@ -48,11 +47,11 @@ class _WeightedCounter(collections.defaultdict):
                       weights: Iterable[Any]) -> None:
     """Updates the count of elements in `values` with weights."""
 
-    for v, w in six.moves.zip(values, weights):
+    for v, w in zip(values, weights):
       self[v] += w
 
   def update(self, other: '_WeightedCounter') -> None:
-    for k, v in six.iteritems(other):
+    for k, v in other.items():
       self[k] += v
 
   def __reduce__(self):
@@ -115,11 +114,10 @@ class TopKUniquesCombinerStatsGenerator(
         enumerate_leaves_only=True):
       feature_type = stats_util.get_feature_type_from_arrow_type(
           feature_path, leaf_array.type)
-      if feature_type is None:
-        continue
-      # if it's not a categorical feature nor a string feature, we don't bother
-      # with topk stats.
-      if (feature_path in self._categorical_features or
+      # if it's not a categorical int feature nor a string feature, we don't
+      # bother with topk stats.
+      if ((feature_type == statistics_pb2.FeatureNameStatistics.INT and
+           feature_path in self._categorical_features) or
           feature_type == statistics_pb2.FeatureNameStatistics.STRING):
         flattened_values, parent_indices = arrow_util.flatten_nested(
             leaf_array, weights is not None)
@@ -128,7 +126,7 @@ class TopKUniquesCombinerStatsGenerator(
         value_counts = array_util.ValueCounts(flattened_values)
         values = value_counts.field('values').to_pylist()
         counts = value_counts.field('counts').to_pylist()
-        for value, count in six.moves.zip(values, counts):
+        for value, count in zip(values, counts):
           unweighted_counts[value] = count
 
         # Compute weighted counts if a weight feature is specified.
@@ -153,7 +151,7 @@ class TopKUniquesCombinerStatsGenerator(
   ) -> Dict[types.FeaturePath, _ValueCounts]:
     result = {}
     for accumulator in accumulators:
-      for feature_path, value_counts in six.iteritems(accumulator):
+      for feature_path, value_counts in accumulator.items():
         if feature_path not in result:
           result[feature_path] = value_counts
         else:

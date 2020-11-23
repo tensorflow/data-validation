@@ -29,7 +29,7 @@ class TopKUniquesCombinerStatsGeneratorTest(
     test_util.CombinerStatsGeneratorTest):
   """Tests for TopKUniquesCombinerStatsGenerator."""
 
-  def test_topk_uniques_combiner_with_single_bytes_feature(self):
+  def test_with_single_bytes_feature(self):
     # 'fa': 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
     batches = [
         pa.RecordBatch.from_arrays([
@@ -96,7 +96,7 @@ class TopKUniquesCombinerStatsGeneratorTest(
             num_top_values=4, num_rank_histogram_buckets=3))
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_topk_uniques_combiner_with_weights(self):
+  def test_with_weights(self):
     # non-weighted ordering
     # fa: 3 'a', 2 'e', 2 'd', 2 'c', 1 'b'
     # fb: 1 'v', 1 'w', 1 'x', 1 'y', 1 'z'
@@ -293,7 +293,7 @@ class TopKUniquesCombinerStatsGeneratorTest(
             num_rank_histogram_buckets=3))
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_topk_uniques_combiner_with_single_unicode_feature(self):
+  def test_with_single_unicode_feature(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
     batches = [
         pa.RecordBatch.from_arrays(
@@ -356,7 +356,7 @@ class TopKUniquesCombinerStatsGeneratorTest(
             num_top_values=4, num_rank_histogram_buckets=3))
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_topk_uniques_combiner_with_multiple_features(self):
+  def test_with_multiple_features(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
     # fb: 1 'a', 2 'b', 3 'c'
     batches = [
@@ -465,7 +465,7 @@ class TopKUniquesCombinerStatsGeneratorTest(
             num_top_values=4, num_rank_histogram_buckets=3))
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_topk_uniques_combiner_zero_row(self):
+  def test_zero_row(self):
     batches = [
         pa.RecordBatch.from_arrays([pa.array([], type=pa.list_(pa.binary()))],
                                    ['f1'])
@@ -477,7 +477,7 @@ class TopKUniquesCombinerStatsGeneratorTest(
             num_top_values=4, num_rank_histogram_buckets=3))
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_topk_uniques_combiners_empty_record_batch(self):
+  def test_empty_record_batch(self):
     batches = [pa.RecordBatch.from_arrays([], [])]
     expected_result = {}
     generator = (
@@ -486,7 +486,7 @@ class TopKUniquesCombinerStatsGeneratorTest(
             num_top_values=4, num_rank_histogram_buckets=3))
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_topk_uniques_combiner_with_missing_feature(self):
+  def test_with_missing_feature(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
     # fb: 1 'a', 1 'b', 2 'c'
     batches = [
@@ -594,7 +594,7 @@ class TopKUniquesCombinerStatsGeneratorTest(
             num_top_values=4, num_rank_histogram_buckets=3))
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_topk_uniques_combiner_with_numeric_feature(self):
+  def test_with_numeric_feature(self):
     # fa: 4 'a', 2 'b', 3 'c', 2 'd', 1 'e'
     batches = [
         pa.RecordBatch.from_arrays([
@@ -660,7 +660,7 @@ class TopKUniquesCombinerStatsGeneratorTest(
             num_top_values=4, num_rank_histogram_buckets=3))
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_topk_uniques_combiner_with_categorical_feature(self):
+  def test_with_categorical_feature(self):
     # fa: 4 12, 2 23, 2 34, 2 45
     batches = [
         pa.RecordBatch.from_arrays([pa.array([[12, 23, 34, 12], [45, 23]])],
@@ -1014,6 +1014,23 @@ class TopKUniquesCombinerStatsGeneratorTest(
 
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
+  def test_schema_claims_categorical_but_actually_float(self):
+    schema = text_format.Parse("""
+    feature {
+      name: "a"
+      type: INT
+      int_domain { is_categorical: true }
+    }""", schema_pb2.Schema())
+    batches = [pa.RecordBatch.from_arrays([
+        pa.array([], type=pa.list_(pa.float32()))], ['a'])]
+    generator = (
+        top_k_uniques_combiner_stats_generator
+        .TopKUniquesCombinerStatsGenerator(
+            schema=schema,
+            num_top_values=3,
+            num_rank_histogram_buckets=3))
+    self.assertCombinerOutputEqual(
+        batches, generator, expected_feature_stats={})
 
 if __name__ == '__main__':
   absltest.main()

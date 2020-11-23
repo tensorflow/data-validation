@@ -1588,5 +1588,24 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         add_default_slice_key_to_input=True,
         add_default_slice_key_to_output=True)
 
+  def test_schema_claims_categorical_but_actually_float(self):
+    schema = text_format.Parse("""
+    feature {
+      name: "a"
+      type: INT
+      int_domain { is_categorical: true }
+    }""", schema_pb2.Schema())
+    inputs = [pa.RecordBatch.from_arrays([
+        pa.array([], type=pa.list_(pa.float32()))], ['a'])]
+    generator = top_k_uniques_stats_generator.TopKUniquesStatsGenerator(
+        schema=schema,
+        num_top_values=3, num_rank_histogram_buckets=3)
+    self.assertSlicingAwareTransformOutputEqual(
+        inputs,
+        generator,
+        expected_results=[],
+        add_default_slice_key_to_input=True,
+        add_default_slice_key_to_output=True)
+
 if __name__ == '__main__':
   absltest.main()
