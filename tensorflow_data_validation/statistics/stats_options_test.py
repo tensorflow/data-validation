@@ -64,6 +64,14 @@ INVALID_STATS_OPTIONS = [
         'error_message': 'schema is of type dict, should be a Schema proto.'
     },
     {
+        'testcase_name': 'invalid_vocab_paths',
+        'stats_options_kwargs': {
+            'vocab_paths': []
+        },
+        'exception_type': TypeError,
+        'error_message': 'vocab_paths is of type list, should be a dict.'
+    },
+    {
         'testcase_name': 'invalid_slice_functions_list',
         'stats_options_kwargs': {
             'slice_functions': {}
@@ -203,6 +211,7 @@ class StatsOptionsTest(parameterized.TestCase):
     ]
     feature_whitelist = ['a']
     schema = schema_pb2.Schema(feature=[schema_pb2.Feature(name='f')])
+    vocab_paths = {'a': '/path/to/a'}
     label_feature = 'label'
     weight_feature = 'weight'
     slice_functions = [slicing_util.get_feature_value_slicer({'b': None})]
@@ -225,6 +234,7 @@ class StatsOptionsTest(parameterized.TestCase):
         generators=generators,
         feature_whitelist=feature_whitelist,
         schema=schema,
+        vocab_paths=vocab_paths,
         label_feature=label_feature,
         weight_feature=weight_feature,
         slice_functions=slice_functions,
@@ -249,6 +259,7 @@ class StatsOptionsTest(parameterized.TestCase):
     self.assertIsNone(options.generators)
     self.assertEqual(feature_whitelist, options.feature_whitelist)
     compare.assertProtoEqual(self, schema, options.schema)
+    self.assertEqual(vocab_paths, options.vocab_paths)
     self.assertEqual(label_feature, options.label_feature)
     self.assertEqual(weight_feature, options.weight_feature)
     self.assertIsNone(options.slice_functions)
@@ -279,6 +290,7 @@ class StatsOptionsTest(parameterized.TestCase):
       "_generators": null,
       "_feature_whitelist": null,
       "_schema": null,
+      "_vocab_paths": null,
       "weight_feature": null,
       "label_feature": null,
       "_slice_functions": null,

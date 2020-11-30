@@ -39,7 +39,9 @@ _PER_FEATURE_WEIGHT_OVERRIDE_JSON_KEY = 'per_feature_weight_override_json'
 # histogram based on the number of buckets.
 
 
-# TODO(b/118833241): Set MI default configs when MI is a default generator
+# TODO(b/118833241): Set MI default configs when MI is a default generator.
+# TODO(b/174481712): Support for vocab_paths is not yet implemented. Remove this
+# note once it is.
 class StatsOptions(object):
   """Options for generating statistics."""
 
@@ -65,7 +67,8 @@ class StatsOptions(object):
       enable_semantic_domain_stats: bool = False,
       semantic_domain_stats_sample_rate: Optional[float] = None,
       per_feature_weight_override: Optional[Dict[types.FeaturePath,
-                                                 types.FeatureName]] = None):
+                                                 types.FeatureName]] = None,
+      vocab_paths: Optional[Dict[types.VocabName, types.VocabPath]] = None):
     """Initializes statistics options.
 
     Args:
@@ -119,6 +122,8 @@ class StatsOptions(object):
       per_feature_weight_override: If specified, the "example weight" paired
         with a feature will be first looked up in this map and if not found,
         fall back to `weight_feature`.
+      vocab_paths: An optional dictionary mapping vocab names to paths. Used in
+        the schema when specifying a NaturalLanguageDomain.
     """
     self.generators = generators
     self.feature_whitelist = feature_whitelist
@@ -140,6 +145,7 @@ class StatsOptions(object):
     self.enable_semantic_domain_stats = enable_semantic_domain_stats
     self.semantic_domain_stats_sample_rate = semantic_domain_stats_sample_rate
     self._per_feature_weight_override = per_feature_weight_override
+    self.vocab_paths = vocab_paths
 
   def to_json(self) -> Text:
     """Convert from an object to JSON representation of the __dict__ attribute.
@@ -243,6 +249,19 @@ class StatsOptions(object):
     self._schema = schema
 
   @property
+  def vocab_paths(self) -> Optional[Dict[types.VocabName, types.VocabPath]]:
+    return self._vocab_paths
+
+  @vocab_paths.setter
+  def vocab_paths(
+      self, vocab_paths: Optional[Dict[types.VocabName,
+                                       types.VocabPath]]) -> None:
+    if vocab_paths is not None and not isinstance(vocab_paths, dict):
+      raise TypeError('vocab_paths is of type %s, should be a dict.' %
+                      type(vocab_paths).__name__)
+    self._vocab_paths = vocab_paths
+
+  @property
   def slice_functions(self) -> Optional[List[types.SliceFunction]]:
     return self._slice_functions
 
@@ -335,4 +354,3 @@ class StatsOptions(object):
   def example_weight_map(self):
     return example_weight_map.ExampleWeightMap(
         self.weight_feature, self._per_feature_weight_override)
-

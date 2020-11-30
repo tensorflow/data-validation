@@ -30,6 +30,12 @@ FeatureCross = Tuple[FeatureName, FeatureName]
 # Feature type enum value.
 FeatureNameStatisticsType = int
 
+# Vocab name.
+VocabName = Text
+
+# Vocab path.
+VocabPath = Text
+
 # Type of the input example.
 Example = Dict[FeatureName, Optional[np.ndarray]]
 
