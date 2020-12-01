@@ -18,6 +18,7 @@ limitations under the License.
 #include <string>
 
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
 #include "absl/types/optional.h"
 #include "tensorflow_data_validation/anomalies/metrics.h"
 #include "tensorflow/core/lib/core/errors.h"
@@ -476,20 +477,26 @@ std::vector<Description> UpdatePresence(
   const optional<double> num_present = feature_stats_view.GetNumPresent();
   if (presence->has_min_count() && num_present) {
     if (*num_present < presence->min_count()) {
+      int64 original_min_count = presence->min_count();
       presence->set_min_count(*num_present);
       descriptions.push_back(
           {AnomalyInfo::FEATURE_TYPE_LOW_NUMBER_PRESENT, kDropped,
-           "The feature was present in fewer examples than expected."});
+           absl::StrFormat("The feature was present in fewer examples than "
+                           "expected: minimum count = %d, actual = %d",
+                           original_min_count, presence->min_count())});
     }
   }
   const optional<double> fraction_present =
       feature_stats_view.GetFractionPresent();
   if (presence->has_min_fraction() && fraction_present) {
     if (*fraction_present < presence->min_fraction()) {
+      float original_min_fraction = presence->min_fraction();
       presence->set_min_fraction(*fraction_present);
       descriptions.push_back(
           {AnomalyInfo::FEATURE_TYPE_LOW_FRACTION_PRESENT, kDropped,
-           "The feature was present in fewer examples than expected."});
+           absl::StrFormat("The feature was present in fewer examples than "
+                           "expected: minimum fraction = %f, actual = %f",
+                           original_min_fraction, presence->min_fraction())});
     }
     if (presence->min_fraction() == 1.0) {
       if (feature_stats_view.GetNumMissing() != 0.0) {
