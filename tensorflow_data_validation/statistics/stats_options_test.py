@@ -229,6 +229,7 @@ class StatsOptionsTest(parameterized.TestCase):
     enable_semantic_domain_stats = True
     semantic_domain_stats_sample_rate = 0.1
     per_feature_weight_override = {types.FeaturePath(['a']): 'w'}
+    add_default_generators = True
 
     options = stats_options.StatsOptions(
         generators=generators,
@@ -251,7 +252,8 @@ class StatsOptionsTest(parameterized.TestCase):
         desired_batch_size=desired_batch_size,
         enable_semantic_domain_stats=enable_semantic_domain_stats,
         semantic_domain_stats_sample_rate=semantic_domain_stats_sample_rate,
-        per_feature_weight_override=per_feature_weight_override)
+        per_feature_weight_override=per_feature_weight_override,
+        add_default_generators=add_default_generators)
 
     options_json = options.to_json()
     options = stats_options.StatsOptions.from_json(options_json)
@@ -284,6 +286,7 @@ class StatsOptionsTest(parameterized.TestCase):
                      options.semantic_domain_stats_sample_rate)
     self.assertEqual(per_feature_weight_override,
                      options._per_feature_weight_override)
+    self.assertEqual(add_default_generators, options.add_default_generators)
 
   def test_stats_options_from_json(self):
     options_json = """{
@@ -307,7 +310,8 @@ class StatsOptionsTest(parameterized.TestCase):
       "_desired_batch_size": null,
       "enable_semantic_domain_stats": false,
       "_semantic_domain_stats_sample_rate": null,
-      "_per_feature_weight_override": null
+      "_per_feature_weight_override": null,
+      "_add_default_generators": true
     }"""
     actual_options = stats_options.StatsOptions.from_json(options_json)
     expected_options_dict = stats_options.StatsOptions().__dict__

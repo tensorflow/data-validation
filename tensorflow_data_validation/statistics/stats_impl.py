@@ -168,7 +168,9 @@ def get_generators(options: stats_options.StatsOptions,
   Returns:
     A list of stats generator objects.
   """
-  generators = _get_default_generators(options, in_memory)
+  generators = [NumExamplesStatsGenerator(options.weight_feature)]
+  if options.add_default_generators:
+    generators.extend(_get_default_generators(options, in_memory))
   if options.generators:
     # Add custom stats generators.
     generators.extend(options.generators)
@@ -249,7 +251,6 @@ def _get_default_generators(
           num_quantiles_histogram_buckets=\
             options.num_quantiles_histogram_buckets,
           epsilon=options.epsilon),
-      NumExamplesStatsGenerator(options.weight_feature)
   ]
   if in_memory:
     stats_generators.append(

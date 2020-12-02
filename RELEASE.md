@@ -14,6 +14,8 @@
    TFDV now computes the stats according to the actual type of the data, and
    only when the actual type matches the claim in the schema will it compute
    type-specific stats (e.g. categorical ints).
+*  Added an option to control whether to add default stats generators when
+   `tfdv.GenerateStatistics()`.
 
 ## Breaking changes
 

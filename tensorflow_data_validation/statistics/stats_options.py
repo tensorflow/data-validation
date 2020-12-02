@@ -68,7 +68,8 @@ class StatsOptions(object):
       semantic_domain_stats_sample_rate: Optional[float] = None,
       per_feature_weight_override: Optional[Dict[types.FeaturePath,
                                                  types.FeatureName]] = None,
-      vocab_paths: Optional[Dict[types.VocabName, types.VocabPath]] = None):
+      vocab_paths: Optional[Dict[types.VocabName, types.VocabPath]] = None,
+      add_default_generators: bool = True):
     """Initializes statistics options.
 
     Args:
@@ -124,6 +125,12 @@ class StatsOptions(object):
         fall back to `weight_feature`.
       vocab_paths: An optional dictionary mapping vocab names to paths. Used in
         the schema when specifying a NaturalLanguageDomain.
+      add_default_generators: Whether to invoke the default set of stats
+        generators in the run. Generators invoked consists of 1) the default
+        generators (controlled by this option); 2) user-provided generators (
+        controlled by the `generators` option); 3) semantic generators
+        (controlled by `enable_semantic_domain_stats`) and 4) schema-based
+        generators that are enabled based on information provided in the schema.
     """
     self.generators = generators
     self.feature_whitelist = feature_whitelist
@@ -146,6 +153,7 @@ class StatsOptions(object):
     self.semantic_domain_stats_sample_rate = semantic_domain_stats_sample_rate
     self._per_feature_weight_override = per_feature_weight_override
     self.vocab_paths = vocab_paths
+    self.add_default_generators = add_default_generators
 
   def to_json(self) -> Text:
     """Convert from an object to JSON representation of the __dict__ attribute.
@@ -354,3 +362,11 @@ class StatsOptions(object):
   def example_weight_map(self):
     return example_weight_map.ExampleWeightMap(
         self.weight_feature, self._per_feature_weight_override)
+
+  @property
+  def add_default_generators(self) -> bool:
+    return self._add_default_generators
+
+  @add_default_generators.setter
+  def add_default_generators(self, add_default_generators: bool) -> None:
+    self._add_default_generators = add_default_generators

@@ -1829,6 +1829,31 @@ GENERATE_STATS_TESTS = [
             }""",
     },
     {
+        'testcase_name': 'no_default_generators',
+        'record_batches': [pa.RecordBatch.from_arrays([
+            pa.array([[1]])
+        ], ['f1'])],
+        'options':
+            stats_options.StatsOptions(
+                generators=[_ValueCounter()],
+                add_default_generators=False),
+        'expected_result_proto_text':
+            """
+              datasets {
+                num_examples: 1
+                features {
+                  custom_stats {
+                    name: "_ValueCounter"
+                    num: 1.0
+                  }
+                  path {
+                    step: "f1"
+                  }
+                }
+              }
+            """
+    },
+    {
         'testcase_name':
             'weighted_feature',
         'record_batches': [
@@ -3166,7 +3191,7 @@ class StatsImplTest(parameterized.TestCase):
         name='CustomStatsGenerator', ptransform=CustomPTransform())
     options = stats_options.StatsOptions(
         generators=[custom_generator], enable_semantic_domain_stats=True)
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         TypeError, 'Statistics generator.* found object of type '
         'TransformStatsGenerator.'):
       stats_impl.generate_statistics_in_memory(record_batch, options)
