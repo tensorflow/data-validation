@@ -19,6 +19,7 @@
 *  Started using a new quantiles computation routine that does not depend on
    TF. This could potentially increase the performance of TFDV under certain
    workloads.
+*  Extending schema_util to support sematic domains.
 
 ## Breaking changes
 

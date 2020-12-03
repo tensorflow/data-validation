@@ -303,22 +303,6 @@ class SchemaUtilTest(parameterized.TestCase):
     self.assertIs(
         domain1, schema.feature[0].struct_domain.feature[0].bool_domain)
 
-  def test_raise_on_get_struct_domain(self):
-    schema = text_format.Parse(
-        """
-        feature {
-          name: "feature1"
-          type: STRUCT
-          struct_domain {
-            feature {
-              name: "sub_feature1"
-            }
-          }
-        }
-        """, schema_pb2.Schema())
-    with self.assertRaisesRegexp(ValueError, 'has an unsupported domain'):
-      _ = schema_util.get_domain(schema, types.FeaturePath(['feature1']))
-
   def test_get_domain_not_present(self):
     schema = text_format.Parse(
         """

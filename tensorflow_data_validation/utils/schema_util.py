@@ -19,10 +19,12 @@ from __future__ import division
 from __future__ import print_function
 
 import logging
-import six
+from typing import Any, Iterable, List, Optional, Set, Text, Tuple, Union
+
 from tensorflow_data_validation import types
 from tensorflow_data_validation.utils import io_util
-from typing import Iterable, List, Optional, Set, Text, Tuple, Union
+
+from google.protobuf import descriptor
 from google.protobuf import text_format
 from tensorflow_metadata.proto.v0 import schema_pb2
 
@@ -71,13 +73,9 @@ def get_feature(schema: schema_pb2.Schema,
   return feature
 
 
-FEATURE_DOMAIN = Union[schema_pb2.IntDomain, schema_pb2.FloatDomain,
-                       schema_pb2.StringDomain, schema_pb2.BoolDomain]
-
-
-def get_domain(schema: schema_pb2.Schema,
-               feature_path: Union[types.FeatureName, types.FeaturePath]
-              ) -> FEATURE_DOMAIN:
+def get_domain(
+    schema: schema_pb2.Schema, feature_path: Union[types.FeatureName,
+                                                   types.FeaturePath]) -> Any:
   """Get the domain associated with the input feature from the schema.
 
   Args:
@@ -87,8 +85,7 @@ def get_domain(schema: schema_pb2.Schema,
       used. For example, "my_feature" -> types.FeaturePath(["my_feature"])
 
   Returns:
-    The domain protocol buffer (one of IntDomain, FloatDomain, StringDomain or
-        BoolDomain) associated with the input feature.
+    The domain protocol buffer associated with the input feature.
 
   Raises:
     TypeError: If the input schema is not of the expected type.
@@ -106,25 +103,18 @@ def get_domain(schema: schema_pb2.Schema,
     raise ValueError('Feature %s has no domain associated with it.' %
                      feature_path)
 
-  if domain_info == 'int_domain':
-    return feature.int_domain
-  elif domain_info == 'float_domain':
-    return feature.float_domain
-  elif domain_info == 'string_domain':
-    return feature.string_domain
-  elif domain_info == 'domain':
-    for domain in schema.string_domain:
-      if domain.name == feature.domain:
-        return domain
-  elif domain_info == 'bool_domain':
-    return feature.bool_domain
+  if domain_info != 'domain':
+    return getattr(feature, domain_info)
+  for domain in schema.string_domain:
+    if domain.name == feature.domain:
+      return domain
 
   raise ValueError('Feature %s has an unsupported domain %s.' %
                    (feature_path, domain_info))
 
 
 def set_domain(schema: schema_pb2.Schema, feature_path: types.FeaturePath,
-               domain: Union[FEATURE_DOMAIN, bytes]) -> None:
+               domain: Any) -> None:
   """Sets the domain for the input feature in the schema.
 
   If the input feature already has a domain, it is overwritten with the newly
@@ -135,9 +125,8 @@ def set_domain(schema: schema_pb2.Schema, feature_path: types.FeaturePath,
     feature_path: The name of the feature whose domain needs to be set. If a
       FeatureName is passed, a one-step FeaturePath will be constructed and
       used. For example, "my_feature" -> types.FeaturePath(["my_feature"])
-    domain: A domain protocol buffer (one of IntDomain, FloatDomain,
-      StringDomain or BoolDomain) or the name of a global string domain present
-      in the input schema.
+    domain: A domain protocol buffer or the name of a global string domain
+      present in the input schema.
   Example:  ```python >>> from tensorflow_metadata.proto.v0 import schema_pb2
     >>> import tensorflow_data_validation as tfdv >>> schema =
     schema_pb2.Schema() >>> schema.feature.add(name='feature') # Setting a int
@@ -154,15 +143,22 @@ def set_domain(schema: schema_pb2.Schema, feature_path: types.FeaturePath,
     raise TypeError('schema is of type %s, should be a Schema proto.' %
                     type(schema).__name__)
 
-  if not isinstance(domain, (schema_pb2.IntDomain, schema_pb2.FloatDomain,
-                             schema_pb2.StringDomain, schema_pb2.BoolDomain,
-                             six.string_types)):
-    raise TypeError('domain is of type %s, should be one of IntDomain, '
-                    'FloatDomain, StringDomain, BoolDomain proto or a string '
-                    'denoting the name of a global domain in the schema.' %
-                    type(domain).__name__)
+  # Find all fields types and names within domain_info.
+  feature_domains = {}
+  for f in schema_pb2.Feature.DESCRIPTOR.oneofs_by_name['domain_info'].fields:
+    if f.message_type is not None:
+      feature_domains[getattr(schema_pb2, f.message_type.name)] = f.name
+    elif f.type == descriptor.FieldDescriptor.TYPE_STRING:
+      feature_domains[str] = f.name
+    else:
+      raise TypeError('Unexpected type within schema.Features.domain_info')
+  if not isinstance(domain, tuple(feature_domains.keys())):
+    raise TypeError('domain is of type %s, should be one of the supported types'
+                    ' in schema.Features.domain_info' % type(domain).__name__)
 
   feature = get_feature(schema, feature_path)
+  print(feature.type)
+  print(schema_pb2.STRUCT)
   if feature.type == schema_pb2.STRUCT:
     raise TypeError('Could not set the domain of a STRUCT feature %s.' %
                     feature_path)
@@ -170,25 +166,19 @@ def set_domain(schema: schema_pb2.Schema, feature_path: types.FeaturePath,
   if feature.WhichOneof('domain_info') is not None:
     logging.warning('Replacing existing domain of feature "%s".', feature_path)
 
-  if isinstance(domain, schema_pb2.IntDomain):
-    feature.int_domain.CopyFrom(domain)
-  elif isinstance(domain, schema_pb2.FloatDomain):
-    feature.float_domain.CopyFrom(domain)
-  elif isinstance(domain, schema_pb2.StringDomain):
-    feature.string_domain.CopyFrom(domain)
-  elif isinstance(domain, schema_pb2.BoolDomain):
-    feature.bool_domain.CopyFrom(domain)
-  else:
-    # If we have a domain name provided as input, check if we have a valid
-    # global string domain with the specified name.
-    found_domain = False
-    for global_domain in schema.string_domain:
-      if global_domain.name == domain:
-        found_domain = True
-        break
-    if not found_domain:
-      raise ValueError('Invalid global string domain "{}".'.format(domain))
-    feature.domain = domain
+  for d_type, d_name in feature_domains.items():
+    if isinstance(domain, d_type):
+      if d_type == str:
+        found_domain = False
+        for global_domain in schema.string_domain:
+          if global_domain.name == domain:
+            found_domain = True
+            break
+        if not found_domain:
+          raise ValueError('Invalid global string domain "{}".'.format(domain))
+        feature.domain = domain
+      else:
+        getattr(feature, d_name).CopyFrom(domain)
 
 
 def write_schema_text(schema: schema_pb2.Schema, output_path: Text) -> None:
@@ -248,7 +238,9 @@ def is_categorical_feature(feature: schema_pb2.Feature):
   elif feature.type == schema_pb2.INT:
     return ((feature.HasField('int_domain') and
              feature.int_domain.is_categorical) or
-            feature.HasField('bool_domain'))
+            feature.WhichOneof('domain_info') in [
+                'bool_domain', 'natural_language_domain'
+            ])
   else:
     return False
 
