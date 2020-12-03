@@ -13,63 +13,12 @@
 # limitations under the License.
 
 """Utilities to compute quantiles."""
-
-from __future__ import absolute_import
-from __future__ import division
-
-from __future__ import print_function
-
 import bisect
 import collections
-from typing import Iterable, List, Optional, Union
+from typing import List
 
 import numpy as np
-import six
-import tensorflow_transform as tft
 from tensorflow_metadata.proto.v0 import statistics_pb2
-
-
-class QuantilesCombiner(object):
-  """Computes quantiles using a combiner function.
-
-  This class wraps tf.transform's QuantilesCombiner.
-  """
-
-  def __init__(self, num_quantiles: int, epsilon: float,
-               has_weights: bool = False):
-    self._num_quantiles = num_quantiles
-    self._epsilon = epsilon
-    self._has_weights = has_weights
-    self._quantiles_spec = tft.analyzers.QuantilesCombiner(
-        num_quantiles=num_quantiles, epsilon=epsilon,
-        bucket_numpy_dtype=np.float32, always_return_num_quantiles=True,
-        has_weights=has_weights, include_max_and_min=True)
-
-    # TODO(b/135541366): Move this to CombineFn.setup once it exists.
-    # That should help simplify several aspects of Quantiles state management.
-    #
-    # TODO(pachristopher): Consider passing an appropriate (runner-dependent)
-    # tf_config, similar to TFT.
-    self._quantiles_spec.initialize_local_state(tf_config=None)
-
-  def create_accumulator(self) -> List[List[float]]:
-    return self._quantiles_spec.create_accumulator()
-
-  def add_input(
-      self, summary: List[List[float]],
-      input_batch: List[List[Union[int, float]]]) -> List[List[float]]:
-    return self._quantiles_spec.add_input(summary, input_batch)
-
-  def merge_accumulators(
-      self, summaries: Iterable[List[List[float]]]) -> List[List[float]]:
-    return self._quantiles_spec.merge_accumulators(summaries)
-
-  def extract_output(self, summary: Optional[List[List[float]]]) -> np.ndarray:
-    quantiles = self._quantiles_spec.extract_output(summary)
-    # The output of the combiner spec is a list containing a
-    # single numpy array which contains the quantile boundaries.
-    assert len(quantiles) == 1
-    return quantiles[0]
 
 
 def find_median(quantiles: np.ndarray) -> float:
@@ -293,8 +242,7 @@ def _generate_equi_width_buckets_from_finite_boundaries(
   width = (max_val - min_val) / num_buckets
 
   # Iterate to create the first num_buckets - 1 buckets.
-  bucket_boundaries = [min_val + (ix * width)
-                       for ix in six.moves.range(num_buckets)]
+  bucket_boundaries = [min_val + (ix * width) for ix in range(num_buckets)]
 
   # Index of the current quantile being processed.
   quantile_index = 0

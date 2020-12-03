@@ -13,34 +13,15 @@
 # limitations under the License.
 
 """Tests for quantile utilities."""
-
-from __future__ import absolute_import
-from __future__ import division
-
-from __future__ import print_function
+from typing import List, Tuple
 
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
 from tensorflow_data_validation.utils import quantiles_util
-from typing import List, Tuple
 
 from google.protobuf import text_format
 from tensorflow_metadata.proto.v0 import statistics_pb2
-
-
-def _run_quantiles_combiner_test(test: absltest.TestCase,
-                                 q_combiner: quantiles_util.QuantilesCombiner,
-                                 batches: List[List[np.ndarray]],
-                                 expected_result: np.ndarray):
-  """Tests quantiles combiner."""
-  summaries = [q_combiner.add_input(q_combiner.create_accumulator(),
-                                    batch) for batch in batches]
-  result = q_combiner.extract_output(q_combiner.merge_accumulators(summaries))
-  test.assertEqual(result.dtype, expected_result.dtype)
-  test.assertEqual(result.size, expected_result.size)
-  for i in range(expected_result.size):
-    test.assertAlmostEqual(result[i], expected_result[i])
 
 
 def _assert_buckets_almost_equal(test: parameterized.TestCase,
@@ -55,24 +36,6 @@ def _assert_buckets_almost_equal(test: parameterized.TestCase,
 
 
 class QuantilesUtilTest(absltest.TestCase):
-
-  def test_quantiles_combiner(self):
-    batches = [[np.linspace(1, 100, 100)],
-               [np.linspace(101, 200, 100)],
-               [np.linspace(201, 300, 100)]]
-    expected_result = np.array(
-        [1.0, 61.0, 121.0, 181.0, 241.0, 300.0], dtype=np.float32)
-    q_combiner = quantiles_util.QuantilesCombiner(5, 0.00001)
-    _run_quantiles_combiner_test(self, q_combiner, batches, expected_result)
-
-  def test_quantiles_combiner_with_weights(self):
-    batches = [[np.linspace(1, 100, 100), [1] * 100],
-               [np.linspace(101, 200, 100), [2] * 100],
-               [np.linspace(201, 300, 100), [3] * 100]]
-    expected_result = np.array(
-        [1.0, 111.0, 171.0, 221.0, 261.0, 300.0], dtype=np.float32)
-    q_combiner = quantiles_util.QuantilesCombiner(5, 0.00001, has_weights=True)
-    _run_quantiles_combiner_test(self, q_combiner, batches, expected_result)
 
   def test_generate_quantiles_histogram(self):
     result = quantiles_util.generate_quantiles_histogram(
@@ -360,8 +323,8 @@ class GenerateEquiWidthBucketsTest(parameterized.TestCase):
         expected_buckets)
 
   def test_generate_equi_width_buckets_unsorted_quantiles(self):
-    with self.assertRaisesRegexp(AssertionError,
-                                 'Quantiles output not sorted.*'):
+    with self.assertRaisesRegex(AssertionError,
+                                'Quantiles output not sorted.*'):
       quantiles_util.generate_equi_width_buckets([1, 2, 1, 3], 1, 3, 10, 2)
 
 if __name__ == '__main__':

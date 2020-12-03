@@ -185,33 +185,33 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 buckets {
                   low_value: -inf
                   high_value: 2.0
-                  sample_count: 4.5
+                  sample_count: 5.01
                 }
                 buckets {
                   low_value: 2.0
                   high_value: 3.0
-                  sample_count: 1.02
+                  sample_count: 0.99
                 }
                 buckets {
                   low_value: 3.0
                   high_value: 4.0
-                  sample_count: 0.99
+                  sample_count: 1.02
                 }
                 buckets {
                   low_value: 4.0
                   high_value: inf
-                  sample_count: 5.49
+                  sample_count: 4.98
                 }
                 type: STANDARD
               }
               histograms {
                 buckets {
                   low_value: -inf
-                  high_value: -inf
+                  high_value: 1.0
                   sample_count: 3.0
                 }
                 buckets {
-                  low_value: -inf
+                  low_value: 1.0
                   high_value: 3.0
                   sample_count: 3.0
                 }

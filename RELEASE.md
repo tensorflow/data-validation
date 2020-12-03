@@ -16,6 +16,9 @@
    type-specific stats (e.g. categorical ints).
 *  Added an option to control whether to add default stats generators when
    `tfdv.GenerateStatistics()`.
+*  Started using a new quantiles computation routine that does not depend on
+   TF. This could potentially increase the performance of TFDV under certain
+   workloads.
 
 ## Breaking changes
 

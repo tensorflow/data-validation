@@ -79,11 +79,11 @@ class StatsAPITest(absltest.TestCase):
             num_values_histogram {
               buckets {
                 low_value: 1.0
-                high_value: 1.0
+                high_value: 2.0
                 sample_count: 1.0
               }
               buckets {
-                low_value: 1.0
+                low_value: 2.0
                 high_value: 4.0
                 sample_count: 1.0
               }
@@ -162,11 +162,11 @@ class StatsAPITest(absltest.TestCase):
             num_values_histogram {
               buckets {
                 low_value: 500.0
-                high_value: 500.0
+                high_value: 750.0
                 sample_count: 1.0
               }
               buckets {
-                low_value: 500.0
+                low_value: 750.0
                 high_value: 1750.0
                 sample_count: 1.0
               }
@@ -214,11 +214,11 @@ class StatsAPITest(absltest.TestCase):
             }
             buckets {
               low_value: 1501.0
-              high_value: 2250.0
+              high_value: 2251.0
               sample_count: 750.0
             }
             buckets {
-              low_value: 2250.0
+              low_value: 2251.0
               high_value: 3000.0
               sample_count: 750.0
             }

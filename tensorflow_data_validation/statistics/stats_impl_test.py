@@ -2311,11 +2311,11 @@ SLICING_TESTS = [
                     num_values_histogram {
                       buckets {
                         low_value: 500.0
-                        high_value: 1750.0
+                        high_value: 750.0
                         sample_count: 1.5
                       }
                       buckets {
-                        low_value: 1750.0
+                        low_value: 750.0
                         high_value: 1750.0
                         sample_count: 1.5
                       }
@@ -2326,28 +2326,28 @@ SLICING_TESTS = [
                   mean: 1500.5
                   std_dev: 866.025355672
                   min: 1.0
-                  median: 1503.0
+                  median: 1501.0
                   max: 3000.0
                   histograms {
                     buckets {
                       low_value: 1.0
                       high_value: 1500.5
-                      sample_count: 1497.65625
+                      sample_count: 1499.5
                     }
                     buckets {
                       low_value: 1500.5
                       high_value: 3000.0
-                      sample_count: 1502.34375
+                      sample_count: 1500.5
                     }
                   }
                   histograms {
                     buckets {
                       low_value: 1.0
-                      high_value: 1503.0
+                      high_value: 1501.0
                       sample_count: 1500.0
                     }
                     buckets {
-                      low_value: 1503.0
+                      low_value: 1501.0
                       high_value: 3000.0
                       sample_count: 1500.0
                     }
@@ -2419,11 +2419,11 @@ SLICING_TESTS = [
                     num_values_histogram {
                       buckets {
                         low_value: 1.0
-                        high_value: 4.0
+                        high_value: 2.0
                         sample_count: 1.5
                       }
                       buckets {
-                        low_value: 4.0
+                        low_value: 2.0
                         high_value: 4.0
                         sample_count: 1.5
                       }
@@ -2497,28 +2497,28 @@ SLICING_TESTS = [
                   mean: 625.5
                   std_dev: 360.843802773
                   min: 1.0
-                  median: 627.0
+                  median: 626.0
                   max: 1250.0
                   histograms {
                     buckets {
                       low_value: 1.0
                       high_value: 625.5
-                      sample_count: 623.828125
+                      sample_count: 624.5535714
                     }
                     buckets {
                       low_value: 625.5
                       high_value: 1250.0
-                      sample_count: 626.171875
+                      sample_count: 625.4464286
                     }
                   }
                   histograms {
                     buckets {
                       low_value: 1.0
-                      high_value: 627.0
+                      high_value: 626.0
                       sample_count: 625.0
                     }
                     buckets {
-                      low_value: 627.0
+                      low_value: 626.0
                       high_value: 1250.0
                       sample_count: 625.0
                     }
@@ -2668,28 +2668,28 @@ SLICING_TESTS = [
                   mean: 1750.5
                   std_dev: 721.687778752
                   min: 501.0
-                  median: 1747.0
+                  median: 1751.0
                   max: 3000.0
                   histograms {
                     buckets {
                       low_value: 501.0
                       high_value: 1750.5
-                      sample_count: 1252.734375
+                      sample_count: 1249.5192308
                     }
                     buckets {
                       low_value: 1750.5
                       high_value: 3000.0
-                      sample_count: 1247.265625
+                      sample_count: 1250.4807692
                     }
                   }
                   histograms {
                     buckets {
                       low_value: 501.0
-                      high_value: 1747.0
+                      high_value: 1751.0
                       sample_count: 1250.0
                     }
                     buckets {
-                      low_value: 1747.0
+                      low_value: 1751.0
                       high_value: 3000.0
                       sample_count: 1250.0
                     }
