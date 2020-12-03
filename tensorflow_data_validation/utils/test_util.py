@@ -357,9 +357,11 @@ class CombinerFeatureStatsGeneratorTest(absltest.TestCase):
   # Runs the provided combiner feature statistics generator and tests if the
   # output matches the expected result.
   def assertCombinerOutputEqual(
-      self, input_batches: List[types.ValueBatch],
+      self,
+      input_batches: List[types.ValueBatch],
       generator: stats_generator.CombinerFeatureStatsGenerator,
-      expected_result: statistics_pb2.FeatureNameStatistics) -> None:
+      expected_result: statistics_pb2.FeatureNameStatistics,
+      feature_path: types.FeaturePath = types.FeaturePath([''])) -> None:
     """Tests a feature combiner statistics generator.
 
     This runs the generator twice to cover different behavior. There must be at
@@ -370,12 +372,13 @@ class CombinerFeatureStatsGeneratorTest(absltest.TestCase):
       generator: The CombinerFeatureStatsGenerator to test.
       expected_result: The FeatureNameStatistics proto that it is expected the
         generator will return.
+      feature_path: The FeaturePath to use, if not specified, will set a
+        default value.
     """
     # Run generator to check that merge_accumulators() works correctly.
     accumulators = [
-        generator.add_input(generator.create_accumulator(),
-                            types.FeaturePath(['']), input_batch)
-        for input_batch in input_batches
+        generator.add_input(generator.create_accumulator(), feature_path,
+                            input_batch) for input_batch in input_batches
     ]
     result = generator.extract_output(
         generator.merge_accumulators(accumulators))
@@ -387,8 +390,7 @@ class CombinerFeatureStatsGeneratorTest(absltest.TestCase):
     accumulator = generator.create_accumulator()
 
     for input_batch in input_batches:
-      accumulator = generator.add_input(
-          accumulator, types.FeaturePath(['']), input_batch)
+      accumulator = generator.add_input(accumulator, feature_path, input_batch)
 
     result = generator.extract_output(accumulator)
     compare.assertProtoEqual(
