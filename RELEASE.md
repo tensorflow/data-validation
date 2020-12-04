@@ -22,6 +22,7 @@
 *  Extending schema_util to support sematic domains.
 *  Moving natural_language_stats_generator to
    natural_language_domain_inferring_stats_generator.
+*  Providing vocab_utils to assist in opening / loading vocabulary files.
 
 ## Breaking changes
 

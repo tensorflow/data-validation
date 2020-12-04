@@ -124,7 +124,9 @@ class StatsOptions(object):
         with a feature will be first looked up in this map and if not found,
         fall back to `weight_feature`.
       vocab_paths: An optional dictionary mapping vocab names to paths. Used in
-        the schema when specifying a NaturalLanguageDomain.
+        the schema when specifying a NaturalLanguageDomain. The paths can either
+        be to GZIP-compressed TF record files that have a tfrecord.gz suffix
+        or to text files.
       add_default_generators: Whether to invoke the default set of stats
         generators in the run. Generators invoked consists of 1) the default
         generators (controlled by this option); 2) user-provided generators (
