@@ -48,7 +48,7 @@ _CROP_AT_LENGTH = 100
 # features with high valency.
 _CROP_AT_VALUES = 100
 
-# NLStatsGenerator default initialization values.
+# NLDomainInferringStatsGenerator default initialization values.
 _MATCH_RATIO = 0.8
 _VALUES_THRESHOLD = 100
 
@@ -124,7 +124,8 @@ class AverageWordHeuristicNLClassifier(NLClassifierInterface):
     return False
 
 
-class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
+class NLDomainInferringStatsGenerator(
+    stats_generator.CombinerFeatureStatsGenerator):
   """Generates feature level statistics for natural language stats.
 
   A combiner that uses a pluggable NL classifier to generate natural language
@@ -137,7 +138,7 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
                classifier: NLClassifierInterface = None,
                match_ratio: float = _MATCH_RATIO,
                values_threshold: int = _VALUES_THRESHOLD) -> None:
-    """Initializes a NLStatsGenerator.
+    """Initializes a NLDomainInferringStatsGenerator.
 
     Args:
       classifier: A NLClassifier that classifies values as NL.
@@ -150,13 +151,15 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     Raises:
       ValueError: If values_threshold <= 0 or match_ratio not in [0, 1].
     """
-    super(NLStatsGenerator, self).__init__(type(self).__name__)
+    super(NLDomainInferringStatsGenerator, self).__init__(type(self).__name__)
     if classifier is None:
       classifier = AverageWordHeuristicNLClassifier()
     if values_threshold <= 0:
-      raise ValueError('NLStatsGenerator expects values_threshold > 0.')
+      raise ValueError(
+          'NLDomainInferringStatsGenerator expects values_threshold > 0.')
     if not 0.0 <= match_ratio <= 1.0:
-      raise ValueError('NLStatsGenerator expects a match_ratio in [0, 1].')
+      raise ValueError(
+          'NLDomainInferringStatsGenerator expects a match_ratio in [0, 1].')
     self._classifier = classifier
     self._values_threshold = values_threshold
     self._match_ratio = match_ratio

@@ -31,7 +31,7 @@ from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.statistics.generators import basic_stats_generator
 from tensorflow_data_validation.statistics.generators import image_stats_generator
 from tensorflow_data_validation.statistics.generators import lift_stats_generator
-from tensorflow_data_validation.statistics.generators import natural_language_stats_generator
+from tensorflow_data_validation.statistics.generators import natural_language_domain_inferring_stats_generator
 from tensorflow_data_validation.statistics.generators import sparse_feature_stats_generator
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.statistics.generators import time_stats_generator
@@ -177,7 +177,8 @@ def get_generators(options: stats_options.StatsOptions,
   if options.enable_semantic_domain_stats:
     semantic_domain_feature_stats_generators = [
         image_stats_generator.ImageStatsGenerator(),
-        natural_language_stats_generator.NLStatsGenerator(),
+        natural_language_domain_inferring_stats_generator
+        .NLDomainInferringStatsGenerator(),
         time_stats_generator.TimeStatsGenerator(),
     ]
     # Wrap semantic domain feature stats generators as a separate combiner
