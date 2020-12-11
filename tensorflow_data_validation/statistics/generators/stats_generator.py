@@ -11,41 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Base class for statistics generators.
-
-A statistics generator is used to compute the statistics of features in
-parallel. We support two types of generators:
-
-1) CombinerStatsGenerator
-   This generator computes statistics using a combiner function. It emits
-   partial states processing a batch of examples at a time,
-   merges the partial states, and finally computes the statistics from the
-   merged partial state at the end. Specifically, the generator
-   must implement the following four methods,
-
-   Initializes an accumulator to store the partial state and returns it.
-       create_accumulator()
-
-   Incorporates a batch of input examples (represented as an arrow RecordBatch)
-   into the current accumulator and returns the updated accumulator.
-       add_input(accumulator, input_record_batch)
-
-   Merge the partial states in the accumulators and returns the accumulator
-   containing the merged state.
-       merge_accumulators(accumulators)
-
-   Compute statistics from the partial state in the accumulator and
-   return the result as a DatasetFeatureStatistics proto.
-       extract_output(accumulator)
-
-2) TransformStatsGenerator
-   This generator computes statistics using a user-provided Beam PTransform.
-   The PTransform must accept a Beam PCollection where each element is a tuple
-   containing a slice key and an Arrow RecordBatch representing a batch of
-   examples. It must return a PCollection where each element is a tuple
-   containing a slice key and a DatasetFeatureStatistics proto representing the
-   statistics of a slice.
-"""
+"""Base classes for statistics generators."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -92,10 +58,30 @@ ACCTYPE = TypeVar('ACCTYPE')
 
 
 class CombinerStatsGenerator(StatsGenerator):
-  """Generate statistics using combiner function.
+  """A StatsGenerator which computes statistics using a combiner function.
+
+  This class computes statistics using a combiner function. It emits partial
+  states processing a batch of examples at a time, merges the partial states,
+  and finally computes the statistics from the merged partial state at the end.
 
   This object mirrors a beam.CombineFn except for the add_input interface, which
-  is expected to be defined by its sub-classes.
+  is expected to be defined by its sub-classes. Specifically, the generator
+  must implement the following four methods:
+
+  Initializes an accumulator to store the partial state and returns it.
+      create_accumulator()
+
+  Incorporates a batch of input examples (represented as an arrow RecordBatch)
+  into the current accumulator and returns the updated accumulator.
+      add_input(accumulator, input_record_batch)
+
+  Merge the partial states in the accumulators and returns the accumulator
+  containing the merged state.
+      merge_accumulators(accumulators)
+
+  Compute statistics from the partial state in the accumulator and
+  return the result as a DatasetFeatureStatistics proto.
+      extract_output(accumulator)
   """
 
   def create_accumulator(self) -> ACCTYPE:  # pytype: disable=invalid-annotation
@@ -384,12 +370,14 @@ class CompositeStatsGenerator(CombinerStatsGenerator):
 
 
 class TransformStatsGenerator(StatsGenerator):
-  """Generate statistics using a Beam PTransform.
+  """A StatsGenerator which wraps an arbitrary Beam PTransform.
 
-  Note that the input PTransform must take a PCollection of sliced
-  examples (tuple of (slice_key, example)) as input and output a
-  PCollection of sliced protos
-  (tuple of (slice_key, DatasetFeatureStatistics proto)).
+  This class computes statistics using a user-provided Beam PTransform. The
+  PTransform must accept a Beam PCollection where each element is a tuple
+  containing a slice key and an Arrow RecordBatch representing a batch of
+  examples. It must return a PCollection where each element is a tuple
+  containing a slice key and a DatasetFeatureStatistics proto representing the
+  statistics of a slice.
   """
 
   def __init__(self,
