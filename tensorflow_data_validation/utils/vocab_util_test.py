@@ -40,6 +40,7 @@ class VocabUtilTest(absltest.TestCase):
       writer = tf.data.experimental.TFRecordWriter(
           f.name, compression_type='GZIP')
       writer.write(dataset)
+      f.flush()
 
       vocab, reverse_vocab = vocab_util.load_vocab(f.name)
       self.assertEqual(vocab, {'Foo': 0, 'Bar': 1})
