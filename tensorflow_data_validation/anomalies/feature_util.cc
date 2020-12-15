@@ -343,6 +343,8 @@ SingleFeatureComparisonResult UpdateJensenShannonDivergenceComparator(
                         " is ", absl::SixDigits(jensen_shannon_divergence),
                         " (up to six significant digits), above the threshold ",
                         absl::SixDigits(jensen_shannon_threshold), ".")});
+      comparator->mutable_jensen_shannon_divergence()->set_threshold(
+          jensen_shannon_divergence);
     }
   } else {
     // TODO(b/68711199): Add support for using JSD with categorical features.

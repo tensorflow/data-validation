@@ -154,6 +154,100 @@ TEST(FeatureUtilTest, WeightedFeatureIsDeprecatedEmpty) {
   EXPECT_FALSE(WeightedFeatureIsDeprecated(feature));
 }
 
+TEST(FeatureUtilTest, UpdateComparatorProposeNewThreshold) {
+  DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        num_examples: 1
+        features {
+          name: "cat_feature"
+          type: STRING
+          string_stats: {
+            rank_histogram {
+              buckets {
+                label: "tok1"
+                sample_count: 10
+              }
+            }
+          }
+        }
+        features {
+          name: "num_feature"
+          type: FLOAT
+          num_stats {
+            common_stats {}
+            histograms {
+              buckets { low_value: 0.0 high_value: 1.0 sample_count: 2.0 }
+              buckets { low_value: 1.0 high_value: 2.0 sample_count: 2.0 }
+              type: STANDARD
+            }
+          }
+        })");
+  DatasetFeatureStatistics previous_statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        num_examples: 1
+        features {
+          name: "cat_feature"
+          type: STRING
+          string_stats: {
+            rank_histogram {
+              buckets {
+                label: "tok2"
+                sample_count: 10
+              }
+            }
+          }
+        }
+        features {
+          name: "num_feature"
+          type: INT
+          num_stats {
+            common_stats {}
+            histograms {
+              buckets { low_value: 3.0 high_value: 4.0 sample_count: 2.0 }
+              buckets { low_value: 4.0 high_value: 6.0 sample_count: 2.0 }
+              type: STANDARD
+            }
+          }
+        })");
+  // There are previous span statistics, but they do not contain stats for
+  // 'test_feature'.
+  DatasetStatsView stats_view(
+      statistics, false, "environment_name",
+      std::make_shared<DatasetStatsView>(previous_statistics),
+      std::shared_ptr<DatasetStatsView>(), std::shared_ptr<DatasetStatsView>());
+
+  {
+    const FeatureStatsView feature_stats_view =
+        stats_view.GetByPath(Path({"cat_feature"})).value();
+
+    FeatureComparator comparator =
+        ParseTextProtoOrDie<FeatureComparator>(R"(
+          infinity_norm: { threshold: 0.1 })");
+
+    auto result = UpdateFeatureComparatorDirect(
+        feature_stats_view, FeatureComparatorType::DRIFT, &comparator);
+
+    EXPECT_EQ(comparator.infinity_norm().threshold(), 1.0);
+    ASSERT_EQ(result.measurements.size(), 1);
+    EXPECT_THAT(result.measurements[0], EqualsProto(
+        "type: L_INFTY value: 1 threshold: 0.1"));
+  }
+  {
+    const FeatureStatsView feature_stats_view =
+        stats_view.GetByPath(Path({"num_feature"})).value();
+    FeatureComparator comparator = ParseTextProtoOrDie<FeatureComparator>(R"(
+      jensen_shannon_divergence: { threshold: 0.1 })");
+    auto result = UpdateFeatureComparatorDirect(
+        feature_stats_view, FeatureComparatorType::DRIFT, &comparator);
+
+    EXPECT_FLOAT_EQ(comparator.jensen_shannon_divergence().threshold(), 1.0);
+    ASSERT_EQ(result.measurements.size(), 1);
+    EXPECT_THAT(
+        result.measurements[0],
+        EqualsProto("type: JENSEN_SHANNON_DIVERGENCE value: 1 threshold: 0.1"));
+  }
+}
+
 TEST(FeatureUtilTest,
      UpdateComparatorWithoutControlFeatureStatsClearsThreshold) {
   DatasetFeatureStatistics statistics =
