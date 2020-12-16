@@ -3,32 +3,59 @@
 # Current Version(Still in Development)
 
 ## Major Features and Improvements
+
+## Bug Fixes and Other Changes
+
+## Known Issues
+
+## Breaking changes
+
+## Deprecations
+
+# Version 0.26.0
+
+## Major Features and Improvements
+
 *  Added support for per-feature example weights which allows associating each
    column its specific weight column. See the `per_feature_weight_override`
    parameter in `StatsOptions.__init__`.
 
 ## Bug Fixes and Other Changes
-*  Newly added LifecycleStage.DISABLED is now exempt from validation (similar
-   to LifecycleStage.DEPRECATED, etc).
-*  Fixed a bug where TFDV blindly trusts the claim type in the provided schema.
-   TFDV now computes the stats according to the actual type of the data, and
-   only when the actual type matches the claim in the schema will it compute
-   type-specific stats (e.g. categorical ints).
-*  Added an option to control whether to add default stats generators when
-   `tfdv.GenerateStatistics()`.
-*  Started using a new quantiles computation routine that does not depend on
-   TF. This could potentially increase the performance of TFDV under certain
-   workloads.
-*  Extending schema_util to support sematic domains.
-*  Moving natural_language_stats_generator to
-   natural_language_domain_inferring_stats_generator.
-*  Providing vocab_utils to assist in opening / loading vocabulary files.
-*  A SchemaDiff will be reported upon J-S skew/drift.
-*  Fixed a bug in FLOAT_TYPE_SMALL_FLOAT anomaly message.
+
+*   Newly added LifecycleStage.DISABLED is now exempt from validation (similar
+    to LifecycleStage.DEPRECATED, etc).
+*   Fixed a bug where TFDV blindly trusts the claim type in the provided schema.
+    TFDV now computes the stats according to the actual type of the data, and
+    only when the actual type matches the claim in the schema will it compute
+    type-specific stats (e.g. categorical ints).
+*   Added an option to control whether to add default stats generators when
+    `tfdv.GenerateStatistics()`.
+*   Started using a new quantiles computation routine that does not depend on
+    TF. This could potentially increase the performance of TFDV under certain
+    workloads.
+*   Extending schema_util to support sematic domains.
+*   Moving natural_language_stats_generator to
+    natural_language_domain_inferring_stats_generator.
+*   Providing vocab_utils to assist in opening / loading vocabulary files.
+*   A SchemaDiff will be reported upon J-S skew/drift.
+*   Fixed a bug in FLOAT_TYPE_SMALL_FLOAT anomaly message.
+*   Depends on `apache-beam[gcp]>=2.25,!=2.26.*,<3`.
+*   Depends on `tensorflow>=1.15.2,!=2.0.*,!=2.1.*,!=2.2.*,!=2.4.*,<3`.
+*   Depends on `tensorflow-metadata>=0.26,<0.27`.
+*   Depends on `tensorflow-transform>=0.26,<0.27`.
+*   Depends on `tfx-bsl>=0.26,<0.27`.
+
+## Known Issues
+
+*   N/A
 
 ## Breaking changes
 
+*   N/A
+
 ## Deprecations
+
+*   N/A
 
 # Version 0.25.0
 
