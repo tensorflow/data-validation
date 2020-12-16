@@ -160,7 +160,6 @@ UpdateSummary UpdateFloatDomain(
     if (holds_alternative<FloatInterval>(actual_result)) {
       const FloatInterval range = *absl::get_if<FloatInterval>(&actual_result);
       if (float_domain->has_min() && range.min < float_domain->min()) {
-        float_domain->set_min(range.min);
         update_summary.descriptions.push_back(
             {tensorflow::metadata::v0::AnomalyInfo::FLOAT_TYPE_SMALL_FLOAT,
              kOutOfRangeValues,
@@ -168,6 +167,7 @@ UpdateSummary UpdateFloatDomain(
                  "Unexpectedly low values: ", absl::SixDigits(range.min), "<",
                  absl::SixDigits(float_domain->min()),
                  "(upto six significant digits)")});
+        float_domain->set_min(range.min);
       }
 
       if (float_domain->has_max() && range.max > float_domain->max()) {
@@ -183,10 +183,10 @@ UpdateSummary UpdateFloatDomain(
 
       if (float_domain->disallow_inf() &&
           (std::isinf(abs(range.min)) || std::isinf(abs(range.max)))) {
-        float_domain->set_disallow_inf(false);
         update_summary.descriptions.push_back(
             {tensorflow::metadata::v0::AnomalyInfo::FLOAT_TYPE_HAS_INF,
              kInvalidValues, absl::StrCat("Float feature has Inf values.")});
+        float_domain->set_disallow_inf(false);
       }
     }
   }

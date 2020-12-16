@@ -24,6 +24,7 @@
    natural_language_domain_inferring_stats_generator.
 *  Providing vocab_utils to assist in opening / loading vocabulary files.
 *  A SchemaDiff will be reported upon J-S skew/drift.
+*  Fixed a bug in FLOAT_TYPE_SMALL_FLOAT anomaly message.
 
 ## Breaking changes
 
