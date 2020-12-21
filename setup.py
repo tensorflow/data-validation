@@ -187,7 +187,7 @@ setup(
         'protobuf>=3.9.2,<4',
         'pyarrow>=0.17,<0.18',
         'six>=1.12,<2',
-        'tensorflow>=1.15.2,!=2.0.*,!=2.1.*,!=2.2.*,!=2.4.*,<3',
+        'tensorflow>=1.15.2,!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,<3',
         'tensorflow-metadata' + select_constraint(
             default='>=0.26,<0.27',
             nightly='>=0.27.0.dev',
