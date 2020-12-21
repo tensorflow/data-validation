@@ -32,6 +32,7 @@ from tensorflow_data_validation.statistics.generators import basic_stats_generat
 from tensorflow_data_validation.statistics.generators import image_stats_generator
 from tensorflow_data_validation.statistics.generators import lift_stats_generator
 from tensorflow_data_validation.statistics.generators import natural_language_domain_inferring_stats_generator
+from tensorflow_data_validation.statistics.generators import natural_language_stats_generator
 from tensorflow_data_validation.statistics.generators import sparse_feature_stats_generator
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.statistics.generators import time_stats_generator
@@ -193,6 +194,10 @@ def get_generators(options: stats_options.StatsOptions,
       generators.append(
           sparse_feature_stats_generator.SparseFeatureStatsGenerator(
               options.schema))
+    if _schema_has_natural_language_domains(options.schema):
+      generators.append(
+          natural_language_stats_generator.NLStatsGenerator(
+              options.schema, options.vocab_paths))
     if options.schema.weighted_feature:
       generators.append(
           weighted_feature_stats_generator.WeightedFeatureStatsGenerator(
@@ -295,6 +300,14 @@ def _schema_has_sparse_features(schema: schema_pb2.Schema) -> bool:
   if schema.sparse_feature:
     return True
   return _has_sparse_features(schema.feature)
+
+
+def _schema_has_natural_language_domains(schema: schema_pb2.Schema) -> bool:
+  """Returns whether there are features in the schema with a nl domain."""
+  for f in schema.feature:
+    if f.WhichOneof('domain_info') == 'natural_language_domain':
+      return True
+  return False
 
 
 def _filter_features(
@@ -563,9 +576,6 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
   (https://issues.apache.org/jira/browse/BEAM-3737).
   """
 
-  __slots__ = ['_generators', '_desired_batch_size', '_combine_batch_size',
-               '_combine_byte_size', '_num_compacts', '_num_instances']
-
   # This needs to be large enough to allow for efficient merging of
   # accumulators in the individual stats generators, but shouldn't be too large
   # as it also acts as cap on the maximum memory usage of the computation.
@@ -604,6 +614,12 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
     self._num_instances = beam.metrics.Metrics.counter(
         constants.METRICS_NAMESPACE, 'num_instances')
 
+    # TODO(b/175966315): Remove this once all supported versions have setup
+    # defined.
+    if not getattr(
+        super(_CombinerStatsGeneratorsCombineFn, self), 'setup', None):
+      self.setup()
+
   def _for_each_generator(self,
                           func: Callable[..., Any],
                           *args: Iterable[Any]) -> List[Any]:
@@ -620,6 +636,11 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
     """
     return [func(gen, *args_for_func) for gen, args_for_func in zip(
         self._generators, zip(*args))]
+
+  def setup(self):
+    """Prepares each generator for combining."""
+    for gen in self._generators:
+      gen.setup()
 
   def create_accumulator(self
                         ) -> _CombinerStatsGeneratorsCombineFnAcc:  # pytype: disable=invalid-annotation
@@ -846,6 +867,11 @@ class CombinerFeatureStatsWrapperGenerator(
           generator.create_accumulator()
           for generator in self._feature_stats_generators
       ]
+
+  def setup(self):
+    """Prepares every CombinerFeatureStatsGenerator instance for combining."""
+    for gen in self._feature_stats_generators:
+      gen.setup()
 
   def create_accumulator(self) -> WrapperAccumulator:
     """Returns a fresh, empty wrapper_accumulator.

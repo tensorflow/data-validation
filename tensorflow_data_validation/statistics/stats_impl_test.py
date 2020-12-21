@@ -18,6 +18,8 @@ from __future__ import division
 
 from __future__ import print_function
 
+from typing import List
+
 from absl.testing import absltest
 from absl.testing import parameterized
 import apache_beam as beam
@@ -34,8 +36,8 @@ from tensorflow_data_validation.utils import slicing_util
 from tensorflow_data_validation.utils import test_util
 from tfx_bsl.arrow import array_util
 from tfx_bsl.arrow import table_util
-from typing import List
 
+from google.protobuf import any_pb2
 from google.protobuf import text_format
 from tensorflow.python.util.protobuf import compare
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -2828,6 +2830,66 @@ class StatsImplTest(parameterized.TestCase):
         statistics_pb2.DatasetFeatureStatisticsList())
     if schema is not None:
       options.schema = schema
+    with beam.Pipeline() as p:
+      result = (
+          p | beam.Create(record_batches, reshuffle=False)
+          | stats_impl.GenerateStatisticsImpl(options))
+      util.assert_that(
+          result,
+          test_util.make_dataset_feature_stats_list_proto_equal_fn(
+              self, expected_result))
+
+  def test_nld_features(self):
+    record_batches = [pa.RecordBatch.from_arrays([pa.array([[1]])], ['f1'])]
+    options = stats_options.StatsOptions(
+        schema=text_format.Parse(
+            """
+                feature {
+                  name: "f1"
+                  type: INT
+                  natural_language_domain{
+                    coverage {
+                      excluded_int_tokens: 2
+                    }
+                  }
+                }
+              """, schema_pb2.Schema()))
+    expected_result = statistics_pb2.DatasetFeatureStatisticsList()
+    expected_result.datasets.add()
+    expected_result.datasets[0].num_examples = 1
+    expected_result.datasets[0].features.add()
+    expected_result.datasets[0].features[0].path.step.append('f1')
+    expected_result.datasets[0].features[
+        0].string_stats.common_stats.num_non_missing = 1
+    expected_result.datasets[0].features[
+        0].string_stats.common_stats.min_num_values = 1
+    expected_result.datasets[0].features[
+        0].string_stats.common_stats.max_num_values = 1
+    expected_result.datasets[0].features[
+        0].string_stats.common_stats.avg_num_values = 1.0
+    for _ in range(10):
+      expected_result.datasets[0].features[
+          0].string_stats.common_stats.num_values_histogram.buckets.add(
+              low_value=1.0, high_value=1.0, sample_count=0.1)
+    expected_result.datasets[0].features[
+        0].string_stats.common_stats.num_values_histogram.type = 1
+    expected_result.datasets[0].features[
+        0].string_stats.common_stats.tot_num_values = 1
+    expected_result.datasets[0].features[
+        0].string_stats.rank_histogram.buckets.add(
+            label='1', sample_count=1.0)
+    expected_result.datasets[0].features[0].string_stats.unique = 1
+    expected_result.datasets[0].features[0].string_stats.top_values.add(
+        value='1', frequency=1.0)
+    expected_result.datasets[0].features[0].string_stats.avg_length = 1.0
+
+    my_proto = any_pb2.Any()
+    expected_result.datasets[0].features[0].custom_stats.add(
+        name='nl_statistics',
+        any=my_proto.Pack(
+            statistics_pb2.NaturalLanguageStatistics(feature_coverage=0.0)))
+    expected_result.datasets[0].features[0].custom_stats.add(
+        name='nl_feature_coverage', num=0.0)
     with beam.Pipeline() as p:
       result = (
           p | beam.Create(record_batches, reshuffle=False)

@@ -84,6 +84,16 @@ class CombinerStatsGenerator(StatsGenerator):
       extract_output(accumulator)
   """
 
+  def setup(self) -> None:
+    """Prepares an instance for combining.
+
+       Subclasses should put costly initializations here instead of in
+       __init__(), so that 1) the cost is properly recognized by Beam as
+       setup cost (per worker) and 2) the cost is not paid at the pipeline
+       construction time.
+    """
+    pass
+
   def create_accumulator(self) -> ACCTYPE:  # pytype: disable=invalid-annotation
     """Returns a fresh, empty accumulator.
 
@@ -143,6 +153,16 @@ class CombinerFeatureStatsGenerator(StatsGenerator):
   case of statistics that do not require cross-feature computations. It mirrors
   a beam.CombineFn for the values of a specific feature.
   """
+
+  def setup(self) -> None:
+    """Prepares an instance for combining.
+
+       Subclasses should put costly initializations here instead of in
+       __init__(), so that 1) the cost is properly recognized by Beam as
+       setup cost (per worker) and 2) the cost is not paid at the pipeline
+       construction time.
+    """
+    pass
 
   def create_accumulator(self) -> ACCTYPE:  # pytype: disable=invalid-annotation
     """Returns a fresh, empty accumulator.

@@ -35,7 +35,9 @@
     workloads.
 *   Extending schema_util to support sematic domains.
 *   Moving natural_language_stats_generator to
-    natural_language_domain_inferring_stats_generator.
+    natural_language_domain_inferring_stats_generator and creating a new
+    natural_language_stats_generator based on the fields of
+    natural_language_domain.
 *   Providing vocab_utils to assist in opening / loading vocabulary files.
 *   A SchemaDiff will be reported upon J-S skew/drift.
 *   Fixed a bug in FLOAT_TYPE_SMALL_FLOAT anomaly message.

@@ -199,6 +199,8 @@ class CombinerStatsGeneratorTest(absltest.TestCase):
       only_match_expected_feature_stats: if True, will only compare features
         that appear in `expected_feature_stats`.
     """
+    generator.setup()
+
     if expected_cross_feature_stats is None:
       expected_cross_feature_stats = {}
 
@@ -375,6 +377,7 @@ class CombinerFeatureStatsGeneratorTest(absltest.TestCase):
       feature_path: The FeaturePath to use, if not specified, will set a
         default value.
     """
+    generator.setup()
     # Run generator to check that merge_accumulators() works correctly.
     accumulators = [
         generator.add_input(generator.create_accumulator(), feature_path,
