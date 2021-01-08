@@ -19,13 +19,13 @@ from __future__ import division
 from __future__ import print_function
 
 import abc
+from typing import Any, Dict, Hashable, Iterable, List, Optional, Text, TypeVar
+
 import apache_beam as beam
 import pyarrow as pa
-import six
-
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import input_batch
-from typing import Any, Dict, Hashable, Iterable, Optional, Text, Tuple, TypeVar
+
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
@@ -84,6 +84,10 @@ class CombinerStatsGenerator(StatsGenerator):
       extract_output(accumulator)
   """
 
+  # TODO(b/176939874): Add teardown() to all StatsGenerators when it is needed.
+
+  # TODO(b/176939874): Investigate which stats generators will benefit from
+  # setup.
   def setup(self) -> None:
     """Prepares an instance for combining.
 
@@ -131,6 +135,22 @@ class CombinerStatsGenerator(StatsGenerator):
       The merged accumulator.
     """
     raise NotImplementedError
+
+  # TODO(b/176939874): Investigate which stats generators will benefit from
+  # compact.
+  def compact(self, accumulator: ACCTYPE) -> ACCTYPE:
+    """Returns a compact representation of the accumulator.
+
+    This is optionally called before an accumulator is sent across the wire. The
+    base class is a no-op. This may be overwritten by the derived class.
+
+    Args:
+      accumulator: The accumulator to compact.
+
+    Returns:
+      The compacted accumulator. By default is an identity.
+    """
+    return accumulator
 
   def extract_output(
       self, accumulator: ACCTYPE
@@ -198,6 +218,20 @@ class CombinerFeatureStatsGenerator(StatsGenerator):
     """
     raise NotImplementedError
 
+  def compact(self, accumulator: ACCTYPE) -> ACCTYPE:
+    """Returns a compact representation of the accumulator.
+
+    This is optionally called before an accumulator is sent across the wire. The
+    base class is a no-op. This may be overwritten by the derived class.
+
+    Args:
+      accumulator: The accumulator to compact.
+
+    Returns:
+      The compacted accumulator. By default is an identity.
+    """
+    return accumulator
+
   def extract_output(
       self, accumulator: ACCTYPE) -> statistics_pb2.FeatureNameStatistics:  # pytype: disable=invalid-annotation
     """Returns result of converting accumulator into the output value.
@@ -214,14 +248,23 @@ class CombinerFeatureStatsGenerator(StatsGenerator):
 CONSTITUENT_ACCTYPE = TypeVar('CONSTITUENT_ACCTYPE')
 
 
-@six.add_metaclass(abc.ABCMeta)
-class ConstituentStatsGenerator(object):
+class ConstituentStatsGenerator(object, metaclass=abc.ABCMeta):
   """A stats generator meant to be used as a part of a composite generator.
 
   A constituent stats generator facilitates sharing logic between several stats
   generators. It is functionally identical to a beam.CombineFn, but it expects
   add_input to be called with instances of InputBatch.
   """
+
+  def setup(self) -> None:
+    """Prepares this constituent generator.
+
+       Subclasses should put costly initializations here instead of in
+       __init__(), so that 1) the cost is properly recognized by Beam as
+       setup cost (per worker) and 2) the cost is not paid at the pipeline
+       construction time.
+    """
+    pass
 
   @classmethod
   @abc.abstractmethod
@@ -256,9 +299,8 @@ class ConstituentStatsGenerator(object):
     """
 
   @abc.abstractmethod
-  def add_input(
-      self, accumulator: CONSTITUENT_ACCTYPE, batch: input_batch.InputBatch
-  ) -> CONSTITUENT_ACCTYPE:  # pytype: disable=invalid-annotation
+  def add_input(self, accumulator: CONSTITUENT_ACCTYPE,
+                batch: input_batch.InputBatch) -> CONSTITUENT_ACCTYPE:
     """Returns result of folding a batch of inputs into accumulator.
 
     Args:
@@ -283,6 +325,20 @@ class ConstituentStatsGenerator(object):
     Returns:
       The merged accumulator.
     """
+
+  def compact(self, accumulator: CONSTITUENT_ACCTYPE) -> CONSTITUENT_ACCTYPE:
+    """Returns a compact representation of the accumulator.
+
+    This is optionally called before an accumulator is sent across the wire. The
+    base class is a no-op. This may be overwritten by the derived class.
+
+    Args:
+      accumulator: The accumulator to compact.
+
+    Returns:
+      The compacted accumulator.
+    """
+    return accumulator
 
   @abc.abstractmethod
   def extract_output(self, accumulator: CONSTITUENT_ACCTYPE) -> Any:  # pytype: disable=invalid-annotation
@@ -345,28 +401,36 @@ class CompositeStatsGenerator(CombinerStatsGenerator):
     self._keys, self._constituents = zip(*(
         (c.get_key(), c) for c in constituents))
 
-  def create_accumulator(self):
+  def setup(self):
+    for c in self._constituents:
+      c.setup()
+
+  def create_accumulator(self) -> List[CONSTITUENT_ACCTYPE]:  # pytype: disable=invalid-annotation
     return [c.create_accumulator() for c in self._constituents]
 
   def add_input(
-      self, accumulator: Iterable[CONSTITUENT_ACCTYPE],
-      input_record_batch: pa.RecordBatch
-  ) -> Iterable[CONSTITUENT_ACCTYPE]:  # pytype: disable=invalid-annotation
+      self, accumulator: List[CONSTITUENT_ACCTYPE],
+      input_record_batch: pa.RecordBatch) -> List[CONSTITUENT_ACCTYPE]:
     batch = input_batch.InputBatch(input_record_batch)
     return [
         c.add_input(a, batch) for c, a in zip(self._constituents, accumulator)
     ]
 
   def merge_accumulators(
-      self, accumulators: Iterable[Iterable[CONSTITUENT_ACCTYPE]]
-  ) -> Iterable[CONSTITUENT_ACCTYPE]:  # pytype: disable=invalid-annotation
+      self, accumulators: Iterable[List[CONSTITUENT_ACCTYPE]]
+  ) -> List[CONSTITUENT_ACCTYPE]:
     return [
         c.merge_accumulators(a)
         for c, a in zip(self._constituents, zip(*accumulators))
     ]
 
+  def compact(
+      self,
+      accumulator: List[CONSTITUENT_ACCTYPE]) -> List[CONSTITUENT_ACCTYPE]:
+    return [c.compact(a) for c, a in zip(self._constituents, accumulator)]
+
   def extract_output(
-      self, accumulator: Tuple[CONSTITUENT_ACCTYPE]
+      self, accumulator: List[CONSTITUENT_ACCTYPE]
   ) -> statistics_pb2.FeatureNameStatistics:  # pytype: disable=invalid-annotation
     return self.extract_composite_output(
         dict(

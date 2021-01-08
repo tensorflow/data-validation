@@ -990,9 +990,14 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
     self._num_values_histogram_buckets = num_values_histogram_buckets
     self._num_histogram_buckets = num_histogram_buckets
     self._num_quantiles_histogram_buckets = num_quantiles_histogram_buckets
-    self._make_quantiles_sketch_fn = (
-        lambda: sketches.QuantilesSketch(  # pylint: disable=g-long-lambda
-            eps=epsilon, max_num_elements=(1<<32), num_streams=1))
+
+    # Epsilon is re-adjusted because we will call sketch.Compact() in
+    # self.Compact(). More info here:
+    # https://github.com/tensorflow/tfx-bsl/blob/master/tfx_bsl/cc/sketches/quantiles_sketch.h#L31
+    self._make_quantiles_sketch_fn = lambda: sketches.QuantilesSketch(  # pylint: disable=g-long-lambda
+        eps=epsilon * 2 / 3.0,
+        max_num_elements=1 << 32,
+        num_streams=1)
 
   # Create an accumulator, which maps feature name to the partial stats
   # associated with the feature.
@@ -1081,6 +1086,18 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
               existing_stats.numeric_stats += basic_stats.numeric_stats
 
     return result
+
+  def compact(
+      self, accumulator: Dict[types.FeaturePath, _PartialBasicStats]
+  ) -> Dict[types.FeaturePath, _PartialBasicStats]:
+    for stats in accumulator.values():
+      stats.numeric_stats.quantiles_summary.Compact()
+      if stats.numeric_stats.has_weights:
+        stats.numeric_stats.weighted_quantiles_summary.Compact()
+      if stats.common_stats.presence_and_valency_stats is not None:
+        for p_and_v_stat in stats.common_stats.presence_and_valency_stats:
+          p_and_v_stat.num_values_summary.Compact()
+    return accumulator
 
   # Return final stats as a DatasetFeatureStatistics proto.
   def extract_output(self,

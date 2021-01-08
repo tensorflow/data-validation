@@ -22,8 +22,6 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Text, Tuple
 import apache_beam as beam
 import numpy as np
 import pyarrow as pa
-import six
-from six.moves import zip
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
@@ -381,7 +379,7 @@ def _merge_dataset_feature_stats_protos(
         stats_for_feature.MergeFrom(feature_stats_proto)
 
   num_examples = None
-  for feature_stats_proto in six.itervalues(stats_per_feature):
+  for feature_stats_proto in stats_per_feature.values():
     # Add the merged FeatureNameStatistics proto for the feature
     # into the DatasetFeatureStatistics proto.
     new_feature_stats_proto = result.features.add()
@@ -637,16 +635,6 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
     return [func(gen, *args_for_func) for gen, args_for_func in zip(
         self._generators, zip(*args))]
 
-  def setup(self):
-    """Prepares each generator for combining."""
-    for gen in self._generators:
-      gen.setup()
-
-  def create_accumulator(self
-                        ) -> _CombinerStatsGeneratorsCombineFnAcc:  # pytype: disable=invalid-annotation
-    return _CombinerStatsGeneratorsCombineFnAcc(
-        [g.create_accumulator() for g in self._generators])
-
   def _should_do_batch(self, accumulator: _CombinerStatsGeneratorsCombineFnAcc,
                        force: bool) -> bool:
     curr_batch_size = accumulator.curr_batch_size
@@ -690,6 +678,15 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
       del accumulator.input_record_batches[:]
       accumulator.curr_batch_size = 0
       accumulator.curr_byte_size = 0
+
+  def setup(self):
+    """Prepares each generator for combining."""
+    for gen in self._generators:
+      gen.setup()
+
+  def create_accumulator(self) -> _CombinerStatsGeneratorsCombineFnAcc:
+    return _CombinerStatsGeneratorsCombineFnAcc(
+        [g.create_accumulator() for g in self._generators])
 
   def add_input(
       self, accumulator: _CombinerStatsGeneratorsCombineFnAcc,
@@ -740,12 +737,13 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
 
     return result
 
-  # TODO(pachristopher): Consider adding CombinerStatsGenerator.compact method.
   def compact(
       self,
       accumulator: _CombinerStatsGeneratorsCombineFnAcc
       ) -> _CombinerStatsGeneratorsCombineFnAcc:
     self._maybe_do_batch(accumulator, force=True)
+    accumulator.partial_accumulators = self._for_each_generator(
+        lambda gen, acc: gen.compact(acc), accumulator.partial_accumulators)
     self._num_compacts.inc(1)
     return accumulator
 
@@ -813,8 +811,11 @@ def extract_statistics_output(
     stats_generators: List[stats_generator.CombinerStatsGenerator]
 ) -> statistics_pb2.DatasetFeatureStatisticsList:
   """Extracts final stats output from the accumulators holding partial stats."""
+
+  # We call compact before extract_output to guarentee that `compact()` is
+  # called at least once, for testing coverage.
   outputs = [
-      gen.extract_output(stats)
+      gen.extract_output(gen.compact(stats))
       for (gen, stats) in zip(stats_generators, partial_stats)  # pytype: disable=attribute-error
   ]
   return _make_dataset_feature_statistics_list_proto(
@@ -922,13 +923,29 @@ class CombinerFeatureStatsWrapperGenerator(
     """
     result = self.create_accumulator()
     for wrapper_accumulator in wrapper_accumulators:
-      for feature_path, accumulator_for_feature in six.iteritems(
-          wrapper_accumulator):
+      for feature_path, accumulator_for_feature in wrapper_accumulator.items():
         self._perhaps_initialize_for_feature_path(result, feature_path)
         for index, generator in enumerate(self._feature_stats_generators):
           result[feature_path][index] = generator.merge_accumulators(
               [result[feature_path][index], accumulator_for_feature[index]])
     return result
+
+  def compact(self,
+              wrapper_accumulator: WrapperAccumulator) -> WrapperAccumulator:
+    """Returns a compacted wrapper_accumulator.
+
+    This overrides the base class's implementation. This is optionally called
+    before an accumulator is sent across the wire.
+
+    Args:
+      wrapper_accumulator: The wrapper accumulator to compact.
+    """
+    for accumulator_for_feature in wrapper_accumulator.values():
+      for index, generator in enumerate(self._feature_stats_generators):
+        accumulator_for_feature[index] = generator.compact(
+            accumulator_for_feature[index])
+
+    return wrapper_accumulator
 
   def extract_output(self, wrapper_accumulator: WrapperAccumulator
                     ) -> statistics_pb2.DatasetFeatureStatistics:
@@ -942,8 +959,7 @@ class CombinerFeatureStatsWrapperGenerator(
     """
     result = statistics_pb2.DatasetFeatureStatistics()
 
-    for feature_path, accumulator_for_feature in six.iteritems(
-        wrapper_accumulator):
+    for feature_path, accumulator_for_feature in wrapper_accumulator.items():
       feature_stats = result.features.add()
       feature_stats.path.CopyFrom(feature_path.to_proto())
       for index, generator in enumerate(self._feature_stats_generators):

@@ -4,7 +4,13 @@
 
 ## Major Features and Improvements
 
+*   Performance improvement to BasicStatsGenerator.
+
 ## Bug Fixes and Other Changes
+
+*   Added a `compact()` and 'setup()` interface to CombinerStatsGenerator,
+    CombinerFeatureStatsWrapperGenerator, BasicStatsGenerator,
+    CompositeStatsGenerator, and ConstituentStatsGenerator.
 
 ## Known Issues
 

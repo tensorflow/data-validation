@@ -19,8 +19,8 @@ from __future__ import division
 from __future__ import print_function
 
 import traceback
-
 from typing import Callable, Dict, List, Optional, Tuple, Union
+
 from absl.testing import absltest
 import apache_beam as beam
 from apache_beam.testing import util
@@ -246,6 +246,16 @@ class CombinerStatsGeneratorTest(absltest.TestCase):
         generator.merge_accumulators(accumulators))
     _verify(result)
 
+    # Run generator to check that compact() works correctly after
+    # merging accumulators.
+    accumulators = [
+        generator.add_input(generator.create_accumulator(), batch)
+        for batch in batches
+    ]
+    result = generator.extract_output(
+        generator.compact(generator.merge_accumulators(accumulators)))
+    _verify(result)
+
     # Run generator to check that add_input() works correctly when adding
     # inputs to a non-empty accumulator.
     accumulator = generator.create_accumulator()
@@ -385,6 +395,17 @@ class CombinerFeatureStatsGeneratorTest(absltest.TestCase):
     ]
     result = generator.extract_output(
         generator.merge_accumulators(accumulators))
+    compare.assertProtoEqual(
+        self, result, expected_result, normalize_numbers=True)
+
+    # Run generator to check that compact() works correctly after
+    # merging accumulators.
+    accumulators = [
+        generator.add_input(generator.create_accumulator(), feature_path,
+                            input_batch) for input_batch in input_batches
+    ]
+    result = generator.extract_output(
+        generator.compact(generator.merge_accumulators(accumulators)))
     compare.assertProtoEqual(
         self, result, expected_result, normalize_numbers=True)
 

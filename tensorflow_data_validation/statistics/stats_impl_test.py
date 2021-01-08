@@ -18,15 +18,12 @@ from __future__ import division
 
 from __future__ import print_function
 
-from typing import List
-
 from absl.testing import absltest
 from absl.testing import parameterized
 import apache_beam as beam
 from apache_beam.testing import util
 import numpy as np
 import pyarrow as pa
-from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.statistics.generators import basic_stats_generator
@@ -52,14 +49,13 @@ class _BaseCounter(stats_generator.CombinerFeatureStatsGenerator):
   def __init__(self):
     super(_BaseCounter, self).__init__(type(self).__name__)
 
-  def create_accumulator(self) -> int:
+  def create_accumulator(self):
     return 0
 
-  def merge_accumulators(self, accumulators: List[int]) -> int:
+  def merge_accumulators(self, accumulators):
     return sum(accumulators)
 
-  def extract_output(self,
-                     accumulator: int) -> statistics_pb2.FeatureNameStatistics:
+  def extract_output(self, accumulator):
     result = statistics_pb2.FeatureNameStatistics()
     result.custom_stats.add(name=type(self).__name__, num=accumulator)
     return result
@@ -82,6 +78,30 @@ class _ExampleCounter(_BaseCounter):
   def add_input(self, accumulator, feature_path, feature_array):
     accumulator += len(feature_array) - feature_array.null_count
     return accumulator
+
+
+class _CompactIndicator(stats_generator.CombinerFeatureStatsGenerator):
+  """A CombinerStatsGenerator that returns true if compact is called."""
+
+  def __init__(self):
+    super(_CompactIndicator, self).__init__(name='_CompactIndicator')
+
+  def create_accumulator(self):
+    return False
+
+  def add_input(self, accumulator, feature_path, feature_array):
+    return accumulator
+
+  def merge_accumulators(self, accumulators):
+    return any(accumulators)
+
+  def compact(self, accumulator):
+    return True
+
+  def extract_output(self, accumulator):
+    result = statistics_pb2.FeatureNameStatistics()
+    result.custom_stats.add(name='_CompactIndicator', str=str(accumulator))
+    return result
 
 
 GENERATE_STATS_TESTS = [
@@ -2262,6 +2282,34 @@ GENERATE_STATS_NO_IN_MEMORY_TESTS = [
     },
 ]
 
+GENERATE_STATS_IN_MEMORY_ONLY_TESTS = [
+    {
+        'testcase_name':
+            'compact_counter',
+        'record_batches': [
+            pa.RecordBatch.from_arrays([pa.array([[1]])], ['f1'])
+        ],
+        'options':
+            stats_options.StatsOptions(
+                generators=[_CompactIndicator()], add_default_generators=False),
+        'expected_result_proto_text':
+            """
+          datasets {
+            num_examples: 1
+            features {
+              custom_stats {
+                name: "_CompactIndicator"
+                str: "True"
+              }
+              path {
+                step: "f1"
+              }
+            }
+          }
+        """
+    },
+]
+
 SLICING_TESTS = [
     {
         'testcase_name':
@@ -2989,7 +3037,8 @@ class StatsImplTest(parameterized.TestCase):
           test_util.make_dataset_feature_stats_list_proto_equal_fn(
               self, expected_result_with_slice_key))
 
-  @parameterized.named_parameters(*GENERATE_STATS_TESTS)
+  @parameterized.named_parameters(
+      *GENERATE_STATS_TESTS + GENERATE_STATS_IN_MEMORY_ONLY_TESTS)
   def test_generate_statistics_in_memory(self,
                                          record_batches,
                                          options,
@@ -3139,18 +3188,16 @@ class StatsImplTest(parameterized.TestCase):
     # custom stat.
     class CustomCombinerStatsGenerator(stats_generator.CombinerStatsGenerator):
 
-      def create_accumulator(self) -> int:
+      def create_accumulator(self):
         return 0
 
-      def add_input(self, accumulator: int,
-                    input_batch: types.ExampleBatch) -> int:
+      def add_input(self, accumulator, input_batch):
         return 0
 
-      def merge_accumulators(self, accumulators: List[int]) -> int:
+      def merge_accumulators(self, accumulators):
         return 0
 
-      def extract_output(
-          self, accumulator: int) -> statistics_pb2.DatasetFeatureStatistics:
+      def extract_output(self, accumulator):
         stats_proto = statistics_pb2.DatasetFeatureStatistics()
         proto_feature = stats_proto.features.add()
         proto_feature.path.step[:] = ['a']
