@@ -11,6 +11,7 @@
 *   Added a `compact()` and 'setup()` interface to CombinerStatsGenerator,
     CombinerFeatureStatsWrapperGenerator, BasicStatsGenerator,
     CompositeStatsGenerator, and ConstituentStatsGenerator.
+*   Stopped depending on `tensorflow-transform`.
 
 ## Known Issues
 

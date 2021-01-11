@@ -52,8 +52,7 @@ pip install -i https://pypi-nightly.tensorflow.org/simple tensorflow-data-valida
 ```
 
 This will install the nightly packages for the major dependencies of TFDV such
-as TensorFlow Transform (TFT), TFX Basic Shared Libraries (TFX-BSL), TensorFlow
-Metadata (TFMD).
+as TFX Basic Shared Libraries (TFX-BSL) and TensorFlow Metadata (TFMD).
 
 ## Build with Docker
 
