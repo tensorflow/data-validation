@@ -84,8 +84,6 @@ class CombinerStatsGenerator(StatsGenerator):
       extract_output(accumulator)
   """
 
-  # TODO(b/176939874): Add teardown() to all StatsGenerators when it is needed.
-
   # TODO(b/176939874): Investigate which stats generators will benefit from
   # setup.
   def setup(self) -> None:
@@ -164,6 +162,9 @@ class CombinerStatsGenerator(StatsGenerator):
       A proto representing the result of this stats generator.
     """
     raise NotImplementedError
+
+  # TODO(b/176939874): Add teardown() to all StatsGenerators if/when it is
+  # needed.
 
 
 class CombinerFeatureStatsGenerator(StatsGenerator):

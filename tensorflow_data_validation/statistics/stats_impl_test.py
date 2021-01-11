@@ -104,7 +104,7 @@ class _CompactIndicator(stats_generator.CombinerFeatureStatsGenerator):
     return result
 
 
-GENERATE_STATS_TESTS = [
+_GENERATE_STATS_TESTS = [
     {
         'testcase_name':
             'feature_whitelist',
@@ -2037,7 +2037,7 @@ GENERATE_STATS_TESTS = [
     },
 ]
 
-GENERATE_STATS_NO_IN_MEMORY_TESTS = [
+_GENERATE_STATS_NO_IN_MEMORY_TESTS = [
     {
         'testcase_name':
             'label_feature',
@@ -2282,7 +2282,7 @@ GENERATE_STATS_NO_IN_MEMORY_TESTS = [
     },
 ]
 
-GENERATE_STATS_IN_MEMORY_ONLY_TESTS = [
+_GENERATE_STATS_IN_MEMORY_ONLY_TESTS = [
     {
         'testcase_name':
             'compact_counter',
@@ -2310,7 +2310,7 @@ GENERATE_STATS_IN_MEMORY_ONLY_TESTS = [
     },
 ]
 
-SLICING_TESTS = [
+_SLICING_TESTS = [
     {
         'testcase_name':
             'feature_value_slicing',
@@ -2866,8 +2866,8 @@ SLICING_TESTS = [
 class StatsImplTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
-      *(GENERATE_STATS_TESTS + GENERATE_STATS_NO_IN_MEMORY_TESTS +
-        SLICING_TESTS))
+      *(_GENERATE_STATS_TESTS + _GENERATE_STATS_NO_IN_MEMORY_TESTS +
+        _SLICING_TESTS))
   def test_stats_impl(self,
                       record_batches,
                       options,
@@ -3038,7 +3038,7 @@ class StatsImplTest(parameterized.TestCase):
               self, expected_result_with_slice_key))
 
   @parameterized.named_parameters(
-      *GENERATE_STATS_TESTS + GENERATE_STATS_IN_MEMORY_ONLY_TESTS)
+      *_GENERATE_STATS_TESTS + _GENERATE_STATS_IN_MEMORY_ONLY_TESTS)
   def test_generate_statistics_in_memory(self,
                                          record_batches,
                                          options,
