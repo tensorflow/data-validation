@@ -12,6 +12,7 @@
     CombinerFeatureStatsWrapperGenerator, BasicStatsGenerator,
     CompositeStatsGenerator, and ConstituentStatsGenerator.
 *   Stopped depending on `tensorflow-transform`.
+*   Depends on `tensorflow>=1.15.2,!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,<3`.
 
 ## Known Issues
 
