@@ -29,7 +29,6 @@ from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
 from tensorflow_data_validation.utils import top_k_uniques_stats_util
 from tensorflow_data_validation.utils.example_weight_map import ExampleWeightMap
-from tfx_bsl.arrow import array_util
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -93,7 +92,7 @@ def _to_topk_tuples(
             flattened_values_np, weights_ndarray):
           yield (slice_key, feature_path.steps(), value), (count, weight)
       else:
-        value_counts = array_util.ValueCounts(flattened_values)
+        value_counts = flattened_values.value_counts()
         values = value_counts.field('values').to_pylist()
         counts = value_counts.field('counts').to_pylist()
         if has_any_weight:
