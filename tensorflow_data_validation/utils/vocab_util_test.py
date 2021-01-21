@@ -36,10 +36,10 @@ class VocabUtilTest(absltest.TestCase):
 
   def test_gz_recordio_file(self):
     with tempfile.NamedTemporaryFile(suffix='.tfrecord.gz') as f:
-      dataset = tf.data.Dataset.from_tensor_slices(['Foo', 'Bar'])
-      writer = tf.data.experimental.TFRecordWriter(
-          f.name, compression_type='GZIP')
-      writer.write(dataset)
+      writer = tf.io.TFRecordWriter(f.name, options='GZIP')
+      for element in ['Foo', 'Bar']:
+        writer.write(element)
+      writer.flush()
       f.flush()
 
       vocab, reverse_vocab = vocab_util.load_vocab(f.name)
