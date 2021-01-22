@@ -37,7 +37,7 @@ class VocabUtilTest(absltest.TestCase):
   def test_gz_recordio_file(self):
     with tempfile.NamedTemporaryFile(suffix='.tfrecord.gz') as f:
       writer = tf.io.TFRecordWriter(f.name, options='GZIP')
-      for element in ['Foo', 'Bar']:
+      for element in [b'Foo', b'Bar']:
         writer.write(element)
       writer.flush()
       f.flush()
