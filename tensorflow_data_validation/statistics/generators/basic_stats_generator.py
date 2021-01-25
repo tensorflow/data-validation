@@ -991,11 +991,8 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
     self._num_histogram_buckets = num_histogram_buckets
     self._num_quantiles_histogram_buckets = num_quantiles_histogram_buckets
 
-    # Epsilon is re-adjusted because we will call sketch.Compact() in
-    # self.Compact(). More info here:
-    # https://github.com/tensorflow/tfx-bsl/blob/master/tfx_bsl/cc/sketches/quantiles_sketch.h#L31
     self._make_quantiles_sketch_fn = lambda: sketches.QuantilesSketch(  # pylint: disable=g-long-lambda
-        eps=epsilon * 2 / 3.0,
+        eps=epsilon,
         max_num_elements=1 << 32,
         num_streams=1)
 
