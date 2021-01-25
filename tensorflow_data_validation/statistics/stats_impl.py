@@ -195,7 +195,9 @@ def get_generators(options: stats_options.StatsOptions,
     if _schema_has_natural_language_domains(options.schema):
       generators.append(
           natural_language_stats_generator.NLStatsGenerator(
-              options.schema, options.vocab_paths))
+              options.schema, options.vocab_paths,
+              options.num_quantiles_histogram_buckets,
+              options.num_rank_histogram_buckets))
     if options.schema.weighted_feature:
       generators.append(
           weighted_feature_stats_generator.WeightedFeatureStatsGenerator(

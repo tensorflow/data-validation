@@ -56,33 +56,48 @@ import pyarrow as pa
 
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
+from tensorflow_data_validation.utils import quantiles_util
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
 from tensorflow_data_validation.utils import vocab_util
+
+from tfx_bsl import sketches
 
 from google.protobuf import any_pb2
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 _NL_DOMAIN = 'natural_language_domain'
+_NUM_MISRAGRIES_SKETCH_BUCKETS = 16384
+_QUANTILES_SKETCH_ERROR = 0.01
+_QUANTILES_SKETCH_NUM_ELEMENTS = 2 ^ 32
+_QUANTILES_SKETCH_NUM_STREAMS = 1
 
 
+# TODO(b/175875824): Determine if we should remove NL features from the default
+# Top-K computation which is largely redundant.
 class _PartialNLStats(object):
   """Partial feature stats for natural language."""
 
-  def __init__(self,
-               invalidate=False,
-               num_in_vocab_tokens: int = 0,
-               total_num_tokens: int = 0,
-               sum_in_vocab_token_lengths: int = 0) -> None:
+  def __init__(
+      self,
+      invalidate=False,
+      num_in_vocab_tokens: int = 0,
+      total_num_tokens: int = 0,
+      sum_in_vocab_token_lengths: int = 0,
+  ) -> None:
     # True only if this feature should never be considered, e.g: some
     # value_lists have inconsistent types or feature doesn't have an
     # NL domain.
     self.invalidate = invalidate
-
     self.num_in_vocab_tokens = num_in_vocab_tokens
     self.total_num_tokens = total_num_tokens
     self.sum_in_vocab_token_lengths = sum_in_vocab_token_lengths
+    self.vocab_token_length_quantiles = sketches.QuantilesSketch(
+        _QUANTILES_SKETCH_ERROR, _QUANTILES_SKETCH_NUM_ELEMENTS,
+        _QUANTILES_SKETCH_NUM_STREAMS)
+    self.token_occurrence_counts = sketches.MisraGriesSketch(
+        _NUM_MISRAGRIES_SKETCH_BUCKETS)
 
   def __iadd__(self, other: '_PartialNLStats') -> '_PartialNLStats':
     """Merge two partial natual language stats."""
@@ -91,7 +106,19 @@ class _PartialNLStats(object):
     self.num_in_vocab_tokens += other.num_in_vocab_tokens
     self.total_num_tokens += other.total_num_tokens
     self.sum_in_vocab_token_lengths += other.sum_in_vocab_token_lengths
+    self.vocab_token_length_quantiles.Merge(other.vocab_token_length_quantiles)
+    self.token_occurrence_counts.Merge(other.token_occurrence_counts)
     return self
+
+
+def _update_accumulator_with_in_vocab_string_tokens(
+    accumulator: _PartialNLStats, token_list: List[Text]):
+  accumulator.num_in_vocab_tokens += len(token_list)
+  accumulator.token_occurrence_counts.AddValues(pa.array(token_list))
+
+  token_len_list = [len(t) for t in token_list]
+  accumulator.sum_in_vocab_token_lengths += sum(token_len_list)
+  accumulator.vocab_token_length_quantiles.AddValues(pa.array(token_len_list))
 
 
 def _compute_int_listscalar_statistics(
@@ -100,6 +127,7 @@ def _compute_int_listscalar_statistics(
     oov_string_tokens: Set[Text], unused_vocab: Optional[Dict[Text, int]],
     rvocab: Optional[Dict[int, Text]]):
   """Compute statistics for an integer listscalar."""
+  filtered_entry_str_list = []
   for entry in row:
     if entry in excluded_int_tokens:
       continue
@@ -110,9 +138,11 @@ def _compute_int_listscalar_statistics(
         if entry_str in excluded_string_tokens:
           continue
         if entry_str not in oov_string_tokens:
-          accumulator.num_in_vocab_tokens += 1
-          accumulator.sum_in_vocab_token_lengths += len(entry_str)
+          filtered_entry_str_list.append(entry_str)
     accumulator.total_num_tokens += 1
+  if filtered_entry_str_list:
+    _update_accumulator_with_in_vocab_string_tokens(accumulator,
+                                                    filtered_entry_str_list)
 
 
 def _compute_str_listscalar_statistics(
@@ -121,6 +151,7 @@ def _compute_str_listscalar_statistics(
     oov_string_tokens: Set[Text], vocab: Optional[Dict[Text, int]],
     unused_rvocab: Optional[Dict[int, Text]]):
   """Compute statistics for a string listscalar."""
+  filtered_entry_list = []
   for entry in row:
     if entry in excluded_string_tokens:
       continue
@@ -128,9 +159,36 @@ def _compute_str_listscalar_statistics(
         vocab[entry] in excluded_int_tokens):
       continue
     if entry not in oov_string_tokens:
-      accumulator.num_in_vocab_tokens += 1
-      accumulator.sum_in_vocab_token_lengths += len(entry)
+      filtered_entry_list.append(entry)
     accumulator.total_num_tokens += 1
+  if filtered_entry_list:
+    _update_accumulator_with_in_vocab_string_tokens(accumulator,
+                                                    filtered_entry_list)
+
+
+def _populate_token_length_histogram(
+    nls: statistics_pb2.NaturalLanguageStatistics, accumulator: _PartialNLStats,
+    num_quantiles_histogram_buckets: int):
+  """Populate the token length histogram."""
+  quantiles = accumulator.vocab_token_length_quantiles.GetQuantiles(
+      num_quantiles_histogram_buckets)
+  quantiles = quantiles.flatten().to_pylist()
+
+  if quantiles:
+    quantiles_histogram = quantiles_util.generate_quantiles_histogram(
+        quantiles, accumulator.num_in_vocab_tokens,
+        num_quantiles_histogram_buckets)
+    nls.token_length_histogram.CopyFrom(quantiles_histogram)
+
+
+def _populate_token_rank_histogram(
+    nls: statistics_pb2.NaturalLanguageStatistics, accumulator: _PartialNLStats,
+    num_rank_histogram_buckets: int):
+  """Populate the token rank histogram."""
+  entries = accumulator.token_occurrence_counts.Estimate().to_pylist()
+  for i, e in enumerate(entries[:num_rank_histogram_buckets]):
+    nls.rank_histogram.buckets.add(
+        low_rank=i, high_rank=i, label=e['values'], sample_count=e['counts'])
 
 
 class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
@@ -140,17 +198,27 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
   natural_language_domain.
   """
 
-  def __init__(self,
-               schema: Optional[schema_pb2.Schema] = None,
-               vocab_paths: Dict[Text, Text] = None) -> None:
+  def __init__(self, schema: Optional[schema_pb2.Schema],
+               vocab_paths: Optional[Dict[Text, Text]],
+               num_quantiles_histogram_buckets: int,
+               num_rank_histogram_buckets: int) -> None:
     """Initializes a NLStatsGenerator.
 
     Args:
       schema: An optional schema for the dataset.
       vocab_paths: A dictonary mapping vocab names to vocab paths.
+      num_quantiles_histogram_buckets: Number of quantiles to use for
+        histograms.
+      num_rank_histogram_buckets: Number of buckets to allow for rank
+        histograms.
     """
     self._schema = schema
     self._vocab_paths = vocab_paths
+    self._num_quantiles_histogram_buckets = num_quantiles_histogram_buckets
+    assert num_rank_histogram_buckets <= _NUM_MISRAGRIES_SKETCH_BUCKETS, (
+        'num_rank_histogram_buckets cannot be greater than %d' %
+        _NUM_MISRAGRIES_SKETCH_BUCKETS)
+    self._num_rank_histogram_buckets = num_rank_histogram_buckets
     self._nld_vocabularies = {}
     self._nld_excluded_string_tokens = {}
     self._nld_excluded_int_tokens = {}
@@ -260,6 +328,10 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
       result += accumulator
     return result
 
+  def compact(self, accumulator: _PartialNLStats) -> _PartialNLStats:
+    accumulator.vocab_token_length_quantiles.Compact()
+    return accumulator
+
   def extract_output(
       self,
       accumulator: _PartialNLStats) -> statistics_pb2.FeatureNameStatistics:
@@ -287,6 +359,19 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
           accumulator.num_in_vocab_tokens)
       result.custom_stats.add(
           name='nl_avg_token_length', num=nls.avg_token_length)
+    if self._num_quantiles_histogram_buckets:
+      _populate_token_length_histogram(nls, accumulator,
+                                       self._num_quantiles_histogram_buckets)
+      if nls.token_length_histogram.buckets:
+        result.custom_stats.add(
+            name='nl_token_length_histogram',
+            histogram=nls.token_length_histogram)
+    if self._num_rank_histogram_buckets:
+      _populate_token_rank_histogram(nls, accumulator,
+                                     self._num_rank_histogram_buckets)
+      if nls.rank_histogram.buckets:
+        result.custom_stats.add(
+            name='nl_rank_tokens', rank_histogram=nls.rank_histogram)
     my_proto = any_pb2.Any()
     result.custom_stats.add(name='nl_statistics', any=my_proto.Pack(nls))
     return result
