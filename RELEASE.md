@@ -22,6 +22,10 @@
 
 ## Deprecations
 
+*   `tfdv.DecodeCSV` and `tfdv.DecodeTFExample` are deprecated. Use
+    `tfx_bsl.public.tfxio.CsvTFXIO` and `tfx_bsl.public.tfxio.TFExampleRecord`
+    instead.
+
 # Version 0.26.0
 
 ## Major Features and Improvements

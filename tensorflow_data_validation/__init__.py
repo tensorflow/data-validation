@@ -32,8 +32,10 @@ from tensorflow_data_validation.api.validation_api import update_schema
 from tensorflow_data_validation.api.validation_api import validate_instance
 from tensorflow_data_validation.api.validation_api import validate_statistics
 
-# Import coders.
+# DecodeCSV is deprecated. Please use tfx_bsl.public.tfxio.CsvTFXIO instead.
 from tensorflow_data_validation.coders.csv_decoder import DecodeCSV
+# DecodeTFExample is deprecated. Please use tfx_bsl.public.tfxio.TFExampleRecord
+# instead.
 from tensorflow_data_validation.coders.tf_example_decoder import DecodeTFExample
 
 # Import stats generators.

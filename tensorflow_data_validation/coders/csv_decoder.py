@@ -32,7 +32,10 @@ from tensorflow_metadata.proto.v0 import schema_pb2
 @beam.typehints.with_input_types(Text)
 @beam.typehints.with_output_types(pa.RecordBatch)
 class DecodeCSV(beam.PTransform):
-  """Decodes CSV records into Arrow RecordBatches."""
+  """Decodes CSV records into Arrow RecordBatches.
+
+  DEPRECATED: please use tfx_bsl.public.CsvTFXIO instead.
+  """
 
   def __init__(self,
                column_names: List[types.FeatureName],

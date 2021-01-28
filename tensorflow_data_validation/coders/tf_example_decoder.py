@@ -34,6 +34,8 @@ def DecodeTFExample(
 ) -> beam.pvalue.PCollection:  # pylint: disable=invalid-name
   """Decodes serialized TF examples into Arrow RecordBatches.
 
+  DEPRECATED: please use tfx_bsl.public.TFExampleRecord instead.
+
   Args:
     examples: A PCollection of strings representing serialized TF examples.
     desired_batch_size: Batch size. The output Arrow RecordBatches will have as
