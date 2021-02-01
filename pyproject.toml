@@ -17,5 +17,5 @@ requires = [
   "setuptools",
   "wheel",
   # Required for using org_tensorflow bazel repository.
-  "numpy>=1.16,<2",
+  "numpy>=1.16,<1.20",
 ]

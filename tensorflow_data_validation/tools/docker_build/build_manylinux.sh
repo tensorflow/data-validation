@@ -28,19 +28,17 @@ function setup_environment() {
   source scl_source enable devtoolset-8
   source scl_source enable rh-python36
   if [[ -z "${PYTHON_VERSION}" ]]; then
-    echo "Must set PYTHON_VERSION env to 35|36|37|38"; exit 1;
+    echo "Must set PYTHON_VERSION env to 36|37|38"; exit 1;
   fi
   # Bazel will use PYTHON_BIN_PATH to determine the right python library.
-  if [[ "${PYTHON_VERSION}" == 35 ]]; then
-    PYTHON_DIR=/opt/python/cp35-cp35m
-  elif [[ "${PYTHON_VERSION}" == 36 ]]; then
+  if [[ "${PYTHON_VERSION}" == 36 ]]; then
     PYTHON_DIR=/opt/python/cp36-cp36m
   elif [[ "${PYTHON_VERSION}" == 37 ]]; then
     PYTHON_DIR=/opt/python/cp37-cp37m
   elif [[ "${PYTHON_VERSION}" == 38 ]]; then
     PYTHON_DIR=/opt/python/cp38-cp38
   else
-    echo "Must set PYTHON_VERSION env to 35|36|37|38"; exit 1;
+    echo "Must set PYTHON_VERSION env to 36|37|38"; exit 1;
   fi
   export PIP_BIN="${PYTHON_DIR}"/bin/pip
   export PYTHON_BIN_PATH="${PYTHON_DIR}"/bin/python
@@ -53,7 +51,7 @@ function setup_environment() {
 }
 
 function install_numpy() {
-  ${PIP_BIN} install "numpy>=1.16,<2"
+  ${PIP_BIN} install "numpy>=1.16,<1.20"
 }
 
 function build_wheel() {
