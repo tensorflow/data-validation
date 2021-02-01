@@ -2938,6 +2938,8 @@ class StatsImplTest(parameterized.TestCase):
             statistics_pb2.NaturalLanguageStatistics(feature_coverage=0.0)))
     expected_result.datasets[0].features[0].custom_stats.add(
         name='nl_feature_coverage', num=0.0)
+    expected_result.datasets[0].features[0].custom_stats.add(
+        name='nl_reported_sequences', str='[1]\n[1]')
     with beam.Pipeline() as p:
       result = (
           p | beam.Create(record_batches, reshuffle=False)
