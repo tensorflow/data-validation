@@ -860,17 +860,20 @@ class CombinerFeatureStatsWrapperGenerator(
     self._feature_stats_generators = feature_stats_generators
     self._sample_rate = sample_rate
 
-  def _perhaps_initialize_for_feature_path(
-      self, wrapper_accumulator: WrapperAccumulator,
-      feature_path: types.FeaturePath) -> None:
+  def _get_wrapped_accumulators(self, wrapper_accumulator: WrapperAccumulator,
+                                feature_path: types.FeaturePath) -> List[Any]:
     """Initializes the feature_path key if it does not exist."""
+    result = wrapper_accumulator.get(feature_path, None)
+    if result is not None:
+      return result
     # Note: This manual initialization could have been avoided if
     # wrapper_accumulator was a defaultdict, but this breaks pickling.
-    if feature_path not in wrapper_accumulator:
-      wrapper_accumulator[feature_path] = [
-          generator.create_accumulator()
-          for generator in self._feature_stats_generators
-      ]
+    result = [
+        generator.create_accumulator()
+        for generator in self._feature_stats_generators
+    ]
+    wrapper_accumulator[feature_path] = result
+    return result
 
   def setup(self):
     """Prepares every CombinerFeatureStatsGenerator instance for combining."""
@@ -905,11 +908,11 @@ class CombinerFeatureStatsWrapperGenerator(
         input_record_batch,
         example_weight_map=None,
         enumerate_leaves_only=True):
+      wrapped_accumulators = self._get_wrapped_accumulators(
+          wrapper_accumulator, feature_path)
       for index, generator in enumerate(self._feature_stats_generators):
-        self._perhaps_initialize_for_feature_path(wrapper_accumulator,
-                                                  feature_path)
-        wrapper_accumulator[feature_path][index] = generator.add_input(
-            generator.create_accumulator(), feature_path, feature_array)
+        wrapped_accumulators[index] = generator.add_input(
+            wrapped_accumulators[index], feature_path, feature_array)
 
     return wrapper_accumulator
 
@@ -927,10 +930,11 @@ class CombinerFeatureStatsWrapperGenerator(
     result = self.create_accumulator()
     for wrapper_accumulator in wrapper_accumulators:
       for feature_path, accumulator_for_feature in wrapper_accumulator.items():
-        self._perhaps_initialize_for_feature_path(result, feature_path)
+        wrapped_accumulators = self._get_wrapped_accumulators(
+            result, feature_path)
         for index, generator in enumerate(self._feature_stats_generators):
-          result[feature_path][index] = generator.merge_accumulators(
-              [result[feature_path][index], accumulator_for_feature[index]])
+          wrapped_accumulators[index] = generator.merge_accumulators(
+              [wrapped_accumulators[index], accumulator_for_feature[index]])
     return result
 
   def compact(self,

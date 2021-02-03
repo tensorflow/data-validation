@@ -1055,7 +1055,11 @@ _GENERATE_STATS_TESTS = [
                 num_top_values=4,
                 num_rank_histogram_buckets=3,
                 num_values_histogram_buckets=3,
-                enable_semantic_domain_stats=True),
+                enable_semantic_domain_stats=True,
+                # Override the in-combiner batch size to be smaller than
+                # the total amount of records to to exercise add_inputs()
+                # multiple times.
+                desired_batch_size=50),
         'expected_result_proto_text':
             """
             datasets {

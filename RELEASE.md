@@ -7,6 +7,7 @@
 ## Bug Fixes and Other Changes
 
 *   Depends on `numpy>=1.16,<1.20`.
+*   Fixed a bug that affected all CombinerFeatureStatsGenerators.
 
 ## Known Issues
 
