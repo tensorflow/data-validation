@@ -8,6 +8,8 @@
 
 *   Depends on `numpy>=1.16,<1.20`.
 *   Fixed a bug that affected all CombinerFeatureStatsGenerators.
+*   Allow for `bytes` type in `get_feature_value_slicer` in addition to `Text`
+    and `int`.
 
 ## Known Issues
 

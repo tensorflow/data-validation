@@ -33,7 +33,7 @@ from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.utils import stats_util
 from tfx_bsl.arrow import table_util
 
-_ValueType = Iterable[Union[Text, int]]
+_ValueType = Iterable[Union[Text, int, bytes]]
 
 _PARENT_INDEX_COLUMN = '__TFDV_INTERNAL_PARENT_INDEX__'
 _SLICE_KEY_COLUMN = '__TFDV_INTERNAL_SLICE_KEY__'
