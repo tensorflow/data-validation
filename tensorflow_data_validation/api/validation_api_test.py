@@ -1009,6 +1009,72 @@ class ValidationApiTest(parameterized.TestCase):
                                  '.*statistics proto with one dataset.*'):
       _ = validation_api.update_schema(schema, statistics)
 
+  def test_update_schema_remove_inferred_shape(self):
+    stats1 = text_format.Parse("""
+    datasets {
+      num_examples: 10000
+      features {
+        path {
+          step: ["f1"]
+        }
+        num_stats {
+          common_stats {
+            num_non_missing: 10000
+            num_missing: 0
+            min_num_values: 1
+            max_num_values: 1
+          }
+        }
+      }
+    }
+    """, statistics_pb2.DatasetFeatureStatisticsList())
+
+    stats2 = text_format.Parse("""
+    datasets {
+      num_examples: 10000
+      features {
+        path {
+          step: ["f1"]
+        }
+        num_stats {
+          common_stats {
+            num_non_missing: 9999
+            num_missing: 1
+            min_num_values: 1
+            max_num_values: 1
+          }
+        }
+      }
+    }
+    """, statistics_pb2.DatasetFeatureStatisticsList())
+
+    # Scenario 1: shape is inferred from stats1, then should be removed
+    # when schema is updated against stat2.
+    schema = validation_api.infer_schema(stats1, infer_feature_shape=True)
+    self.assertLen(schema.feature, 1)
+    self.assertTrue(schema.feature[0].HasField('shape'))
+
+    updated_schema = validation_api.update_schema(
+        schema, stats2, infer_feature_shape=True)
+    self.assertLen(updated_schema.feature, 1)
+    self.assertFalse(updated_schema.feature[0].HasField('shape'))
+
+    updated_schema = validation_api.update_schema(
+        schema, stats2, infer_feature_shape=False)
+    self.assertLen(updated_schema.feature, 1)
+    self.assertFalse(updated_schema.feature[0].HasField('shape'))
+
+    # Scenario 2: shape is not inferred from stats2, then should not be
+    # added when schema is updated against stat1.
+    schema = validation_api.infer_schema(stats2, infer_feature_shape=True)
+    self.assertLen(schema.feature, 1)
+    self.assertFalse(schema.feature[0].HasField('shape'))
+
+    updated_schema = validation_api.update_schema(
+        schema, stats1, infer_feature_shape=True)
+    self.assertLen(updated_schema.feature, 1)
+    self.assertFalse(updated_schema.feature[0].HasField('shape'))
+
   def test_validate_stats(self):
     schema = text_format.Parse(
         """

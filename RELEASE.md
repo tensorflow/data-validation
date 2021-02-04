@@ -6,10 +6,12 @@
 
 ## Bug Fixes and Other Changes
 
-*   Depends on `numpy>=1.16,<1.20`.
+*   Fixed a bug in `tfdv.update_schema` / `tfdv.infer_schema` when they are
+    called with `infer_feature_shape=True`.
 *   Fixed a bug that affected all CombinerFeatureStatsGenerators.
 *   Allow for `bytes` type in `get_feature_value_slicer` in addition to `Text`
     and `int`.
+*   Depends on `numpy>=1.16,<1.20`.
 
 ## Known Issues
 
