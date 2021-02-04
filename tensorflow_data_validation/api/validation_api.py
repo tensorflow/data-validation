@@ -118,7 +118,7 @@ def infer_schema(
   # TODO(b/113605666): Push this shape inference logic into example validation
   # code.
   if infer_feature_shape:
-    _update_feature_shape(result, infer_feature_shape=True)
+    _infer_shape(result)
 
   if schema_transformations is not None:
     for transformation_fn in schema_transformations:
@@ -133,47 +133,33 @@ def _may_be_set_legacy_flag(schema: schema_pb2.Schema):
     schema.generate_legacy_feature_spec = False
 
 
-def _update_feature_shape(
-    schema: schema_pb2.Schema, infer_feature_shape: bool) -> None:
+def _infer_shape(schema: schema_pb2.Schema):
   """Infers shapes of the features in a schema."""
 
-  def get_shape(feature: schema_pb2.Feature) -> Optional[List[int]]:
-    """Returns the inferred shape, or None for a feature."""
-    # A feature must be always present.
-    if feature.presence.min_fraction != 1:
-      return None
-    # A feature must always be of the same length.
-    # There are two valid representations of the length so we have to check
-    # both.
-    if (feature.HasField('value_count') and feature.value_count.min != 0 and
-        feature.value_count.min == feature.value_count.max):
-      return [feature.value_count.min]
-    if feature.HasField('value_counts'):
-      result = []
-      for value_count in feature.value_counts.value_count:
-        if (value_count.min == 0 or value_count.min != value_count.max):
-          return None
-        result.append(value_count.min)
-      return result
-    return None
-
-  def recursion_helper(feature: schema_pb2.Feature):
-    # Shape only applies to leaf features.
+  def _infer_feature_shape(feature: schema_pb2.Feature):
     if feature.HasField('struct_domain'):
       for struct_domain_feature in feature.struct_domain.feature:
-        recursion_helper(struct_domain_feature)
-
-    shape = get_shape(feature)
-    if shape is None:
-      # A feature must not have a shape if it does not meet the criteria,
-      # despite of `infer_feature_shape`.
-      feature.ClearField('shape')
-    elif infer_feature_shape:
-      for size in shape:
-        feature.shape.dim.add().size = size
+        _infer_feature_shape(struct_domain_feature)
+    # Currently we infer shape only for required features.
+    if feature.presence.min_fraction == 1:
+      if (feature.HasField('value_count') and feature.value_count.min != 0 and
+          feature.value_count.min == feature.value_count.max):
+        feature.shape.dim.add().size = feature.value_count.min
+      elif feature.HasField('value_counts'):
+        # Infer shape for a feature that has a nestedness level > 1 if and only
+        # if the min value count equals the max value count at each nestedness
+        # level.
+        dimension_sizes = list()
+        for value_count in feature.value_counts.value_count:
+          if (value_count.min == 0 or value_count.min != value_count.max):
+            return
+          dimension_sizes.append(value_count.min)
+        if len(dimension_sizes) == len(feature.value_counts.value_count):
+          for size in dimension_sizes:
+            feature.shape.dim.add().size = size
 
   for feature in schema.feature:
-    recursion_helper(feature)
+    _infer_feature_shape(feature)
 
 
 # TODO(pachristopher): Add support for updating only a subset of features.
@@ -228,9 +214,10 @@ def update_schema(schema: schema_pb2.Schema,
   result = schema_pb2.Schema()
   result.ParseFromString(schema_proto_string)
 
-  # TODO(b/179201040): Push this shape inference logic into example validation
+  # TODO(b/113605666): Push this shape inference logic into example validation
   # code.
-  _update_feature_shape(result, infer_feature_shape)
+  if infer_feature_shape:
+    _infer_shape(result)
   return result
 
 
