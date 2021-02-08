@@ -57,6 +57,7 @@ import collections
 from typing import Dict, Iterable, List, Optional, Set, Text, Union
 
 import pyarrow as pa
+import six
 
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
@@ -203,9 +204,13 @@ def _update_accumulator_with_token_statistics(accumulator: _PartialNLStats,
 
 def _update_accumulator_reported_sequences(accumulator: _PartialNLStats,
                                            resolved_entry: List[Union[Text,
-                                                                      int]]):
+                                                                      int]],
+                                           oov_string_tokens: Set[Text]):
   """Update reported sequences in accumulator."""
-  token_lens = [len(i) for i in resolved_entry if isinstance(i, str)]
+  token_lens = [
+      len(i) for i in resolved_entry
+      if (isinstance(i, str) and i not in oov_string_tokens)
+  ]
 
   coverage = (float(len(token_lens)) / len(resolved_entry))
   if token_lens:
@@ -239,7 +244,8 @@ def _compute_int_statistics(
     _update_accumulator_with_token_statistics(accumulator, resolved_row,
                                               string_tokens,
                                               num_histogram_buckets)
-    _update_accumulator_reported_sequences(accumulator, resolved_row)
+    _update_accumulator_reported_sequences(accumulator, resolved_row,
+                                           oov_string_tokens)
 
   filtered_entry_str_list = []
   for entry in row:
@@ -267,10 +273,11 @@ def _compute_str_statistics(
     string_tokens: Set[Text], num_histogram_buckets):
   """Compute statistics for string features."""
   accumulator.num_examples += 1
+  row = [six.ensure_text(e) for e in row]
   if row:
     _update_accumulator_with_token_statistics(accumulator, row, string_tokens,
                                               num_histogram_buckets)
-    _update_accumulator_reported_sequences(accumulator, row)
+    _update_accumulator_reported_sequences(accumulator, row, oov_string_tokens)
     if vocab:
       _update_accumulator_with_token_statistics(accumulator,
                                                 [vocab.get(r, r) for r in row],

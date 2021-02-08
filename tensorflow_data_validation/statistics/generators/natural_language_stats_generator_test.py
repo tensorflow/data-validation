@@ -320,9 +320,9 @@ class NaturalLanguageStatsGeneratorTest(
 
   def test_nl_generator_string_feature_no_vocab(self):
     """Tests generator calculation with a string domain having no vocab."""
-    input_batches = [pa.array([['Foo'], None, ['Baz']])]
+    input_batches = [pa.array([[b'Foo'], None, [b'Baz']])]
     generator = nlsg.NLStatsGenerator(self._schema, None, 0, 0, 0)
-    expected_reported_sequences = [['Foo'], ['Baz']] * 2
+    expected_reported_sequences = [['Baz'], ['Foo']] * 2
     self.assertCombinerOutputEqual(
         input_batches, generator,
         self._create_expected_feature_name_statistics(
@@ -337,7 +337,7 @@ class NaturalLanguageStatsGeneratorTest(
       vocab_file.write(b'Foo\nBar\nBazz\n')
       vocab_file.flush()
 
-      input_batches = [pa.array([['Bar', 'Bazz'], None])]
+      input_batches = [pa.array([[b'Bar', b'Bazz'], None])]
       generator = nlsg.NLStatsGenerator(self._schema,
                                         {'my_vocab': vocab_file.name}, 0, 0, 0)
       expected_reported_sequences = [['Bar', 'Bazz']] * 2
