@@ -18,12 +18,14 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from tfx_bsl.telemetry import util
+
 
 # Name of the default slice containing all examples.
 DEFAULT_SLICE_KEY = 'All Examples'
 
 # Namespace for all TFDV metrics.
-METRICS_NAMESPACE = 'tfx.DataValidation'
+METRICS_NAMESPACE = util.MakeTfxNamespace(['DataValidation'])
 
 # Default input batch size.
 # This needs to be large enough to allow for efficient TF invocations during
