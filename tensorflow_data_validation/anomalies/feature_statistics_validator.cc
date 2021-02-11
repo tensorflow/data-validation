@@ -46,6 +46,7 @@ FeatureStatisticsToProtoConfig GetDefaultFeatureStatisticsToProtoConfig() {
 
 tensorflow::Status InferSchema(const string& feature_statistics_proto_string,
                                const int max_string_domain_size,
+                               const bool infer_feature_shape,
                                string* schema_proto_string) {
   tensorflow::metadata::v0::DatasetFeatureStatistics feature_statistics;
   if (!feature_statistics.ParseFromString(feature_statistics_proto_string)) {
@@ -54,6 +55,8 @@ tensorflow::Status InferSchema(const string& feature_statistics_proto_string,
   }
   FeatureStatisticsToProtoConfig feature_statistics_to_proto_config;
   feature_statistics_to_proto_config.set_enum_threshold(max_string_domain_size);
+  feature_statistics_to_proto_config.set_infer_feature_shape(
+      infer_feature_shape);
   tensorflow::metadata::v0::Schema schema;
   TF_RETURN_IF_ERROR(
       UpdateSchema(feature_statistics_to_proto_config,

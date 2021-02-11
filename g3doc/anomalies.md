@@ -634,6 +634,29 @@ condition(s) under which each anomaly type is detected.
             match the number of times `value_count` is repeated within
             `feature.value_counts`
 
+-   `INVALID_FEATURE_SHAPE`
+
+    -   Schema Fields:
+        -   `feature.shape`
+    -   Statistics Fields:
+        -   `feature.common_stats.num_missing`
+        -   `feature.common_stats.min_num_values`
+        -   `feature.common_stats.max_num_values`
+        -   `feature.common_stats.presence_and_valency_stats.num_missing`
+        -   `feature.common_stats.presence_and_valency_stats.min_num_values`
+        -   `feature.common_stats.presence_and_valency_stats.max_num_values`
+        -   `feature.common_stats.weighted_presence_and_valency_stats`
+    -   Detection Condition:
+        -   `feature.shape` is specified, and one of the following:
+            -   the feature may be missing (`num_missing != 0`) at some nest
+                level.
+            -   the feature may have variable number of values (
+                `min_num_values != max_num_values`) at some nest level
+            -   the specified shape is not compatible with the feature's value
+                count stats. For example, shape `[16]` is compatible with
+                (`min_num_values == max_num_values == [2, 2, 4]` (for a
+                3-nested feature)).
+
 -   `DOMAIN_INVALID_FOR_TYPE`
 
     -   Schema Fields:

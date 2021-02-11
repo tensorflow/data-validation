@@ -65,4 +65,9 @@ message FeatureStatisticsToProtoConfig {
   // Overrides for the severity of different anomalies. If not specified, the
   // default severities are used.
   repeated SeverityOverride severity_overrides = 9;
+
+  // If true, Feature.shape will be inferred from stats (if feasible).
+  // Note that existing Feature.shape field in the schema will always be
+  // validated despite this flag.
+  optional bool infer_feature_shape = 10;
 }

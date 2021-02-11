@@ -28,12 +28,11 @@ void DefineValidationSubmodule(py::module main_module) {
 
   m.def("InferSchema",
         [](const std::string& statistics_proto_string,
-           int max_string_domain_size) -> py::object {
+           int max_string_domain_size, bool infer_feature_shape) -> py::object {
           std::string schema_proto_string;
           const tensorflow::Status status =
-              InferSchema(
-                  statistics_proto_string, max_string_domain_size,
-                  &schema_proto_string);
+              InferSchema(statistics_proto_string, max_string_domain_size,
+                          infer_feature_shape, &schema_proto_string);
           if (!status.ok()) {
             throw std::runtime_error(status.ToString());
           }

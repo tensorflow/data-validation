@@ -1584,6 +1584,44 @@ TEST(SchemaAnomalies, UniqueNotInRange) {
                   FeatureStatisticsToProtoConfig(), expected_anomalies);
 }
 
+TEST(SchemaAnomalies, FeatureShapeDropped) {
+  const Schema schema = ParseTextProtoOrDie<Schema>(R"(
+    feature {
+      name: "f1"
+      type: INT
+      shape { dim { size: 1 } }
+      presence { min_fraction: 1 min_count: 1 }
+    })");
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        num_examples: 10
+        features: {
+          name: "f1"
+          type: INT
+          num_stats: {
+            common_stats: {
+              num_non_missing: 10
+              min_num_values: 1
+              max_num_values: 2  # anomaly
+            }
+          }
+        })");
+  std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
+  expected_anomalies["f1"].expected_info_without_diff = ParseTextProtoOrDie<
+      tensorflow::metadata::v0::AnomalyInfo>(R"pb(
+    path { step: "f1" }
+    short_description: "Feature shape dropped"
+    severity: ERROR
+    description: "The feature has a shape, but it\'s not always present (if the feature is nested, then it should always be present at each nested level) or its value lengths vary."
+    reason {
+      type: INVALID_FEATURE_SHAPE
+      short_description: "Feature shape dropped"
+      description: "The feature has a shape, but it\'s not always present (if the feature is nested, then it should always be present at each nested level) or its value lengths vary."
+    })pb");
+  TestFindChanges(schema, DatasetStatsView(statistics, /*by_weight=*/false),
+                  FeatureStatisticsToProtoConfig(), expected_anomalies);
+}
+
 TEST(Schema, FindChangesEmptySchemaProto) {
   const DatasetFeatureStatistics statistics =
       ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(

@@ -107,18 +107,13 @@ def infer_schema(
 
   schema_proto_string = pywrap_tensorflow_data_validation.InferSchema(
       tf.compat.as_bytes(dataset_statistics.SerializeToString()),
-      max_string_domain_size)
+      max_string_domain_size, infer_feature_shape)
 
   # Parse the serialized Schema proto.
   result = schema_pb2.Schema()
   result.ParseFromString(schema_proto_string)
 
   _may_be_set_legacy_flag(result)
-
-  # TODO(b/113605666): Push this shape inference logic into example validation
-  # code.
-  if infer_feature_shape:
-    _infer_shape(result)
 
   if schema_transformations is not None:
     for transformation_fn in schema_transformations:
@@ -131,35 +126,6 @@ def _may_be_set_legacy_flag(schema: schema_pb2.Schema):
   """Sets legacy flag to False if it exists."""
   if getattr(schema, 'generate_legacy_feature_spec', None) is not None:
     schema.generate_legacy_feature_spec = False
-
-
-def _infer_shape(schema: schema_pb2.Schema):
-  """Infers shapes of the features in a schema."""
-
-  def _infer_feature_shape(feature: schema_pb2.Feature):
-    if feature.HasField('struct_domain'):
-      for struct_domain_feature in feature.struct_domain.feature:
-        _infer_feature_shape(struct_domain_feature)
-    # Currently we infer shape only for required features.
-    if feature.presence.min_fraction == 1:
-      if (feature.HasField('value_count') and feature.value_count.min != 0 and
-          feature.value_count.min == feature.value_count.max):
-        feature.shape.dim.add().size = feature.value_count.min
-      elif feature.HasField('value_counts'):
-        # Infer shape for a feature that has a nestedness level > 1 if and only
-        # if the min value count equals the max value count at each nestedness
-        # level.
-        dimension_sizes = list()
-        for value_count in feature.value_counts.value_count:
-          if (value_count.min == 0 or value_count.min != value_count.max):
-            return
-          dimension_sizes.append(value_count.min)
-        if len(dimension_sizes) == len(feature.value_counts.value_count):
-          for size in dimension_sizes:
-            feature.shape.dim.add().size = size
-
-  for feature in schema.feature:
-    _infer_feature_shape(feature)
 
 
 # TODO(pachristopher): Add support for updating only a subset of features.
@@ -180,8 +146,10 @@ def update_schema(schema: schema_pb2.Schema,
       multiple DatasetFeatureStatistics protos is used, this function will
       update the schema to conform to the statistics corresponding to the
       default slice.
-    infer_feature_shape: A boolean to indicate if shape of the features need to
-      be inferred from the statistics.
+    infer_feature_shape: DEPRECATED, do not use. If a feature specifies
+      a shape, the shape will always be validated. If the feature does not
+      specify a shape, this function will not try inferring a shape from the
+      given statistics.
     max_string_domain_size: Maximum size of the domain of a string feature in
       order to be interpreted as a categorical feature.
 
@@ -193,6 +161,8 @@ def update_schema(schema: schema_pb2.Schema,
     ValueError: If the input statistics proto contains multiple datasets, none
         of which corresponds to the default slice.
   """
+  del infer_feature_shape
+
   if not isinstance(schema, schema_pb2.Schema):
     raise TypeError('schema is of type %s, should be a Schema proto.' %
                     type(schema).__name__)
@@ -214,10 +184,6 @@ def update_schema(schema: schema_pb2.Schema,
   result = schema_pb2.Schema()
   result.ParseFromString(schema_proto_string)
 
-  # TODO(b/113605666): Push this shape inference logic into example validation
-  # code.
-  if infer_feature_shape:
-    _infer_shape(result)
   return result
 
 

@@ -397,18 +397,37 @@ double FeatureStatsView::GetNumMissing() const {
   return GetCommonStatistics().num_missing();
 }
 
+std::vector<double> FeatureStatsView::GetNumMissingNested() const {
+  std::vector<double> result;
+  if (parent_view_.by_weight()) {
+    for (const auto& presence_and_valency_stats :
+         GetCommonStatistics().weighted_presence_and_valency_stats()) {
+      result.push_back(presence_and_valency_stats.num_missing());
+    }
+  } else {
+    for (const auto& presence_and_valency_stats :
+         GetCommonStatistics().presence_and_valency_stats()) {
+      result.push_back(presence_and_valency_stats.num_missing());
+    }
+  }
+  if (result.empty()) {
+    result.push_back(GetNumMissing());
+  }
+  return result;
+}
+
 absl::optional<double> FeatureStatsView::GetFractionPresent() const {
-  double num_examples = GetNumExamples();
-  double num_present = GetNumPresent();
+  const double num_examples = GetNumExamples();
+  if (num_examples <= 0) {
+    return absl::nullopt;
+  }
   if (GetNumMissing() == 0.0) {
     // Avoids numerical issues.
     return 1.0;
   }
-  if (num_examples > 0.0) {
-    return num_present / num_examples;
-  }
-  return absl::nullopt;
+  return GetNumPresent() / num_examples;
 }
+
 
 const tensorflow::metadata::v0::CommonStatistics&
 FeatureStatsView::GetCommonStatistics() const {
@@ -528,7 +547,10 @@ double FeatureStatsView::GetTotalValueCountInExamples() const {
 
 // Returns true if the weighted statistics exist.
 bool FeatureStatsView::WeightedStatisticsExist() const {
-  return GetCommonStatistics().has_weighted_common_stats();
+  const auto& common_stats = GetCommonStatistics();
+  return common_stats.has_weighted_common_stats() &&
+         (common_stats.presence_and_valency_stats().size() ==
+          common_stats.weighted_presence_and_valency_stats().size());
 }
 
 absl::optional<FeatureStatsView> FeatureStatsView::GetServing() const {

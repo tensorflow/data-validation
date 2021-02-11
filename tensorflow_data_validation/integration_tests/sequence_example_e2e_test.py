@@ -1338,10 +1338,9 @@ feature {
     min_fraction: 1.0
     min_count: 1
   }
-  shape {
-    dim {
-      size: 1
-    }
+  value_count {
+    min: 1
+    max: 1
   }
   struct_domain {
     feature {
@@ -1715,14 +1714,18 @@ class SequenceExampleStatsTest(parameterized.TestCase):
         self.assertIsNotNone(lhs_feature, 'feature {}'.format(feature_name))
         self.assertIsNotNone(rhs_feature, 'feature {}'.format(feature_name))
         if lhs_feature.type != schema_pb2.STRUCT:
-          self.assertEqual(lhs_feature, rhs_feature,
-                           'feature: {}'.format(feature_name))
+          self.assertEqual(
+              lhs_feature, rhs_feature,
+              'feature: {}\n{}\nvs\n{}'.format(feature_name, lhs_feature,
+                                               rhs_feature))
         else:
           lhs_feature_copy = copy.copy(lhs_feature)
           rhs_feature_copy = copy.copy(rhs_feature)
           lhs_feature_copy.ClearField('struct_domain')
           rhs_feature_copy.ClearField('struct_domain')
-          self.assertEqual(lhs_feature_copy, rhs_feature_copy)
+          self.assertEqual(
+              lhs_feature_copy, rhs_feature_copy,
+              '{} \nvs\n {}'.format(lhs_feature_copy, rhs_feature_copy))
           _assert_features_equal(lhs_feature.struct_domain,
                                  rhs_feature.struct_domain)
 
@@ -1774,7 +1777,7 @@ class SequenceExampleStatsTest(parameterized.TestCase):
         text_format.Parse(expected_anomalies_pbtxt, anomalies_pb2.Anomalies()))
 
     actual_updated_schema = tfdv.update_schema(
-        schema_for_validation, actual_stats, infer_feature_shape=False)
+        schema_for_validation, actual_stats)
     self._assert_schema_equal(
         actual_updated_schema,
         text_format.Parse(expected_updated_schema_pbtxt, schema_pb2.Schema()))

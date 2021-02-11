@@ -45,11 +45,13 @@ FeatureStatisticsToProtoConfig GetDefaultFeatureStatisticsToProtoConfig();
 // Generates a schema which matches the data characteristics in the input
 // feature statistics. This method will take as input the serialized statistics
 // proto string and will output the serialized schema proto string.
-// max_string_domain_size argument refers to the maximum size of the domain of
+// `max_string_domain_size` argument refers to the maximum size of the domain of
 // a string feature in order to be interpreted as a categorical feature.
+// if `infer_feature_shape` is true, then it will try inferring a fixed shape
+// from a feature's statistics.
 Status InferSchema(const string& feature_statistics_proto_string,
-                               const int max_string_domain_size,
-                               string* schema_proto_string);
+                   int max_string_domain_size, bool infer_feature_shape,
+                   string* schema_proto_string);
 
 // Updates the input schema to match the data characteristics in the input
 // feature statistics. This method will take as input the serialized input

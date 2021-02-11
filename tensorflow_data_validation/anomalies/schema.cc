@@ -383,7 +383,8 @@ Status Schema::Updater::CreateColumn(
   Feature* feature = schema->GetNewFeature(feature_stats_view.GetPath());
 
   feature->set_type(feature_stats_view.GetFeatureType());
-  InitValueCountAndPresence(feature_stats_view, feature);
+  InitPresenceAndShape(feature_stats_view, config_.infer_feature_shape(),
+                       feature);
   if (ContainsKey(columns_to_ignore_,
                   feature_stats_view.GetPath().Serialize())) {
     ::tensorflow::data_validation::DeprecateFeature(feature);
@@ -780,6 +781,15 @@ std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
          "ValueCount.max should not be less than min"});
     feature->mutable_value_count()->set_max(feature->value_count().min());
   }
+  for (const auto& dim : feature->shape().dim()) {
+    if (dim.size() <= 0) {
+      feature->clear_shape();
+      descriptions.push_back(
+          {tensorflow::metadata::v0::AnomalyInfo::INVALID_SCHEMA_SPECIFICATION,
+           "Shape.dim.size must be a positive integer"});
+      break;
+    }
+  }
   if (!ContainsKey(AllowedFeatureTypes(feature->domain_info_case()),
                    feature->type())) {
     descriptions.push_back(
@@ -973,8 +983,11 @@ void Schema::UpdateFeatureInternal(
   };
 
   if (feature->has_value_count() || feature->has_value_counts()) {
-    add_to_descriptions(
-        ::tensorflow::data_validation::UpdateFeatureValueCounts(view, feature));
+    add_to_descriptions(UpdateFeatureValueCounts(view, feature));
+  }
+
+  if (feature->has_shape()) {
+    add_to_descriptions(UpdateFeatureShape(view, feature));
   }
 
   if (feature->has_presence()) {

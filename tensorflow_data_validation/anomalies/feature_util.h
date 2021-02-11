@@ -33,6 +33,12 @@ std::vector<Description> UpdateFeatureValueCounts(
     const FeatureStatsView& feature_stats_view,
     tensorflow::metadata::v0::Feature* feature);
 
+// If the shape constraints are not satisfied, adjust them, or propose
+// to switch to value_counts constraints.
+std::vector<Description> UpdateFeatureShape(
+    const FeatureStatsView& feature_stats_view,
+    tensorflow::metadata::v0::Feature* feature);
+
 // If a feature occurs in too few examples, or a feature occurs in too small
 // a fraction of the examples, adjust the presence constraints to account for
 // this.
@@ -64,13 +70,13 @@ FeatureComparisonResult UpdateFeatureComparatorDirect(
     const FeatureStatsView& stats, const FeatureComparatorType comparator_type,
     tensorflow::metadata::v0::FeatureComparator* comparator);
 
-// Initializes the value count and presence given a feature_stats_view.
-// This is called when a Feature is first created from a FeatureStatsView.
-// It infers OPTIONAL, REPEATED, REQUIRED (in the proto sense),
-// and REPEATED_REQUIRED (a repeated field that is always present), and
-// sets value count and presence analogously.
-void InitValueCountAndPresence(const FeatureStatsView& feature_stats_view,
-                               tensorflow::metadata::v0::Feature* feature);
+// Initializes presence and shape constraints (value counts or fixed shape)
+// given stats.
+// If `infer_fixed_shape` is true, try inferring a fixed shape for the feature,
+// otherwise, always infers value count.
+void InitPresenceAndShape(const FeatureStatsView& feature_stats_view,
+                          bool infer_fixed_shape,
+                          tensorflow::metadata::v0::Feature* feature);
 
 // Deprecate a feature. Currently sets deprecated==true, but later will
 // set the lifecycle_stage==DEPRECATED. The contract of this method is that

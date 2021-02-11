@@ -2690,6 +2690,72 @@ TEST(SchemaTest, RequiredRepeatedFeatures) {
                 })"));
 }
 
+TEST(SchemaTest, InferFeatureShape) {
+  const auto statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        num_examples: 10
+        features: {
+          name: "f1"
+          type: INT
+          num_stats: {
+            common_stats: {
+              num_missing: 0
+              num_non_missing: 10
+              min_num_values: 1
+              max_num_values: 1
+            }
+          }
+        })");
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(tensorflow::metadata::v0::Schema()));
+  FeatureStatisticsToProtoConfig config;
+  config.set_infer_feature_shape(true);
+  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false), config));
+  EXPECT_THAT(schema.GetSchema(), EqualsProto(R"(
+                feature {
+                  name: "f1"
+                  type: INT
+                  shape { dim { size: 1 } }
+                  presence { min_fraction: 1 min_count: 1 }
+                })"));
+}
+
+TEST(SchemaTest, UpdateFeatureShape) {
+  const auto statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        num_examples: 10
+        features: {
+          name: "f1"
+          type: INT
+          num_stats: {
+            common_stats: {
+              num_missing: 1
+              num_non_missing: 9
+              min_num_values: 1
+              max_num_values: 1
+            }
+          }
+        })");
+  Schema schema;
+  TF_ASSERT_OK(
+      schema.Init(ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
+        feature {
+          name: "f1"
+          type: INT
+          shape { dim { size: 1 } }
+          presence { min_fraction: 1 min_count: 1 }
+        }
+      )")));
+  TF_ASSERT_OK(schema.Update(
+      DatasetStatsView(statistics, false), FeatureStatisticsToProtoConfig()));
+  EXPECT_THAT(schema.GetSchema(), EqualsProto(R"(
+                feature {
+                  name: "f1"
+                  type: INT
+                  presence { min_fraction: 0.9 min_count: 1 }
+                })"));
+}
+
 // Construct a schema from a proto field, and then write it to a
 // DescriptorProto.
 struct ValidTest {

@@ -269,6 +269,65 @@ TEST(FeatureStatsView, MinMaxNumValuesMultipleNestednessLevels) {
               ContainerEq(std::vector<std::pair<int, int>>{{3, 7}, {4, 8}}));
 }
 
+TEST(FeatureStatsView, GetNumMissingNested) {
+  const FeatureNameStatistics input =
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'bar'
+        type: FLOAT
+        num_stats {
+          common_stats {
+            num_missing: 3
+            weighted_common_stats { num_missing: 2 }
+          }
+        })");
+
+  for (const auto by_weight_and_expected :
+       std::vector<std::pair<bool, double>>{{true, 2}, {false, 3}}) {
+    bool by_weight = by_weight_and_expected.first;
+    double expected = by_weight_and_expected.second;
+
+    auto got = DatasetForTesting(input, by_weight)
+                   .feature_stats_view()
+                   .GetNumMissingNested();
+
+    ASSERT_EQ(got.size(), 1);
+    EXPECT_EQ(got[0], expected);
+  }
+}
+
+TEST(FeatureStatsView, GetNumMissingNestedMultipleNestednessLevels) {
+  const FeatureNameStatistics input =
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'bar'
+        type: FLOAT
+        num_stats: {
+          common_stats {
+            num_missing: 3
+            weighted_common_stats { num_missing: 2 }
+            presence_and_valency_stats { num_missing: 2 }
+            presence_and_valency_stats { num_missing: 0 }
+            presence_and_valency_stats { num_missing: 1 }
+            weighted_presence_and_valency_stats { num_missing: 3 }
+            weighted_presence_and_valency_stats { num_missing: 0 }
+            weighted_presence_and_valency_stats { num_missing: 2 }
+          }
+
+        })");
+
+  for (const auto by_weight_and_expected :
+       std::vector<std::pair<bool, std::vector<double>>>{{true, {3, 0, 2}},
+                                                         {false, {2, 0, 1}}}) {
+    bool by_weight = by_weight_and_expected.first;
+    const auto& expected = by_weight_and_expected.second;
+
+    auto got = DatasetForTesting(input, by_weight)
+                   .feature_stats_view()
+                   .GetNumMissingNested();
+
+    EXPECT_EQ(got, expected);
+  }
+}
+
 TEST(FeatureStatsView, GetNumExamples) {
   const FeatureNameStatistics input =
       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
@@ -1007,6 +1066,35 @@ TEST(DatasetStatsView, WeightedStatisticsExistNoWeightedCommonStats) {
         rank_histogram: { buckets: { label: "D" } }
       }
     })");
+  EXPECT_FALSE(DatasetStatsView(statistics).WeightedStatisticsExist());
+}
+
+TEST(DatasetStatsView, WeightedStatisticsNoWeightedPresenceAndValency) {
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        num_examples: 1000
+        weighted_num_examples: 997.0
+        features: {
+          name: 'annotated_enum'
+          type: STRING
+          string_stats: {
+            common_stats: {
+              num_missing: 3
+              num_non_missing: 997
+              max_num_values: 1
+              weighted_common_stats: { num_missing: 0.0 num_non_missing: 997.0 }
+              presence_and_valency_stats {
+                num_missing: 3
+                num_non_missing: 997
+              }
+              presence_and_valency_stats {
+                num_non_missing: 1000
+              }
+            }
+            unique: 3
+            rank_histogram: { buckets: { label: "D" } }
+          }
+        })");
   EXPECT_FALSE(DatasetStatsView(statistics).WeightedStatisticsExist());
 }
 

@@ -10,7 +10,12 @@
 *   Fixed a bug that affected all CombinerFeatureStatsGenerators.
 *   Allow for `bytes` type in `get_feature_value_slicer` in addition to `Text`
     and `int`.
-
+*   Fixed a bug that caused TFDV to improperly infer a fixed shape when
+    `tfdv.infer_schema` and `tfdv.update_schema` were called with
+    `infer_feature_shape=True`.
+*   Deprecated parameter `infer_feature_shape` of function `tfdv.update_schema`.
+    If a schema feature has a pre-defined shape, `tfdv.update_schema` will
+    always validate it. Otherwise, it will not try to add a shape.
 ## Known Issues
 
 ## Breaking changes

@@ -597,6 +597,7 @@ TEST(FeatureTypeTest, DeprecateConsistencyEmpty) {
 struct FeatureNameStatisticsConstructorTest {
   FeatureNameStatistics statistics;
   Feature feature_proto;
+  bool infer_shape;
 };
 
 // Repurpose for InitValueCountAndPresence.
@@ -605,168 +606,310 @@ TEST(FeatureTypeTest, ConstructFromFeatureNameStatistics) {
   const std::vector<FeatureNameStatisticsConstructorTest> tests = {
       // Different min and max value counts with min above 0.
       {ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-           name: 'bar1'
-           type: STRING
-           string_stats: {
-             common_stats: {
-               num_missing: 3
-              num_non_missing: 10
-              min_num_values: 1
-              max_num_values: 5
-             }
-             unique: 3
-             rank_histogram: {
-               buckets: {
-                 label: "foo"
-               }
-               buckets: {
-                 label: "bar"
-               }
-               buckets: {
-                 label: "baz"}}})"),
+         name: 'bar1'
+         type: STRING
+         string_stats: {
+           common_stats: {
+             num_missing: 3
+             num_non_missing: 10
+             min_num_values: 1
+             max_num_values: 5
+           }
+           unique: 3
+           rank_histogram: {
+             buckets: { label: "foo" }
+             buckets: { label: "bar" }
+             buckets: { label: "baz" }
+           }
+         })"),
        ParseTextProtoOrDie<Feature>(R"(
-           value_count {
-             min: 1
-           }
-           presence {
-             min_count: 1
-           }
-           )")},
+         value_count { min: 1 }
+         presence { min_count: 1 }
+       )"),
+       /*infer_shape=*/false},
       // Different min and max value counts with min of 0.
       {ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-           name: 'bar1'
-           type: STRING
-           string_stats: {
-             common_stats: {
-               num_missing: 3
-              num_non_missing: 10
-              min_num_values: 0
-              max_num_values: 5
-             }
-             unique: 3
-             rank_histogram: {
-               buckets: {
-                 label: "foo"
-               }
-               buckets: {
-                 label: "bar"
-               }
-               buckets: {
-                 label: "baz"}}})"),
-       ParseTextProtoOrDie<Feature>(R"(
-           presence {
-             min_count: 1
+         name: 'bar1'
+         type: STRING
+         string_stats: {
+           common_stats: {
+             num_missing: 3
+             num_non_missing: 10
+             min_num_values: 0
+             max_num_values: 5
            }
-           )")},
+           unique: 3
+           rank_histogram: {
+             buckets: { label: "foo" }
+             buckets: { label: "bar" }
+             buckets: { label: "baz" }
+           }
+         })"),
+       ParseTextProtoOrDie<Feature>(R"(
+         presence { min_count: 1 }
+       )"),
+       /*infer_shape=*/false},
       // Optional feature with same value count of 1.
       {ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-          name: 'bar2'
-          type: STRING
-          string_stats: {
-            common_stats: {
-              num_missing: 3
-              num_non_missing: 10
-              min_num_values: 1
-              max_num_values: 1
-            }
-            unique: 3
-            rank_histogram: {
-              buckets: {
-                label: "foo"
-              }
-              buckets: {
-                label: "bar"
-              }
-              buckets: {
-                label: "baz"}}})"),
+         name: 'bar2'
+         type: STRING
+         string_stats: {
+           common_stats: {
+             num_missing: 3
+             num_non_missing: 10
+             min_num_values: 1
+             max_num_values: 1
+           }
+           unique: 3
+           rank_histogram: {
+             buckets: { label: "foo" }
+             buckets: { label: "bar" }
+             buckets: { label: "baz" }
+           }
+         })"),
        ParseTextProtoOrDie<Feature>(R"(
-           value_count {
-             min: 1
-             max: 1
-           }
-           presence {
-             min_count: 1
-           }
-           )")},
+         value_count { min: 1 max: 1 }
+         presence { min_count: 1 }
+       )"),
+       /*infer_shape=*/false},
       // Optional feature with same value count above 1.
       {ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-          name: 'bar3'
-          type: INT
-          num_stats: {
-            common_stats: {
-              num_missing: 3
-              num_non_missing: 1
-              max_num_values: 5
-              min_num_values: 5}})"),
+         name: 'bar3'
+         type: INT
+         num_stats: {
+           common_stats: {
+             num_missing: 3
+             num_non_missing: 1
+             max_num_values: 5
+             min_num_values: 5
+           }
+         })"),
        ParseTextProtoOrDie<Feature>(R"(
-           value_count {
-             min: 5
-             max: 5
-           }
-           presence {
-             min_count: 1
-           }
-           )")},
+         value_count { min: 5 max: 5 }
+         presence { min_count: 1 }
+       )"),
+       /*infer_shape=*/false},
       // Required feature with same value count of 1.
       {ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-          num_stats: {
-            common_stats: {
-              num_missing: 0
-              num_non_missing: 1
-              max_num_values: 1
-              min_num_values: 1}})"),
+         num_stats: {
+           common_stats: {
+             num_missing: 0
+             num_non_missing: 1
+             max_num_values: 1
+             min_num_values: 1
+           }
+         })"),
        ParseTextProtoOrDie<Feature>(R"(
-           value_count {
-             min: 1
-             max: 1
-           }
-           presence {
-             min_count: 1
-             min_fraction: 1.0
-           }
-           )")},
+         value_count { min: 1 max: 1 }
+         presence { min_count: 1 min_fraction: 1.0 }
+       )"),
+       /*infer_shape=*/false},
       // Required feature with same value count above 1.
       {ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-          name: 'bar4'
-          type: FLOAT
-          num_stats: {
-            common_stats: {
-              num_missing: 0
-              num_non_missing: 1
-              max_num_values: 5
-              min_num_values: 5
-              weighted_common_stats: {
-                num_missing: 0
-                num_non_missing: 0.5
-              }
-            }})"),
-       ParseTextProtoOrDie<Feature>(R"(
-           value_count {
-             min: 5
-             max: 5
+         name: 'bar4'
+         type: FLOAT
+         num_stats: {
+           common_stats: {
+             num_missing: 0
+             num_non_missing: 1
+             max_num_values: 5
+             min_num_values: 5
+             weighted_common_stats: { num_missing: 0 num_non_missing: 0.5 }
            }
-           presence {
-             min_count: 1
-             min_fraction: 1.0
-           }
-       )")},
-      {ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-          name: 'bar5'
-          type: STRING
-          string_stats: {
-            common_stats: {
-              num_missing: 100
-              num_non_missing: 0
-            }})"),
+         })"),
        ParseTextProtoOrDie<Feature>(R"(
-           presence { min_count: 0 }
-       )")}};
+         value_count { min: 5 max: 5 }
+         presence { min_count: 1 min_fraction: 1.0 }
+       )"),
+       /*infer_shape=*/false},
+      {ParseTextProtoOrDie<FeatureNameStatistics>(
+           R"(
+             name: 'bar5'
+             type: STRING
+             string_stats: {
+               common_stats: { num_missing: 100 num_non_missing: 0 }
+             })"),
+       ParseTextProtoOrDie<Feature>(R"(
+         presence { min_count: 0 }
+       )"),
+       /*infer_shape=*/false},
+      // shape not inferred at request because of presence.
+      {ParseTextProtoOrDie<FeatureNameStatistics>(
+           R"(
+             name: 'shape_not_inferred_1'
+             type: STRING
+             string_stats: {
+               common_stats: {
+                 num_missing: 1
+                 num_non_missing: 100
+                 min_num_values: 1
+                 max_num_values: 1
+               }
+             })"),
+       ParseTextProtoOrDie<Feature>(R"(
+         presence { min_count: 1 }
+         value_count { min: 1 max: 1 }
+       )"),
+       /*infer_shape=*/true},
+      // shape not inferred at request because of presence (nested this time).
+      {ParseTextProtoOrDie<FeatureNameStatistics>(
+           R"(
+             name: 'shape_not_inferred_2'
+             type: STRING
+             string_stats: {
+               common_stats: {
+                 num_missing: 0
+                 num_non_missing: 100
+                 min_num_values: 1
+                 max_num_values: 1
+                 presence_and_valency_stats {
+                   num_non_missing: 100
+                   num_missing: 0
+                   min_num_values: 1
+                   max_num_values: 1
+                 }
+                 presence_and_valency_stats {
+                   num_non_missing: 1000
+                   num_missing: 1  # root cause
+                   min_num_values: 2
+                   max_num_values: 2
+                 }
+               }
+             })"),
+       ParseTextProtoOrDie<Feature>(R"(
+         presence { min_count: 1 min_fraction: 1 }
+         value_counts {
+           value_count { min: 1 max: 1 }
+           value_count { min: 2 max: 2 }
+         }
+       )"),
+       /*infer_shape=*/true},
+      // shape not inferred at request because of num_values.
+      {ParseTextProtoOrDie<FeatureNameStatistics>(
+           R"(
+             name: 'shape_not_inferred_3'
+             type: STRING
+             string_stats: {
+               common_stats: {
+                 num_missing: 0
+                 num_non_missing: 100
+                 max_num_values: 1
+               }
+             })"),
+       ParseTextProtoOrDie<Feature>(R"(
+         presence { min_count: 1 min_fraction: 1 }
+       )"),
+       /*infer_shape=*/true},
+      // shape not inferred at request because of num_values (nested this time).
+      {ParseTextProtoOrDie<FeatureNameStatistics>(
+           R"(
+             name: 'shape_not_inferred_4'
+             type: STRING
+             string_stats: {
+               common_stats: {
+                 num_missing: 0
+                 num_non_missing: 100
+                 min_num_values: 1
+                 max_num_values: 1
+                 presence_and_valency_stats {
+                   num_non_missing: 100
+                   num_missing: 0
+                   min_num_values: 1
+                   max_num_values: 1
+                 }
+                 presence_and_valency_stats {
+                   num_non_missing: 1000
+                   num_missing: 0
+                   min_num_values: 2
+                   max_num_values: 4  # root cause
+                 }
+               }
+             })"),
+       ParseTextProtoOrDie<Feature>(R"(
+         presence { min_count: 1 min_fraction: 1 }
+         value_counts {
+           value_count { min: 1 max: 1 }
+           value_count { min: 1 }
+         }
+       )"),
+       /*infer_shape=*/true},
+      // shape inferred.
+      {ParseTextProtoOrDie<FeatureNameStatistics>(
+           R"(
+             name: 'shape_inferred_1'
+             type: STRING
+             string_stats: {
+               common_stats: {
+                 num_missing: 0
+                 num_non_missing: 100
+                 min_num_values: 3
+                 max_num_values: 3
+               }
+             })"),
+       ParseTextProtoOrDie<Feature>(R"(
+         presence { min_count: 1 min_fraction: 1 }
+         shape { dim { size: 3 } }
+       )"),
+       /*infer_shape=*/true},
+      // shape inferred (nested this time).
+      {ParseTextProtoOrDie<FeatureNameStatistics>(
+           R"(
+             name: 'shape_inferred_2'
+             type: STRING
+             string_stats: {
+               common_stats: {
+                 num_missing: 0
+                 num_non_missing: 100
+                 min_num_values: 1
+                 max_num_values: 1
+                 presence_and_valency_stats {
+                   num_non_missing: 100
+                   num_missing: 0
+                   min_num_values: 1
+                   max_num_values: 1
+                 }
+                 presence_and_valency_stats {
+                   num_non_missing: 1000
+                   num_missing: 0
+                   min_num_values: 2
+                   max_num_values: 2
+                 }
+               }
+             })"),
+       ParseTextProtoOrDie<Feature>(R"(
+         presence { min_count: 1 min_fraction: 1 }
+         shape {
+           dim { size: 1 }
+           dim { size: 2 }
+         }
+       )"),
+       /*infer_shape=*/true},
+      // shape not inferred for STRUCT features.
+      {ParseTextProtoOrDie<FeatureNameStatistics>(
+           R"(
+             name: "struct"
+             type: STRUCT
+             struct_stats: {
+               common_stats: {
+                 num_missing: 0
+                 num_non_missing: 100
+                 min_num_values: 1
+                 max_num_values: 1
+               }
+             })"),
+       ParseTextProtoOrDie<Feature>(R"(
+         presence { min_count: 1 min_fraction: 1 }
+         value_count { min: 1 max: 1 }
+       )"),
+       /*infer_shape=*/true},
+  };
   for (const auto& test : tests) {
     Feature feature;
 
     const testing::DatasetForTesting dataset(AddWeightedStats(test.statistics),
                                              true);
-    InitValueCountAndPresence(dataset.feature_stats_view(), &feature);
+    InitPresenceAndShape(dataset.feature_stats_view(), test.infer_shape,
+                         &feature);
     EXPECT_THAT(feature, EqualsProto(test.feature_proto));
   }
 }
@@ -1409,6 +1552,260 @@ TEST(FeatureTypeTest, UpdatePresenceTest) {
       EXPECT_THAT(to_modify, EqualsProto(test.expected))
           << "Test:" << test.name << "(by_weight: " << by_weight
           << ") Reason: " << DescriptionsToString(description_b);
+    }
+  }
+}
+
+
+// Construct a schema from a proto field, and then write it to a
+// DescriptorProto.
+struct UpdateShapeTestCase {
+  std::string name;
+  FeatureNameStatistics statistics;
+  // Initial feature proto.
+  Feature original;
+  // Result of Update().
+  Feature expected;
+  bool expected_description_empty;
+};
+
+const std::vector<UpdateShapeTestCase> GetUpdateShapeTestCases() {
+  return {{
+              "no shape",
+              ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+                name: 'f1'
+                type: INT
+                num_stats: {
+                  common_stats: {
+                    num_missing: 0
+                    num_non_missing: 10
+                    min_num_values: 1
+                    max_num_values: 1
+                  }
+                }
+              )"),
+              Feature(),
+              Feature(),
+              true,
+          },
+          {
+              "validation passes",
+              ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+                name: 'f1'
+                type: INT
+                num_stats: {
+                  common_stats: {
+                    num_missing: 0
+                    num_non_missing: 10
+                    min_num_values: 1
+                    max_num_values: 1
+                  }
+                }
+              )"),
+              ParseTextProtoOrDie<Feature>(R"(shape { dim { size: 1 } })"),
+              ParseTextProtoOrDie<Feature>(R"(shape { dim { size: 1 } })"),
+              true,
+          },
+          {
+              "validation passes: scalar",
+              ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+                name: 'f1'
+                type: INT
+                num_stats: {
+                  common_stats: {
+                    num_missing: 0
+                    num_non_missing: 10
+                    min_num_values: 1
+                    max_num_values: 1
+                  }
+                }
+              )"),
+              ParseTextProtoOrDie<Feature>(R"(shape {})"),
+              ParseTextProtoOrDie<Feature>(R"(shape {})"),
+              true,
+          },
+          {
+              "validation passes: fancy shape",
+              ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+                name: 'f1'
+                type: INT
+                num_stats: {
+                  common_stats: {
+                    num_missing: 0
+                    num_non_missing: 10
+                    min_num_values: 36
+                    max_num_values: 36
+                  }
+                }
+              )"),
+              ParseTextProtoOrDie<Feature>(R"(shape {
+                                                dim { size: 2 }
+                                                dim { size: 2 },
+                                                dim { size: 9 }
+                                              })"),
+              ParseTextProtoOrDie<Feature>(R"(shape {
+                                                dim { size: 2 }
+                                                dim { size: 2 },
+                                                dim { size: 9 }
+                                              })"),
+              true,
+          },
+          {
+              "validation passes: fancy shape, nested",
+              ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+                name: 'f1'
+                type: INT
+                num_stats: {
+                  common_stats: {
+                    num_missing: 0
+                    num_non_missing: 10
+                    min_num_values: 2
+                    max_num_values: 2
+                    # 2-nested list, of shape [2, 18]. It's compatible with (can
+                    # be reshaped to) [2, 2, 9].
+                    presence_and_valency_stats {
+                      num_missing: 0
+                      num_non_missing: 10
+                      min_num_values: 2
+                      max_num_values: 2
+                    }
+                    presence_and_valency_stats {
+                      num_missing: 0
+                      num_non_missing: 20
+                      min_num_values: 18
+                      max_num_values: 18
+                    }
+                  }
+
+                }
+              )"),
+              ParseTextProtoOrDie<Feature>(R"(shape {
+                                                dim { size: 2 }
+                                                dim { size: 2 },
+                                                dim { size: 9 }
+                                              })"),
+              ParseTextProtoOrDie<Feature>(R"(shape {
+                                                dim { size: 2 }
+                                                dim { size: 2 },
+                                                dim { size: 9 }
+                                              })"),
+              true,
+          },
+          {
+              "failure: num_missing",
+              ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+                name: 'f1'
+                type: INT
+                num_stats: {
+                  common_stats: {
+                    num_missing: 1
+                    num_non_missing: 10
+                    min_num_values: 1
+                    max_num_values: 1
+                  }
+                }
+              )"),
+              ParseTextProtoOrDie<Feature>(R"(shape { dim { size: 1 } })"),
+              Feature(),
+              false,
+          },
+          {
+              "failure: num_missing (nested)",
+              ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+                name: 'f1'
+                type: INT
+                num_stats: {
+                  common_stats: {
+                    num_missing: 0
+                    num_non_missing: 10
+                    min_num_values: 1
+                    max_num_values: 1
+                    presence_and_valency_stats {
+                      num_missing: 0
+                      num_non_missing: 10
+                      min_num_values: 1
+                      max_num_values: 1
+                    }
+                    presence_and_valency_stats {
+                      num_missing: 1
+                      num_non_missing: 9
+                      min_num_values: 1
+                      max_num_values: 1
+                    }
+                  }
+                }
+              )"),
+              ParseTextProtoOrDie<Feature>(R"(shape { dim { size: 1 } })"),
+              Feature(),
+              false,
+          },
+          {
+              "failure: num_value (nested)",
+              ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+                name: 'f1'
+                type: INT
+                num_stats: {
+                  common_stats: {
+                    num_missing: 0
+                    num_non_missing: 10
+                    min_num_values: 1
+                    max_num_values: 1
+                    presence_and_valency_stats {
+                      num_missing: 0
+                      num_non_missing: 10
+                      min_num_values: 1
+                      max_num_values: 1
+                    }
+                    presence_and_valency_stats {
+                      num_missing: 0
+                      num_non_missing: 9
+                      min_num_values: 0  # root cause
+                      max_num_values: 1
+                    }
+                  }
+                }
+              )"),
+              ParseTextProtoOrDie<Feature>(R"(shape { dim { size: 1 } })"),
+              Feature(),
+              false,
+          },
+          {
+              "failure: shape not compatible",
+              ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+                name: 'f1'
+                type: INT
+                num_stats: {
+                  common_stats: {
+                    num_missing: 0
+                    num_non_missing: 10
+                    min_num_values: 1
+                    max_num_values: 1
+                  }
+                })"),
+              ParseTextProtoOrDie<Feature>(R"(shape {
+                                                dim { size: 2 }
+                                                dim { size: 3 }
+                                              })"),
+              Feature(),
+              false,
+          }};
+}
+
+TEST(FeatureTypeTest, UpdateShapeTest) {
+  for (const auto& test : GetUpdateShapeTestCases()) {
+    for (const bool by_weight : {false, true}) {
+      DatasetFeatureStatistics statistics;
+      statistics.set_num_examples(10);
+      *statistics.add_features() = test.statistics;
+      testing::DatasetForTesting dataset(AddWeightedStats(test.statistics),
+                                         by_weight);
+      Feature updated = test.original;
+      auto descriptions =
+          UpdateFeatureShape(dataset.feature_stats_view(), &updated);
+      EXPECT_EQ(test.expected_description_empty, descriptions.empty());
+      EXPECT_THAT(updated, EqualsProto(test.expected))
+          << "Test:" << test.name << "(by_weight: " << by_weight
+          << ") Reason: " << DescriptionsToString(descriptions);
     }
   }
 }

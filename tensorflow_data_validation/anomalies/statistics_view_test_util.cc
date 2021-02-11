@@ -73,6 +73,14 @@ FeatureNameStatistics AddWeightedStats(const FeatureNameStatistics& original) {
          ->mutable_weighted_string_stats()
          ->mutable_rank_histogram() = result.string_stats().rank_histogram();
   }
+  for (const auto& p_and_v_stats : common_stats.presence_and_valency_stats()) {
+    auto* weighted_p_and_v_stats =
+        common_stats.add_weighted_presence_and_valency_stats();
+    weighted_p_and_v_stats->set_num_missing(p_and_v_stats.num_missing());
+    weighted_p_and_v_stats->set_num_non_missing(
+        p_and_v_stats.num_non_missing());
+    weighted_p_and_v_stats->set_tot_num_values(p_and_v_stats.tot_num_values());
+  }
   return result;
 }
 

@@ -104,6 +104,35 @@ void InitValueCount(const FeatureStatsView& feature_stats_view,
   }
 }
 
+void InitFixedShape(const FeatureStatsView& feature_stats_view,
+                    Feature* feature) {
+  if (feature_stats_view.GetFeatureType() == metadata::v0::STRUCT) {
+    return;
+  }
+  std::vector<int> shape;
+  const std::vector<std::pair<int, int>> min_max_num_values =
+      feature_stats_view.GetMinMaxNumValues();
+  const std::vector<double> num_missings =
+      feature_stats_view.GetNumMissingNested();
+  CHECK_EQ(min_max_num_values.size(), num_missings.size());
+  for (int i = 0; i < num_missings.size(); ++i) {
+    if (num_missings[i] != 0) {
+      return;
+    }
+    const int min_count = min_max_num_values[i].first;
+    const int max_count = min_max_num_values[i].second;
+    if (min_count != max_count || min_count <= 0) {
+      return;
+    }
+    shape.push_back(min_count);
+  }
+
+  CHECK(feature->shape().dim().empty());
+  for (int dim_size : shape) {
+    feature->mutable_shape()->add_dim()->set_size(dim_size);
+  }
+}
+
 std::vector<Description> UpdateValueCount(
     const FeatureStatsView& feature_stats_view, Feature* feature) {
   const std::vector<std::pair<int, int>> min_max_num_values =
@@ -186,21 +215,6 @@ std::vector<Description> UpdateValueCounts(
 }
 
 }  // namespace
-
-std::vector<Description> UpdateFeatureValueCounts(
-    const FeatureStatsView& feature_stats_view, Feature* feature) {
-  CHECK_NE(feature, nullptr);
-  if (!feature->has_value_count() && !feature->has_value_counts()) {
-    return {};
-  }
-  if (feature->has_value_count()) {
-    return UpdateValueCount(feature_stats_view, feature);
-  }
-  if (feature->has_value_counts()) {
-    return UpdateValueCounts(feature_stats_view, feature);
-  }
-  return {};
-}
 
 bool FeatureHasComparator(const Feature& feature,
                           FeatureComparatorType comparator_type) {
@@ -449,8 +463,9 @@ void ClearDomain(Feature* feature) {
   feature->clear_domain_info();
 }
 
-void InitValueCountAndPresence(const FeatureStatsView& feature_stats_view,
-                               Feature* feature) {
+void InitPresenceAndShape(const FeatureStatsView& feature_stats_view,
+                          const bool infer_fixed_shape,
+                          Feature* feature) {
   double num_present = feature_stats_view.GetNumPresent();
   if (num_present < 1.0) {
     // Note that we also set min_count to be zero when num_present is between
@@ -460,16 +475,92 @@ void InitValueCountAndPresence(const FeatureStatsView& feature_stats_view,
     feature->mutable_presence()->set_min_count(1);
   }
 
-  // If there are no examples containing this feature, do not infer value
-  // counts.
-  if (num_present == 0.0) {
+  // There are no examples containing this feature counts, do not infer anything
+  // else.
+  if (num_present <= 0) {
     return;
   }
+
   if (feature_stats_view.GetNumMissing() == 0.0) {
-    // Required feature.
     feature->mutable_presence()->set_min_fraction(1.0);
   }
-  InitValueCount(feature_stats_view, feature);
+  if (infer_fixed_shape) {
+    InitFixedShape(feature_stats_view, feature);
+  }
+  // Infer value count if shape is not inferred.
+  if (!feature->has_shape()) {
+    InitValueCount(feature_stats_view, feature);
+  }
+}
+
+std::vector<Description> UpdateFeatureValueCounts(
+    const FeatureStatsView& feature_stats_view, Feature* feature) {
+  CHECK_NE(feature, nullptr);
+  if (!feature->has_value_count() && !feature->has_value_counts()) {
+    return {};
+  }
+  if (feature->has_value_count()) {
+    return UpdateValueCount(feature_stats_view, feature);
+  }
+  if (feature->has_value_counts()) {
+    return UpdateValueCounts(feature_stats_view, feature);
+  }
+  return {};
+}
+
+std::vector<Description> UpdateFeatureShape(
+    const FeatureStatsView& feature_stats_view, Feature* feature) {
+  if (!feature->has_shape()) {
+    return {};
+  }
+  std::vector<int> schema_shape;
+  int expected_fixed_value_counts = 1;
+  for (const auto& dim : feature->shape().dim()) {
+    expected_fixed_value_counts *= dim.size();
+  }
+  int actual_fixed_value_counts = 1;
+  for (auto min_and_max_count : feature_stats_view.GetMinMaxNumValues()) {
+    const int min_count = min_and_max_count.first;
+    const int max_count = min_and_max_count.second;
+    if (min_count == max_count && min_count != 0) {
+      actual_fixed_value_counts *= min_count;
+    } else {
+      // Set to a negative number to signal that the feature has a variable
+      // number of values (thus no shape should be inferred).
+      actual_fixed_value_counts = -1;
+      break;
+    }
+  }
+
+  bool has_missing = false;
+  for (const double num_missing : feature_stats_view.GetNumMissingNested()) {
+    if (num_missing != 0) {
+      has_missing = true;
+      break;
+    }
+  }
+
+  if (actual_fixed_value_counts <= 0 || has_missing) {
+    feature->clear_shape();
+    // Note that we don't instead infer value count constraints for this feature
+    // because the inferred value count may fail to be compatible with the stats
+    // used to derive the original schema (which we don't have access to).
+    return {{AnomalyInfo::INVALID_FEATURE_SHAPE,
+             "Feature shape dropped",
+             "The feature has a shape, but it's not always present (if the "
+             "feature is nested, then it should always be present at each "
+             "nested level) or its value lengths vary."}};
+  } else if (actual_fixed_value_counts != expected_fixed_value_counts) {
+    feature->clear_shape();
+    return {
+        {AnomalyInfo::INVALID_FEATURE_SHAPE,
+         "Feature shape dropped",
+         absl::StrCat("The feature has fixed value length ",
+                      actual_fixed_value_counts,
+                      " but it's not compatible with the specified shape.")}};
+  }
+
+  return {};
 }
 
 std::vector<Description> UpdatePresence(

@@ -176,6 +176,10 @@ class FeatureStatsView {
   const tensorflow::metadata::v0::NumericStatistics& num_stats() const;
 
   double GetNumMissing() const;
+  // Returns num missing at each nestedness level. The first element of the
+  // returned vector equals to GetNumMissing().
+  // Note that the values could be weighted.
+  std::vector<double> GetNumMissingNested() const;
 
   absl::optional<double> GetFractionPresent() const;
 
