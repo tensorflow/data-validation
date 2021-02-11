@@ -69,15 +69,15 @@ class StatsOptions(object):
       per_feature_weight_override: Optional[Dict[types.FeaturePath,
                                                  types.FeatureName]] = None,
       vocab_paths: Optional[Dict[types.VocabName, types.VocabPath]] = None,
-      add_default_generators: bool = True):
+      add_default_generators: bool = True,
+      feature_allowlist: Optional[List[types.FeatureName]] = None):
     """Initializes statistics options.
 
     Args:
       generators: An optional list of statistics generators. A statistics
         generator must extend either CombinerStatsGenerator or
         TransformStatsGenerator.
-      feature_whitelist: An optional list of names of the features to calculate
-        statistics for.
+      feature_whitelist: DEPRECATED. Use `feature_allowlist` instead.
       schema: An optional tensorflow_metadata Schema proto. Currently we use the
         schema to infer categorical and bytes features.
       label_feature: An optional feature name which represents the label.
@@ -133,9 +133,18 @@ class StatsOptions(object):
         controlled by the `generators` option); 3) semantic generators
         (controlled by `enable_semantic_domain_stats`) and 4) schema-based
         generators that are enabled based on information provided in the schema.
+      feature_allowlist: An optional list of names of the features to calculate
+        statistics for.
     """
     self.generators = generators
-    self.feature_whitelist = feature_whitelist
+    self.feature_allowlist = None
+    # TODO(b/178214989): remove after TFDV 0.28 is released.
+    if feature_whitelist is not None:
+      assert feature_allowlist is None
+      self.feature_allowlist = feature_whitelist
+    if feature_allowlist is not None:
+      assert feature_whitelist is None
+      self.feature_allowlist = feature_allowlist
     self.schema = schema
     self.label_feature = label_feature
     self.weight_feature = weight_feature
@@ -235,17 +244,17 @@ class StatsOptions(object):
     self._generators = generators
 
   @property
-  def feature_whitelist(self) -> Optional[List[types.FeatureName]]:
-    return self._feature_whitelist
+  def feature_allowlist(self) -> Optional[List[types.FeatureName]]:
+    return self._feature_allowlist
 
-  @feature_whitelist.setter
-  def feature_whitelist(
-      self, feature_whitelist: Optional[List[types.FeatureName]]) -> None:
-    if feature_whitelist is not None and not isinstance(feature_whitelist,
+  @feature_allowlist.setter
+  def feature_allowlist(
+      self, feature_allowlist: Optional[List[types.FeatureName]]) -> None:
+    if feature_allowlist is not None and not isinstance(feature_allowlist,
                                                         list):
-      raise TypeError('feature_whitelist is of type %s, should be a list.' %
-                      type(feature_whitelist).__name__)
-    self._feature_whitelist = feature_whitelist
+      raise TypeError('feature_allowlist is of type %s, should be a list.' %
+                      type(feature_allowlist).__name__)
+    self._feature_allowlist = feature_allowlist
 
   @property
   def schema(self) -> Optional[schema_pb2.Schema]:

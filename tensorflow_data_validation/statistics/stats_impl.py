@@ -57,10 +57,10 @@ class GenerateStatisticsImpl(beam.PTransform):
     self._options = options
 
   def expand(self, dataset: beam.pvalue.PCollection) -> beam.pvalue.PCollection:
-    # If a set of whitelist features are provided, keep only those features.
-    if self._options.feature_whitelist:
-      dataset |= ('RemoveNonWhitelistedFeatures' >> beam.Map(
-          _filter_features, feature_whitelist=self._options.feature_whitelist))
+    # If a set of allowed features are provided, keep only those features.
+    if self._options.feature_allowlist:
+      dataset |= ('FilterFeaturesByAllowList' >> beam.Map(
+          _filter_features, feature_allowlist=self._options.feature_allowlist))
 
     if self._options.slice_functions:
       # Add default slicing function.
@@ -313,21 +313,21 @@ def _schema_has_natural_language_domains(schema: schema_pb2.Schema) -> bool:
 
 def _filter_features(
     record_batch: pa.RecordBatch,
-    feature_whitelist: List[types.FeatureName]) -> pa.RecordBatch:
-  """Removes features that are not whitelisted.
+    feature_allowlist: List[types.FeatureName]) -> pa.RecordBatch:
+  """Removes features that are not on the allowlist.
 
   Args:
     record_batch: Input Arrow RecordBatch.
-    feature_whitelist: A set of feature names to whitelist.
+    feature_allowlist: A set of feature names to keep.
 
   Returns:
-    An Arrow RecordBatch containing only the whitelisted features of the input.
+    An Arrow RecordBatch containing only features on the allowlist.
   """
   schema = record_batch.schema
   column_names = set(schema.names)
   columns_to_select = []
   column_names_to_select = []
-  for feature_name in feature_whitelist:
+  for feature_name in feature_allowlist:
     if feature_name in column_names:
       columns_to_select.append(
           record_batch.column(schema.get_field_index(feature_name)))
@@ -776,14 +776,14 @@ def generate_partial_statistics_in_memory(
     A list of accumulators containing partial statistics.
   """
   result = []
-  if options.feature_whitelist:
+  if options.feature_allowlist:
     schema = record_batch.schema
-    whitelisted_columns = [
+    columns = [
         record_batch.column(schema.get_field_index(f))
-        for f in options.feature_whitelist
+        for f in options.feature_allowlist
     ]
-    record_batch = pa.RecordBatch.from_arrays(whitelisted_columns,
-                                              list(options.feature_whitelist))
+    record_batch = pa.RecordBatch.from_arrays(columns,
+                                              list(options.feature_allowlist))
   for generator in stats_generators:
     result.append(
         generator.add_input(generator.create_accumulator(), record_batch))

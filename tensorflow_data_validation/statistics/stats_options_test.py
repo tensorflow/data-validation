@@ -48,12 +48,12 @@ INVALID_STATS_OPTIONS = [
                          'found object of type dict.'
     },
     {
-        'testcase_name': 'invalid_feature_whitelist',
+        'testcase_name': 'invalid_feature_allowlist',
         'stats_options_kwargs': {
-            'feature_whitelist': {}
+            'feature_allowlist': {}
         },
         'exception_type': TypeError,
-        'error_message': 'feature_whitelist is of type dict, should be a list.'
+        'error_message': 'feature_allowlist is of type dict, should be a list.'
     },
     {
         'testcase_name': 'invalid_schema',
@@ -209,7 +209,7 @@ class StatsOptionsTest(parameterized.TestCase):
             y_path=types.FeaturePath(['label']),
             x_paths=[types.FeaturePath(['feature'])])
     ]
-    feature_whitelist = ['a']
+    feature_allowlist = ['a']
     schema = schema_pb2.Schema(feature=[schema_pb2.Feature(name='f')])
     vocab_paths = {'a': '/path/to/a'}
     label_feature = 'label'
@@ -233,7 +233,7 @@ class StatsOptionsTest(parameterized.TestCase):
 
     options = stats_options.StatsOptions(
         generators=generators,
-        feature_whitelist=feature_whitelist,
+        feature_allowlist=feature_allowlist,
         schema=schema,
         vocab_paths=vocab_paths,
         label_feature=label_feature,
@@ -259,7 +259,7 @@ class StatsOptionsTest(parameterized.TestCase):
     options = stats_options.StatsOptions.from_json(options_json)
 
     self.assertIsNone(options.generators)
-    self.assertEqual(feature_whitelist, options.feature_whitelist)
+    self.assertEqual(feature_allowlist, options.feature_allowlist)
     compare.assertProtoEqual(self, schema, options.schema)
     self.assertEqual(vocab_paths, options.vocab_paths)
     self.assertEqual(label_feature, options.label_feature)
@@ -291,7 +291,7 @@ class StatsOptionsTest(parameterized.TestCase):
   def test_stats_options_from_json(self):
     options_json = """{
       "_generators": null,
-      "_feature_whitelist": null,
+      "_feature_allowlist": null,
       "_schema": null,
       "_vocab_paths": null,
       "weight_feature": null,

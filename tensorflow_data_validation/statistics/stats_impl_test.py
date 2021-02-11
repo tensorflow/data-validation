@@ -107,7 +107,7 @@ class _CompactIndicator(stats_generator.CombinerFeatureStatsGenerator):
 _GENERATE_STATS_TESTS = [
     {
         'testcase_name':
-            'feature_whitelist',
+            'feature_allowlist',
         'record_batches': [
             pa.RecordBatch.from_arrays([
                 pa.array([[1.0, 2.0]], type=pa.list_(pa.float32())),
@@ -131,7 +131,7 @@ _GENERATE_STATS_TESTS = [
         ],
         'options':
             stats_options.StatsOptions(
-                feature_whitelist=['b'],
+                feature_allowlist=['b'],
                 num_top_values=2,
                 num_rank_histogram_buckets=3,
                 num_values_histogram_buckets=3,
@@ -1769,7 +1769,7 @@ _GENERATE_STATS_TESTS = [
                     cross_feature_stats_generator.CrossFeatureStatsGenerator(
                         sample_rate=1.0)
                 ],
-                feature_whitelist=['a'],
+                feature_allowlist=['a'],
                 num_quantiles_histogram_buckets=1,
                 num_histogram_buckets=1,
                 num_values_histogram_buckets=2),

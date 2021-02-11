@@ -250,18 +250,18 @@ def _generate_partial_statistics_from_df(
     stats_generators: List[stats_generator.CombinerStatsGenerator]
 ) -> List[Any]:
   """Generate accumulators containing partial stats."""
-  feature_whitelist = set()
-  if stats_options.feature_whitelist:
-    feature_whitelist.update(stats_options.feature_whitelist)
+  feature_allowlist = set()
+  if stats_options.feature_allowlist:
+    feature_allowlist.update(stats_options.feature_allowlist)
   # Create a copy of the stats options so that we don't modify the input object.
   stats_options_modified = copy.copy(stats_options)
-  # Remove feature_whitelist option as it is no longer needed.
-  stats_options_modified.feature_whitelist = None
+  # Remove feature_allowlist option as it is no longer needed.
+  stats_options_modified.feature_allowlist = None
   schema = schema_pb2.Schema()
   drop_columns = []
   for col_name, col_type in zip(dataframe.columns, dataframe.dtypes):
     if (not table_util.NumpyKindToArrowType(col_type.kind) or
-        (feature_whitelist and col_name not in feature_whitelist)):
+        (feature_allowlist and col_name not in feature_allowlist)):
       drop_columns.append(col_name)
     elif col_type.kind == 'b':
       # Track bool type feature as categorical.

@@ -16,6 +16,9 @@
 *   Deprecated parameter `infer_feature_shape` of function `tfdv.update_schema`.
     If a schema feature has a pre-defined shape, `tfdv.update_schema` will
     always validate it. Otherwise, it will not try to add a shape.
+*   Deprecated `tfdv.StatsOptions.feature_whitelist` and added
+    `feature_allowlist` as a replacement. The former will be removed in the next
+    release.
 ## Known Issues
 
 ## Breaking changes
