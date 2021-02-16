@@ -35,6 +35,8 @@ using ::tensorflow::metadata::v0::Feature;
 using ::tensorflow::metadata::v0::FeatureNameStatistics;
 using testing::EqualsProto;
 using testing::ParseTextProtoOrDie;
+using ::testing::ElementsAre;
+using ::testing::ElementsAreArray;
 
 // Used for friend for ImageType.
 class ImageTypeTest : public ::testing::Test {};
@@ -50,7 +52,7 @@ TEST_F(ImageTypeTest, IsValidWithNoSupportedImageFraction) {
   *feature.mutable_image_domain() = ParseTextProtoOrDie<ImageDomain>("");
   const Feature original_feature = feature;
 
-  std::vector<Description> description = UpdateImageDomain(
+  std::vector<Description> descriptions = UpdateImageDomain(
       testing::DatasetForTesting(ParseTextProtoOrDie<FeatureNameStatistics>(R"(
         name: 'bar'
         type: BYTES
@@ -78,8 +80,8 @@ TEST_F(ImageTypeTest, IsValidWithNoSupportedImageFraction) {
           }
         })")).feature_stats_view(), &feature);
 
-  // IsValid is the equivalent of an empty description.
-  EXPECT_EQ(description.empty(), true);
+  // IsValid is the equivalent of an empty descriptions.
+  EXPECT_EQ(descriptions.empty(), true);
   // If it is valid, then the schema shouldn't be updated.
   EXPECT_THAT(feature, EqualsProto(original_feature));
   }
@@ -90,7 +92,7 @@ TEST_F(ImageTypeTest, IsValidWithSupportedImageFraction) {
            "minimum_supported_image_fraction: 0.85");
   const Feature original_feature = feature;
 
-  std::vector<Description> description = UpdateImageDomain(
+  std::vector<Description> descriptions = UpdateImageDomain(
       testing::DatasetForTesting(ParseTextProtoOrDie<FeatureNameStatistics>(R"(
         name: 'bar'
         type: BYTES
@@ -118,18 +120,19 @@ TEST_F(ImageTypeTest, IsValidWithSupportedImageFraction) {
           }
         })")).feature_stats_view(), &feature);
 
-  // IsValid is the equivalent of an empty description.
-  EXPECT_EQ(description.empty(), true);
+  // IsValid is the equivalent of an empty descriptions.
+  EXPECT_EQ(descriptions.empty(), true);
   // If it is valid, then the schema shouldn't be updated.
   EXPECT_THAT(feature, EqualsProto(original_feature));
   }
+
 TEST_F(ImageTypeTest, IsInvalidWithSupportedImageFraction) {
   Feature feature;
   *feature.mutable_image_domain() = ParseTextProtoOrDie<ImageDomain>(
            "minimum_supported_image_fraction: 0.85");
   const Feature original_feature = feature;
 
-  std::vector<Description> description = UpdateImageDomain(
+  std::vector<Description> descriptions = UpdateImageDomain(
       testing::DatasetForTesting(ParseTextProtoOrDie<FeatureNameStatistics>(R"(
         name: 'bar'
         type: BYTES
@@ -157,13 +160,134 @@ TEST_F(ImageTypeTest, IsInvalidWithSupportedImageFraction) {
           }
         })")).feature_stats_view(), &feature);
 
-  // IsValid is the equivalent of an empty description.
-  EXPECT_EQ(description.empty(), false);
+  Description expected = {
+      tensorflow::metadata::v0::AnomalyInfo::LOW_SUPPORTED_IMAGE_FRACTION,
+      "Low supported image fraction",
+      "Fraction of values containing TensorFlow supported images: 0.800000 is "
+      "lower than the threshold set in the Schema: 0.850000."};
+
+  // Anomaly found.
+  EXPECT_THAT(descriptions, ElementsAre(expected));
 
   // Tests that image_domain is updated with the fraction in the histogram.
   EXPECT_NEAR(feature.image_domain().minimum_supported_image_fraction(),
               0.8, 0.001);
 }
+
+TEST_F(ImageTypeTest, IsValidWithMaxImageByteSize) {
+  Feature feature;
+  *feature.mutable_image_domain() = ParseTextProtoOrDie<ImageDomain>(
+           "max_image_byte_size: 1000");
+  const Feature original_feature = feature;
+
+  std::vector<Description> descriptions = UpdateImageDomain(
+      testing::DatasetForTesting(ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'bar'
+        type: BYTES
+        bytes_stats: {
+          common_stats: {
+            num_non_missing: 10
+            min_num_values: 1
+            max_num_values: 1
+          }
+          max_num_bytes_int: 10
+        })")).feature_stats_view(), &feature);
+
+  // IsValid is the equivalent of an empty descriptions.
+  EXPECT_EQ(descriptions.empty(), true);
+  // If it is valid, then the schema shouldn't be updated.
+  EXPECT_THAT(feature, EqualsProto(original_feature));
+}
+
+TEST_F(ImageTypeTest, IsInvalidWithMaxImageByteSize) {
+  Feature feature;
+  *feature.mutable_image_domain() = ParseTextProtoOrDie<ImageDomain>(
+           "max_image_byte_size: 1");
+  const Feature original_feature = feature;
+
+  std::vector<Description> descriptions = UpdateImageDomain(
+      testing::DatasetForTesting(ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'bar'
+        type: BYTES
+        bytes_stats: {
+          common_stats: {
+            num_non_missing: 10
+            min_num_values: 1
+            max_num_values: 1
+          }
+          max_num_bytes_int: 10
+        })")).feature_stats_view(), &feature);
+
+  Description expected =
+      {tensorflow::metadata::v0::AnomalyInfo::MAX_IMAGE_BYTE_SIZE_EXCEEDED,
+       "Num bytes exceeds the max byte size.",
+       "The largest image has bytes: 10. The max allowed byte size is: 1."};
+
+  // Anomaly found.
+  EXPECT_THAT(descriptions, ElementsAre(expected));
+
+  // Tests that image_domain is updated with the max byte size.
+  EXPECT_EQ(feature.image_domain().max_image_byte_size(), 10);
+}
+
+
+TEST_F(ImageTypeTest, MultipleAnomalies) {
+  Feature feature;
+  *feature.mutable_image_domain() = ParseTextProtoOrDie<ImageDomain>(
+           "max_image_byte_size: 1 minimum_supported_image_fraction: 0.85");
+  const Feature original_feature = feature;
+
+  std::vector<Description> descriptions = UpdateImageDomain(
+      testing::DatasetForTesting(ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'bar'
+        type: BYTES
+        bytes_stats: {
+          common_stats: {
+            num_non_missing: 10
+            min_num_values: 1
+            max_num_values: 1
+          }
+          max_num_bytes_int: 10
+        }
+        custom_stats: {
+          name: 'image_format_histogram'
+          rank_histogram: {
+            buckets: {
+              label: 'jpeg'
+              sample_count: 5
+            }
+            buckets: {
+              label: 'png'
+              sample_count: 3
+            }
+            buckets: {
+              label: 'UNKNOWN'
+              sample_count: 2
+            }
+          }
+        })")).feature_stats_view(), &feature);
+
+  std::vector<Description> expected = {
+      {tensorflow::metadata::v0::AnomalyInfo::LOW_SUPPORTED_IMAGE_FRACTION,
+       "Low supported image fraction",
+       "Fraction of values containing TensorFlow supported images: "
+       "0.800000 "
+       "is "
+       "lower than the threshold set in the Schema: 0.850000."},
+      {tensorflow::metadata::v0::AnomalyInfo::MAX_IMAGE_BYTE_SIZE_EXCEEDED,
+       "Num bytes exceeds the max byte size.",
+       "The largest image has bytes: 10. The max allowed "
+       "byte size is: 1."}};
+
+  // Anomalies found.
+  EXPECT_THAT(descriptions, ElementsAreArray(expected));
+
+  // Tests that image_domain is updated with their respective anomaly fields.
+  EXPECT_NEAR(feature.image_domain().minimum_supported_image_fraction(),
+              0.8, 0.001);
+  EXPECT_EQ(feature.image_domain().max_image_byte_size(), 10);
+}
+
 }  // namespace
 }  // namespace data_validation
 }  // namespace tensorflow

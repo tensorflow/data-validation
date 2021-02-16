@@ -4,6 +4,8 @@
 
 ## Major Features and Improvements
 
+*   Add anomaly detection for max bytes size for images.
+
 ## Bug Fixes and Other Changes
 
 *   Depends on `numpy>=1.16,<1.20`.

@@ -663,6 +663,39 @@ TEST(FeatureStatsView, NumStats) {
             0.0);
 }
 
+// Return the bytes stats, or an empty object if no bytes stats exist.
+TEST(FeatureStatsView, BytesStats) {
+  const FeatureNameStatistics input =
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'bar'
+        type: BYTES
+        bytes_stats: {
+          avg_num_bytes: 10.0
+          common_stats: { num_missing: 3 min_num_values: 3 max_num_values: 7 }
+        })");
+
+  EXPECT_EQ(DatasetForTesting(input)
+                .feature_stats_view()
+                .bytes_stats()
+                .avg_num_bytes(),
+            10.0);
+  const FeatureNameStatistics missing =
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        type: STRING
+        string_stats: {
+          common_stats: { num_missing: 3 max_num_values: 2 }
+          unique: 3
+          weighted_string_stats: {
+            rank_histogram: {
+              buckets: { label: "alpha" sample_count: 123 }
+              buckets: { label: "beta" sample_count: 234 }
+            }
+          }
+        })");
+  EXPECT_EQ(DatasetForTesting(missing).feature_stats_view().num_stats().min(),
+            0.0);
+}
+
 TEST(FeatureStatsView, GetNumMissing) {
   const DatasetFeatureStatistics input =
       ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
@@ -909,6 +942,42 @@ TEST(FeatureStatsView, GetStandardHistogram) {
                 .feature_stats_view()
                 .GetStandardHistogram(),
             absl::nullopt);
+}
+
+// Return the custom stat by name, or an empty object if no custom stat exists.
+TEST(FeatureStatsView, GetCustomStatsByName) {
+  const FeatureNameStatistics input =
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'bar'
+        type: FLOAT
+        custom_stats: {
+          name: "baz_custom"
+          num: 8.0
+        }
+        num_stats: {
+          min: 8.0
+          common_stats: { num_missing: 3 min_num_values: 3 max_num_values: 7 }
+        })");
+
+  float expected_num = 8.0;
+  EXPECT_EQ(DatasetForTesting(input)
+                .feature_stats_view()
+                .GetCustomStatByName("baz_custom")
+                ->num(),
+            expected_num);
+  const FeatureNameStatistics missing =
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'bar'
+        type: FLOAT
+        custom_stats: { name: "bar_custom" num: 8.0 }
+        num_stats: {
+          min: 8.0
+          common_stats: { num_missing: 3 min_num_values: 3 max_num_values: 7 }
+        })");
+  tensorflow::metadata::v0::CustomStatistic* expected = nullptr;
+  EXPECT_EQ(DatasetForTesting(missing).feature_stats_view().GetCustomStatByName(
+                "baz_custom"),
+            expected);
 }
 
 TEST(DatasetStatsView, Features) {

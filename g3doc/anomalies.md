@@ -385,6 +385,15 @@ condition(s) under which each anomaly type is detected.
             all image types is less than
             `feature.image_domain.minimum_supported_image_fraction`.
 
+-   `MAX_IMAGE_BYTE_SIZE_EXCEEDED`
+
+    -   Schema Fields:
+        -   `feature.image_domain.max_image_byte_size`
+    -   Statistics Fields:
+        -   `feature.bytes_stats.max_num_bytes_int`
+    -   Detection Condition:
+        -   `max_num_bytes_int` > `max_image_byte_size`
+
 -   `SCHEMA_MISSING_COLUMN`
 
     -   Schema Fields:

@@ -85,7 +85,8 @@ TEST(SchemaAnomalies, FindChangesNoChanges) {
           }
         })");
   for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
-    TestFindChanges(initial, DatasetStatsView(statistics, false), config,
+    TestFindChanges(initial, DatasetStatsView(statistics, /*by_weight=*/false),
+                    config,
                     std::map<std::string, testing::ExpectedAnomalyInfo>());
   }
 }
@@ -335,8 +336,8 @@ TEST(SchemaAnomalies, SimpleBadSchemaConfigurations) {
         description: "The domain \"struct_domain\" does not match the type: BYTES"
         short_description: "The domain does not match the type"
       })");
-    TestFindChanges(initial, DatasetStatsView(statistics, false), config,
-                    expected_anomalies);
+    TestFindChanges(initial, DatasetStatsView(statistics, /*by_weight=*/false),
+                    config, expected_anomalies);
   }
 }
 
@@ -443,8 +444,8 @@ TEST(SchemaAnomalies, FindNansInFloatDisallowNans) {
             short_description: "Invalid values"
             description: "Float feature has NaN values."
           })");
-    TestFindChanges(initial, DatasetStatsView(statistics, false), config,
-                    expected_anomalies);
+    TestFindChanges(initial, DatasetStatsView(statistics, /*by_weight=*/false),
+                    config, expected_anomalies);
   }
 }
 TEST(SchemaAnomalies, NansDisallowedNoNansFound) {
@@ -483,7 +484,8 @@ TEST(SchemaAnomalies, NansDisallowedNoNansFound) {
         })");
   for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
     std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
-    TestFindChanges(initial, DatasetStatsView(statistics, false), config,
+    TestFindChanges(initial, DatasetStatsView(statistics, /*by_weight=*/false),
+                    config,
                     std::map<std::string, testing::ExpectedAnomalyInfo>());
   }
 }
@@ -551,8 +553,8 @@ TEST(SchemaAnomalies, FindsLowSupportedImageFraction) {
             short_description: "Low supported image fraction"
             description: "Fraction of values containing TensorFlow supported images: 0.800000 is lower than the threshold set in the Schema: 0.850000."
           })");
-    TestFindChanges(initial, DatasetStatsView(statistics, false), config,
-                    expected_anomalies);
+    TestFindChanges(initial, DatasetStatsView(statistics, /*by_weight=*/false),
+                    config, expected_anomalies);
   }
 }
 
@@ -594,7 +596,8 @@ TEST(SchemaAnomalies, NansInFloatAllowed) {
         })");
   for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
     std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
-    TestFindChanges(initial, DatasetStatsView(statistics, false), config,
+    TestFindChanges(initial, DatasetStatsView(statistics, /*by_weight=*/false),
+                    config,
                     std::map<std::string, testing::ExpectedAnomalyInfo>());
   }
 }
@@ -698,8 +701,8 @@ TEST(SchemaAnomalies, FindInfsInFloatDisallowInfs) {
             short_description: "Invalid values"
             description: "Float feature has Inf values."
           })");
-    TestFindChanges(initial, DatasetStatsView(statistics, false), config,
-                    expected_anomalies);
+    TestFindChanges(initial, DatasetStatsView(statistics, /*by_weight=*/false),
+                    config, expected_anomalies);
   }
 }
 TEST(SchemaAnomalies, InfsDisallowedNoInfsFound) {
@@ -738,8 +741,8 @@ TEST(SchemaAnomalies, InfsDisallowedNoInfsFound) {
         })");
   for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
     std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
-    TestFindChanges(initial, DatasetStatsView(statistics, false), config,
-                    std::map<string, testing::ExpectedAnomalyInfo>());
+    TestFindChanges(initial, DatasetStatsView(statistics, /*by_weight=*/false),
+                    config, std::map<string, testing::ExpectedAnomalyInfo>());
   }
 }
 
@@ -780,8 +783,8 @@ TEST(SchemaAnomalies, InfsInFloatAllowed) {
         })");
   for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
     std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
-    TestFindChanges(initial, DatasetStatsView(statistics, false), config,
-                    std::map<string, testing::ExpectedAnomalyInfo>());
+    TestFindChanges(initial, DatasetStatsView(statistics, /*by_weight=*/false),
+                    config, std::map<string, testing::ExpectedAnomalyInfo>());
   }
 }
 
@@ -829,8 +832,8 @@ TEST(SchemaAnomalies, FindChangesCategoricalIntFeature) {
             short_description: "Superfluous values"
             description: "Some examples have more values than expected."
           })");
-    TestFindChanges(initial, DatasetStatsView(statistics, false), config,
-                    expected_anomalies);
+    TestFindChanges(initial, DatasetStatsView(statistics, /*by_weight=*/false),
+                    config, expected_anomalies);
   }
 }
 
@@ -1007,8 +1010,8 @@ TEST(SchemaAnomalies, FindChangesBooleanFloatFeature) {
         short_description: "Non-boolean values"
         description: "Float values falling between 0 and 1: converting to float_domain."
       })");
-    TestFindChanges(initial, DatasetStatsView(statistics, false), config,
-                    expected_anomalies);
+    TestFindChanges(initial, DatasetStatsView(statistics, /*by_weight=*/false),
+                    config, expected_anomalies);
   }
 }
 
@@ -1141,7 +1144,7 @@ TEST(SchemaAnomalies, SemanticTypeUpdates) {
           short_description: "New column"
           description: "New column (column in data but not in schema)"
         })pb");
-  TestFindChanges(initial, DatasetStatsView(statistics, false),
+  TestFindChanges(initial, DatasetStatsView(statistics, /*by_weight=*/false),
                   FeatureStatisticsToProtoConfig(), expected_anomalies);
 }
 
@@ -1221,8 +1224,8 @@ TEST(SchemaAnomalies, FindChanges) {
         description: "Examples contain values missing from the schema: D (~50%). "
       })");
 
-    TestFindChanges(initial, DatasetStatsView(statistics, false), config,
-                    expected_anomalies);
+    TestFindChanges(initial, DatasetStatsView(statistics, /*by_weight=*/false),
+                    config, expected_anomalies);
   }
 }
 
@@ -1661,7 +1664,7 @@ TEST(Schema, FindChangesEmptySchemaProto) {
           description: "New column (column in data but not in schema)"
         })pb");
 
-  TestFindChanges(Schema(), DatasetStatsView(statistics, false),
+  TestFindChanges(Schema(), DatasetStatsView(statistics, /*by_weight=*/false),
                   FeatureStatisticsToProtoConfig(), expected_anomalies);
 }
 
@@ -1748,20 +1751,20 @@ TEST(Schema, FindChangesOnlyValidateSchemaFeatures) {
         ParseTextProtoOrDie<FeatureStatisticsToProtoConfig>(
             "new_features_are_warnings: false");
 
-    TestFindChanges(schema, DatasetStatsView(statistics, false), config,
-                    expected_anomalies);
+    TestFindChanges(schema, DatasetStatsView(statistics, /*by_weight=*/false),
+                    config, expected_anomalies);
   }
   expected_anomalies["new_feature"].expected_info_without_diff.set_severity(
       tensorflow::metadata::v0::AnomalyInfo::WARNING);
 
   // Set to warning severity using legacy new_features_are_warnings
-  TestFindChanges(schema, DatasetStatsView(statistics, false),
+  TestFindChanges(schema, DatasetStatsView(statistics, /*by_weight=*/false),
                   ParseTextProtoOrDie<FeatureStatisticsToProtoConfig>(
                       "new_features_are_warnings: true"),
                   expected_anomalies);
 
   // Set to warning severity using severity_overrides
-  TestFindChanges(schema, DatasetStatsView(statistics, false),
+  TestFindChanges(schema, DatasetStatsView(statistics, /*by_weight=*/false),
                   ParseTextProtoOrDie<FeatureStatisticsToProtoConfig>(
                       R"pb(severity_overrides: {
                              type: SCHEMA_NEW_COLUMN
@@ -1822,7 +1825,7 @@ TEST(GetSchemaDiff, BasicTest) {
           description: "New column (column in data but not in schema)"
         })pb");
 
-  TestFindChanges(initial, DatasetStatsView(statistics, false),
+  TestFindChanges(initial, DatasetStatsView(statistics, /*by_weight=*/false),
                   FeatureStatisticsToProtoConfig(), expected_anomalies);
 }
 
@@ -2852,8 +2855,65 @@ TEST(GetSchemaDiff, TwoChanges) {
           description: "New column (column in data but not in schema)"
         })pb");
 
-  TestFindChanges(Schema(), DatasetStatsView(statistics, false),
+  TestFindChanges(Schema(), DatasetStatsView(statistics, /*by_weight=*/false),
                   FeatureStatisticsToProtoConfig(), expected_anomalies);
+}
+
+TEST(SchemaAnomalies, FindsMaxImageByteSizeExceeded) {
+  const Schema initial = ParseTextProtoOrDie<Schema>(R"(
+    feature {
+      name: "image/encoded"
+      presence: { min_count: 1 min_fraction: 1.0 }
+      value_count: { min: 1 max: 1 }
+      type: BYTES
+      image_domain: {
+        max_image_byte_size: 100
+      }
+    }
+  )");
+
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        features: {
+          name: 'image/encoded'
+          type: BYTES
+          bytes_stats: {
+            max_num_bytes_int: 101
+            common_stats: {
+              num_non_missing: 10
+              min_num_values: 1
+              max_num_values: 1
+            }
+          }
+        })");
+  for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
+    std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
+    expected_anomalies["image/encoded"].new_schema =
+        ParseTextProtoOrDie<Schema>(R""(
+          feature {
+            name: "image/encoded"
+            presence: { min_count: 1 min_fraction: 1.0 }
+            value_count: { min: 1 max: 1 }
+            type: BYTES
+            image_domain: {
+              max_image_byte_size: 101
+            }
+          }
+        )"");
+    expected_anomalies["image/encoded"].expected_info_without_diff =
+        ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
+          path { step: "image/encoded" }
+          description: "The largest image has bytes: 101. The max allowed byte size is: 100."
+          severity: ERROR
+          short_description: "Num bytes exceeds the max byte size."
+          reason {
+            type: MAX_IMAGE_BYTE_SIZE_EXCEEDED
+            short_description: "Num bytes exceeds the max byte size."
+            description: "The largest image has bytes: 101. The max allowed byte size is: 100."
+          })");
+    TestFindChanges(initial, DatasetStatsView(statistics, /*by_weight=*/false),
+                    config, expected_anomalies);
+  }
 }
 
 }  // namespace

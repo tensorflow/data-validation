@@ -42,55 +42,69 @@ using ::tensorflow::metadata::v0::ImageDomain;
 
 std::vector<Description> UpdateImageDomain(
     const FeatureStatsView& feature_stats, Feature* feature) {
-  std::vector<Description> descriptions;
+  std::vector<Description> results;
   const ImageDomain& image_domain = feature->image_domain();
   if (image_domain.has_minimum_supported_image_fraction()) {
-    for (const CustomStatistic& custom_stats : feature_stats.custom_stats()) {
-      if (custom_stats.name() == "image_format_histogram") {
-        float supported_image_count = 0;
-        float unsupported_image_count = 0;
-        for (const metadata::v0::RankHistogram::Bucket& bucket :
-             custom_stats.rank_histogram().buckets()) {
-          if (bucket.label() == "UNKNOWN") {
-            unsupported_image_count += bucket.sample_count();
-          } else {
-            supported_image_count += bucket.sample_count();
-          }
+    const CustomStatistic* image_format_histogram =
+        feature_stats.GetCustomStatByName("image_format_histogram");
+    if (image_format_histogram) {
+      float supported_image_count = 0;
+      float unsupported_image_count = 0;
+      for (const metadata::v0::RankHistogram::Bucket& bucket :
+           image_format_histogram->rank_histogram().buckets()) {
+        if (bucket.label() == "UNKNOWN") {
+          unsupported_image_count += bucket.sample_count();
+        } else {
+          supported_image_count += bucket.sample_count();
         }
-        float supported_image_fraction =
-            supported_image_count /
-            (supported_image_count + unsupported_image_count);
-        const float original_minimum_supported_image_fraction =
-            image_domain.minimum_supported_image_fraction();
-        if (supported_image_fraction <
-            original_minimum_supported_image_fraction) {
-          feature->mutable_image_domain()->set_minimum_supported_image_fraction(
-              supported_image_fraction);
-          return {
-              {tensorflow::metadata::v0::AnomalyInfo::
-                   LOW_SUPPORTED_IMAGE_FRACTION,
-               "Low supported image fraction",
-               absl::StrCat(
-                   "Fraction of values containing TensorFlow supported "
-                   "images: ",
-                   std::to_string(supported_image_fraction),
-                   " is lower than the threshold set in the Schema: ",
-                   std::to_string(original_minimum_supported_image_fraction),
-                   ".")}};
-        }
-      } else {
-        LOG(WARNING)
-            << "image_domain.minimum_supported_image_fraction is specified "
-               "for feature "
-            << feature->name()
-            << ", but there is no "
-               "image_format_histogram in the statistics. You must enable "
-               "semantic "
-               "domain stats for the image_format_histogram to be generated.";
       }
+      float supported_image_fraction =
+          supported_image_count /
+          (supported_image_count + unsupported_image_count);
+      const float original_minimum_supported_image_fraction =
+          image_domain.minimum_supported_image_fraction();
+      if (supported_image_fraction <
+          original_minimum_supported_image_fraction) {
+        feature->mutable_image_domain()->set_minimum_supported_image_fraction(
+            supported_image_fraction);
+        results.push_back(
+            {tensorflow::metadata::v0::AnomalyInfo::
+                 LOW_SUPPORTED_IMAGE_FRACTION,
+             "Low supported image fraction",
+             absl::StrCat(
+                 "Fraction of values containing TensorFlow supported "
+                 "images: ",
+                 std::to_string(supported_image_fraction),
+                 " is lower than the threshold set in the Schema: ",
+                 std::to_string(original_minimum_supported_image_fraction),
+                 ".")});
+      }
+    } else {
+      LOG(WARNING)
+          << "image_domain.minimum_supported_image_fraction is specified "
+             "for feature "
+          << feature->name()
+          << ", but there is no "
+             "image_format_histogram in the statistics. You must enable "
+             "semantic "
+             "domain stats for the image_format_histogram to be generated.";
     }
   }
-  return {};
+  if (image_domain.has_max_image_byte_size()) {
+    const int64_t max_bytes_stat =
+        feature_stats.bytes_stats().max_num_bytes_int();
+    const int64_t max_allowed_bytes = image_domain.max_image_byte_size();
+    if (max_bytes_stat > max_allowed_bytes) {
+      feature->mutable_image_domain()->set_max_image_byte_size(max_bytes_stat);
+      results.push_back(
+          {tensorflow::metadata::v0::AnomalyInfo::MAX_IMAGE_BYTE_SIZE_EXCEEDED,
+           "Num bytes exceeds the max byte size.",
+           absl::StrCat("The largest image has bytes: ", max_bytes_stat,
+                        ". The max allowed byte size is: ", max_allowed_bytes,
+                        ".")});
+    }
+  }
+  return results;
 }
 
 }  // namespace data_validation

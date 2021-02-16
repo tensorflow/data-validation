@@ -715,6 +715,7 @@ def _make_bytes_stats_proto(bytes_stats: _PartialBytesStats,
     result.avg_num_bytes = bytes_stats.total_num_bytes / total_num_values
     result.min_num_bytes = bytes_stats.min_num_bytes
     result.max_num_bytes = bytes_stats.max_num_bytes
+    result.max_num_bytes_int = bytes_stats.max_num_bytes
   return result
 
 

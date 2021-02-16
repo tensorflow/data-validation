@@ -175,6 +175,9 @@ class FeatureStatsView {
   // Returns the numeric stats, or an empty object if no numeric stats exist.
   const tensorflow::metadata::v0::NumericStatistics& num_stats() const;
 
+  // Returns the bytes stats, or an empty object if no bytes stats exist.
+  const tensorflow::metadata::v0::BytesStatistics& bytes_stats() const;
+
   double GetNumMissing() const;
   // Returns num missing at each nestedness level. The first element of the
   // returned vector equals to GetNumMissing().
@@ -200,6 +203,12 @@ class FeatureStatsView {
   std::vector<tensorflow::metadata::v0::CustomStatistic> custom_stats() const {
     return {data().custom_stats().begin(), data().custom_stats().end()};
   }
+
+  // Returns the custom stat for the underlying FeatureNameStatistics, of a
+  // given custom_stat_name. Returns `nullptr` if the custom stat is not
+  // found.
+  const tensorflow::metadata::v0::CustomStatistic* GetCustomStatByName(
+      const std::string& custom_stat_name) const;
 
   std::vector<FeatureStatsView> GetChildren() const;
 

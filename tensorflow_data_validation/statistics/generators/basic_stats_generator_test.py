@@ -1720,6 +1720,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               avg_num_bytes: 1.71428571
               min_num_bytes: 1
               max_num_bytes: 3
+              max_num_bytes_int: 3
             }
             """, statistics_pb2.FeatureNameStatistics()),
     }

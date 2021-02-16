@@ -19,6 +19,7 @@ limitations under the License.
 #include <utility>
 #include <vector>
 
+#include "absl/algorithm/container.h"
 #include "absl/types/optional.h"
 #include "tensorflow_data_validation/anomalies/map_util.h"
 #include "tensorflow/core/platform/logging.h"
@@ -524,6 +525,11 @@ const tensorflow::metadata::v0::NumericStatistics& FeatureStatsView::num_stats()
   return data().num_stats();
 }
 
+const tensorflow::metadata::v0::BytesStatistics& FeatureStatsView::bytes_stats()
+    const {
+  return data().bytes_stats();
+}
+
 // Returns the count of values appearing in the feature across all examples,
 // based on <stats>.
 double FeatureStatsView::GetTotalValueCountInExamples() const {
@@ -604,6 +610,18 @@ const absl::optional<uint64> FeatureStatsView::GetNumUnique() const {
     return data().string_stats().unique();
   }
   return absl::nullopt;
+}
+
+const tensorflow::metadata::v0::CustomStatistic*
+FeatureStatsView::GetCustomStatByName(
+    const std::string& custom_stat_name) const {
+  auto it = absl::c_find_if(
+      data().custom_stats(),
+      [&custom_stat_name](
+          const tensorflow::metadata::v0::CustomStatistic& stat) {
+        return stat.name() == custom_stat_name;
+      });
+  return it == data().custom_stats().end() ? nullptr : &(*it);
 }
 
 }  // namespace data_validation
