@@ -14,12 +14,6 @@
 
 """Init module for TensorFlow Data Validation."""
 
-# TFDV's extension module depends on pyarrow's shared libraries. importing
-# pyarrow will cause those libraries to be loaded. This way the dynamic linker
-# wouldn't need to search for those libraries in the filesystem (
-# which is bound to fail).
-import pyarrow as _
-
 # Import stats API.
 from tensorflow_data_validation.api.stats_api import GenerateStatistics
 from tensorflow_data_validation.api.stats_api import WriteStatisticsToBinaryFile
@@ -89,9 +83,3 @@ from tensorflow_data_validation.utils.validation_lib import validate_examples_in
 
 # Import version string.
 from tensorflow_data_validation.version import __version__
-
-# If tfdv module has this flag, tfdv.GenerateStatistics accepts
-# PCollection[pa.RecordBatch] as the input; otherwise it accepts
-# PCollection[pa.Table]
-# TODO(b/153368237): clean this up once tfx>0.22.0 is released.
-TFDV_ACCEPT_RECORD_BATCH = True
