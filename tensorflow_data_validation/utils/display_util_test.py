@@ -19,12 +19,13 @@ from __future__ import division
 from __future__ import print_function
 
 from absl.testing import absltest
+from google.protobuf import text_format
 from tensorflow_data_validation import types
 from tensorflow_data_validation.utils import display_util
 from tensorflow_data_validation.utils import test_util
+from tensorflow_metadata.proto.v0 import anomalies_pb2
+from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
-
-from google.protobuf import text_format
 
 
 class DisplayUtilTest(absltest.TestCase):
@@ -374,6 +375,71 @@ class DisplayUtilTest(absltest.TestCase):
     self.assertLen(actual_output.datasets, 1)
     test_util.assert_dataset_feature_stats_proto_equal(
         self, actual_output.datasets[0], expected_output.datasets[0])
+
+  def test_get_schema_dataframe(self):
+    schema = text_format.Parse("""
+        feature {
+          name: "fa"
+          type: INT
+          int_domain {
+            is_categorical: true
+          }
+        }
+        feature {
+          name: "fb"
+          type: BYTES
+        }
+        feature {
+          name: "fc"
+          type: FLOAT
+        }
+        """, schema_pb2.Schema())
+    actual_output = display_util.get_schema_dataframe(schema)
+    # The resulting DataFrame has a row for each feature and columns for type,
+    # presence, valency, and domain.
+    self.assertEqual(actual_output.shape, (3, 4))
+
+  def test_get_anomalies_dataframe(self):
+    anomalies = text_format.Parse(
+        """
+    anomaly_info {
+     key: "feature_1"
+     value {
+        description: "Expected bytes but got string."
+        severity: ERROR
+        short_description: "Bytes not string"
+        reason {
+          type: ENUM_TYPE_BYTES_NOT_STRING
+          short_description: "Bytes not string"
+          description: "Expected bytes but got string."
+        }
+      }
+    }
+    anomaly_info {
+      key: "feature_2"
+      value {
+        description: "Examples contain values missing from the schema."
+        severity: ERROR
+        short_description: "Unexpected string values"
+        reason {
+          type: ENUM_TYPE_UNEXPECTED_STRING_VALUES
+          short_description: "Unexpected string values"
+          description: "Examples contain values missing from the "
+            "schema."
+        }
+      }
+    }
+    """, anomalies_pb2.Anomalies())
+    actual_output = display_util.get_anomalies_dataframe(anomalies)
+    # The resulting DataFrame has a row for each feature and a column for each
+    # of the short description and long description.
+    self.assertEqual(actual_output.shape, (2, 2))
+
+  def test_get_anomalies_dataframe_no_anomalies(self):
+    anomalies = anomalies_pb2.Anomalies()
+    actual_output = display_util.get_anomalies_dataframe(anomalies)
+    self.assertEqual(actual_output.shape, (0, 2))
+
 
 if __name__ == '__main__':
   absltest.main()

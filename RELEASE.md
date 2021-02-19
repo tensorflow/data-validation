@@ -21,6 +21,9 @@
 *   Deprecated `tfdv.StatsOptions.feature_whitelist` and added
     `feature_allowlist` as a replacement. The former will be removed in the next
     release.
+*   Added `get_schema_dataframe` and `get_anomalies_dataframe` utility
+    functions.
+
 ## Known Issues
 
 ## Breaking changes

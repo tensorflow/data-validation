@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-"""Utils for example notebooks."""
+"""Utils for displaying TFDV outputs."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -56,11 +56,13 @@ def _add_quotes(input_str: types.FeatureName) -> types.FeatureName:
   return "'" + input_str.replace("'", "\\'") + "'"
 
 
-def display_schema(schema: schema_pb2.Schema) -> None:
-  """Displays the input schema.
+def get_schema_dataframe(schema: schema_pb2.Schema) -> pd.DataFrame:
+  """Returns a DataFrame containing the input schema.
 
   Args:
     schema: A Schema protocol buffer.
+  Returns:
+    A DataFrame containing the schema.
   """
   if not isinstance(schema, schema_pb2.Schema):
     raise TypeError('schema is of type %s, should be a Schema proto.' %
@@ -134,29 +136,30 @@ def display_schema(schema: schema_pb2.Schema) -> None:
         [_add_quotes(feature.name), feature_type, feature_presence, valency,
          domain])
 
-  # Construct a DataFrame consisting of the properties of the features
-  # and display it.
-  features = pd.DataFrame(
+  return pd.DataFrame(
       feature_rows,
       columns=['Feature name', 'Type', 'Presence', 'Valency',
                'Domain']).set_index('Feature name')
-  display(features)
-
-  # Construct a DataFrame consisting of the domain values and display it.
-  if domain_rows:
-    domains = pd.DataFrame(
-        domain_rows, columns=['Domain',
-                              'Values']).set_index('Domain')
-    # Do not truncate columns.
-    pd.set_option('max_colwidth', -1)
-    display(domains)
 
 
-def display_anomalies(anomalies: anomalies_pb2.Anomalies) -> None:
-  """Displays the input anomalies.
+def display_schema(schema: schema_pb2.Schema) -> None:
+  """Displays the input schema (for use in a Jupyter notebook).
+
+  Args:
+    schema: A Schema protocol buffer.
+  """
+  features_df = get_schema_dataframe(schema)
+  display(features_df)
+
+
+def get_anomalies_dataframe(anomalies: anomalies_pb2.Anomalies) -> pd.DataFrame:
+  """Returns a DataFrame containing the input anomalies.
 
   Args:
     anomalies: An Anomalies protocol buffer.
+  Returns:
+    A DataFrame containing the input anomalies, or an empty DataFrame if there
+    are no anomalies.
   """
   if not isinstance(anomalies, anomalies_pb2.Anomalies):
     raise TypeError('anomalies is of type %s, should be an Anomalies proto.' %
@@ -174,16 +177,28 @@ def display_anomalies(anomalies: anomalies_pb2.Anomalies) -> None:
         anomalies.dataset_anomaly_info.description
     ])
 
-  if not anomaly_rows:
+  # Construct a DataFrame consisting of the anomalies and display it.
+  anomalies_df = pd.DataFrame(
+      anomaly_rows,
+      columns=[
+          'Feature name', 'Anomaly short description',
+          'Anomaly long description'
+      ]).set_index('Feature name')
+  # Do not truncate columns.
+  pd.set_option('max_colwidth', -1)
+  return anomalies_df
+
+
+def display_anomalies(anomalies: anomalies_pb2.Anomalies) -> None:
+  """Displays the input anomalies (for use in a Jupyter notebook).
+
+  Args:
+    anomalies: An Anomalies protocol buffer.
+  """
+  anomalies_df = get_anomalies_dataframe(anomalies)
+  if anomalies_df.empty:
     display(HTML('<h4 style="color:green;">No anomalies found.</h4>'))
   else:
-    # Construct a DataFrame consisting of the anomalies and display it.
-    anomalies_df = pd.DataFrame(
-        anomaly_rows,
-        columns=['Feature name', 'Anomaly short description',
-                 'Anomaly long description']).set_index('Feature name')
-    # Do not truncate columns.
-    pd.set_option('max_colwidth', -1)
     display(anomalies_df)
 
 
