@@ -264,6 +264,8 @@ class Schema {
   ::tensorflow::metadata::v0::DatasetConstraints*
   GetExistingDatasetConstraints();
 
+  bool generate_legacy_feature_spec() const;
+
   // Note: do not manually add string_domains or features.
   // Call GetNewEnum() or GetNewFeature().
   tensorflow::metadata::v0::Schema schema_;

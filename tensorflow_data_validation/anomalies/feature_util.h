@@ -37,6 +37,7 @@ std::vector<Description> UpdateFeatureValueCounts(
 // to switch to value_counts constraints.
 std::vector<Description> UpdateFeatureShape(
     const FeatureStatsView& feature_stats_view,
+    bool generate_legacy_feature_spec,
     tensorflow::metadata::v0::Feature* feature);
 
 // If a feature occurs in too few examples, or a feature occurs in too small

@@ -1567,6 +1567,7 @@ struct UpdateShapeTestCase {
   // Result of Update().
   Feature expected;
   bool expected_description_empty;
+  bool generate_legacy_feature_spec;
 };
 
 const std::vector<UpdateShapeTestCase> GetUpdateShapeTestCases() {
@@ -1586,7 +1587,8 @@ const std::vector<UpdateShapeTestCase> GetUpdateShapeTestCases() {
               )"),
               Feature(),
               Feature(),
-              true,
+              /*expected_description_empty=*/true,
+              /*generate_legacy_feature_spec=*/false,
           },
           {
               "validation passes",
@@ -1604,7 +1606,8 @@ const std::vector<UpdateShapeTestCase> GetUpdateShapeTestCases() {
               )"),
               ParseTextProtoOrDie<Feature>(R"(shape { dim { size: 1 } })"),
               ParseTextProtoOrDie<Feature>(R"(shape { dim { size: 1 } })"),
-              true,
+              /*expected_description_empty=*/true,
+              /*generate_legacy_feature_spec=*/false,
           },
           {
               "validation passes: scalar",
@@ -1622,7 +1625,8 @@ const std::vector<UpdateShapeTestCase> GetUpdateShapeTestCases() {
               )"),
               ParseTextProtoOrDie<Feature>(R"(shape {})"),
               ParseTextProtoOrDie<Feature>(R"(shape {})"),
-              true,
+              /*expected_description_empty=*/true,
+              /*generate_legacy_feature_spec=*/false,
           },
           {
               "validation passes: fancy shape",
@@ -1648,7 +1652,8 @@ const std::vector<UpdateShapeTestCase> GetUpdateShapeTestCases() {
                                                 dim { size: 2 },
                                                 dim { size: 9 }
                                               })"),
-              true,
+              /*expected_description_empty=*/true,
+              /*generate_legacy_feature_spec=*/false,
           },
           {
               "validation passes: fancy shape, nested",
@@ -1689,7 +1694,8 @@ const std::vector<UpdateShapeTestCase> GetUpdateShapeTestCases() {
                                                 dim { size: 2 },
                                                 dim { size: 9 }
                                               })"),
-              true,
+              /*expected_description_empty=*/true,
+              /*generate_legacy_feature_spec=*/false,
           },
           {
               "failure: num_missing",
@@ -1707,7 +1713,8 @@ const std::vector<UpdateShapeTestCase> GetUpdateShapeTestCases() {
               )"),
               ParseTextProtoOrDie<Feature>(R"(shape { dim { size: 1 } })"),
               Feature(),
-              false,
+              /*expected_description_empty=*/false,
+              /*generate_legacy_feature_spec=*/false,
           },
           {
               "failure: num_missing (nested)",
@@ -1737,7 +1744,8 @@ const std::vector<UpdateShapeTestCase> GetUpdateShapeTestCases() {
               )"),
               ParseTextProtoOrDie<Feature>(R"(shape { dim { size: 1 } })"),
               Feature(),
-              false,
+              /*expected_description_empty=*/false,
+              /*generate_legacy_feature_spec=*/false,
           },
           {
               "failure: num_value (nested)",
@@ -1767,7 +1775,8 @@ const std::vector<UpdateShapeTestCase> GetUpdateShapeTestCases() {
               )"),
               ParseTextProtoOrDie<Feature>(R"(shape { dim { size: 1 } })"),
               Feature(),
-              false,
+              /*expected_description_empty=*/false,
+              /*generate_legacy_feature_spec=*/false,
           },
           {
               "failure: shape not compatible",
@@ -1787,8 +1796,29 @@ const std::vector<UpdateShapeTestCase> GetUpdateShapeTestCases() {
                                                 dim { size: 3 }
                                               })"),
               Feature(),
-              false,
-          }};
+              /*expected_description_empty=*/false,
+              /*generate_legacy_feature_spec=*/false,
+          },
+          {
+              "success: num_missing but generate_legacy_feature_spec",
+              ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+                name: 'f1'
+                type: INT
+                num_stats: {
+                  common_stats: {
+                    num_missing: 1
+                    num_non_missing: 10
+                    min_num_values: 1
+                    max_num_values: 1
+                  }
+                }
+              )"),
+              ParseTextProtoOrDie<Feature>(R"(shape { dim { size: 1 } })"),
+              ParseTextProtoOrDie<Feature>(R"(shape { dim { size: 1 } })"),
+              /*expected_description_empty=*/true,
+              /*generate_legacy_feature_spec=*/true,
+          },
+         };
 }
 
 TEST(FeatureTypeTest, UpdateShapeTest) {
@@ -1801,8 +1831,10 @@ TEST(FeatureTypeTest, UpdateShapeTest) {
                                          by_weight);
       Feature updated = test.original;
       auto descriptions =
-          UpdateFeatureShape(dataset.feature_stats_view(), &updated);
-      EXPECT_EQ(test.expected_description_empty, descriptions.empty());
+          UpdateFeatureShape(dataset.feature_stats_view(),
+                             test.generate_legacy_feature_spec, &updated);
+      EXPECT_EQ(test.expected_description_empty, descriptions.empty())
+          << "Test: " << test.name;
       EXPECT_THAT(updated, EqualsProto(test.expected))
           << "Test:" << test.name << "(by_weight: " << by_weight
           << ") Reason: " << DescriptionsToString(descriptions);

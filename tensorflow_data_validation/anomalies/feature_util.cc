@@ -509,7 +509,8 @@ std::vector<Description> UpdateFeatureValueCounts(
 }
 
 std::vector<Description> UpdateFeatureShape(
-    const FeatureStatsView& feature_stats_view, Feature* feature) {
+    const FeatureStatsView& feature_stats_view,
+    const bool generate_legacy_feature_spec, Feature* feature) {
   if (!feature->has_shape()) {
     return {};
   }
@@ -533,10 +534,14 @@ std::vector<Description> UpdateFeatureShape(
   }
 
   bool has_missing = false;
-  for (const double num_missing : feature_stats_view.GetNumMissingNested()) {
-    if (num_missing != 0) {
-      has_missing = true;
-      break;
+  // If Schema.generate_legacy_feature_spec is true, feature absence is allowed.
+  // See b/180761541.
+  if (!generate_legacy_feature_spec) {
+    for (const double num_missing : feature_stats_view.GetNumMissingNested()) {
+      if (num_missing != 0) {
+        has_missing = true;
+        break;
+      }
     }
   }
 

@@ -2729,10 +2729,10 @@ TEST(SchemaTest, UpdateFeatureShape) {
           type: INT
           num_stats: {
             common_stats: {
-              num_missing: 1
-              num_non_missing: 9
+              num_missing: 0
+              num_non_missing: 10
               min_num_values: 1
-              max_num_values: 1
+              max_num_values: 2
             }
           }
         })");
@@ -2752,8 +2752,72 @@ TEST(SchemaTest, UpdateFeatureShape) {
                 feature {
                   name: "f1"
                   type: INT
-                  presence { min_fraction: 0.9 min_count: 1 }
+                  presence { min_fraction: 1 min_count: 1 }
                 })"));
+}
+
+// b/180761541
+TEST(SchemaTest, UpdateFeatureShapeInferLegacyFeatureSpecWithNumMissing) {
+  const auto statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        num_examples: 10
+        features: {
+          name: "f1"
+          type: INT
+          num_stats: {
+            common_stats: {
+              num_missing: 1
+              num_non_missing: 9
+              min_num_values: 1
+              max_num_values: 1
+            }
+          }
+        })");
+  auto schema_proto = ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
+    feature {
+      name: "f1"
+      type: INT
+      shape { dim { size: 1 } }
+      presence { min_fraction: 1 min_count: 1 }
+    }
+  )");
+  auto* field_desc = schema_proto.GetDescriptor()->FindFieldByName(
+      "generate_legacy_feature_spec");
+  if (!field_desc) {
+    // Skip the test because the schema does not have the legacy field (OSS).
+    return;
+  }
+
+  // The default value of that field is true.
+  ASSERT_TRUE(schema_proto.GetReflection()->GetBool(schema_proto, field_desc));
+  {
+    Schema schema;
+    TF_ASSERT_OK(schema.Init(schema_proto));
+    TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
+                               FeatureStatisticsToProtoConfig()));
+    EXPECT_THAT(schema.GetSchema(), EqualsProto(R"(
+                  feature {
+                    name: "f1"
+                    type: INT
+                    shape { dim { size: 1 } }
+                    presence { min_fraction: 0.9 min_count: 1 }
+                  })"));
+  }
+
+  schema_proto.GetReflection()->SetBool(&schema_proto, field_desc, false);
+  {
+    Schema schema;
+    TF_ASSERT_OK(schema.Init(schema_proto));
+    TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
+                               FeatureStatisticsToProtoConfig()));
+    EXPECT_THAT(schema.GetSchema(), EqualsProto(R"(
+                  generate_legacy_feature_spec: false
+                  feature {
+                    name: "f1"
+                    type: INT
+                    presence { min_fraction: 0.9 min_count: 1 }
+                  })"));
+  }
 }
 
 // Construct a schema from a proto field, and then write it to a

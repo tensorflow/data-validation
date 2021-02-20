@@ -987,7 +987,8 @@ void Schema::UpdateFeatureInternal(
   }
 
   if (feature->has_shape()) {
-    add_to_descriptions(UpdateFeatureShape(view, feature));
+    add_to_descriptions(
+        UpdateFeatureShape(view, generate_legacy_feature_spec(), feature));
   }
 
   if (feature->has_presence()) {
@@ -1262,6 +1263,15 @@ std::vector<Description> Schema::UpdateDatasetConstraints(
     }
   }
   return descriptions;
+}
+
+bool Schema::generate_legacy_feature_spec() const {
+  // This field is not available in the OSS TFMD schema, so we use proto
+  // reflection to get its value to avoid compilation errors.
+  const auto* field_desc =
+      schema_.GetDescriptor()->FindFieldByName("generate_legacy_feature_spec");
+  if (!field_desc) return false;
+  return schema_.GetReflection()->GetBool(schema_, field_desc);
 }
 
 }  // namespace data_validation
