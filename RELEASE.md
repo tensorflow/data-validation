@@ -4,6 +4,18 @@
 
 ## Major Features and Improvements
 
+## Bug Fixes and Other Changes
+
+## Known Issues
+
+## Breaking Changes
+
+## Deprecations
+
+# Version 0.28.0
+
+## Major Features and Improvements
+
 *   Add anomaly detection for max bytes size for images.
 
 ## Bug Fixes and Other Changes
@@ -23,12 +35,21 @@
     release.
 *   Added `get_schema_dataframe` and `get_anomalies_dataframe` utility
     functions.
+*   Depends on `apache-beam[gcp]>=2.28,<3`.
+*   Depends on `tensorflow-metadata>=0.28,<0.29`.
+*   Depends on `tfx-bsl>=0.28.1,<0.29`.
 
 ## Known Issues
 
-## Breaking changes
+*   N/A
+
+## Breaking Changes
+
+*   N/A
 
 ## Deprecations
+
+*   N/A
 
 # Version 0.27.0
 
