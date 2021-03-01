@@ -34,7 +34,7 @@ from tensorflow_metadata.proto.v0 import schema_pb2
 _SCHEMA_JSON_KEY = 'schema_json'
 _PER_FEATURE_WEIGHT_OVERRIDE_JSON_KEY = 'per_feature_weight_override_json'
 
-# TODO(b/68277922): Currently we use a single epsilon (error tolerance)
+# TODO(b/181559345): Currently we use a single epsilon (error tolerance)
 # parameter for all histograms. Set this parameter specific to each
 # histogram based on the number of buckets.
 
