@@ -157,8 +157,6 @@ def set_domain(schema: schema_pb2.Schema, feature_path: types.FeaturePath,
                     ' in schema.Features.domain_info' % type(domain).__name__)
 
   feature = get_feature(schema, feature_path)
-  print(feature.type)
-  print(schema_pb2.STRUCT)
   if feature.type == schema_pb2.STRUCT:
     raise TypeError('Could not set the domain of a STRUCT feature %s.' %
                     feature_path)
