@@ -767,7 +767,6 @@ std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
         {tensorflow::metadata::v0::AnomalyInfo::INVALID_SCHEMA_SPECIFICATION,
          "min_fraction should not greater than 1"});
   }
-  // TODO(b/157073026): Add similar checks for value_counts() values.
   if (feature->value_count().min() < 0) {
     feature->mutable_value_count()->clear_min();
     descriptions.push_back(
@@ -781,6 +780,28 @@ std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
          "ValueCount.max should not be less than min"});
     feature->mutable_value_count()->set_max(feature->value_count().min());
   }
+  for (int i = 0; i < feature->value_counts().value_count_size(); ++i) {
+    if (feature->value_counts().value_count(i).min() < 0) {
+      feature->mutable_value_counts()->mutable_value_count(i)->clear_min();
+      descriptions.push_back(
+          {tensorflow::metadata::v0::AnomalyInfo::INVALID_SCHEMA_SPECIFICATION,
+           "ValueCounts.min should not be negative",
+           absl::StrCat("ValueCounts.min at level ", i,
+                        " should not be negative.")});
+    }
+    if (feature->value_counts().value_count(i).has_max() &&
+        feature->value_counts().value_count(i).max() <
+            feature->value_counts().value_count(i).min()) {
+      feature->mutable_value_counts()->mutable_value_count(i)->set_max(
+          feature->value_counts().value_count(i).min());
+      descriptions.push_back(
+          {tensorflow::metadata::v0::AnomalyInfo::INVALID_SCHEMA_SPECIFICATION,
+           "ValueCounts.max should not be less than min",
+           absl::StrCat("ValueCounts.max at level ", i,
+                        " should not be less than min.")});
+    }
+  }
+
   for (const auto& dim : feature->shape().dim()) {
     if (dim.size() <= 0) {
       feature->clear_shape();

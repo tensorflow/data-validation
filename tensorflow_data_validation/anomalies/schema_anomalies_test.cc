@@ -91,6 +91,7 @@ TEST(SchemaAnomalies, FindChangesNoChanges) {
   }
 }
 
+// TODO(b/181962134): Add updated schema info for invalid_value_counts.
 TEST(SchemaAnomalies, SimpleBadSchemaConfigurations) {
   const Schema initial = ParseTextProtoOrDie<Schema>(R"(
     feature {
@@ -103,6 +104,15 @@ TEST(SchemaAnomalies, SimpleBadSchemaConfigurations) {
       name: "invalid_value_count"
       presence: { min_count: 1 }
       value_count: { min: -1 max: 3 }
+      type: BYTES
+    }
+    feature {
+      name: "invalid_value_counts"
+      presence: { min_count: 1 }
+      value_counts {
+        value_count: { min: -1 max: 3 }
+        value_count: { min: 3 max: 1 }
+      }
       type: BYTES
     }
     feature {
@@ -165,6 +175,33 @@ TEST(SchemaAnomalies, SimpleBadSchemaConfigurations) {
               min_num_values: 1
               max_num_values: 3
               avg_num_values: 1.5
+            }
+          }
+        }
+        features: {
+          name: "invalid_value_counts"
+          type: STRING
+          string_stats: {
+            common_stats: {
+              num_missing: 10
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 3
+              avg_num_values: 1.5
+              presence_and_valency_stats {
+                num_missing: 10
+                num_non_missing: 4
+                min_num_values: 1
+                max_num_values: 3
+                tot_num_values: 8
+              }
+              presence_and_valency_stats {
+                num_missing: 10
+                num_non_missing: 4
+                min_num_values: 3
+                max_num_values: 3
+                tot_num_values: 8
+              }
             }
           }
         }
@@ -289,6 +326,23 @@ TEST(SchemaAnomalies, SimpleBadSchemaConfigurations) {
             short_description: "ValueCount.min should not be negative"
             description: ""
           })");
+    expected_anomalies["invalid_value_counts"]
+        .expected_info_without_diff = ParseTextProtoOrDie<
+        tensorflow::metadata::v0::AnomalyInfo>(R"(
+      path { step: "invalid_value_counts" }
+      description: "ValueCounts.min at level 0 should not be negative. ValueCounts.max at level 1 should not be less than min."
+      severity: ERROR
+      short_description: "Multiple errors"
+      reason {
+        type: INVALID_SCHEMA_SPECIFICATION
+        short_description: "ValueCounts.min should not be negative"
+        description: "ValueCounts.min at level 0 should not be negative."
+      }
+      reason {
+        type: INVALID_SCHEMA_SPECIFICATION
+        short_description: "ValueCounts.max should not be less than min"
+        description: "ValueCounts.max at level 1 should not be less than min."
+      })");
     expected_anomalies["invalid_presence"].expected_info_without_diff =
         ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
           path { step: "invalid_presence" }

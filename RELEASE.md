@@ -6,6 +6,9 @@
 
 ## Bug Fixes and Other Changes
 
+* Added check for invalid min and max values for `values_counts` for nested
+  features.
+
 ## Known Issues
 
 ## Breaking Changes
