@@ -156,7 +156,7 @@ class SchemaAnomalies {
   // the value is a SchemaAnomaly object that contains a changed schema proto
   // that would allow the column at issue to be valid. For dataset-level issues,
   // creates a DatasetSchemaAnomaly object that contains a changed schema proto
-  // that would allow the dataset to be valid. If fields_needed is set, then a
+  // that would allow the dataset to be valid. If features_needed is set, then a
   // field that is not present in the schema will only be created if it is
   // present in that set.
   // TODO(b/148408297): If a field is in features_needed, but not in statistics
