@@ -34,7 +34,6 @@ from tensorflow_data_validation.utils import test_util
 from tfx_bsl.arrow import array_util
 from tfx_bsl.arrow import table_util
 
-from google.protobuf import any_pb2
 from google.protobuf import text_format
 from tensorflow.python.util.protobuf import compare
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -2935,11 +2934,11 @@ class StatsImplTest(parameterized.TestCase):
         value='1', frequency=1.0)
     expected_result.datasets[0].features[0].string_stats.avg_length = 1.0
 
-    my_proto = any_pb2.Any()
-    expected_result.datasets[0].features[0].custom_stats.add(
-        name='nl_statistics',
-        any=my_proto.Pack(
-            statistics_pb2.NaturalLanguageStatistics(feature_coverage=0.0)))
+    custom_nl_stats = expected_result.datasets[0].features[0].custom_stats.add(
+        name='nl_statistics')
+    custom_nl_stats.any.Pack(
+        statistics_pb2.NaturalLanguageStatistics(
+            reported_sequences=['[1]', '[1]']))
     expected_result.datasets[0].features[0].custom_stats.add(
         name='nl_feature_coverage', num=0.0)
     expected_result.datasets[0].features[0].custom_stats.add(

@@ -27,7 +27,6 @@ from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import natural_language_stats_generator as nlsg
 from tensorflow_data_validation.utils import test_util
 
-from google.protobuf import any_pb2
 from google.protobuf import text_format
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -267,10 +266,10 @@ class NaturalLanguageStatsGeneratorTest(
       custom_stats.append(
           statistics_pb2.CustomStatistic(
               name='nl_reported_sequences', str=str_reported_sequences))
-    my_proto = any_pb2.Any()
-    custom_stats.append(
-        statistics_pb2.CustomStatistic(
-            name='nl_statistics', any=my_proto.Pack(nls)))
+
+    custom_nl_stats = statistics_pb2.CustomStatistic(name='nl_statistics')
+    custom_nl_stats.any.Pack(nls)
+    custom_stats.append(custom_nl_stats)
     return statistics_pb2.FeatureNameStatistics(custom_stats=custom_stats)
 
   def test_nl_generator_empty_input(self):
@@ -395,7 +394,7 @@ class NaturalLanguageStatsGeneratorTest(
       self.assertCombinerOutputEqual(
           input_batches, generator,
           self._create_expected_feature_name_statistics(
-              feature_coverage=0.8571429,
+              feature_coverage=0.8571428571428571,
               avg_token_length=(3 + 3 + 4 + 4 + 4 + 5) / 6,
               token_len_quantiles=[(3, 4, 3), (4, 5, 3)],
               sorted_token_names_and_counts=[('Bazz', 3), ('Car', 2)],

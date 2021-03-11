@@ -68,7 +68,6 @@ from tensorflow_data_validation.utils import vocab_util
 
 from tfx_bsl import sketches
 
-from google.protobuf import any_pb2
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
@@ -578,6 +577,6 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
       reported_sequences = '\n'.join(nls.reported_sequences)
       result.custom_stats.add(
           name='nl_reported_sequences', str=reported_sequences)
-    my_proto = any_pb2.Any()
-    result.custom_stats.add(name='nl_statistics', any=my_proto.Pack(nls))
+    custom_nl_stats = result.custom_stats.add(name='nl_statistics')
+    custom_nl_stats.any.Pack(nls)
     return result
