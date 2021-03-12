@@ -1126,7 +1126,7 @@ TEST(SchemaAnomalies, FindChangesDatasetLevelChanges) {
         anomalies.GetSchemaDiff(/*enable_diff_regions=*/false);
 
     testing::TestAnomalyInfo(actual_anomalies.dataset_anomaly_info(),
-                             schema_proto, expected_anomaly_info, "");
+                             expected_anomaly_info, "");
   }
 }
 
@@ -2234,7 +2234,7 @@ TEST(SchemaAnomalyTest, CreateNewField) {
         })pb");
 
   testing::TestAnomalyInfo(
-      anomaly.GetAnomalyInfo(baseline, /*enable_diff_regions=*/false), baseline,
+      anomaly.GetAnomalyInfo(baseline, /*enable_diff_regions=*/false),
       expected_anomaly_info, "CreateNewField failed");
 }
 
@@ -2319,7 +2319,7 @@ TEST(SchemaAnomalyTest, CreateNewFieldSome) {
       )pb");
 
   testing::TestAnomalyInfo(
-      anomaly.GetAnomalyInfo(baseline, /*enable_diff_regions=*/false), baseline,
+      anomaly.GetAnomalyInfo(baseline, /*enable_diff_regions=*/false),
       expected_anomaly_info, "CreateNewField failed");
 }
 

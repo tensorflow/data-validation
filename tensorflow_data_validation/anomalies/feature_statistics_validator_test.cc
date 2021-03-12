@@ -74,7 +74,7 @@ void TestFeatureStatisticsValidator(
   TestAnomalies(result, old_schema, expected_anomalies,
                 expected_drift_skew_infos);
   if (expected_dataset_anomalies != gtl::nullopt) {
-    TestAnomalyInfo(result.dataset_anomaly_info(), old_schema,
+    TestAnomalyInfo(result.dataset_anomaly_info(),
                     expected_dataset_anomalies.value(),
                     "Actual dataset anomalies do not match expected.");
   }
