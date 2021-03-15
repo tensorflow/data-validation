@@ -27,8 +27,11 @@ custom_stats name                    type             NaturalLanguageStatistics
 -----------------                    -------------    -------------------------
 nl_feature_coverage                  double           feature_coverage
 nl_avg_token_length                  double           avg_token_length
+nl_min_sequence_length               double           min_sequence_length
+nl_max_sequence_length               double           max_sequence_length
 nl_token_length_histogram            Histogram        token_length_histogram
 nl_location_misses                   double           location_misses
+nl_sequence_length_histogram         Histogram        sequence_length_histogram
 nl_reported_sequences                string           Reported_sequences
                                                       (line-separated)
 nl_rank_tokens                       RankHistogram    rank_histogram
@@ -134,6 +137,11 @@ class _PartialNLStats(object):
     self.vocab_token_length_quantiles = sketches.QuantilesSketch(
         _QUANTILES_SKETCH_ERROR, _QUANTILES_SKETCH_NUM_ELEMENTS,
         _QUANTILES_SKETCH_NUM_STREAMS)
+    self.min_sequence_length = None
+    self.max_sequence_length = None
+    self.sequence_length_quantiles = sketches.QuantilesSketch(
+        _QUANTILES_SKETCH_ERROR, _QUANTILES_SKETCH_NUM_ELEMENTS,
+        _QUANTILES_SKETCH_NUM_STREAMS)
     self.token_occurrence_counts = sketches.MisraGriesSketch(
         _NUM_MISRAGRIES_SKETCH_BUCKETS)
     self.token_statistics = collections.defaultdict(_TokenStats)
@@ -149,6 +157,18 @@ class _PartialNLStats(object):
     self.sum_in_vocab_token_lengths += other.sum_in_vocab_token_lengths
     self.num_examples += other.num_examples
     self.vocab_token_length_quantiles.Merge(other.vocab_token_length_quantiles)
+    if self.min_sequence_length is None:
+      self.min_sequence_length = other.min_sequence_length
+    elif other.min_sequence_length is not None:
+      self.min_sequence_length = min(self.min_sequence_length,
+                                     other.min_sequence_length)
+    if self.max_sequence_length is None:
+      self.max_sequence_length = other.max_sequence_length
+    elif other.max_sequence_length is not None:
+      self.max_sequence_length = max(self.max_sequence_length,
+                                     other.max_sequence_length)
+
+    self.sequence_length_quantiles.Merge(other.sequence_length_quantiles)
     self.token_occurrence_counts.Merge(other.token_occurrence_counts)
 
     for t in other.token_statistics:
@@ -225,26 +245,75 @@ def _update_accumulator_reported_sequences(accumulator: _PartialNLStats,
     setattr(accumulator, attr, cur_list)
 
 
+def _update_accumulator_with_sequence_lengths(
+    accumulator: _PartialNLStats, sequence_length_excluded_int_tokens: Set[int],
+    sequence_length_excluded_string_tokens: Set[Text], max_sequence_length: int,
+    int_row: Optional[List[Union[int, Text]]],
+    string_row: Optional[List[Union[Text, int]]]):
+  """Update sequence length quantiles in accumulator.
+
+  We expect that int_row and string row preserve the position of the the token
+  within the seqence and hence allow the lists to contain both ints and strings.
+
+  Args:
+    accumulator: The accumulator to update.
+    sequence_length_excluded_int_tokens: The int tokens to not consider when
+      calculating the length.
+    sequence_length_excluded_string_tokens: The string tokens to not consider
+      when calculating the length.
+    max_sequence_length: The max sequence length to use if no excluded tokens
+      are present.
+    int_row: The row of integer tokens. Note: the row can include strings if
+      there is an incomplete mapping from strings to ints (this preserves the
+      position).
+    string_row: The row of string tokens. Note: the row can include ints if if
+      there is an incomplete mapping from ints to strings (this preserves the
+      position).
+  """
+  sequence_length = max_sequence_length
+  if int_row is not None:
+    matches = [e for e in int_row if e in sequence_length_excluded_int_tokens]
+    sequence_length -= len(matches)
+  if string_row is not None:
+    matches = [
+        e for e in string_row if e in sequence_length_excluded_string_tokens
+    ]
+    sequence_length -= len(matches)
+  accumulator.sequence_length_quantiles.AddValues(pa.array([sequence_length]))
+  accumulator.min_sequence_length = (
+      sequence_length if not accumulator.min_sequence_length else min(
+          accumulator.min_sequence_length, sequence_length))
+  accumulator.max_sequence_length = (
+      sequence_length if not accumulator.max_sequence_length else max(
+          accumulator.max_sequence_length, sequence_length))
+
+
 def _compute_int_statistics(
     row: List[int], accumulator: _PartialNLStats,
     excluded_string_tokens: Set[Text], excluded_int_tokens: Set[int],
     oov_string_tokens: Set[Text], unused_vocab: Optional[Dict[Text, int]],
     rvocab: Optional[Dict[int, Text]], int_tokens: Set[int],
-    string_tokens: Set[Text], num_histogram_buckets: int):
+    string_tokens: Set[Text], sequence_length_excluded_int_tokens: Set[int],
+    sequence_length_excluded_string_tokens: Set[Text],
+    num_histogram_buckets: int):
   """Compute statistics for an integer entry."""
   accumulator.num_examples += 1
   if row:
     _update_accumulator_with_token_statistics(accumulator, row, int_tokens,
                                               num_histogram_buckets)
+    string_row = None
     if rvocab:
-      resolved_row = [rvocab.get(r, r) for r in row]
-    else:
-      resolved_row = row
-    _update_accumulator_with_token_statistics(accumulator, resolved_row,
-                                              string_tokens,
-                                              num_histogram_buckets)
-    _update_accumulator_reported_sequences(accumulator, resolved_row,
+      string_row = [rvocab.get(r, r) for r in row]
+      _update_accumulator_with_token_statistics(accumulator, string_row,
+                                                string_tokens,
+                                                num_histogram_buckets)
+
+    _update_accumulator_reported_sequences(accumulator,
+                                           string_row if string_row else row,
                                            oov_string_tokens)
+    _update_accumulator_with_sequence_lengths(
+        accumulator, sequence_length_excluded_int_tokens,
+        sequence_length_excluded_string_tokens, len(row), row, string_row)
 
   filtered_entry_str_list = []
   for entry in row:
@@ -269,7 +338,8 @@ def _compute_str_statistics(
     excluded_string_tokens: Set[Text], excluded_int_tokens: Set[int],
     oov_string_tokens: Set[Text], vocab: Optional[Dict[Text, int]],
     unused_rvocab: Optional[Dict[int, Text]], int_tokens: Set[int],
-    string_tokens: Set[Text], num_histogram_buckets):
+    string_tokens: Set[Text], sequence_length_excluded_int_tokens: Set[int],
+    sequence_length_excluded_string_tokens: Set[Text], num_histogram_buckets):
   """Compute statistics for string features."""
   accumulator.num_examples += 1
   row = [six.ensure_text(e) for e in row]
@@ -277,11 +347,16 @@ def _compute_str_statistics(
     _update_accumulator_with_token_statistics(accumulator, row, string_tokens,
                                               num_histogram_buckets)
     _update_accumulator_reported_sequences(accumulator, row, oov_string_tokens)
+    int_row = None
     if vocab:
-      _update_accumulator_with_token_statistics(accumulator,
-                                                [vocab.get(r, r) for r in row],
+      int_row = [vocab.get(r, r) for r in row]
+      _update_accumulator_with_token_statistics(accumulator, int_row,
                                                 int_tokens,
                                                 num_histogram_buckets)
+    _update_accumulator_with_sequence_lengths(
+        accumulator, sequence_length_excluded_int_tokens,
+        sequence_length_excluded_string_tokens, len(row), int_row, row)
+
   filtered_entry_list = []
   for entry in row:
     if entry in excluded_string_tokens:
@@ -310,6 +385,20 @@ def _populate_token_length_histogram(
         quantiles, accumulator.num_in_vocab_tokens,
         num_quantiles_histogram_buckets)
     nls.token_length_histogram.CopyFrom(quantiles_histogram)
+
+
+def _populate_sequence_length_histogram(
+    nls: statistics_pb2.NaturalLanguageStatistics, accumulator: _PartialNLStats,
+    num_quantiles_histogram_buckets: int):
+  """Populate sequence length histogram."""
+  quantiles = accumulator.sequence_length_quantiles.GetQuantiles(
+      num_quantiles_histogram_buckets)
+  quantiles = quantiles.flatten().to_pylist()
+
+  if quantiles:
+    quantiles_histogram = quantiles_util.generate_quantiles_histogram(
+        quantiles, accumulator.num_examples, num_quantiles_histogram_buckets)
+    nls.sequence_length_histogram.CopyFrom(quantiles_histogram)
 
 
 def _populate_token_rank_histogram(
@@ -408,6 +497,8 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     self._nld_oov_string_tokens = {}
     self._nld_specified_int_tokens = collections.defaultdict(set)
     self._nld_specified_str_tokens = collections.defaultdict(set)
+    self._nld_sequence_length_excluded_int_tokens = {}
+    self._nld_sequence_length_excluded_string_tokens = {}
     self._vocabs = {}
     self._rvocabs = {}
     self._feature_type_fns = {
@@ -430,6 +521,11 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
               coverage_constraints.excluded_int_tokens)
           self._nld_oov_string_tokens[k] = set(
               coverage_constraints.oov_string_tokens)
+          sequence_length_constraints = nld.sequence_length_constraints
+          self._nld_sequence_length_excluded_int_tokens[k] = set(
+              sequence_length_constraints.excluded_int_value)
+          self._nld_sequence_length_excluded_string_tokens[k] = set(
+              sequence_length_constraints.excluded_string_value)
           if (self._nld_vocabularies[k] or
               self._nld_excluded_string_tokens[k] or
               self._nld_excluded_int_tokens[k] or
@@ -495,13 +591,20 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     oov_string_tokens = self._nld_oov_string_tokens[feature_path]
     int_tokens = self._nld_specified_int_tokens[feature_path]
     string_tokens = self._nld_specified_str_tokens[feature_path]
+    sequence_length_excluded_int_tokens = (
+        self._nld_sequence_length_excluded_int_tokens[feature_path])
+    sequence_length_excluded_string_tokens = (
+        self._nld_sequence_length_excluded_string_tokens[feature_path])
 
     # TODO(b/175875824): Benchmark and optimize performance.
     for row in feature_array.to_pylist():
       if row is not None:
         feature_type_fn(row, accumulator, excluded_string_tokens,
                         excluded_int_tokens, oov_string_tokens, vocab, rvocab,
-                        int_tokens, string_tokens, self._num_histogram_buckets)
+                        int_tokens, string_tokens,
+                        sequence_length_excluded_int_tokens,
+                        sequence_length_excluded_string_tokens,
+                        self._num_histogram_buckets)
     return accumulator
 
   def merge_accumulators(
@@ -521,6 +624,7 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
 
   def compact(self, accumulator: _PartialNLStats) -> _PartialNLStats:
     accumulator.vocab_token_length_quantiles.Compact()
+    accumulator.sequence_length_quantiles.Compact()
     return accumulator
 
   def extract_output(
@@ -550,6 +654,14 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
           accumulator.num_in_vocab_tokens)
       result.custom_stats.add(
           name='nl_avg_token_length', num=nls.avg_token_length)
+    if accumulator.min_sequence_length:
+      nls.min_sequence_length = accumulator.min_sequence_length
+      result.custom_stats.add(
+          name='nl_min_sequence_length', num=nls.min_sequence_length)
+    if accumulator.max_sequence_length:
+      nls.max_sequence_length = accumulator.max_sequence_length
+      result.custom_stats.add(
+          name='nl_max_sequence_length', num=nls.max_sequence_length)
     if self._num_quantiles_histogram_buckets:
       _populate_token_length_histogram(nls, accumulator,
                                        self._num_quantiles_histogram_buckets)
@@ -557,6 +669,12 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
         result.custom_stats.add(
             name='nl_token_length_histogram',
             histogram=nls.token_length_histogram)
+      _populate_sequence_length_histogram(nls, accumulator,
+                                          self._num_quantiles_histogram_buckets)
+      if nls.sequence_length_histogram.buckets:
+        result.custom_stats.add(
+            name='nl_sequence_length_histogram',
+            histogram=nls.sequence_length_histogram)
     if self._num_rank_histogram_buckets:
       _populate_token_rank_histogram(nls, accumulator,
                                      self._num_rank_histogram_buckets)

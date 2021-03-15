@@ -2936,13 +2936,28 @@ class StatsImplTest(parameterized.TestCase):
 
     custom_nl_stats = expected_result.datasets[0].features[0].custom_stats.add(
         name='nl_statistics')
-    custom_nl_stats.any.Pack(
-        statistics_pb2.NaturalLanguageStatistics(
-            reported_sequences=['[1]', '[1]']))
+    nl_stats = statistics_pb2.NaturalLanguageStatistics(
+        min_sequence_length=1,
+        max_sequence_length=1,
+        reported_sequences=['[1]', '[1]'])
+    nl_stats.sequence_length_histogram.type = statistics_pb2.Histogram.QUANTILES
+    for _ in range(10):
+      nl_stats.sequence_length_histogram.buckets.add(
+          low_value=1, high_value=1, sample_count=0.1)
+    custom_nl_stats.any.Pack(nl_stats)
     expected_result.datasets[0].features[0].custom_stats.add(
         name='nl_feature_coverage', num=0.0)
     expected_result.datasets[0].features[0].custom_stats.add(
+        name='nl_min_sequence_length', num=1.0)
+    expected_result.datasets[0].features[0].custom_stats.add(
+        name='nl_max_sequence_length', num=1.0)
+    expected_result.datasets[0].features[0].custom_stats.add(
         name='nl_reported_sequences', str='[1]\n[1]')
+    sequence_len_histogram = (
+        expected_result.datasets[0].features[0].custom_stats.add(
+            name='nl_sequence_length_histogram'))
+    sequence_len_histogram.histogram.CopyFrom(
+        nl_stats.sequence_length_histogram)
     with beam.Pipeline() as p:
       result = (
           p | beam.Create(record_batches, reshuffle=False)

@@ -68,6 +68,9 @@ class NaturalLanguageStatsGeneratorTest(
               excluded_int_tokens: [1]
               oov_string_tokens: ['Bar', 'Baz']
             }
+            sequence_length_constraints {
+              excluded_string_value: ['Razzz']
+            }
           }
         }
         feature {
@@ -124,6 +127,9 @@ class NaturalLanguageStatsGeneratorTest(
         invalidate=False, num_in_vocab_tokens=2, total_num_tokens=3)
     stats.vocab_token_length_quantiles.AddValues(pa.array([1, 2, 2]))
     stats.token_occurrence_counts.AddValues(pa.array([b'foo', b'bar', b'bar']))
+    stats.min_sequence_length = 3
+    stats.max_sequence_length = 7
+    stats.sequence_length_quantiles.AddValues(pa.array([1, 2, 2]))
     ts = nlsg._TokenStats()
     ts.frequency = 10
     ts.num_sequences = 2
@@ -137,6 +143,9 @@ class NaturalLanguageStatsGeneratorTest(
         invalidate=False, num_in_vocab_tokens=7, total_num_tokens=10)
     stats_2.vocab_token_length_quantiles.AddValues(pa.array([2, 3]))
     stats_2.token_occurrence_counts.AddValues(pa.array([b'bar', b'baz']))
+    stats_2.min_sequence_length = None
+    stats_2.max_sequence_length = 9
+    stats_2.sequence_length_quantiles.AddValues(pa.array([2, 3]))
     ts1 = nlsg._TokenStats()
     ts1.frequency = 12
     ts1.num_sequences = 1
@@ -149,6 +158,8 @@ class NaturalLanguageStatsGeneratorTest(
     stats += stats_2
     self.assertEqual(9, stats.num_in_vocab_tokens)
     self.assertEqual(13, stats.total_num_tokens)
+    self.assertEqual(3, stats.min_sequence_length)
+    self.assertEqual(9, stats.max_sequence_length)
     self.assertEqual(False, stats.invalidate)
     token_occurrence_counts = stats.token_occurrence_counts.Estimate(
     ).to_pylist()
@@ -163,6 +174,10 @@ class NaturalLanguageStatsGeneratorTest(
         'counts': 1.0
     }])
     quantiles = stats.vocab_token_length_quantiles.GetQuantiles(2)
+    quantiles = quantiles.flatten().to_pylist()
+    self.assertListEqual(quantiles, [1, 2, 3])
+
+    quantiles = stats.sequence_length_quantiles.GetQuantiles(2)
     quantiles = quantiles.flatten().to_pylist()
     self.assertListEqual(quantiles, [1, 2, 3])
 
@@ -186,7 +201,10 @@ class NaturalLanguageStatsGeneratorTest(
       self,
       feature_coverage=None,
       avg_token_length=None,
+      min_sequence_length=None,
+      max_sequence_length=None,
       token_len_quantiles=None,
+      sequence_len_quantiles=None,
       sorted_token_names_and_counts=None,
       reported_sequences=None,
       token_statistics=None):
@@ -202,6 +220,16 @@ class NaturalLanguageStatsGeneratorTest(
       custom_stats.append(
           statistics_pb2.CustomStatistic(
               name='nl_avg_token_length', num=nls.avg_token_length))
+    if min_sequence_length:
+      nls.min_sequence_length = min_sequence_length
+      custom_stats.append(
+          statistics_pb2.CustomStatistic(
+              name='nl_min_sequence_length', num=nls.min_sequence_length))
+    if max_sequence_length:
+      nls.max_sequence_length = max_sequence_length
+      custom_stats.append(
+          statistics_pb2.CustomStatistic(
+              name='nl_max_sequence_length', num=nls.max_sequence_length))
     if token_len_quantiles:
       for low_value, high_value, sample_count in token_len_quantiles:
         nls.token_length_histogram.type = statistics_pb2.Histogram.QUANTILES
@@ -213,6 +241,17 @@ class NaturalLanguageStatsGeneratorTest(
           statistics_pb2.CustomStatistic(
               name='nl_token_length_histogram',
               histogram=nls.token_length_histogram))
+    if sequence_len_quantiles:
+      for low_value, high_value, sample_count in sequence_len_quantiles:
+        nls.sequence_length_histogram.type = statistics_pb2.Histogram.QUANTILES
+        nls.sequence_length_histogram.buckets.add(
+            low_value=low_value,
+            high_value=high_value,
+            sample_count=sample_count)
+      custom_stats.append(
+          statistics_pb2.CustomStatistic(
+              name='nl_sequence_length_histogram',
+              histogram=nls.sequence_length_histogram))
     if sorted_token_names_and_counts:
       for index, (token_name,
                   count) in enumerate(sorted_token_names_and_counts):
@@ -327,6 +366,8 @@ class NaturalLanguageStatsGeneratorTest(
         self._create_expected_feature_name_statistics(
             feature_coverage=0.5,
             avg_token_length=3,
+            min_sequence_length=1,
+            max_sequence_length=1,
             reported_sequences=expected_reported_sequences),
         self._string_nlp_feature_no_vocab_path)
 
@@ -345,6 +386,8 @@ class NaturalLanguageStatsGeneratorTest(
           self._create_expected_feature_name_statistics(
               feature_coverage=1.0,
               avg_token_length=4,
+              min_sequence_length=2,
+              max_sequence_length=2,
               reported_sequences=expected_reported_sequences),
           self._string_nlp_feature_with_vocab_path)
 
@@ -357,11 +400,13 @@ class NaturalLanguageStatsGeneratorTest(
         input_batches, generator,
         self._create_expected_feature_name_statistics(
             feature_coverage=0.0,
+            min_sequence_length=3,
+            max_sequence_length=3,
             reported_sequences=expected_reported_sequences),
         self._int_nlp_feature_no_vocab_path)
 
   def test_nl_generator_int_feature_vocab(self):
-    """Tests generator calcualtion with an int domain and a vocab."""
+    """Tests generator calculation with an int domain and a vocab."""
     with tempfile.NamedTemporaryFile() as vocab_file:
       vocab_file.write(b'Foo\nBar\nBaz\nBazz\n')
       vocab_file.flush()
@@ -374,11 +419,13 @@ class NaturalLanguageStatsGeneratorTest(
           self._create_expected_feature_name_statistics(
               feature_coverage=float(1) / 3,
               avg_token_length=4,
+              min_sequence_length=5,
+              max_sequence_length=5,
               reported_sequences=expected_reported_sequences),
           self._int_nlp_feature_with_vocab_path)
 
-  def test_nl_generator_token_histograms(self):
-    """Tests generator calculation with an int domain and a vocab."""
+  def test_nl_generator_token_and_sequence_histograms(self):
+    """Tests generator calculation of token and sequence histograms."""
     with tempfile.NamedTemporaryFile() as vocab_file:
       vocab_file.write(b'Foo\nBar\nBaz\nBazz\nCar\nRazzz\n')
       vocab_file.flush()
@@ -396,7 +443,10 @@ class NaturalLanguageStatsGeneratorTest(
           self._create_expected_feature_name_statistics(
               feature_coverage=0.8571428571428571,
               avg_token_length=(3 + 3 + 4 + 4 + 4 + 5) / 6,
+              min_sequence_length=3,
+              max_sequence_length=5,
               token_len_quantiles=[(3, 4, 3), (4, 5, 3)],
+              sequence_len_quantiles=[(3, 5, 1), (5, 5, 1)],
               sorted_token_names_and_counts=[('Bazz', 3), ('Car', 2)],
               reported_sequences=expected_reported_sequences),
           self._int_nlp_feature_with_vocab_path)
@@ -436,6 +486,8 @@ class NaturalLanguageStatsGeneratorTest(
           self._create_expected_feature_name_statistics(
               feature_coverage=1.0,
               avg_token_length=3,
+              min_sequence_length=3,
+              max_sequence_length=3,
               reported_sequences=expected_reported_sequences,
               token_statistics=expected_token_stats),
           self._int_nlp_feature_with_vocab_and_token_constraints_path)
