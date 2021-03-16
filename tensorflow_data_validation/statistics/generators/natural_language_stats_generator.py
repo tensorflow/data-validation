@@ -70,6 +70,7 @@ from tensorflow_data_validation.utils import stats_util
 from tensorflow_data_validation.utils import vocab_util
 
 from tfx_bsl import sketches
+from tfx_bsl.types import tfx_namedtuple
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -84,9 +85,20 @@ _QUANTILES_SKETCH_NUM_STREAMS = 1
 _NUM_REPORTED_SEQUENCES_PER_TYPE = 5
 
 
-def _sort_and_truncate_reported_sequence(sequence):
-  sequence.sort(key=lambda x: x[1])
-  return sequence[:_NUM_REPORTED_SEQUENCES_PER_TYPE]
+_ReportedSequence = tfx_namedtuple.namedtuple(
+    '_ReportedSequence', ['sequence', 'hash_value', 'metric'])
+
+
+def _sort_and_truncate_reported_sequence(sequence: List[_ReportedSequence]):
+  sequence.sort(key=lambda x: x.metric)
+  deduped_values = []
+  hash_values = set()
+  for s in sequence:
+    if s.hash_value in hash_values:
+      continue
+    hash_values.add(s.hash_value)
+    deduped_values.append(s)
+  return deduped_values[:_NUM_REPORTED_SEQUENCES_PER_TYPE]
 
 
 class _TokenStats(object):
@@ -240,7 +252,11 @@ def _update_accumulator_reported_sequences(accumulator: _PartialNLStats,
   for attr, metric in [('reported_sequences_coverage', coverage),
                        ('reported_sequences_avg_token_length', avg_token_len)]:
     cur_list = getattr(accumulator, attr)
-    cur_list.append((resolved_entry, metric))
+    cur_list.append(
+        _ReportedSequence(
+            sequence=resolved_entry,
+            hash_value=hash(str(resolved_entry)),
+            metric=metric))
     cur_list = _sort_and_truncate_reported_sequence(cur_list)
     setattr(accumulator, attr, cur_list)
 

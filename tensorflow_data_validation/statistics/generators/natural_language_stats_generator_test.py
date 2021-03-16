@@ -410,7 +410,7 @@ class NaturalLanguageStatsGeneratorTest(
     with tempfile.NamedTemporaryFile() as vocab_file:
       vocab_file.write(b'Foo\nBar\nBaz\nBazz\n')
       vocab_file.flush()
-      input_batches = [pa.array([[0, 1, 2, 3, 4]])]
+      input_batches = [pa.array([[0, 1, 2, 3, 4]]), pa.array([[0, 1, 2, 3, 4]])]
       generator = nlsg.NLStatsGenerator(self._schema,
                                         {'my_vocab': vocab_file.name}, 0, 0, 0)
       expected_reported_sequences = [['Foo', 'Bar', 'Baz', 'Bazz', 4]] * 2
