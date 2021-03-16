@@ -8,6 +8,7 @@
 
 * Added check for invalid min and max values for `values_counts` for nested
   features.
+* Bumped the mininum bazel version required to build TFDV to 3.7.2.
 
 ## Known Issues
 
