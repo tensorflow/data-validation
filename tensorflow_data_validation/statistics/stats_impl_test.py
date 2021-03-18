@@ -21,6 +21,7 @@ from __future__ import print_function
 from absl.testing import absltest
 from absl.testing import parameterized
 import apache_beam as beam
+from apache_beam.options import pipeline_options
 from apache_beam.testing import util
 import numpy as np
 import pyarrow as pa
@@ -38,6 +39,10 @@ from google.protobuf import text_format
 from tensorflow.python.util.protobuf import compare
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
+
+
+# TODO(b/181911927): Remove this workaround.
+pipeline_options.TypeOptions.allow_non_deterministic_key_coders = True
 
 
 # Testing classes for 'custom_feature_generator' testcase.
