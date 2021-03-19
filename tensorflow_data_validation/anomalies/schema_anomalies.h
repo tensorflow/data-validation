@@ -67,13 +67,6 @@ class SchemaAnomalyBase {
       bool enable_diff_regions) const;
 
  protected:
-  // Returns an AnomalyInfo representing the change. Takes as an input the
-  // text version of the existing schema and the new schema.
-  tensorflow::metadata::v0::AnomalyInfo GetBaseAnomalyInfoCommon(
-      const tensorflow::metadata::v0::Schema& existing_schema,
-      const tensorflow::metadata::v0::Schema& new_schema,
-      bool enable_diff_regions) const;
-
   // A new schema that will make the anomaly go away.
   std::unique_ptr<Schema> schema_;
   // Descriptions of what caused the anomaly.
