@@ -259,50 +259,6 @@ TEST(SchemaAnomalies, SimpleBadSchemaConfigurations) {
         })");
   for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
     std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
-    expected_anomalies["no_type"].new_schema = ParseTextProtoOrDie<Schema>(R"(
-      feature {
-        name: "no_type"
-        presence: { min_count: 1 min_fraction: 1.0 }
-        value_count: { min: 1 max: 1 }
-        float_domain: { disallow_nan: true }
-      })");
-    expected_anomalies["invalid_value_count"].new_schema =
-        ParseTextProtoOrDie<Schema>(R"(
-          feature {
-            name: "invalid_value_count"
-            presence: { min_count: 1 }
-            value_count: { min: -1 max: 3 }
-            type: BYTES
-          })");
-    expected_anomalies["invalid_presence"].new_schema =
-        ParseTextProtoOrDie<Schema>(R"(
-          feature {
-            name: "invalid_presence"
-            presence: { min_fraction: 1.5 }
-            type: BYTES
-          })");
-    expected_anomalies["nl_float"].new_schema = ParseTextProtoOrDie<Schema>(R"(
-      feature {
-        name: "nl_float"
-        presence: { min_fraction: 1.0 }
-        type: FLOAT
-      })");
-    expected_anomalies["struct_bytes"].new_schema =
-        ParseTextProtoOrDie<Schema>(R"(
-          feature {
-            name: "struct_bytes"
-            presence: { min_fraction: 1.0 }
-            type: BYTES
-          })");
-    expected_anomalies["distribution_constraints_bool"].new_schema =
-        ParseTextProtoOrDie<Schema>(R"(
-          feature {
-            name: "distribution_constraints_bool"
-            presence: { min_fraction: 1.0 }
-            bool_domain: {}
-            distribution_constraints: { min_domain_mass: .8 }
-            type: FLOAT
-          })");
     expected_anomalies["no_type"]
         .expected_info_without_diff = ParseTextProtoOrDie<
         tensorflow::metadata::v0::AnomalyInfo>(R"(
@@ -459,23 +415,6 @@ TEST(SchemaAnomalies, FindNansInFloatDisallowNans) {
         })");
   for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
     std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
-    expected_anomalies["income"].new_schema = ParseTextProtoOrDie<Schema>(R"(
-      feature {
-        name: "income"
-        presence: { min_count: 1 min_fraction: 1.0 }
-        value_count: { min: 1 max: 1 }
-        type: FLOAT
-        float_domain: { disallow_nan: false }
-      })");
-    expected_anomalies["string_encoded_float"].new_schema =
-        ParseTextProtoOrDie<Schema>(R"(
-          feature {
-            name: "string_encoded_float"
-            presence: { min_count: 1 }
-            value_count: { min: 1 max: 3 }
-            type: BYTES
-            float_domain: { disallow_nan: true }
-          })");
     expected_anomalies["income"].expected_info_without_diff =
         ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
           path { step: "income" }
@@ -586,16 +525,6 @@ TEST(SchemaAnomalies, FindsLowSupportedImageFraction) {
         })");
   for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
     std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
-    expected_anomalies["image/encoded"].new_schema =
-        ParseTextProtoOrDie<Schema>(R""(
-          feature {
-            name: "image/encoded"
-            presence: { min_count: 1 min_fraction: 1.0 }
-            value_count: { min: 1 max: 1 }
-            type: BYTES
-            image_domain: { minimum_supported_image_fraction: 0.8 }
-          }
-        )"");
     expected_anomalies["image/encoded"].expected_info_without_diff =
         ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
           path { step: "image/encoded" }
@@ -717,22 +646,6 @@ TEST(SchemaAnomalies, FindInfsInFloatDisallowInfs) {
         })");
   for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
     std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
-    expected_anomalies["income"].new_schema = ParseTextProtoOrDie<Schema>(R"(
-      feature {
-        name: "income"
-        presence: { min_count: 1 min_fraction: 1.0 }
-        value_count: { min: 1 max: 1 }
-        type: FLOAT
-        float_domain: { disallow_inf: false }
-      })");
-    expected_anomalies["age"].new_schema = ParseTextProtoOrDie<Schema>(R"(
-      feature {
-        name: "age"
-        presence: { min_count: 1 min_fraction: 1.0 }
-        value_count: { min: 1 max: 1 }
-        type: FLOAT
-        float_domain: { disallow_inf: false }
-      })");
     expected_anomalies["income"].expected_info_without_diff =
         ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
           path { step: "income" }
@@ -868,13 +781,6 @@ TEST(SchemaAnomalies, FindChangesCategoricalIntFeature) {
         })");
   for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
     std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
-    expected_anomalies["a_int"].new_schema = ParseTextProtoOrDie<Schema>(R"(
-      feature {
-        name: "a_int"
-        value_count { min: 1 max: 2 }
-        type: INT
-        int_domain { is_categorical: true }
-      })");
     expected_anomalies["a_int"].expected_info_without_diff =
         ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
           path { step: "a_int" }
@@ -1004,30 +910,6 @@ TEST(SchemaAnomalies, FindChangesBooleanFloatFeature) {
         })");
   for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
     std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
-    expected_anomalies["a_float_outside_range"].new_schema =
-        ParseTextProtoOrDie<Schema>(R"(
-          feature {
-            name: "a_float_outside_range"
-            value_count { min: 1 max: 1 }
-            type: FLOAT
-            float_domain { min: 0, max: 1 }
-          })");
-    expected_anomalies["a_float_with_nans"].new_schema =
-        ParseTextProtoOrDie<Schema>(R"(
-          feature {
-            name: "a_float_with_nans"
-            value_count { min: 1 max: 1 }
-            type: FLOAT
-            float_domain { min: 0, max: 1 }
-          })");
-    expected_anomalies["a_float_between_0_and_1"].new_schema =
-        ParseTextProtoOrDie<Schema>(R"(
-          feature {
-            name: "a_float_between_0_and_1"
-            value_count { min: 1 max: 1 }
-            type: FLOAT
-            float_domain { min: 0, max: 1 }
-          })");
     expected_anomalies["a_float_outside_range"]
         .expected_info_without_diff = ParseTextProtoOrDie<
         tensorflow::metadata::v0::AnomalyInfo>(R"(
@@ -1110,14 +992,6 @@ TEST(SchemaAnomalies, FindChangesDatasetLevelChanges) {
       short_description: "Low num examples in dataset.",
       description: "The dataset has 1 examples, which is fewer than expected."
     })");
-  expected_anomaly_info.new_schema =
-      ParseTextProtoOrDie<Schema>(R"(dataset_constraints {
-                                       min_examples_count: 1
-                                       num_examples_version_comparator {
-                                         min_fraction_threshold: 0.5,
-                                         max_fraction_threshold: 1.0
-                                       }
-                                     })");
 
   SchemaAnomalies anomalies(schema_proto);
   for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
@@ -1159,14 +1033,6 @@ TEST(SchemaAnomalies, SemanticTypeUpdates) {
 
   std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
   // Anomaly for updating an existing feature with semantic type.
-  expected_anomalies["old_nl_feature"].new_schema =
-      ParseTextProtoOrDie<Schema>(R"pb(
-        feature {
-          name: "old_nl_feature"
-          value_count: { min: 1 max: 1 }
-          type: BYTES
-          natural_language_domain {}
-        })pb");
   expected_anomalies["old_nl_feature"].expected_info_without_diff =
       ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"pb(
         path { step: "old_nl_feature" }
@@ -1179,14 +1045,6 @@ TEST(SchemaAnomalies, SemanticTypeUpdates) {
           description: "Updated semantic domain for feature: old_nl_feature"
         })pb");
   // Anomaly for creating a new feature with semantic type.
-  expected_anomalies["new_nl_feature"].new_schema =
-      ParseTextProtoOrDie<Schema>(R"pb(
-        feature {
-          name: "new_nl_feature"
-          value_count: { min: 1 max: 1 }
-          type: BYTES
-          natural_language_domain {}
-        })pb");
   expected_anomalies["new_nl_feature"].expected_info_without_diff =
       ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"pb(
         path { step: "new_nl_feature" }
@@ -1241,30 +1099,6 @@ TEST(SchemaAnomalies, FindChanges) {
 
   for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
     std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
-    expected_anomalies["annotated_enum"].new_schema =
-        ParseTextProtoOrDie<Schema>(R"(
-          feature {
-            name: "annotated_enum"
-            value_count { min: 1 max: 1 }
-            type: BYTES
-            domain: "MyAloneEnum"
-            presence { min_count: 1 }
-            annotation { tag: "some tag" comment: "some comment" }
-          }
-          feature {
-            name: "ignore_this"
-            lifecycle_stage: DEPRECATED
-            value_count { min: 1 }
-            type: BYTES
-            presence { min_count: 1 }
-          }
-          string_domain {
-            name: "MyAloneEnum"
-            value: "A"
-            value: "B"
-            value: "C"
-            value: "D"
-          })");
     expected_anomalies["annotated_enum"]
         .expected_info_without_diff = ParseTextProtoOrDie<
         tensorflow::metadata::v0::AnomalyInfo>(R"(
@@ -1331,12 +1165,6 @@ TEST(SchemaAnomalies, FindSkewStringFeature) {
   SchemaAnomalies skew(schema_proto);
   TF_CHECK_OK(skew.FindSkew(*training_view));
   std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
-  expected_anomalies["foo"].new_schema = ParseTextProtoOrDie<Schema>(R"(
-    feature {
-      name: "foo"
-      type: BYTES
-      skew_comparator { infinity_norm: { threshold: 0.19999999999999998 } }
-    })");
   expected_anomalies["foo"].expected_info_without_diff = ParseTextProtoOrDie<
       tensorflow::metadata::v0::AnomalyInfo>(R"(
     path { step: "foo" }
@@ -1426,12 +1254,6 @@ TEST(SchemaAnomalies, FindSkewNumericFeature) {
   SchemaAnomalies skew(schema_proto);
   TF_CHECK_OK(skew.FindSkew(*training_view));
   std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
-  expected_anomalies["foo"].new_schema = ParseTextProtoOrDie<Schema>(R"(
-    feature {
-      name: "foo"
-      type: INT
-      skew_comparator { jensen_shannon_divergence: { threshold: 1.0 } }
-    })");
   expected_anomalies["foo"].expected_info_without_diff = ParseTextProtoOrDie<
       tensorflow::metadata::v0::AnomalyInfo>(R"(
     path { step: "foo" }
@@ -1585,14 +1407,6 @@ TEST(SchemaAnomalies, UniqueNotInRange) {
     })");
 
   std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
-  expected_anomalies["categorical_feature"].new_schema =
-      ParseTextProtoOrDie<Schema>(R"(
-       feature {
-          name: "categorical_feature"
-          type: INT
-          int_domain { is_categorical: true }
-          unique_constraints { min: 1 max: 5 }
-        })");
   expected_anomalies["categorical_feature"].expected_info_without_diff =
       ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
         path { step: "categorical_feature" }
@@ -1603,13 +1417,6 @@ TEST(SchemaAnomalies, UniqueNotInRange) {
           type: FEATURE_TYPE_HIGH_UNIQUE
           short_description: "High number of unique values"
           description: "Expected no more than 1 unique values but found 5."
-        })");
-  expected_anomalies["string_feature"].new_schema =
-      ParseTextProtoOrDie<Schema>(R"(
-        feature {
-          name: "string_feature"
-          type: BYTES
-          unique_constraints { min: 1 max: 5 }
         })");
   expected_anomalies["string_feature"].expected_info_without_diff =
       ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
@@ -1622,9 +1429,6 @@ TEST(SchemaAnomalies, UniqueNotInRange) {
           short_description: "Low number of unique values"
           description: "Expected at least 5 unique values but found only 1."
         })");
-  expected_anomalies["numeric_feature"].new_schema =
-      ParseTextProtoOrDie<Schema>(R"(
-        feature { name: "numeric_feature" type: FLOAT })");
   expected_anomalies["numeric_feature"]
       .expected_info_without_diff = ParseTextProtoOrDie<
       tensorflow::metadata::v0::AnomalyInfo>(R"(
@@ -1698,14 +1502,6 @@ TEST(Schema, FindChangesEmptySchemaProto) {
           }
         })");
   std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
-  expected_anomalies["annotated_enum"].new_schema =
-      ParseTextProtoOrDie<Schema>(R"(
-        feature {
-          name: "annotated_enum"
-          presence: { min_count: 1 }
-          value_count: { min: 1 max: 1 }
-          type: BYTES
-        })");
   expected_anomalies["annotated_enum"].expected_info_without_diff =
       ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"pb(
         path { step: "annotated_enum" }
@@ -1766,28 +1562,6 @@ TEST(Schema, FindChangesOnlyValidateSchemaFeatures) {
     })");
 
   std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
-  expected_anomalies["new_feature"].new_schema =
-      ParseTextProtoOrDie<Schema>(
-          R"(
-            feature {
-              name: "annotated_enum"
-              value_count { min: 1 max: 1 }
-              type: BYTES
-              domain: "MyAloneEnum"
-              presence { min_count: 1 }
-            }
-            feature {
-              name: "new_feature"
-              value_count { min: 1 max: 1 }
-              type: INT
-              presence { min_count: 1 }
-            }
-            string_domain {
-              name: "MyAloneEnum"
-              value: "A"
-              value: "B"
-              value: "C"
-            })");
   expected_anomalies["new_feature"].expected_info_without_diff =
       ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"pb(
         path: { step: "new_feature" }
@@ -1859,14 +1633,6 @@ TEST(GetSchemaDiff, BasicTest) {
         }
       )");
   std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
-  expected_anomalies["foo"].new_schema = ParseTextProtoOrDie<Schema>(R"(
-    feature { name: "bar" type: INT }
-    feature {
-      name: "foo"
-      value_count { min: 1 max: 1 }
-      type: INT
-      presence { min_count: 1 }
-    })");
   expected_anomalies["foo"].expected_info_without_diff =
       ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"pb(
         path: { step: "foo" }
@@ -1936,18 +1702,6 @@ TEST(GetSchemaDiff, FindSelectedChanges) {
 
       );
   std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
-  expected_anomalies["foo"].new_schema = ParseTextProtoOrDie<Schema>(R"(
-    feature {
-      name: "bar"
-      value_count { max: 1 }
-      type: INT
-    }
-    feature {
-      name: "foo"
-      value_count { min: 1 max: 1 }
-      type: INT
-      presence { min_count: 1 }
-    })");
   expected_anomalies["foo"].expected_info_without_diff =
       ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"pb(
         path { step: "foo" }
@@ -1959,12 +1713,6 @@ TEST(GetSchemaDiff, FindSelectedChanges) {
           short_description: "New column"
           description: "New column (column in data but not in schema)"
         })pb");
-  expected_anomalies["bar"].new_schema = ParseTextProtoOrDie<Schema>(R"(
-    feature {
-      name: "bar"
-      value_count { max: 2 }
-      type: INT
-    })");
   expected_anomalies["bar"].expected_info_without_diff =
       ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
         path { step: "bar" }
@@ -2095,7 +1843,6 @@ TEST(GetSchemaDiff, SparseFeatureNameCollision) {
   DeprecateSparseFeature(schema_deprecated.mutable_sparse_feature(0));
   DeprecateFeature(schema_deprecated.mutable_feature(0));
   std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
-  expected_anomalies["existing_feature"].new_schema = schema_deprecated;
   expected_anomalies["existing_feature"].expected_info_without_diff =
       ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
         path: { step: "existing_feature" }
@@ -2127,7 +1874,6 @@ TEST(GetSchemaDiff, SchemaMissingColumn) {
   Schema schema_deprecated = schema_proto;
   DeprecateFeature(schema_deprecated.mutable_feature(0));
   std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
-  expected_anomalies["f1"].new_schema = schema_deprecated;
   expected_anomalies["f1"].expected_info_without_diff =
       ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
         path: { step: "f1" }
@@ -2199,28 +1945,6 @@ TEST(SchemaAnomalyTest, CreateNewField) {
                              absl::nullopt, *view.GetByPath(Path({"struct"}))));
 
   testing::ExpectedAnomalyInfo expected_anomaly_info;
-  expected_anomaly_info.new_schema =
-      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
-        feature {
-          name: "struct"
-          value_count { min: 1 }
-          type: STRUCT
-          presence { min_count: 1 }
-          struct_domain {
-            feature {
-              name: "bar.baz"
-              value_count { min: 1 }
-              type: INT
-              presence { min_count: 1 }
-            }
-            feature {
-              name: "foo"
-              value_count { min: 1 }
-              type: INT
-              presence { min_count: 1 }
-            }
-          }
-        })");
   expected_anomaly_info.expected_info_without_diff =
       ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"pb(
         path {}
@@ -2289,22 +2013,6 @@ TEST(SchemaAnomalyTest, CreateNewFieldSome) {
       *view.GetByPath(Path({"struct"}))));
 
   testing::ExpectedAnomalyInfo expected_anomaly_info;
-  expected_anomaly_info.new_schema =
-      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
-        feature {
-          name: "struct"
-          value_count { min: 1 }
-          type: STRUCT
-          presence { min_count: 1 }
-          struct_domain {
-            feature {
-              name: "foo"
-              value_count { min: 1 }
-              type: INT
-              presence { min_count: 1 }
-            }
-          }
-        })");
   expected_anomaly_info.expected_info_without_diff =
       ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"pb(
         path {}
@@ -2367,28 +2075,6 @@ TEST(SchemaAnomaliesTest, FindChangesCreateDeep) {
 
   DatasetStatsView view(stats);
   std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
-  expected_anomalies["struct"].new_schema =
-      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
-        feature {
-          name: "struct"
-          value_count { min: 1 }
-          type: STRUCT
-          presence { min_count: 1 }
-          struct_domain {
-            feature {
-              name: "bar.baz"
-              value_count { min: 1 }
-              type: INT
-              presence { min_count: 1 }
-            }
-            feature {
-              name: "foo"
-              value_count { min: 1 }
-              type: INT
-              presence { min_count: 1 }
-            }
-          }
-        })");
   expected_anomalies["struct"].expected_info_without_diff =
       ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"pb(
         path { step: "struct" }
@@ -2456,22 +2142,6 @@ TEST(SchemaAnomaliesTest, FindChangesCreateDeepSeparately) {
 
   DatasetStatsView view(stats);
   std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
-  expected_anomalies["struct.foo"].new_schema =
-      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
-        feature {
-          name: "struct"
-          value_count { min: 1 }
-          type: STRUCT
-          presence { min_count: 1 }
-          struct_domain {
-            feature {
-              name: "foo"
-              value_count { min: 1 }
-              type: INT
-              presence { min_count: 1 }
-            }
-          }
-        })");
   expected_anomalies["struct.foo"].expected_info_without_diff =
       ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"pb(
         path: { step: [ "struct", "foo" ] }
@@ -2483,22 +2153,6 @@ TEST(SchemaAnomaliesTest, FindChangesCreateDeepSeparately) {
           short_description: "New column"
           description: "New column (column in data but not in schema)"
         })pb");
-  expected_anomalies["struct.'bar.baz'"].new_schema =
-      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
-        feature {
-          name: "struct"
-          value_count { min: 1 }
-          type: STRUCT
-          presence { min_count: 1 }
-          struct_domain {
-            feature {
-              name: "bar.baz"
-              value_count { min: 1 }
-              type: INT
-              presence { min_count: 1 }
-            }
-          }
-        })");
   expected_anomalies["struct.'bar.baz'"].expected_info_without_diff =
       ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"pb(
         path: { step: [ "struct", "bar.baz" ] }
@@ -2647,7 +2301,6 @@ TEST(GetSchemaDiff, MissingFeatureSparseFeature) {
   Schema schema_deprecated = schema_proto;
   DeprecateSparseFeature(schema_deprecated.mutable_sparse_feature(0));
   std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
-  expected_anomalies["sparse_feature"].new_schema = schema_deprecated;
   expected_anomalies["sparse_feature"]
       .expected_info_without_diff = ParseTextProtoOrDie<
       tensorflow::metadata::v0::AnomalyInfo>(R"(
@@ -2728,7 +2381,6 @@ TEST(GetSchemaDiff, LengthMismatchSparseFeature) {
   DeprecateSparseFeature(schema_deprecated.mutable_sparse_feature(0));
 
   std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
-  expected_anomalies["sparse_feature"].new_schema = schema_deprecated;
   expected_anomalies["sparse_feature"]
       .expected_info_without_diff = ParseTextProtoOrDie<
       tensorflow::metadata::v0::AnomalyInfo>(R"(
@@ -2813,13 +2465,6 @@ TEST(SchemaAnomalies, GetSchemaDiffTwoReasons) {
   TF_CHECK_OK(anomalies.FindChanges(stats_view_2, absl::nullopt, config));
   std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
 
-  expected_anomalies["bar"].new_schema = ParseTextProtoOrDie<Schema>(R"(
-    feature {
-      name: "bar"
-      value_count { min: 1 max: 10 }
-      type: INT
-      presence { min_count: 1 }
-    })");
   expected_anomalies["bar"].expected_info_without_diff = ParseTextProtoOrDie<
       tensorflow::metadata::v0::AnomalyInfo>(R"pb(
     path: { step: "bar" }
@@ -2871,14 +2516,6 @@ TEST(GetSchemaDiff, TwoChanges) {
       )");
 
   std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
-
-  expected_anomalies["bar"].new_schema = ParseTextProtoOrDie<Schema>(R"(
-    feature {
-      name: "bar"
-      value_count { min: 1 max: 1 }
-      type: INT
-      presence { min_count: 1 }
-    })");
   expected_anomalies["bar"].expected_info_without_diff =
       ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"pb(
         path: { step: "bar" }
@@ -2890,13 +2527,6 @@ TEST(GetSchemaDiff, TwoChanges) {
           short_description: "New column"
           description: "New column (column in data but not in schema)"
         })pb");
-  expected_anomalies["foo"].new_schema = ParseTextProtoOrDie<Schema>(R"(
-    feature {
-      name: "foo"
-      value_count { min: 1 max: 1 }
-      type: INT
-      presence { min_count: 1 }
-    })");
   expected_anomalies["foo"].expected_info_without_diff =
       ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"pb(
         path: { step: "foo" }
@@ -2942,18 +2572,6 @@ TEST(SchemaAnomalies, FindsMaxImageByteSizeExceeded) {
         })");
   for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
     std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
-    expected_anomalies["image/encoded"].new_schema =
-        ParseTextProtoOrDie<Schema>(R""(
-          feature {
-            name: "image/encoded"
-            presence: { min_count: 1 min_fraction: 1.0 }
-            value_count: { min: 1 max: 1 }
-            type: BYTES
-            image_domain: {
-              max_image_byte_size: 101
-            }
-          }
-        )"");
     expected_anomalies["image/encoded"].expected_info_without_diff =
         ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
           path { step: "image/encoded" }
