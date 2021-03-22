@@ -177,7 +177,7 @@ setup(
     # Make sure to sync the versions of common dependencies (absl-py, numpy,
     # six, and protobuf) with TF.
     install_requires=[
-        'absl-py>=0.9,<0.11',
+        'absl-py>=0.9,<0.13',
         'apache-beam[gcp]>=2.28,<3',
         # TODO(b/139941423): Consider using multi-processing provided by
         # Beam's DirectRunner.

@@ -6,9 +6,10 @@
 
 ## Bug Fixes and Other Changes
 
-* Added check for invalid min and max values for `values_counts` for nested
-  features.
-* Bumped the mininum bazel version required to build TFDV to 3.7.2.
+*   Added check for invalid min and max values for `values_counts` for nested
+    features.
+*   Bumped the mininum bazel version required to build TFDV to 3.7.2.
+*   Depends on `absl-py>=0.9,<0.13`.
 
 ## Known Issues
 
