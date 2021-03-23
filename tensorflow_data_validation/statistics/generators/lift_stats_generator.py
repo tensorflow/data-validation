@@ -63,25 +63,34 @@ _CountType = Union[int, float]
 _SlicedYKey = typing.NamedTuple('_SlicedYKey', [('slice_key', types.SliceKey),
                                                 ('y', _YType)])
 
-_SlicedXKey = typing.NamedTuple('_SlicedXKey', [('slice_key', types.SliceKey),
-                                                ('x_path', types.FeaturePath),
-                                                ('x', _XType)])
 
-_SlicedXYKey = typing.NamedTuple('_SlicedXYKey', [('slice_key', types.SliceKey),
-                                                  ('x_path', types.FeaturePath),
-                                                  ('x', _XType), ('y', _YType)])
+# TODO(embr,zhuo): FeaturePathTuple is used instead of FeaturePath because:
+#  - FeaturePath does not have a deterministic coder
+#  - Even if it does, beam does not automatically derive a coder for a
+#    NamedTuple.
+#  Once the latter is supported we can change all FEaturePathTuples back to
+#  FeaturePaths.
+_SlicedXKey = typing.NamedTuple('_SlicedXKey',
+                                [('slice_key', types.SliceKey),
+                                 ('x_path', types.FeaturePathTuple),
+                                 ('x', _XType)])
+
+_SlicedXYKey = typing.NamedTuple('_SlicedXYKey',
+                                 [('slice_key', types.SliceKey),
+                                  ('x_path', types.FeaturePathTuple),
+                                  ('x', _XType), ('y', _YType)])
 
 _LiftSeriesKey = typing.NamedTuple('_LiftSeriesKey',
                                    [('slice_key', types.SliceKey),
-                                    ('x_path', types.FeaturePath),
+                                    ('x_path', types.FeaturePathTuple),
                                     ('y', _YType), ('y_count', _CountType)])
 
 _SlicedFeatureKey = typing.NamedTuple('_SlicedFeatureKey',
                                       [('slice_key', types.SliceKey),
-                                       ('x_path', types.FeaturePath)])
+                                       ('x_path', types.FeaturePathTuple)])
 
 _ConditionalYRate = typing.NamedTuple('_ConditionalYRate',
-                                      [('x_path', types.FeaturePath),
+                                      [('x_path', types.FeaturePathTuple),
                                        ('x', _XType), ('xy_count', _CountType),
                                        ('x_count', _CountType)])
 
@@ -171,15 +180,15 @@ def _get_example_value_presence(
   if is_binary_like:
     # return binary like values a pd.Categorical wrapped in a Series. This makes
     # subsqeuent operations like pd.Merge cheaper.
-    values = arr_flat_dict[values]
+    values = arr_flat_dict[values].tolist()
   else:
     values = values.tolist()  # converts values to python native types.
   if weight_column_name:
     weights = arrow_util.get_weight_feature(record_batch, weight_column_name)
-    weights = np.asarray(weights)[example_indices]
+    weights = np.asarray(weights)[example_indices].tolist()
   else:
     weights = np.ones(len(example_indices), dtype=int).tolist()
-  return _ValuePresence(example_indices, values, weights)
+  return _ValuePresence(example_indices.tolist(), values, weights)
 
 
 def _to_partial_copresence_counts(
@@ -246,7 +255,8 @@ def _to_partial_copresence_counts(
     if num_xy_pairs_batch_copresent:
       num_xy_pairs_batch_copresent.update(len(copresence_counts))
     for (x, y), count in copresence_counts.items():
-      yield _SlicedXYKey(slice_key=slice_key, x_path=x_path, x=x, y=y), count
+      yield (_SlicedXYKey(slice_key=slice_key, x_path=x_path.steps(), x=x,
+                          y=y), count)
 
 
 def _to_partial_counts(
@@ -283,7 +293,7 @@ def _to_partial_x_counts(
         x_path,
         boundaries=None,
         weight_column_name=example_weight_map.get(x_path)):
-      yield _SlicedXKey(slice_key, x_path, x), x_count
+      yield _SlicedXKey(slice_key, x_path.steps(), x), x_count
 
 
 def _get_unicode_value(value: Union[Text, bytes]) -> Text:
@@ -324,11 +334,12 @@ def _make_dataset_feature_stats_proto(
     The populated DatasetFeatureStatistics proto.
   """
   key, lift_series_list = lifts
+  x_path = types.FeaturePath(key.x_path)
   stats = statistics_pb2.DatasetFeatureStatistics()
   cross_stats = stats.cross_features.add(
-      path_x=key.x_path.to_proto(), path_y=y_path.to_proto())
+      path_x=x_path.to_proto(), path_y=y_path.to_proto())
   if output_custom_stats:
-    feature_stats = stats.features.add(path=key.x_path.to_proto())
+    feature_stats = stats.features.add(path=x_path.to_proto())
   for lift_series in sorted(lift_series_list):
     lift_series_proto = (
         cross_stats.categorical_cross_stats.lift.lift_series.add())
@@ -392,7 +403,8 @@ def _make_dataset_feature_stats_proto(
 def _cross_join_y_keys(
     join_info: Tuple[types.SliceKey, Dict[Text, Sequence[Any]]]
     # TODO(b/147153346) update dict value list element type annotation to:
-    # Union[_YKey, Tuple[_YType, Tuple[types.FeaturePath, _XType, _CountType]]]
+    # Union[_YKey, Tuple[_YType,
+    #                    Tuple[types.FeaturePathTuple, _XType, _CountType]]]
 ) -> Iterator[Tuple[_SlicedXYKey, _CountType]]:
   slice_key, join_args = join_info
   for x_path, x, _ in join_args['x_counts']:

@@ -17,7 +17,6 @@ from typing import Optional, Sequence, Text
 
 from absl.testing import absltest
 import apache_beam as beam
-from apache_beam.options import pipeline_options
 import numpy as np
 import pandas as pd
 import pyarrow as pa
@@ -29,10 +28,6 @@ from tensorflow_data_validation.utils.example_weight_map import ExampleWeightMap
 from google.protobuf import text_format
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
-
-
-# TODO(b/181911927): Remove this workaround.
-pipeline_options.TypeOptions.allow_non_deterministic_key_coders = True
 
 
 def _get_example_value_presence_as_dataframe(
@@ -221,8 +216,8 @@ class ToPartialXCountsTest(absltest.TestCase):
     ], ['x'])
     x_path = types.FeaturePath(['x'])
     expected_counts = [
-        (lift_stats_generator._SlicedXYKey('', x_path, x=1, y=None), 2),
-        (lift_stats_generator._SlicedXYKey('', x_path, x=2, y=None), 1),
+        (lift_stats_generator._SlicedXYKey('', x_path.steps(), x=1, y=None), 2),
+        (lift_stats_generator._SlicedXYKey('', x_path.steps(), x=2, y=None), 1),
     ]
     for (expected_key, expected_count), (actual_key, actual_count) in zip(
         expected_counts,
@@ -241,8 +236,10 @@ class ToPartialXCountsTest(absltest.TestCase):
     ], ['x', 'w'])
     x_path = types.FeaturePath(['x'])
     expected_counts = [
-        (lift_stats_generator._SlicedXYKey('', x_path, x=1, y=None), 2.5),
-        (lift_stats_generator._SlicedXYKey('', x_path, x=2, y=None), 0.5),
+        (lift_stats_generator._SlicedXYKey('', x_path.steps(), x=1,
+                                           y=None), 2.5),
+        (lift_stats_generator._SlicedXYKey('', x_path.steps(), x=2,
+                                           y=None), 0.5),
     ]
     for (expected_key, expected_count), (actual_key, actual_count) in zip(
         expected_counts,
@@ -263,9 +260,9 @@ class ToPartialCopresenceCountsTest(absltest.TestCase):
     ], ['x', 'y'])
     x_path = types.FeaturePath(['x'])
     expected_counts = [
-        (lift_stats_generator._SlicedXYKey('', x_path, x=1, y='a'), 1),
-        (lift_stats_generator._SlicedXYKey('', x_path, x=1, y='b'), 1),
-        (lift_stats_generator._SlicedXYKey('', x_path, x=2, y='a'), 1)
+        (lift_stats_generator._SlicedXYKey('', x_path.steps(), x=1, y='a'), 1),
+        (lift_stats_generator._SlicedXYKey('', x_path.steps(), x=1, y='b'), 1),
+        (lift_stats_generator._SlicedXYKey('', x_path.steps(), x=2, y='a'), 1)
     ]
     actual_counts = list(
         lift_stats_generator._to_partial_copresence_counts(
@@ -284,9 +281,11 @@ class ToPartialCopresenceCountsTest(absltest.TestCase):
     ], ['x', 'y', 'w'])
     x_path = types.FeaturePath(['x'])
     expected_counts = [
-        (lift_stats_generator._SlicedXYKey('', x_path, x=1, y='a'), 0.5),
-        (lift_stats_generator._SlicedXYKey('', x_path, x=1, y='b'), 2.0),
-        (lift_stats_generator._SlicedXYKey('', x_path, x=2, y='a'), 0.5)
+        (lift_stats_generator._SlicedXYKey('', x_path.steps(), x=1,
+                                           y='a'), 0.5),
+        (lift_stats_generator._SlicedXYKey('', x_path.steps(), x=1,
+                                           y='b'), 2.0),
+        (lift_stats_generator._SlicedXYKey('', x_path.steps(), x=2, y='a'), 0.5)
     ]
     actual_counts = list(
         lift_stats_generator._to_partial_copresence_counts(
