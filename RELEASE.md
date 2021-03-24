@@ -6,16 +6,38 @@
 
 ## Bug Fixes and Other Changes
 
-*   Added check for invalid min and max values for `values_counts` for nested
-    features.
-*   Bumped the mininum bazel version required to build TFDV to 3.7.2.
-*   Depends on `absl-py>=0.9,<0.13`.
-
 ## Known Issues
 
 ## Breaking Changes
 
 ## Deprecations
+
+# Version 0.29.0
+
+## Major Features and Improvements
+
+*   N/A
+
+## Bug Fixes and Other Changes
+
+*   Added check for invalid min and max values for `values_counts` for nested
+    features.
+*   Bumped the mininum bazel version required to build TFDV to 3.7.2.
+*   Depends on `absl-py>=0.9,<0.13`.
+*   Depends on `tensorflow-metadata>=0.29,<0.30`.
+*   Depends on `tfx-bsl>=0.29,<0.30`.
+
+## Known Issues
+
+*   N/A
+
+## Breaking Changes
+
+*   N/A
+
+## Deprecations
+
+*   N/A
 
 # Version 0.28.0
 
