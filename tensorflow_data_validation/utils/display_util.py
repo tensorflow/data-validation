@@ -22,7 +22,7 @@ from __future__ import print_function
 
 import base64
 import sys
-from typing import List, Optional, Text
+from typing import List, Optional, Text, Tuple
 
 import pandas as pd
 from tensorflow_data_validation import types
@@ -56,13 +56,14 @@ def _add_quotes(input_str: types.FeatureName) -> types.FeatureName:
   return "'" + input_str.replace("'", "\\'") + "'"
 
 
-def get_schema_dataframe(schema: schema_pb2.Schema) -> pd.DataFrame:
-  """Returns a DataFrame containing the input schema.
+def get_schema_dataframe(
+    schema: schema_pb2.Schema) -> Tuple[pd.DataFrame, pd.DataFrame]:
+  """Returns a tuple of DataFrames containing the input schema information.
 
   Args:
     schema: A Schema protocol buffer.
   Returns:
-    A DataFrame containing the schema.
+    A tuple of DataFrames containing the features and domains of the schema.
   """
   if not isinstance(schema, schema_pb2.Schema):
     raise TypeError('schema is of type %s, should be a Schema proto.' %
@@ -136,10 +137,15 @@ def get_schema_dataframe(schema: schema_pb2.Schema) -> pd.DataFrame:
         [_add_quotes(feature.name), feature_type, feature_presence, valency,
          domain])
 
-  return pd.DataFrame(
+  features = pd.DataFrame(
       feature_rows,
       columns=['Feature name', 'Type', 'Presence', 'Valency',
                'Domain']).set_index('Feature name')
+
+  domains = pd.DataFrame(
+      domain_rows, columns=['Domain', 'Values']).set_index('Domain')
+
+  return features, domains
 
 
 def display_schema(schema: schema_pb2.Schema) -> None:
@@ -148,8 +154,12 @@ def display_schema(schema: schema_pb2.Schema) -> None:
   Args:
     schema: A Schema protocol buffer.
   """
-  features_df = get_schema_dataframe(schema)
+  features_df, domains_df = get_schema_dataframe(schema)
   display(features_df)
+  # Do not truncate columns.
+  if not domains_df.empty:
+    pd.set_option('max_colwidth', -1)
+    display(domains_df)
 
 
 def get_anomalies_dataframe(anomalies: anomalies_pb2.Anomalies) -> pd.DataFrame:

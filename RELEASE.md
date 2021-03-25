@@ -6,6 +6,8 @@
 
 ## Bug Fixes and Other Changes
 
+*   Fixed bug in display_schema that caused domains not to be displayed.
+
 ## Known Issues
 
 ## Breaking Changes

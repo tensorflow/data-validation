@@ -393,11 +393,18 @@ class DisplayUtilTest(absltest.TestCase):
           name: "fc"
           type: FLOAT
         }
+        string_domain {
+          name: "timezone"
+          value: "America/Los_Angeles"
+        }
         """, schema_pb2.Schema())
-    actual_output = display_util.get_schema_dataframe(schema)
-    # The resulting DataFrame has a row for each feature and columns for type,
-    # presence, valency, and domain.
-    self.assertEqual(actual_output.shape, (3, 4))
+    actual_features, actual_domains = display_util.get_schema_dataframe(schema)
+    # The resulting features DataFrame has a row for each feature and columns
+    # for type, presence, valency, and domain.
+    self.assertEqual(actual_features.shape, (3, 4))
+    # The resulting domain DataFrame has a row for each domain and a column for
+    # domain values.
+    self.assertEqual(actual_domains.shape, (1, 1))
 
   def test_get_anomalies_dataframe(self):
     anomalies = text_format.Parse(
