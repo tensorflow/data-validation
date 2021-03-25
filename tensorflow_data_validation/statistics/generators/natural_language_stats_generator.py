@@ -18,37 +18,6 @@ natural_language_domain is specified. These statistics are stored as
 custom_stats entries of the FeatureNameStatistics message corresponding to the
 specified feature. We store a custom_stats called nl_statistics that contains
 a populated tensorflow.metadata.v0.NaturalLanguageStatistics proto.
-
-In addition, we store the following custom_stats so that they will be
-automatically populated by Facets. (%T% in the names below denotes the token
-name).
-
-custom_stats name                    type             NaturalLanguageStatistics
------------------                    -------------    -------------------------
-nl_feature_coverage                  double           feature_coverage
-nl_avg_token_length                  double           avg_token_length
-nl_min_sequence_length               double           min_sequence_length
-nl_max_sequence_length               double           max_sequence_length
-nl_token_length_histogram            Histogram        token_length_histogram
-nl_location_misses                   double           location_misses
-nl_sequence_length_histogram         Histogram        sequence_length_histogram
-nl_reported_sequences                string           Reported_sequences
-                                                      (line-separated)
-nl_rank_tokens                       RankHistogram    rank_histogram
-nl_%T%_token_frequency               double           TokenStatistics
-                                                      .frequency
-nl_%T%_fraction_of_sequences         double           TokenStatistics
-                                                      .fraction_of_sequences
-nl_%T%_per_sequence_min_frequency    double           TokenStatistics
-                                                      .per_sequence_min_
-                                                      frequency
-nl_%T%_per_sequence_avg_frequency    double           TokenStatistics
-                                                      .per_sequence_avg_
-                                                      frequency
-nl_%T%_per_sequence_max_frequency    double           TokenStatistics
-                                                      .per_sequence_max_
-                                                      frequency
-nl_%T%_token_positions               Histogram        TokenStatistics.positions
 """
 
 from __future__ import absolute_import
@@ -445,8 +414,7 @@ def _populate_token_statistics(
     num_histogram_buckets: int,
     num_examples: int,
     token_proto: statistics_pb2.NaturalLanguageStatistics.TokenStatistics,
-    stats: _TokenStats,
-    feature_statistics: statistics_pb2.FeatureNameStatistics):
+    stats: _TokenStats):
   """Populates the token statistics for a specified token."""
   if isinstance(name, int):
     token_proto.int_token = name
@@ -462,19 +430,6 @@ def _populate_token_statistics(
         float(stats.frequency) / stats.num_sequences)
     _populate_token_position_histogram(token_proto, stats,
                                        num_histogram_buckets)
-    for k, v in [('nl_{}_token_frequency'.format(name), token_proto.frequency),
-                 ('nl_{}_fraction_of_examples'.format(name),
-                  token_proto.fraction_of_sequences),
-                 ('nl_{}_per_sequence_min_frequency'.format(name),
-                  token_proto.per_sequence_min_frequency),
-                 ('nl_{}_per_sequence_max_frequency'.format(name),
-                  token_proto.per_sequence_max_frequency),
-                 ('nl_{}_per_sequence_avg_frequency'.format(name),
-                  token_proto.per_sequence_avg_frequency)]:
-      feature_statistics.custom_stats.add(name=k, num=v)
-    feature_statistics.custom_stats.add(
-        name='nl_{}_token_positions'.format(name),
-        histogram=token_proto.positions)
 
 
 class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
@@ -662,55 +617,32 @@ class NLStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     if accumulator.total_num_tokens:
       nls.feature_coverage = (
           float(accumulator.num_in_vocab_tokens) / accumulator.total_num_tokens)
-      result.custom_stats.add(
-          name='nl_feature_coverage', num=nls.feature_coverage)
     if accumulator.num_in_vocab_tokens:
       nls.avg_token_length = (
           float(accumulator.sum_in_vocab_token_lengths) /
           accumulator.num_in_vocab_tokens)
-      result.custom_stats.add(
-          name='nl_avg_token_length', num=nls.avg_token_length)
     if accumulator.min_sequence_length:
       nls.min_sequence_length = accumulator.min_sequence_length
-      result.custom_stats.add(
-          name='nl_min_sequence_length', num=nls.min_sequence_length)
     if accumulator.max_sequence_length:
       nls.max_sequence_length = accumulator.max_sequence_length
-      result.custom_stats.add(
-          name='nl_max_sequence_length', num=nls.max_sequence_length)
     if self._num_quantiles_histogram_buckets:
       _populate_token_length_histogram(nls, accumulator,
                                        self._num_quantiles_histogram_buckets)
-      if nls.token_length_histogram.buckets:
-        result.custom_stats.add(
-            name='nl_token_length_histogram',
-            histogram=nls.token_length_histogram)
       _populate_sequence_length_histogram(nls, accumulator,
                                           self._num_quantiles_histogram_buckets)
-      if nls.sequence_length_histogram.buckets:
-        result.custom_stats.add(
-            name='nl_sequence_length_histogram',
-            histogram=nls.sequence_length_histogram)
     if self._num_rank_histogram_buckets:
       _populate_token_rank_histogram(nls, accumulator,
                                      self._num_rank_histogram_buckets)
-      if nls.rank_histogram.buckets:
-        result.custom_stats.add(
-            name='nl_rank_tokens', rank_histogram=nls.rank_histogram)
     if accumulator.token_statistics:
       for name, stats in accumulator.token_statistics.items():
         _populate_token_statistics(name, self._num_histogram_buckets,
                                    accumulator.num_examples,
-                                   nls.token_statistics.add(), stats, result)
+                                   nls.token_statistics.add(), stats)
 
     for r in (accumulator.reported_sequences_coverage +
               accumulator.reported_sequences_avg_token_length):
       str_seq = str(r[0])
       nls.reported_sequences.append(str_seq)
-    if nls.reported_sequences:
-      reported_sequences = '\n'.join(nls.reported_sequences)
-      result.custom_stats.add(
-          name='nl_reported_sequences', str=reported_sequences)
     custom_nl_stats = result.custom_stats.add(name='nl_statistics')
     custom_nl_stats.any.Pack(nls)
     return result

@@ -208,28 +208,15 @@ class NaturalLanguageStatsGeneratorTest(
       sorted_token_names_and_counts=None,
       reported_sequences=None,
       token_statistics=None):
-    custom_stats = []
     nls = statistics_pb2.NaturalLanguageStatistics()
     if feature_coverage is not None:
       nls.feature_coverage = feature_coverage
-      custom_stats.append(
-          statistics_pb2.CustomStatistic(
-              name='nl_feature_coverage', num=feature_coverage))
     if avg_token_length:
       nls.avg_token_length = avg_token_length
-      custom_stats.append(
-          statistics_pb2.CustomStatistic(
-              name='nl_avg_token_length', num=nls.avg_token_length))
     if min_sequence_length:
       nls.min_sequence_length = min_sequence_length
-      custom_stats.append(
-          statistics_pb2.CustomStatistic(
-              name='nl_min_sequence_length', num=nls.min_sequence_length))
     if max_sequence_length:
       nls.max_sequence_length = max_sequence_length
-      custom_stats.append(
-          statistics_pb2.CustomStatistic(
-              name='nl_max_sequence_length', num=nls.max_sequence_length))
     if token_len_quantiles:
       for low_value, high_value, sample_count in token_len_quantiles:
         nls.token_length_histogram.type = statistics_pb2.Histogram.QUANTILES
@@ -237,10 +224,6 @@ class NaturalLanguageStatsGeneratorTest(
             low_value=low_value,
             high_value=high_value,
             sample_count=sample_count)
-      custom_stats.append(
-          statistics_pb2.CustomStatistic(
-              name='nl_token_length_histogram',
-              histogram=nls.token_length_histogram))
     if sequence_len_quantiles:
       for low_value, high_value, sample_count in sequence_len_quantiles:
         nls.sequence_length_histogram.type = statistics_pb2.Histogram.QUANTILES
@@ -248,10 +231,6 @@ class NaturalLanguageStatsGeneratorTest(
             low_value=low_value,
             high_value=high_value,
             sample_count=sample_count)
-      custom_stats.append(
-          statistics_pb2.CustomStatistic(
-              name='nl_sequence_length_histogram',
-              histogram=nls.sequence_length_histogram))
     if sorted_token_names_and_counts:
       for index, (token_name,
                   count) in enumerate(sorted_token_names_and_counts):
@@ -260,9 +239,6 @@ class NaturalLanguageStatsGeneratorTest(
             high_rank=index,
             label=token_name,
             sample_count=count)
-      custom_stats.append(
-          statistics_pb2.CustomStatistic(
-              name='nl_rank_tokens', rank_histogram=nls.rank_histogram))
     if token_statistics:
       for k, v in token_statistics.items():
         ts = nls.token_statistics.add(
@@ -276,40 +252,13 @@ class NaturalLanguageStatsGeneratorTest(
         else:
           ts.int_token = k
         ts.positions.CopyFrom(v[5])
-        custom_stats.append(
-            statistics_pb2.CustomStatistic(
-                name='nl_{}_token_frequency'.format(k), num=ts.frequency))
-        custom_stats.append(
-            statistics_pb2.CustomStatistic(
-                name='nl_{}_fraction_of_examples'.format(k),
-                num=ts.fraction_of_sequences))
-        custom_stats.append(
-            statistics_pb2.CustomStatistic(
-                name='nl_{}_per_sequence_min_frequency'.format(k),
-                num=ts.per_sequence_min_frequency))
-        custom_stats.append(
-            statistics_pb2.CustomStatistic(
-                name='nl_{}_per_sequence_max_frequency'.format(k),
-                num=ts.per_sequence_max_frequency))
-        custom_stats.append(
-            statistics_pb2.CustomStatistic(
-                name='nl_{}_per_sequence_avg_frequency'.format(k),
-                num=ts.per_sequence_avg_frequency))
-        custom_stats.append(
-            statistics_pb2.CustomStatistic(
-                name='nl_{}_token_positions'.format(k), histogram=ts.positions))
     if reported_sequences:
       for r in reported_sequences:
         nls.reported_sequences.append(str(r))
-      str_reported_sequences = '\n'.join(nls.reported_sequences)
-      custom_stats.append(
-          statistics_pb2.CustomStatistic(
-              name='nl_reported_sequences', str=str_reported_sequences))
 
     custom_nl_stats = statistics_pb2.CustomStatistic(name='nl_statistics')
     custom_nl_stats.any.Pack(nls)
-    custom_stats.append(custom_nl_stats)
-    return statistics_pb2.FeatureNameStatistics(custom_stats=custom_stats)
+    return statistics_pb2.FeatureNameStatistics(custom_stats=[custom_nl_stats])
 
   def test_nl_generator_empty_input(self):
     generator = nlsg.NLStatsGenerator(None, None, 0, 0, 0)
