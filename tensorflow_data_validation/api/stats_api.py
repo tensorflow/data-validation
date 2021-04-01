@@ -65,8 +65,8 @@ class GenerateStatistics(beam.PTransform):
   ```python
     with beam.Pipeline(runner=...) as p:
       _ = (p
-           | 'ReadData' >> beam.io.ReadFromTFRecord(data_location)
-           | 'DecodeData' >> tfdv.DecodeTFExample()
+           | 'ReadData' >> tfx_bsl.public.tfxio.TFExampleRecord(data_location)
+               .BeamSource()
            | 'GenerateStatistics' >> GenerateStatistics()
            | 'WriteStatsOutput' >> tfdv.WriteStatisticsToTFRecord(output_path))
   ```

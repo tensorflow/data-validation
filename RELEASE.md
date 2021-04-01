@@ -14,6 +14,10 @@
 
 ## Deprecations
 
+*   Removed `tfdv.DecodeCSV`, `tfdv.DecodeTFExample` (deprecated in 0.27).
+*   Removed `feature_whitelist` in `tfdv.StatsOptions` (deprecated in 0.28).
+    Use `feature_allowlist` instead.
+
 # Version 0.29.0
 
 ## Major Features and Improvements
