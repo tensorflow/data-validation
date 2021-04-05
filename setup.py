@@ -212,7 +212,7 @@ setup(
     long_description=_LONG_DESCRIPTION,
     long_description_content_type='text/markdown',
     keywords='tensorflow data validation tfx',
-    url='https://www.tensorflow.org/tfx/data_validation',
+    url='https://www.tensorflow.org/tfx/data_validation/get_started',
     download_url='https://github.com/tensorflow/data-validation/tags',
     requires=[],
     cmdclass={
