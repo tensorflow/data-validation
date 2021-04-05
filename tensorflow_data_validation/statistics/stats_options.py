@@ -109,10 +109,17 @@ class StatsOptions(object):
         consumption.
       infer_type_from_schema: A boolean to indicate whether the feature types
           should be inferred from the schema. If set to True, an input schema
-          must be provided. This flag is used only when generating statistics
-          on CSV data.
-      desired_batch_size: An optional number of examples to include in each
-        batch that is passed to the statistics generators.
+          must be provided. This flag is used only when invoking TFDV through
+          `tfdv.generate_statistics_from_csv`.
+      desired_batch_size: An optional maximum number of examples to include in
+        each batch that is passed to the statistics generators.
+        When invoking TFDV using its end-to-end APIs (e.g.
+        `generate_statistics_from_tfrecord`), this option also controls
+        the decoder batch size -- if provided, the decoded RecordBatches that
+        are to be fed to TFDV will have the fixed batch size.
+        When invoking TFDV using `tfdv.GenerateStatistics`, this option only
+        controls the maximum size of RecordBatches constructed within
+        StatsGenerators (a generator may combine RecordBatches).
       enable_semantic_domain_stats: If True statistics for semantic domains are
         generated (e.g: image, text domains).
       semantic_domain_stats_sample_rate: An optional sampling rate for semantic
