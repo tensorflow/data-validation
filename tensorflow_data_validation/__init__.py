@@ -27,8 +27,18 @@ from tensorflow_data_validation.api.validation_api import validate_instance
 from tensorflow_data_validation.api.validation_api import validate_statistics
 
 # Import stats generators.
+
+# DO NOT USE. LiftStatsGenerator will not be exposed as public API in future
+# versions. To enable this generator, supply `StatsOptions.label_feature`.
+# TODO(b/184079860): remove after TFDV 0.30 is released.
 from tensorflow_data_validation.statistics.generators.lift_stats_generator import LiftStatsGenerator
+
+# DO NOT USE. NonStreamingCustomStatsGenerator will not be exposed as public API
+# in future versions.
+# TODO(b/184079860): remove after TFDV 0.30 is released.
 from tensorflow_data_validation.statistics.generators.partitioned_stats_generator import NonStreamingCustomStatsGenerator
+
+# Base classes for stats generators.
 from tensorflow_data_validation.statistics.generators.stats_generator import CombinerStatsGenerator
 from tensorflow_data_validation.statistics.generators.stats_generator import TransformStatsGenerator
 
