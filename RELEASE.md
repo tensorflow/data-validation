@@ -4,6 +4,11 @@
 
 ## Major Features and Improvements
 
+*   Sketch-based top-k/unique stats generator now is able to detect invalid
+    utf-8 sequences / large texts and replace them with a placeholder.
+    It will not suffer from memory issue usually caused by image / large text
+    features in the data. Note that this generator is not by default used yet.
+
 ## Bug Fixes and Other Changes
 
 *   Fixed bug in display_schema that caused domains not to be displayed.

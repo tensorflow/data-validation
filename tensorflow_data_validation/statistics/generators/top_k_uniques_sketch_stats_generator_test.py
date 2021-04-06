@@ -1197,6 +1197,130 @@ class TopKUniquesSketchStatsGeneratorTest(
     self.assertCombinerOutputEqual(
         batches, generator, expected_feature_stats={})
 
+  def test_invalid_utf8_values(self):
+    # 4 'a', 3 invalid utf8, 1 'b', 1'c'
+    batches = [
+        pa.RecordBatch.from_arrays([
+            pa.array([[b'a', b'b', b'\x80', b'a'],
+                      [b'a', b'\xC1', b'\x80', b'a']]),
+        ], ['fa']),
+        pa.RecordBatch.from_arrays([
+            pa.array([['c']]),
+        ], ['fa']),
+    ]
+    generator = sketch_generator.TopKUniquesSketchStatsGenerator(
+        num_top_values=4, num_rank_histogram_buckets=3)
+    expected_result = {
+        types.FeaturePath(['fa']):
+            text_format.Parse(
+                """
+                path {
+                  step: 'fa'
+                }
+                string_stats {
+                  unique: 5
+                  top_values {
+                    value: "a"
+                    frequency: 4.0
+                  }
+                  top_values {
+                    value: "__BYTES_VALUE__"
+                    frequency: 3.0
+                  }
+                  top_values {
+                    value: "c"
+                    frequency: 1.0
+                  }
+                  top_values {
+                    value: "b"
+                    frequency: 1.0
+                  }
+                  rank_histogram {
+                    buckets {
+                      label: "a"
+                      sample_count: 4.0
+                    }
+                    buckets {
+                      low_rank: 1
+                      high_rank: 1
+                      label: "__BYTES_VALUE__"
+                      sample_count: 3.0
+                    }
+                    buckets {
+                      low_rank: 2
+                      high_rank: 2
+                      label: "c"
+                      sample_count: 1.0
+                    }
+                  }
+                }
+                type: STRING
+                """, statistics_pb2.FeatureNameStatistics())
+    }
+    self.assertCombinerOutputEqual(batches, generator, expected_result)
+
+  def test_large_bytes_values(self):
+    # 4 'a', 3 large blob strings, 1 'b', 1'c'
+    batches = [
+        pa.RecordBatch.from_arrays([
+            pa.array([[b'a', b'b', b'f' * 33, b'a'],
+                      [b'a', b'f' * 34, b'f' * 33, b'a']]),
+        ], ['fa']),
+        pa.RecordBatch.from_arrays([
+            pa.array([['c']]),
+        ], ['fa']),
+    ]
+    generator = sketch_generator.TopKUniquesSketchStatsGenerator(
+        num_top_values=4, num_rank_histogram_buckets=3)
+    expected_result = {
+        types.FeaturePath(['fa']):
+            text_format.Parse(
+                """
+                path {
+                  step: 'fa'
+                }
+                string_stats {
+                  unique: 5
+                  top_values {
+                    value: "a"
+                    frequency: 4.0
+                  }
+                  top_values {
+                    value: "__LARGE_BYTES__"
+                    frequency: 3.0
+                  }
+                  top_values {
+                    value: "c"
+                    frequency: 1.0
+                  }
+                  top_values {
+                    value: "b"
+                    frequency: 1.0
+                  }
+                  rank_histogram {
+                    buckets {
+                      label: "a"
+                      sample_count: 4.0
+                    }
+                    buckets {
+                      low_rank: 1
+                      high_rank: 1
+                      label: "__LARGE_BYTES__"
+                      sample_count: 3.0
+                    }
+                    buckets {
+                      low_rank: 2
+                      high_rank: 2
+                      label: "c"
+                      sample_count: 1.0
+                    }
+                  }
+                }
+                type: STRING
+                """,
+                statistics_pb2.FeatureNameStatistics())
+    }
+    self.assertCombinerOutputEqual(batches, generator, expected_result)
 
 if __name__ == '__main__':
   absltest.main()

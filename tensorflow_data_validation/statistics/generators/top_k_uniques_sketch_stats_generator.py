@@ -21,8 +21,10 @@ unique items.
 import collections
 from typing import Dict, Iterable, Optional, Text
 
+import apache_beam as beam
 import numpy as np
 import pyarrow as pa
+from tensorflow_data_validation import constants
 from tensorflow_data_validation import types as tfdv_types
 from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.statistics.generators import stats_generator
@@ -132,6 +134,14 @@ class TopKUniquesSketchStatsGenerator(stats_generator.CombinerStatsGenerator):
     self._frequency_threshold = frequency_threshold
     self._weighted_frequency_threshold = weighted_frequency_threshold
     self._store_output_in_custom_stats = store_output_in_custom_stats
+    self._num_top_values_gauge = beam.metrics.Metrics.gauge(
+        constants.METRICS_NAMESPACE, "num_top_values")
+    self._num_rank_histogram_buckets_gauge = beam.metrics.Metrics.gauge(
+        constants.METRICS_NAMESPACE, "num_rank_histogram_buckets")
+    self._num_mg_buckets_gauge = beam.metrics.Metrics.gauge(
+        constants.METRICS_NAMESPACE, "num_mg_buckets")
+    self._num_kmv_buckets_gauge = beam.metrics.Metrics.gauge(
+        constants.METRICS_NAMESPACE, "num_kmv_buckets")
 
   def _update_combined_sketch_for_feature(
       self, feature_name: tfdv_types.FeaturePath, values: pa.Array,
@@ -143,11 +153,27 @@ class TopKUniquesSketchStatsGenerator(stats_generator.CombinerStatsGenerator):
 
     combined_sketch = accumulator.get(feature_name, None)
     if combined_sketch is None:
+      self._num_kmv_buckets_gauge.set(self._num_kmv_buckets)
+
+      def make_mg_sketch():
+        num_buckets = max(self._num_misragries_buckets, self._num_top_values,
+                          self._num_rank_histogram_buckets)
+        self._num_mg_buckets_gauge.set(num_buckets)
+        self._num_top_values_gauge.set(self._num_top_values)
+        self._num_rank_histogram_buckets_gauge.set(
+            self._num_rank_histogram_buckets)
+        return MisraGriesSketch(
+            num_buckets=num_buckets,
+            invalid_utf8_placeholder=constants.NON_UTF8_PLACEHOLDER,
+            # Maximum sketch size: 32 * num_buckets * constant_factor.
+            large_string_threshold=32,
+            large_string_placeholder=constants.LARGE_BYTES_PLACEHOLDER)
+
+      self._num_top_values_gauge.set(self._num_top_values)
       combined_sketch = _CombinedSketch(
           distinct=KmvSketch(self._num_kmv_buckets),
-          topk_unweighted=MisraGriesSketch(self._num_misragries_buckets),
-          topk_weighted=MisraGriesSketch(self._num_misragries_buckets),
-      )
+          topk_unweighted=make_mg_sketch(),
+          topk_weighted=make_mg_sketch())
     weight_array = None
     if weights is not None:
       flattened_weights = weights[parent_indices]

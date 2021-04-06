@@ -516,7 +516,10 @@ bool FeatureStatsView::HasInvalidUTF8Strings() const {
   // generator writes __BYTES_VALUE__. See
   // tensorflow_data_validation/statistics/generators/top_k_uniques_stats_generator.py
   // // NOLINT
-  const string kInvalidString = "__BYTES_VALUE__";
+  // LINT.IfChange(invalid_utf8_placeholder)
+  static constexpr char kInvalidString[] = "__BYTES_VALUE__";
+  // LINT.ThenChange(../constants.py:invalid_utf8_placeholder)
+
   return ContainsKey(GetStringValuesWithCounts(), kInvalidString);
 }
 
