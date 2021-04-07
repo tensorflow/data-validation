@@ -25,6 +25,9 @@
 *   `tfdv.NonStreamingCustomStatsGenerator` is going to be removed in the next
     version from the public API. You may continue to import it from TFDV
     but it will not be subject to compatibility guarantees.
+*   `tfdv.validate_instance` is going to be removed in the next
+    version from the public API. You may continue to import it from TFDV
+    but it will not be subject to compatibility guarantees.
 *   Removed `tfdv.DecodeCSV`, `tfdv.DecodeTFExample` (deprecated in 0.27).
 *   Removed `feature_whitelist` in `tfdv.StatsOptions` (deprecated in 0.28).
     Use `feature_allowlist` instead.

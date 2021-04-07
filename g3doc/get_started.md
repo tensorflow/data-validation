@@ -274,26 +274,6 @@ exhibit a particular anomaly. You can use this to determine the number of
 examples in your dataset that exhibit a given anomaly and the characteristics of
 those examples.
 
-TFDV also provides the `validate_instance` function for identifying whether an
-individual example exhibits anomalies when matched against a schema. To use this
-function, the example must be a dict mapping feature names to numpy arrays of
-feature values. You can use the the decoder in `tfx_bsl` to decode serialized
-`tf.train.Example`s into this format. For example:
-
-```python
-   import tensorflow_data_validation as tfdv
-   import tfx_bsl
-   import pyarrow as pa
-   decoder = tfx_bsl.coders.example_coder.ExamplesToRecordBatchDecoder()
-   example = decoder.DecodeBatch([serialized_tfexample])
-   options = tfdv.StatsOptions(schema=schema)
-   anomalies = tfdv.validate_instance(example, options)
-```
-
-As with `validate_statistics`, the result is an instance of the [Anomalies](https://github.com/tensorflow/metadata/tree/master/tensorflow_metadata/proto/v0/anomalies.proto)
-protocol buffer that describes any errors where the example does not agree with
-the specified schema.
-
 ## Schema Environments
 
 By default, validations assume that all datasets in a pipeline adhere to a
