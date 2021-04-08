@@ -1197,6 +1197,21 @@ class TopKUniquesSketchStatsGeneratorTest(
     self.assertCombinerOutputEqual(
         batches, generator, expected_feature_stats={})
 
+  def test_schema_claimed_bytes(self):
+    schema = text_format.Parse("""
+    feature {
+      name: "a"
+      type: BYTES
+      # this makes the feature a bytes feature.
+      image_domain { }
+    }""", schema_pb2.Schema())
+    batches = [pa.RecordBatch.from_arrays([pa.array([[b'aaa']])], ['a'])]
+    generator = sketch_generator.TopKUniquesSketchStatsGenerator(
+        schema=schema,
+        num_top_values=4, num_rank_histogram_buckets=3)
+    self.assertCombinerOutputEqual(
+        batches, generator, expected_feature_stats={})
+
   def test_invalid_utf8_values(self):
     # 4 'a', 3 invalid utf8, 1 'b', 1'c'
     batches = [

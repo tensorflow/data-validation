@@ -8,6 +8,8 @@
     utf-8 sequences / large texts and replace them with a placeholder.
     It will not suffer from memory issue usually caused by image / large text
     features in the data. Note that this generator is not by default used yet.
+*   Added `StatsOptions.experimental_use_sketch_based_topk_uniques` which
+    enables the sketch-based top-k/unique stats generator.
 
 ## Bug Fixes and Other Changes
 

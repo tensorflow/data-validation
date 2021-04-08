@@ -69,7 +69,8 @@ class StatsOptions(object):
                                                  types.FeatureName]] = None,
       vocab_paths: Optional[Dict[types.VocabName, types.VocabPath]] = None,
       add_default_generators: bool = True,
-      feature_allowlist: Optional[List[types.FeatureName]] = None):
+      feature_allowlist: Optional[List[types.FeatureName]] = None,
+      experimental_use_sketch_based_topk_uniques: bool = False):
     """Initializes statistics options.
 
     Args:
@@ -140,6 +141,8 @@ class StatsOptions(object):
         generators that are enabled based on information provided in the schema.
       feature_allowlist: An optional list of names of the features to calculate
         statistics for.
+      experimental_use_sketch_based_topk_uniques: if True, use the sketch
+        based top-k and uniques stats generator.
     """
     self.generators = generators
     self.feature_allowlist = feature_allowlist
@@ -163,6 +166,8 @@ class StatsOptions(object):
     self._per_feature_weight_override = per_feature_weight_override
     self.vocab_paths = vocab_paths
     self.add_default_generators = add_default_generators
+    self.experimental_use_sketch_based_topk_uniques = (
+        experimental_use_sketch_based_topk_uniques)
 
   def to_json(self) -> Text:
     """Convert from an object to JSON representation of the __dict__ attribute.
@@ -379,3 +384,12 @@ class StatsOptions(object):
   @add_default_generators.setter
   def add_default_generators(self, add_default_generators: bool) -> None:
     self._add_default_generators = add_default_generators
+
+  @property
+  def experimental_use_sketch_based_topk_uniques(self) -> bool:
+    return self._use_sketch_based_topk_uniques
+
+  @experimental_use_sketch_based_topk_uniques.setter
+  def experimental_use_sketch_based_topk_uniques(
+      self, use_sketch_based_topk_uniques: bool) -> None:
+    self._use_sketch_based_topk_uniques = use_sketch_based_topk_uniques

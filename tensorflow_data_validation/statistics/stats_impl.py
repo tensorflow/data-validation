@@ -35,6 +35,7 @@ from tensorflow_data_validation.statistics.generators import sparse_feature_stat
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.statistics.generators import time_stats_generator
 from tensorflow_data_validation.statistics.generators import top_k_uniques_combiner_stats_generator
+from tensorflow_data_validation.statistics.generators import top_k_uniques_sketch_stats_generator
 from tensorflow_data_validation.statistics.generators import top_k_uniques_stats_generator
 from tensorflow_data_validation.statistics.generators import weighted_feature_stats_generator
 from tensorflow_data_validation.utils import slicing_util
@@ -43,6 +44,10 @@ from tfx_bsl.arrow import table_util
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
+
+
+_DEFAULT_MG_SKETCH_SIZE = 1024
+_DEFAULT_KMV_SKETCH_SIZE = 16384
 
 
 @beam.typehints.with_input_types(pa.RecordBatch)
@@ -255,11 +260,22 @@ def _get_default_generators(
           example_weight_map=options.example_weight_map,
           num_values_histogram_buckets=options.num_values_histogram_buckets,
           num_histogram_buckets=options.num_histogram_buckets,
-          num_quantiles_histogram_buckets=\
-            options.num_quantiles_histogram_buckets,
+          num_quantiles_histogram_buckets=options
+          .num_quantiles_histogram_buckets,
           epsilon=options.epsilon),
   ]
-  if in_memory:
+  if options.experimental_use_sketch_based_topk_uniques:
+    stats_generators.append(
+        top_k_uniques_sketch_stats_generator.TopKUniquesSketchStatsGenerator(
+            schema=options.schema,
+            example_weight_map=options.example_weight_map,
+            num_top_values=options.num_top_values,
+            num_rank_histogram_buckets=options.num_rank_histogram_buckets,
+            frequency_threshold=options.frequency_threshold,
+            weighted_frequency_threshold=options.weighted_frequency_threshold,
+            num_misragries_buckets=_DEFAULT_MG_SKETCH_SIZE,
+            num_kmv_buckets=_DEFAULT_KMV_SKETCH_SIZE))
+  elif in_memory:
     stats_generators.append(
         top_k_uniques_combiner_stats_generator
         .TopKUniquesCombinerStatsGenerator(
@@ -270,7 +286,7 @@ def _get_default_generators(
             weighted_frequency_threshold=options.weighted_frequency_threshold,
             num_rank_histogram_buckets=options.num_rank_histogram_buckets))
   else:
-    stats_generators.extend([
+    stats_generators.append(
         top_k_uniques_stats_generator.TopKUniquesStatsGenerator(
             schema=options.schema,
             example_weight_map=options.example_weight_map,
@@ -278,7 +294,7 @@ def _get_default_generators(
             frequency_threshold=options.frequency_threshold,
             weighted_frequency_threshold=options.weighted_frequency_threshold,
             num_rank_histogram_buckets=options.num_rank_histogram_buckets),
-    ])
+    )
   return stats_generators
 
 

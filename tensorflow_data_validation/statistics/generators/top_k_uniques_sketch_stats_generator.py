@@ -131,6 +131,8 @@ class TopKUniquesSketchStatsGenerator(stats_generator.CombinerStatsGenerator):
     self._num_rank_histogram_buckets = num_rank_histogram_buckets
     self._categorical_features = set(
         schema_util.get_categorical_numeric_features(schema) if schema else [])
+    self._bytes_features = frozenset(
+        schema_util.get_bytes_features(schema) if schema else [])
     self._frequency_threshold = frequency_threshold
     self._weighted_frequency_threshold = weighted_frequency_threshold
     self._store_output_in_custom_stats = store_output_in_custom_stats
@@ -194,12 +196,17 @@ class TopKUniquesSketchStatsGenerator(stats_generator.CombinerStatsGenerator):
         enumerate_leaves_only=True):
       feature_type = stats_util.get_feature_type_from_arrow_type(
           feature_path, leaf_array.type)
-      # Only compute top-k and unique stats for categorical and string features.
-      if ((feature_type == statistics_pb2.FeatureNameStatistics.INT and
-           feature_path in self._categorical_features) or
-          feature_type == statistics_pb2.FeatureNameStatistics.STRING):
-        self._update_combined_sketch_for_feature(
-            feature_path, leaf_array, weights, accumulator)
+      feature_is_categorical_int = (
+          feature_type == statistics_pb2.FeatureNameStatistics.INT and
+          feature_path in self._categorical_features)
+      feature_is_string = (
+          feature_type == statistics_pb2.FeatureNameStatistics.STRING and
+          feature_path not in self._bytes_features)
+      # Only compute top-k and unique stats for categorical and string features
+      # (excluding string features declared as bytes).
+      if feature_is_categorical_int or feature_is_string:
+        self._update_combined_sketch_for_feature(feature_path, leaf_array,
+                                                 weights, accumulator)
     return accumulator
 
   def merge_accumulators(
