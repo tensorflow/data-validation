@@ -500,8 +500,12 @@ class AnomaliesUtilTest(parameterized.TestCase):
     example = pa.RecordBatch.from_arrays([])
     anomalies = text_format.Parse(input_anomalies_proto_text,
                                   anomalies_pb2.Anomalies())
-    slice_keys = anomalies_util.anomalies_slicer(example, anomalies)
-    self.assertCountEqual(slice_keys, expected_slice_keys)
+    slicer = anomalies_util.get_anomalies_slicer(anomalies)
+    actual_slice_keys = []
+    for slice_key, actual_example in slicer(example):
+      self.assertEqual(actual_example, example)
+      actual_slice_keys.append(slice_key)
+    self.assertCountEqual(actual_slice_keys, expected_slice_keys)
 
   def test_write_load_anomalies_text(self):
     anomalies = text_format.Parse(
@@ -529,7 +533,7 @@ class AnomaliesUtilTest(parameterized.TestCase):
     self.assertEqual(anomalies, loaded_anomalies)
 
   def test_write_anomalies_text_invalid_anomalies_input(self):
-    with self.assertRaisesRegexp(TypeError, 'should be an Anomalies proto'):
+    with self.assertRaisesRegex(TypeError, 'should be an Anomalies proto'):
       anomalies_util.write_anomalies_text({}, 'anomalies.pbtxt')
 
 

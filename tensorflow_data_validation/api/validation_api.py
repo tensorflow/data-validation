@@ -569,10 +569,9 @@ class _GenerateAnomalyReasonSliceKeys(beam.DoFn):
 
   def process(self, element):
     record_batch, anomalies_proto = element
-    for slice_key in slicing_util.generate_slices(
-        record_batch, [anomalies_util.anomalies_slicer],
-        anomalies=anomalies_proto):
-      yield slice_key, record_batch
+    for sliced_record_batch in slicing_util.generate_slices(
+        record_batch, [anomalies_util.get_anomalies_slicer(anomalies_proto)]):
+      yield sliced_record_batch
 
 
 @beam.typehints.with_input_types(pa.RecordBatch)

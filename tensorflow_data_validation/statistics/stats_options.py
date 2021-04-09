@@ -70,7 +70,8 @@ class StatsOptions(object):
       vocab_paths: Optional[Dict[types.VocabName, types.VocabPath]] = None,
       add_default_generators: bool = True,
       feature_allowlist: Optional[List[types.FeatureName]] = None,
-      experimental_use_sketch_based_topk_uniques: bool = False):
+      experimental_use_sketch_based_topk_uniques: bool = False,
+      experimental_slice_functions: Optional[List[types.SliceFunction]] = None):
     """Initializes statistics options.
 
     Args:
@@ -82,9 +83,7 @@ class StatsOptions(object):
       label_feature: An optional feature name which represents the label.
       weight_feature: An optional feature name whose numeric value represents
           the weight of an example.
-      slice_functions: An optional list of functions that generate slice keys
-        for each example. Each slice function should take an example dict as
-        input and return a list of zero or more slice keys.
+      slice_functions: DEPRECATED. Use `experimental_slice_functions`.
       sample_rate: An optional sampling rate. If specified, statistics is
         computed over the sample.
       num_top_values: An optional number of most frequent feature values to keep
@@ -143,13 +142,25 @@ class StatsOptions(object):
         statistics for.
       experimental_use_sketch_based_topk_uniques: if True, use the sketch
         based top-k and uniques stats generator.
+      experimental_slice_functions: An optional list of functions that generate
+        slice keys for each example. Each slice function should take
+        pyarrow.RecordBatch as input and return an
+        Iterable[Tuple[Text, pyarrow.RecordBatch]]. Each tuple contains the
+        slice key and the corresponding sliced RecordBatch.
     """
     self.generators = generators
     self.feature_allowlist = feature_allowlist
     self.schema = schema
     self.label_feature = label_feature
     self.weight_feature = weight_feature
-    self.slice_functions = slice_functions
+    if slice_functions is not None and experimental_slice_functions is not None:
+      raise ValueError(
+          'Specify only one of slice_functions or experimental_slice_functions')
+    self.experimental_slice_functions = None
+    if slice_functions is not None:
+      self.experimental_slice_functions = slice_functions
+    elif experimental_slice_functions is not None:
+      self.experimental_slice_functions = experimental_slice_functions
     self.sample_rate = sample_rate
     self.num_top_values = num_top_values
     self.frequency_threshold = frequency_threshold
@@ -284,19 +295,21 @@ class StatsOptions(object):
     self._vocab_paths = vocab_paths
 
   @property
-  def slice_functions(self) -> Optional[List[types.SliceFunction]]:
+  def experimental_slice_functions(self) -> Optional[List[types.SliceFunction]]:
     return self._slice_functions
 
-  @slice_functions.setter
-  def slice_functions(
+  @experimental_slice_functions.setter
+  def experimental_slice_functions(
       self, slice_functions: Optional[List[types.SliceFunction]]) -> None:
     if slice_functions is not None:
       if not isinstance(slice_functions, list):
-        raise TypeError('slice_functions is of type %s, should be a list.' %
-                        type(slice_functions).__name__)
+        raise TypeError(
+            'experimental_slice_functions is of type %s, should be a list.' %
+            type(slice_functions).__name__)
       for slice_function in slice_functions:
         if not isinstance(slice_function, python_types.FunctionType):
-          raise TypeError('slice_functions must contain functions only.')
+          raise TypeError(
+              'experimental_slice_functions must contain functions only.')
     self._slice_functions = slice_functions
 
   @property

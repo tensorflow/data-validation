@@ -58,12 +58,7 @@ SlicedExample = Tuple[SliceKey, Example]
 # key.
 SlicedRecordBatch = Tuple[SliceKey, pa.RecordBatch]
 
-# Type of the function that is used to generate a list of slice keys for a given
-# example. This function should take the form: slice_fn(example, **kwargs) ->
-# SliceKeysList.
-# TODO(b/110842625): Replace with SliceFunction = Callable[..., SliceKeysList]
-# once we no longer replace Callable in types_compat.
-SliceFunction = Callable
+SliceFunction = Callable[[pa.RecordBatch], Iterable[SlicedRecordBatch]]
 
 # Type of FeaturePath.steps(). Pickling types.FeaturePath is slow, so we use
 # tuples directly where pickling happens frequently. Ellipsis due to

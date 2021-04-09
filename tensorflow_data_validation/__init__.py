@@ -70,7 +70,7 @@ from tensorflow_data_validation.utils.schema_util import set_domain
 from tensorflow_data_validation.utils.schema_util import write_schema_text
 
 # Import slicing utilities.
-from tensorflow_data_validation.utils.slicing_util import get_feature_value_slicer
+from tensorflow_data_validation.utils.slicing_util import get_feature_value_slicer as experimental_get_feature_value_slicer
 
 # Import stats lib.
 from tensorflow_data_validation.utils.stats_gen_lib import generate_statistics_from_csv
@@ -91,3 +91,8 @@ from tensorflow_data_validation.utils.validation_lib import validate_examples_in
 
 # Import version string.
 from tensorflow_data_validation.version import __version__
+
+# get_feature_value_slicer is DEPRECATED.
+# Use experimental_get_feature_value_slicer instead.
+# TODO(b/184079860): remove after TFDV 0.30 is released.
+get_feature_value_slicer = experimental_get_feature_value_slicer

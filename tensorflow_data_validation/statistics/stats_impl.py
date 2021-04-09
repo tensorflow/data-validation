@@ -67,10 +67,10 @@ class GenerateStatisticsImpl(beam.PTransform):
       dataset |= ('FilterFeaturesByAllowList' >> beam.Map(
           _filter_features, feature_allowlist=self._options.feature_allowlist))
 
-    if self._options.slice_functions:
+    if self._options.experimental_slice_functions:
       # Add default slicing function.
       slice_functions = [slicing_util.default_slicer]
-      slice_functions.extend(self._options.slice_functions)
+      slice_functions.extend(self._options.experimental_slice_functions)
       dataset = (
           dataset
           | 'GenerateSliceKeys' >> beam.FlatMap(
@@ -109,7 +109,7 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
     """
     self._options = options
     self._is_slicing_enabled = (
-        is_slicing_enabled or bool(self._options.slice_functions))
+        is_slicing_enabled or bool(self._options.experimental_slice_functions))
 
   def expand(self, dataset: beam.pvalue.PCollection) -> beam.pvalue.PCollection:
     # Handles generators by their type:

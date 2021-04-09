@@ -33,6 +33,13 @@
 *   Removed `tfdv.DecodeCSV`, `tfdv.DecodeTFExample` (deprecated in 0.27).
 *   Removed `feature_whitelist` in `tfdv.StatsOptions` (deprecated in 0.28).
     Use `feature_allowlist` instead.
+*   `tfdv.get_feature_value_slicer` is deprecated.
+    `tfdv.experimental_get_feature_value_slicer` is introduced as a replacement.
+    TFDV is likely to have a different slicing functionality post 1.0, which
+    may not be compatible with the current slicers.
+*   `StatsOptions.slicing_functions` is deprecated.
+    `StatsOptions.experimental_slicing_functions` is introduced as a
+    replacement.
 
 # Version 0.29.0
 

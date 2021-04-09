@@ -18,7 +18,7 @@ from __future__ import division
 
 from __future__ import print_function
 
-from typing import FrozenSet, List, Text, Tuple
+from typing import Iterable, FrozenSet, List, Text, Tuple
 import pyarrow as pa
 from tensorflow_data_validation import types
 from tensorflow_data_validation.utils import io_util
@@ -90,28 +90,21 @@ def remove_anomaly_types(
     del anomalies.anomaly_info[feature_name]
 
 
-def anomalies_slicer(
-    unused_example: pa.RecordBatch,
-    anomalies: anomalies_pb2.Anomalies) -> types.SliceKeysList:
-  """Returns slice keys for an example based on the given Anomalies proto.
-
-  This slicer will generate a slice key for each anomaly reason in the proto.
+def get_anomalies_slicer(
+    anomalies: anomalies_pb2.Anomalies) -> types.SliceFunction:
+  """Returns a SliceFunction that For each anomaly, yields (anomaly, example).
 
   Args:
-    unused_example: The example for which to generate slice keys.
-    anomalies: An Anomalies proto from which to generate the list of slice
-      keys.
-
-  Returns:
-    A list of slice keys.
+    anomalies: An Anomalies proto from which to generate the list of slice keys.
   """
-  slice_keys = []
-  for feature_name, anomaly_info in anomalies.anomaly_info.items():
-    for anomaly_reason in anomaly_info.reason:
-      slice_keys.append(
-          feature_name + '_' +
-          anomalies_pb2.AnomalyInfo.Type.Name(anomaly_reason.type))
-  return slice_keys
+  def slice_fn(example: pa.RecordBatch) -> Iterable[types.SlicedRecordBatch]:
+    for feature_name, anomaly_info in anomalies.anomaly_info.items():
+      for anomaly_reason in anomaly_info.reason:
+        yield (feature_name + '_' +
+               anomalies_pb2.AnomalyInfo.Type.Name(anomaly_reason.type),
+               example)
+
+  return slice_fn
 
 
 def write_anomalies_text(anomalies: anomalies_pb2.Anomalies,

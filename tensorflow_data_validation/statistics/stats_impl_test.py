@@ -2337,7 +2337,7 @@ _SLICING_TESTS = [
         ],
         'options':
             stats_options.StatsOptions(
-                slice_functions=[
+                experimental_slice_functions=[
                     slicing_util.get_feature_value_slicer({'b': None})
                 ],
                 num_top_values=2,

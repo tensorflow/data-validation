@@ -239,7 +239,7 @@ class StatsOptionsTest(parameterized.TestCase):
         vocab_paths=vocab_paths,
         label_feature=label_feature,
         weight_feature=weight_feature,
-        slice_functions=slice_functions,
+        experimental_slice_functions=slice_functions,
         sample_rate=sample_rate,
         num_top_values=num_top_values,
         frequency_threshold=frequency_threshold,
@@ -267,7 +267,7 @@ class StatsOptionsTest(parameterized.TestCase):
     self.assertEqual(vocab_paths, options.vocab_paths)
     self.assertEqual(label_feature, options.label_feature)
     self.assertEqual(weight_feature, options.weight_feature)
-    self.assertIsNone(options.slice_functions)
+    self.assertIsNone(options.experimental_slice_functions)
     self.assertEqual(sample_rate, options.sample_rate)
     self.assertEqual(num_top_values, options.num_top_values)
     self.assertEqual(frequency_threshold, options.frequency_threshold)
