@@ -15,6 +15,8 @@
 
 *   Fixed bug in `display_schema` that caused domains not to be displayed.
 *   Modified how `get_schema_dataframe` outputs numeric domains.
+*   Anomalies previously (un)classified as UKNOWN_TYPE now trigger more specific
+    anomaly types: INVALID_DOMAIN_SPECIFICATION and MULTIPLE_REASONS.
 
 ## Known Issues
 

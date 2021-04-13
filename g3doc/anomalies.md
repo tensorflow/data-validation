@@ -720,8 +720,6 @@ condition(s) under which each anomaly type is detected.
         -   `feature.value_count.max`
         -   `feature.distribution_constraints`
     -   Detection Condition:
-        -   `feature.domain` is specified, but there is no matching domain
-            specified at the schema level
         -   `feature.presence.min_fraction` < 0.0 or > 1.0
         -   `feature.value_count.min` < 0 or > `feature.value_count.max`
         -   a bool, int, float, struct, or semantic domain is specified for a
@@ -730,7 +728,24 @@ condition(s) under which each anomaly type is detected.
         -   `feature.distribution_constraints` is specified for a feature, but
             neither a schema-level domain nor `feature.string_domain` is
             specified for that feature
-        -   unknown feature.domain_info type is specified
+
+-   `INVALID_DOMAIN_SPECIFICATION`
+
+    NOTE: There are various different reasons why an anomaly of
+    `INVALID_DOMAIN_SPECIFICATION` may be generated. Each bullet in the
+    Detection Condition below lists an independent reason.
+    -   Schema Fields:
+        -   `feature.domain_info`
+        -   `feature.bool_domain`
+        -   `feature.string_domain`
+    -   Detection Condition:
+        -   unknown `feature.domain_info` type is specified
+        -   `feature.domain` is specified, but there is no matching domain
+            specified at the schema level
+        -   `feature.bool_domain.true_value` ==
+            `feature.bool_domain.false_value`
+        -   repeated values in `feature.string_domain`
+        -   `feature.string_domain` exceeds the maximum size
 
 --------------------------------------------------------------------------------
 

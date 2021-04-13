@@ -831,7 +831,7 @@ std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
         feature->clear_domain();
         descriptions.push_back(
             {tensorflow::metadata::v0::AnomalyInfo::
-                 INVALID_SCHEMA_SPECIFICATION,
+                 INVALID_DOMAIN_SPECIFICATION,
              absl::StrCat("missing domain: ", feature->domain())});
       }
       break;
@@ -899,7 +899,7 @@ std::vector<Description> Schema::UpdateFeatureSelf(Feature* feature) {
       break;
     default:
       descriptions.push_back(
-          {tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
+          {tensorflow::metadata::v0::AnomalyInfo::INVALID_DOMAIN_SPECIFICATION,
            "internal issue: unknown domain_info type"});
       // Note that this clears the oneof field domain_info.
       ::tensorflow::data_validation::ClearDomain(feature);

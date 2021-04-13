@@ -100,7 +100,7 @@ Description UnifyDescriptions(const std::vector<Description>& descriptions) {
         } else {
           Description output;
           // The actual type of the aggregate anomaly is ignored.
-          output.type = tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE;
+          output.type = tensorflow::metadata::v0::AnomalyInfo::MULTIPLE_REASONS;
           absl::StrAppend(&output.long_description,
                           description_a.long_description, " ",
                           description_b.long_description);

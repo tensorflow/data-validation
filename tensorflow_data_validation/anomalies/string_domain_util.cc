@@ -146,7 +146,7 @@ std::vector<Description> UpdateStringDomainSelf(
   if (repeats.empty()) {
     return {};
   }
-  return {{tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
+  return {{tensorflow::metadata::v0::AnomalyInfo::INVALID_DOMAIN_SPECIFICATION,
            "Malformed StringDomain",
            absl::StrCat("Repeated values in StringDomain:",
                         absl::StrJoin(repeats, ", "))}};
@@ -206,10 +206,10 @@ UpdateSummary UpdateStringDomain(const Schema::Updater& updater,
   if (updater.string_domain_too_big(domain_size)) {
     summary.clear_field = true;
 
-    summary.descriptions.push_back({
-      tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
-      "String domain has too many values",
-      Printf("String domain has too many values (%d).", domain_size)});
+    summary.descriptions.push_back(
+        {tensorflow::metadata::v0::AnomalyInfo::INVALID_DOMAIN_SPECIFICATION,
+         "String domain has too many values",
+         Printf("String domain has too many values (%d).", domain_size)});
   }
   return summary;
 }

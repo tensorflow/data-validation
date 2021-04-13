@@ -79,12 +79,13 @@ std::vector<Description> UpdateBoolDomainSelf(
   if (bool_domain->has_true_value() && bool_domain->has_false_value() &&
       bool_domain->true_value() == bool_domain->false_value()) {
     bool_domain->clear_false_value();
-    return {{tensorflow::metadata::v0::AnomalyInfo::UNKNOWN_TYPE,
-             "Malformed BoolDomain",
-             absl::StrCat("True and false value equal for BoolDomain:",
-                          bool_domain->true_value(),
-                          ". The suggested change is to clear the false_value, "
-                          "but a domain expert should review this change.")}};
+    return {
+        {tensorflow::metadata::v0::AnomalyInfo::INVALID_DOMAIN_SPECIFICATION,
+         "Malformed BoolDomain",
+         absl::StrCat("True and false value equal for BoolDomain:",
+                      bool_domain->true_value(),
+                      ". The suggested change is to clear the false_value, "
+                      "but a domain expert should review this change.")}};
   }
   return {};
 }
