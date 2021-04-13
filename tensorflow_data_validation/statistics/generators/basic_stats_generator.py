@@ -144,7 +144,7 @@ class _PartialCommonStats(object):
 
   def __init__(self, has_weights: bool):
     # Type of the feature.
-    self.type = None  # type: Optional[List[_PresenceAndValencyStats]]
+    self.type = None  # type: Optional[types.FeatureNameStatisticsType]
     # This will be a List[_PresenceAndValencyStats] once `update()` is called.
     # presence_and_valency_stats[i] contains the stats at nest level i.
     # for example: a feature of type list<list<int>> will have
@@ -199,7 +199,7 @@ class _PartialCommonStats(object):
              weights: Optional[np.ndarray] = None) -> None:
     """Update the partial common statistics using the input value."""
     if self.type is None:
-      self.type = feature_type
+      self.type = feature_type  # pytype: disable=annotation-type-mismatch
     elif feature_type is not None and self.type != feature_type:
       raise TypeError('Cannot determine the type of feature %s. '
                       'Found values of types %s and %s.' %

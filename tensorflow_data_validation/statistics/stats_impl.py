@@ -17,7 +17,7 @@
 import itertools
 import math
 import random
-from typing import Any, Callable, Dict, Iterable, List, Optional, Text, Tuple
+from typing import Any, Callable, cast, Dict, Iterable, List, Optional, Text, Tuple
 
 import apache_beam as beam
 import numpy as np
@@ -819,7 +819,8 @@ def generate_statistics_in_memory(
   Returns:
     A DatasetFeatureStatisticsList proto.
   """
-  stats_generators = get_generators(options, in_memory=True)  # type: List[stats_generator.CombinerStatsGenerator]
+  stats_generators = cast(List[stats_generator.CombinerStatsGenerator],
+                          get_generators(options, in_memory=True))
   partial_stats = generate_partial_statistics_in_memory(record_batch, options,
                                                         stats_generators)
   return extract_statistics_output(partial_stats, stats_generators)
