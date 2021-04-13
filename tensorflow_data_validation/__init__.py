@@ -17,7 +17,6 @@
 # Import stats API.
 from tensorflow_data_validation.api.stats_api import GenerateStatistics
 from tensorflow_data_validation.api.stats_api import WriteStatisticsToBinaryFile
-from tensorflow_data_validation.api.stats_api import WriteStatisticsToText
 from tensorflow_data_validation.api.stats_api import WriteStatisticsToTFRecord
 
 # Import validation API.

@@ -131,13 +131,6 @@ class WriteStatisticsToBinaryFile(beam.PTransform):
                     statistics_pb2.DatasetFeatureStatisticsList)))
 
 
-# TODO(b/169606222): Remove this once all the usages are replaced.
-WriteStatisticsToText = WriteStatisticsToBinaryFile
-WriteStatisticsToText.__doc__ = (
-    'Deprecated. Use `WriteStatisticsToBinaryFile` instead. '
-    + WriteStatisticsToBinaryFile.__doc__)
-
-
 @beam.typehints.with_input_types(statistics_pb2.DatasetFeatureStatisticsList)
 @beam.typehints.with_output_types(beam.pvalue.PDone)
 class WriteStatisticsToTFRecord(beam.PTransform):

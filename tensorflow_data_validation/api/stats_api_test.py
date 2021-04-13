@@ -615,7 +615,7 @@ class StatsAPITest(absltest.TestCase):
             p | beam.Create(record_batches)
             | stats_api.GenerateStatistics(options={}))
 
-  def test_write_stats_to_text(self):
+  def test_write_stats_to_binary_file(self):
     stats = text_format.Parse(
         """
         datasets {
@@ -625,7 +625,7 @@ class StatsAPITest(absltest.TestCase):
         """, statistics_pb2.DatasetFeatureStatisticsList())
     output_path = os.path.join(self._get_temp_dir(), 'stats')
     with beam.Pipeline() as p:
-      _ = (p | beam.Create([stats]) | stats_api.WriteStatisticsToText(
+      _ = (p | beam.Create([stats]) | stats_api.WriteStatisticsToBinaryFile(
           output_path))
     stats_from_file = statistics_pb2.DatasetFeatureStatisticsList()
     serialized_stats = io_util.read_file_to_string(

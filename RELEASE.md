@@ -40,6 +40,7 @@
 *   `StatsOptions.slicing_functions` is deprecated.
     `StatsOptions.experimental_slicing_functions` is introduced as a
     replacement.
+*   `tfdv.WriteStatisticsToText` is removed (deprecated in 0.25.0).
 
 # Version 0.29.0
 
