@@ -13,7 +13,8 @@
 
 ## Bug Fixes and Other Changes
 
-*   Fixed bug in display_schema that caused domains not to be displayed.
+*   Fixed bug in `display_schema` that caused domains not to be displayed.
+*   Modified how `get_schema_dataframe` outputs numeric domains.
 
 ## Known Issues
 

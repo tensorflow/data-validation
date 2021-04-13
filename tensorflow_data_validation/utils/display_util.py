@@ -110,21 +110,40 @@ def get_schema_dataframe(
       feature_type = 'STRING'
 
     # Extract the domain (if any) of the feature.
+    def combine_min_max_strings(min_string, max_string):
+      if min_string is not None and max_string is not None:
+        domain_string = min_string + '; ' + max_string
+      elif min_string is not None:
+        domain_string = min_string
+      elif max_string is not None:
+        domain_string = max_string
+      else:
+        domain_string = '-'
+      return domain_string
+
     domain = '-'
     if feature.HasField('domain'):
       domain = _add_quotes(feature.domain)
     elif feature.HasField('int_domain'):
-      left_value = ('[%d' % feature.int_domain.min
-                    if feature.int_domain.HasField('min') else '(-inf')
-      right_value = ('%d]' % feature.int_domain.max
-                     if feature.int_domain.HasField('max') else 'inf)')
-      domain = left_value + ',' + right_value
+      min_string = ('min: %d' % feature.int_domain.min
+                    if feature.int_domain.HasField('min') else None)
+      max_string = ('max: %d' % feature.int_domain.max
+                    if feature.int_domain.HasField('max') else None)
+      domain = combine_min_max_strings(min_string, max_string)
     elif feature.HasField('float_domain'):
-      left_value = ('[%f' % feature.float_domain.min
-                    if feature.float_domain.HasField('min') else '(-inf')
-      right_value = ('%f]' % feature.float_domain.max
-                     if feature.float_domain.HasField('max') else 'inf)')
-      domain = left_value + ',' + right_value
+      if feature.float_domain.HasField('min'):
+        min_string = 'min: %f' % feature.float_domain.min
+      elif feature.float_domain.disallow_inf:
+        min_string = None
+      else:
+        min_string = 'min: -inf'
+      if feature.float_domain.HasField('max'):
+        max_string = 'max: %f' % feature.float_domain.max
+      elif feature.float_domain.disallow_inf:
+        max_string = None
+      else:
+        max_string = 'max: inf'
+      domain = combine_min_max_strings(min_string, max_string)
     elif feature.HasField('string_domain'):
       domain = _add_quotes(feature.string_domain.name if
                            feature.string_domain.name else
