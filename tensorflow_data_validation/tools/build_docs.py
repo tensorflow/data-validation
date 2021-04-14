@@ -65,6 +65,10 @@ flags.DEFINE_bool("search_hints", True,
 flags.DEFINE_string("site_path", "/tfx/data_validation/api_docs/python",
                     "Path prefix in the _toc.yaml")
 
+flags.DEFINE_bool("gen_report", False,
+                  ("Generate an API report containing the health of the"
+                   "docstrings of the public API."))
+
 FLAGS = flags.FLAGS
 
 supress_docs_for = [
@@ -117,6 +121,7 @@ def main(args):
       # Use private_map to exclude doc locations by name if excluding by object
       # is insufficient.
       private_map={},
+      gen_report=FLAGS.gen_report,
       # local_definitions_filter ensures that shared modules are only
       # documented in the location that defines them, instead of every location
       # that imports them.
