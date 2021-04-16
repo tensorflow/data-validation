@@ -33,6 +33,7 @@ limitations under the License.
 #include "tensorflow_data_validation/anomalies/int_domain_util.h"
 #include "tensorflow_data_validation/anomalies/internal_types.h"
 #include "tensorflow_data_validation/anomalies/map_util.h"
+#include "tensorflow_data_validation/anomalies/natural_language_domain_util.h"
 #include "tensorflow_data_validation/anomalies/path.h"
 #include "tensorflow_data_validation/anomalies/schema_util.h"
 #include "tensorflow_data_validation/anomalies/statistics_view.h"
@@ -97,7 +98,7 @@ std::set<tensorflow::metadata::v0::FeatureType> AllowedFeatureTypes(
     case Feature::kStructDomain:
       return {tensorflow::metadata::v0::STRUCT};
     case Feature::kNaturalLanguageDomain:
-      return {tensorflow::metadata::v0::BYTES};
+      return {tensorflow::metadata::v0::BYTES, tensorflow::metadata::v0::INT};
     case Feature::kImageDomain:
       return {tensorflow::metadata::v0::BYTES};
     case Feature::kMidDomain:
@@ -1097,6 +1098,10 @@ void Schema::UpdateFeatureInternal(
           ::tensorflow::data_validation::UpdateImageDomain(view, feature));
       break;
     case Feature::kNaturalLanguageDomain:
+      add_to_descriptions(
+          ::tensorflow::data_validation::UpdateNaturalLanguageDomain(view,
+                                                                     feature));
+      break;
     case Feature::kMidDomain:
     case Feature::kUrlDomain:
     case Feature::kTimeDomain:

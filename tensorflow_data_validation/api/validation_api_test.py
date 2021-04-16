@@ -153,7 +153,22 @@ IDENTIFY_ANOMALOUS_EXAMPLES_VALID_INPUTS = [{
 }]
 
 
-class ValidationApiTest(parameterized.TestCase):
+class ValidationTestCase(parameterized.TestCase):
+
+  def _assert_equal_anomalies(self, actual_anomalies, expected_anomalies):
+    # Check if the actual anomalies matches with the expected anomalies.
+    for feature_name in expected_anomalies:
+      self.assertIn(feature_name, actual_anomalies.anomaly_info)
+      # Doesn't compare the diff_regions.
+      actual_anomalies.anomaly_info[feature_name].ClearField('diff_regions')
+
+      self.assertEqual(actual_anomalies.anomaly_info[feature_name],
+                       expected_anomalies[feature_name])
+    self.assertEqual(
+        len(actual_anomalies.anomaly_info), len(expected_anomalies))
+
+
+class ValidationApiTest(ValidationTestCase):
 
   def test_infer_schema(self):
     statistics = text_format.Parse(
@@ -754,20 +769,6 @@ class ValidationApiTest(parameterized.TestCase):
     actual_schema = validation_api.infer_schema(statistics,
                                                 infer_feature_shape=False)
     self.assertEqual(actual_schema, expected_schema)
-
-  def _assert_equal_anomalies(self,
-                              actual_anomalies,
-                              expected_anomalies):
-    # Check if the actual anomalies matches with the expected anomalies.
-    for feature_name in expected_anomalies:
-      self.assertIn(feature_name, actual_anomalies.anomaly_info)
-      # Doesn't compare the diff_regions.
-      actual_anomalies.anomaly_info[feature_name].ClearField('diff_regions')
-
-      self.assertEqual(actual_anomalies.anomaly_info[feature_name],
-                       expected_anomalies[feature_name])
-    self.assertEqual(
-        len(actual_anomalies.anomaly_info), len(expected_anomalies))
 
   def _assert_drift_skew_info(
       self, actual_drift_skew_infos, expected_drift_skew_infos):
@@ -2532,6 +2533,112 @@ class ValidationApiTest(parameterized.TestCase):
     options = stats_options.StatsOptions()
     with self.assertRaisesRegexp(ValueError, 'options must include a schema.'):
       _ = validation_api.validate_instance(instance, options)
+
+
+class NLValidationTest(ValidationTestCase):
+
+  @parameterized.named_parameters(*[
+      dict(
+          testcase_name='no_min_coverage',
+          min_coverage=None,
+          feature_coverage=None),
+      dict(
+          testcase_name='missing_stats',
+          min_coverage=0.4,
+          feature_coverage=None),
+      dict(
+          testcase_name='low_min_coverage',
+          min_coverage=0.4,
+          feature_coverage=0.5),
+      dict(
+          testcase_name='high_min_coverage',
+          min_coverage=0.5,
+          feature_coverage=0.4),
+  ])
+  def test_validate_nl_domain(self, min_coverage, feature_coverage):
+    schema = text_format.Parse(
+        """
+        feature {
+          name: "nl_feature"
+          natural_language_domain {
+          }
+          type: INT
+        }
+        """, schema_pb2.Schema())
+    if min_coverage is not None:
+      schema.feature[
+          0].natural_language_domain.coverage.min_coverage = min_coverage
+
+    statistics = text_format.Parse(
+        """
+        datasets{
+          num_examples: 10
+          features {
+            path { step: 'nl_feature' }
+            type: INT
+            num_stats: {
+              common_stats: {
+                num_missing: 3
+                num_non_missing: 7
+                min_num_values: 1
+                max_num_values: 1
+              }
+            }
+          }
+        }
+        """, statistics_pb2.DatasetFeatureStatisticsList())
+    if feature_coverage is not None:
+      nl_stats = statistics_pb2.NaturalLanguageStatistics()
+      nl_stats.feature_coverage = feature_coverage
+
+      custom_stat = statistics.datasets[0].features[0].custom_stats.add()
+      custom_stat.name = 'nl_statistics'
+      custom_stat.any.Pack(nl_stats)
+
+    expected_anomalies = {}
+    if min_coverage is not None and feature_coverage is None:
+      expected_anomalies = {
+          'nl_feature':
+              text_format.Parse(
+                  """
+              path {
+                step: "nl_feature"
+              }
+              description: "Constraints specified in natural language domain cannot be verified because natural language stats have not been computed."
+              severity: ERROR
+              short_description: "Natural language stats are not computed."
+              reason {
+                type: STATS_NOT_AVAILABLE
+                short_description: "Natural language stats are not computed."
+                description: "Constraints specified in natural language domain cannot be verified because natural language stats have not been computed."
+              }
+                    """, anomalies_pb2.AnomalyInfo())
+      }
+    if (min_coverage is not None and feature_coverage is not None and
+        min_coverage > feature_coverage):
+      expected_anomalies = {
+          'nl_feature':
+              text_format.Parse(
+                  """
+          path {{
+            step: "nl_feature"
+          }}
+          description: "Fraction of tokens in the vocabulary: {feature_coverage:.6f} is lower than the threshold set in the Schema: {min_coverage:.6f}."
+          severity: ERROR
+          short_description: "Feature coverage is too low."
+          reason {{
+            type: FEATURE_COVERAGE_TOO_LOW
+            short_description: "Feature coverage is too low."
+            description: "Fraction of tokens in the vocabulary: {feature_coverage:.6f} is lower than the threshold set in the Schema: {min_coverage:.6f}."
+          }}
+                """.format(
+                    feature_coverage=feature_coverage,
+                    min_coverage=min_coverage), anomalies_pb2.AnomalyInfo())
+      }
+
+    # Validate the stats.
+    anomalies = validation_api.validate_statistics(statistics, schema)
+    self._assert_equal_anomalies(anomalies, expected_anomalies)
 
 
 class IdentifyAnomalousExamplesTest(parameterized.TestCase):

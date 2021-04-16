@@ -168,6 +168,7 @@ cc_library(
         "float_domain_util.cc",
         "image_domain_util.cc",
         "int_domain_util.cc",
+        "natural_language_domain_util.cc",
         "schema.cc",
         "schema_anomalies.cc",
         "schema_util.cc",
@@ -181,6 +182,7 @@ cc_library(
         "float_domain_util.h",
         "image_domain_util.h",
         "int_domain_util.h",
+        "natural_language_domain_util.h",
         "schema.h",
         "schema_anomalies.h",
         "schema_util.h",
@@ -203,6 +205,7 @@ cc_library(
         "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/types:optional",
         "@com_google_absl//absl/types:variant",
+        "@com_google_protobuf//:cc_wkt_protos",
         "@org_tensorflow//tensorflow/core:lib",
     ],
 )

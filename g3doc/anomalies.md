@@ -659,12 +659,12 @@ condition(s) under which each anomaly type is detected.
         -   `feature.shape` is specified, and one of the following:
             -   the feature may be missing (`num_missing != 0`) at some nest
                 level.
-            -   the feature may have variable number of values (
-                `min_num_values != max_num_values`) at some nest level
+            -   the feature may have variable number of values ( `min_num_values
+                != max_num_values`) at some nest level
             -   the specified shape is not compatible with the feature's value
                 count stats. For example, shape `[16]` is compatible with
-                (`min_num_values == max_num_values == [2, 2, 4]` (for a
-                3-nested feature)).
+                (`min_num_values == max_num_values == [2, 2, 4]` (for a 3-nested
+                feature)).
 
 -   `DOMAIN_INVALID_FOR_TYPE`
 
@@ -734,6 +734,7 @@ condition(s) under which each anomaly type is detected.
     NOTE: There are various different reasons why an anomaly of
     `INVALID_DOMAIN_SPECIFICATION` may be generated. Each bullet in the
     Detection Condition below lists an independent reason.
+
     -   Schema Fields:
         -   `feature.domain_info`
         -   `feature.bool_domain`
@@ -747,7 +748,20 @@ condition(s) under which each anomaly type is detected.
         -   repeated values in `feature.string_domain`
         -   `feature.string_domain` exceeds the maximum size
 
---------------------------------------------------------------------------------
+-   `STATS_NOT_AVAILBLE`
+
+    -   Anomaly occurs when stats needed to validate constraints are not
+        present.
+
+-   `FEATURE_COVERAGE_TOO_LOW`
+
+    -   Schema Fields:
+        -   `feature.natural_language_domain.coverage.min_coverage`
+    -   Statistics Fields:
+        -   `NaturalLanguageStatistics.feature_coverage`
+    -   Detection Condition:
+        -   `NaturalLanguageStatistics.feature_coverage` <
+            `feature.natural_language_domain.coverage.min_coverage` --------------------------------------------------------------------------------
 
 \* If a weighted statistic is available for this field, it will be used instead
 of the non-weighted statistic.
