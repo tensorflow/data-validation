@@ -37,12 +37,12 @@ from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.api import stats_api
 from tensorflow_data_validation.coders import csv_decoder
-from tensorflow_data_validation.coders import tf_example_decoder
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options as options
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import stats_util
 from tfx_bsl.arrow import table_util
+from tfx_bsl.tfxio import tf_example_record
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -78,23 +78,20 @@ def generate_statistics_from_tfrecord(
       (DirectRunner or DataflowRunner), cloud dataflow service project id, etc.
       See https://cloud.google.com/dataflow/pipelines/specifying-exec-params for
       more details.
-    compression_type: Used to handle compressed input files. Default value is
-      CompressionTypes.AUTO, in which case the file_path's extension will be
-      used to detect the compression.
+    compression_type: Deprecated. Compression type will be detected
+      automatically. TODO(b/184079860): Remove this before TFDV 1.0.
 
   Returns:
     A DatasetFeatureStatisticsList proto.
   """
+  del compression_type
   if output_path is None:
     output_path = os.path.join(tempfile.mkdtemp(), 'data_stats.tfrecord')
   output_dir_path = os.path.dirname(output_path)
   if not tf.io.gfile.exists(output_dir_path):
     tf.io.gfile.makedirs(output_dir_path)
 
-  batch_size = (
-      stats_options.desired_batch_size if stats_options.desired_batch_size
-      and stats_options.desired_batch_size > 0 else
-      constants.DEFAULT_DESIRED_INPUT_BATCH_SIZE)
+  batch_size = stats_options.desired_batch_size
   # PyLint doesn't understand Beam PTransforms.
   # pylint: disable=no-value-for-parameter
   with beam.Pipeline(options=pipeline_options) as p:
@@ -102,13 +99,14 @@ def generate_statistics_from_tfrecord(
     # path suffix.
     _ = (
         p
-        | 'ReadData' >> beam.io.ReadFromTFRecord(
-            file_pattern=data_location, compression_type=compression_type)
-        | 'DecodeData' >> tf_example_decoder.DecodeTFExample(
-            desired_batch_size=batch_size)
+        | 'ReadData' >> (tf_example_record.TFExampleRecord(
+            file_pattern=data_location,
+            schema=None,
+            telemetry_descriptors=['tfdv', 'generate_statistics_from_tfrecord'])
+                         .BeamSource(batch_size))
         | 'GenerateStatistics' >> stats_api.GenerateStatistics(stats_options)
-        | 'WriteStatsOutput' >> stats_api.WriteStatisticsToTFRecord(
-            output_path))
+        | 'WriteStatsOutput' >>
+        (stats_api.WriteStatisticsToTFRecord(output_path)))
   return stats_util.load_statistics(output_path)
 
 

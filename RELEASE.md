@@ -44,6 +44,8 @@
     `StatsOptions.experimental_slicing_functions` is introduced as a
     replacement.
 *   `tfdv.WriteStatisticsToText` is removed (deprecated in 0.25.0).
+*   Parameter `compression_type` in `tfdv.generate_statistics_from_tfrecord`
+    is deprecated. The compression type is currently automatically determined.
 
 # Version 0.29.0
 

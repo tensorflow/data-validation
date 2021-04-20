@@ -29,11 +29,11 @@ from tensorflow_data_validation import types
 from tensorflow_data_validation.api import stats_api
 from tensorflow_data_validation.api import validation_api
 from tensorflow_data_validation.coders import csv_decoder
-from tensorflow_data_validation.coders import tf_example_decoder
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options as options
 from tensorflow_data_validation.utils import stats_gen_lib
 from tensorflow_data_validation.utils import stats_util
+from tfx_bsl.tfxio import tf_example_record
 
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
@@ -91,16 +91,18 @@ def validate_examples_in_tfrecord(
   with beam.Pipeline(options=pipeline_options) as p:
     _ = (
         p
-        | 'ReadData' >> beam.io.ReadFromTFRecord(file_pattern=data_location)
-        | 'DecodeData' >> tf_example_decoder.DecodeTFExample(
-            desired_batch_size=1)
+        | 'ReadData' >> (tf_example_record.TFExampleRecord(
+            file_pattern=data_location,
+            schema=None,
+            telemetry_descriptors=['tfdv', 'validate_examples_in_tfrecord'
+                                  ]).BeamSource(batch_size=1))
         | 'DetectAnomalies' >>
         validation_api.IdentifyAnomalousExamples(stats_options)
         |
         'GenerateSummaryStatistics' >> stats_impl.GenerateSlicedStatisticsImpl(
             stats_options, is_slicing_enabled=True)
-        | 'WriteStatsOutput' >> stats_api.WriteStatisticsToTFRecord(
-            output_path))
+        |
+        'WriteStatsOutput' >> stats_api.WriteStatisticsToTFRecord(output_path))
 
   return stats_util.load_statistics(output_path)
 

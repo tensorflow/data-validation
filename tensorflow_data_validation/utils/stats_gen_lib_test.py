@@ -80,7 +80,10 @@ class StatsGenTest(parameterized.TestCase):
     return result
 
   def _write_tfexamples_to_tfrecords(self, examples, compression_type):
-    data_location = os.path.join(self._get_temp_dir(), 'input_data.tfrecord')
+    filename = 'input_data.tfrecord'
+    if compression_type == tf.compat.v1.python_io.TFRecordCompressionType.GZIP:
+      filename += '.gz'
+    data_location = os.path.join(self._get_temp_dir(), filename)
     with tf.io.TFRecordWriter(
         data_location, options=compression_type) as writer:
       for example in examples:
@@ -89,7 +92,7 @@ class StatsGenTest(parameterized.TestCase):
 
   _BEAM_COMPRESSION_TYPES = [
       {
-          'testcase_name': 'auto_infer_compression',
+          'testcase_name': 'no_compression',
           'compression_type': CompressionTypes.AUTO
       },
       {
