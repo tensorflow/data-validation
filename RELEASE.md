@@ -4,6 +4,23 @@
 
 ## Major Features and Improvements
 
+## Bug Fixes and Other Changes
+
+## Known Issues
+
+## Breaking Changes
+
+## Deprecations
+
+# Version 0.30.0
+
+## Major Features and Improvements
+
+*   This version is the last version before TFDV 1.0. Once 1.0, all the TFDV
+    public APIs (i.e. symbols in the root `__init__.py`) will be subject to
+    semantic versioning. We are deprecating some public APIs in this version
+    and they will be removed in 1.0.
+
 *   Sketch-based top-k/unique stats generator now is able to detect invalid
     utf-8 sequences / large texts and replace them with a placeholder.
     It will not suffer from memory issue usually caused by image / large text
@@ -17,10 +34,16 @@
 *   Modified how `get_schema_dataframe` outputs numeric domains.
 *   Anomalies previously (un)classified as UKNOWN_TYPE now trigger more specific
     anomaly types: INVALID_DOMAIN_SPECIFICATION and MULTIPLE_REASONS.
+*   Depends on `tensorflow-metadata>=0.30,<0.31`.
+*   Depends on `tfx-bsl>=0.30,<0.31`.
 
 ## Known Issues
 
+*   N/A
+
 ## Breaking Changes
+
+*   N/A
 
 ## Deprecations
 
