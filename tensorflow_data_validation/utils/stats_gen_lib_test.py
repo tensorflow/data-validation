@@ -250,8 +250,7 @@ class StatsGenTest(parameterized.TestCase):
 
     result = stats_gen_lib.generate_statistics_from_tfrecord(
         data_location=input_data_path,
-        stats_options=self._default_stats_options,
-        compression_type=compression_type)
+        stats_options=self._default_stats_options)
     compare_fn = test_util.make_dataset_feature_stats_list_proto_equal_fn(
         self, expected_result)
     compare_fn([result])

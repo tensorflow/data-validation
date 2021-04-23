@@ -53,7 +53,6 @@ def generate_statistics_from_tfrecord(
     output_path: Optional[bytes] = None,
     stats_options: options.StatsOptions = options.StatsOptions(),
     pipeline_options: Optional[PipelineOptions] = None,
-    compression_type: Text = CompressionTypes.AUTO,
 ) -> statistics_pb2.DatasetFeatureStatisticsList:
   """Compute data statistics from TFRecord files containing TFExamples.
 
@@ -78,13 +77,10 @@ def generate_statistics_from_tfrecord(
       (DirectRunner or DataflowRunner), cloud dataflow service project id, etc.
       See https://cloud.google.com/dataflow/pipelines/specifying-exec-params for
       more details.
-    compression_type: Deprecated. Compression type will be detected
-      automatically. TODO(b/184079860): Remove this before TFDV 1.0.
 
   Returns:
     A DatasetFeatureStatisticsList proto.
   """
-  del compression_type
   if output_path is None:
     output_path = os.path.join(tempfile.mkdtemp(), 'data_stats.tfrecord')
   output_dir_path = os.path.dirname(output_path)

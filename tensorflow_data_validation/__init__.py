@@ -22,24 +22,7 @@ from tensorflow_data_validation.api.stats_api import WriteStatisticsToTFRecord
 # Import validation API.
 from tensorflow_data_validation.api.validation_api import infer_schema
 from tensorflow_data_validation.api.validation_api import update_schema
-# DO NOT USE. validate_instance will not be exposed as public API in future
-# versions. To examine anomalies on a per-example basis, use
-# validate_examples_in_csv or validate_examples_in_tfrecord.
-# TODO(b/184079860): remove after TFDV 0.30 is released.
-from tensorflow_data_validation.api.validation_api import validate_instance
 from tensorflow_data_validation.api.validation_api import validate_statistics
-
-# Import stats generators.
-
-# DO NOT USE. LiftStatsGenerator will not be exposed as public API in future
-# versions. To enable this generator, supply `StatsOptions.label_feature`.
-# TODO(b/184079860): remove after TFDV 0.30 is released.
-from tensorflow_data_validation.statistics.generators.lift_stats_generator import LiftStatsGenerator
-
-# DO NOT USE. NonStreamingCustomStatsGenerator will not be exposed as public API
-# in future versions.
-# TODO(b/184079860): remove after TFDV 0.30 is released.
-from tensorflow_data_validation.statistics.generators.partitioned_stats_generator import NonStreamingCustomStatsGenerator
 
 # Base classes for stats generators.
 from tensorflow_data_validation.statistics.generators.stats_generator import CombinerStatsGenerator
@@ -90,8 +73,3 @@ from tensorflow_data_validation.utils.validation_lib import validate_examples_in
 
 # Import version string.
 from tensorflow_data_validation.version import __version__
-
-# get_feature_value_slicer is DEPRECATED.
-# Use experimental_get_feature_value_slicer instead.
-# TODO(b/184079860): remove after TFDV 0.30 is released.
-get_feature_value_slicer = experimental_get_feature_value_slicer

@@ -12,6 +12,15 @@
 
 ## Deprecations
 
+*  Removed the following deprecated symbols. Their deprecation was announced
+   in 0.30.0.
+  - `tfdv.validate_instance`
+  - `tfdv.lift_stats_generator`
+  - `tfdv.partitioned_stats_generator`
+  - `tfdv.get_feature_value_slicer`
+*  Removed parameter `compression_type` in
+   `tfdv.generate_statistics_from_tfrecord`
+
 # Version 0.30.0
 
 ## Major Features and Improvements
