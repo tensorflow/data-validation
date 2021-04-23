@@ -218,14 +218,39 @@ class SkLearnMutualInformationTest(absltest.TestCase):
                                  types.FeaturePath(["label_key"]))
 
   def test_mi_regression_with_int_label_and_categorical_feature(self):
-    label_array = pa.array([
-        [0], [2], [0], [1], [2], [1], [1], [0], [2], [1], [0]])
+    n = 100
+    # Set seed so this test is deterministic
+    np.random.seed(0)
+
+    # The features have the following labels:
+    # Feature | Label
+    # -----------------
+    # Red     | [0, 1.0)
+    # Blue    | [1.0, 2.0)
+    # Green   | [2.0, 3.0)
+
+    # Create labels where first n items are [0, 1.0),
+    # next n items are [1.0, 2.0), and last n items are [2.0, 3.0).
+    label = [np.random.rand() for i in range(n)] + [
+        np.random.rand() + 1 for i in range(n)
+    ] + [np.random.rand() + 2 for i in range(n)]
+
     # A categorical feature that maps directly on to the label.
-    perfect_feat_array = pa.array([
-        ["Red"], ["Blue"], ["Red"], ["Green"], ["Blue"], ["Green"], ["Green"],
-        ["Red"], ["Blue"], ["Green"], ["Red"]])
-    batch = pa.RecordBatch.from_arrays([label_array, perfect_feat_array],
-                                       ["label_key", "perfect_feature"])
+    feat = ["Red"] * n + ["Blue"] * n + ["Green"] * n
+
+    # Shuffle the two arrays together (i.e. the table above still holds, but the
+    # order of labels are now mixed.)
+    # For example:
+    # [0.4, 0.1, 1.2, 2.4]            => [1.2, 0.1, 2.4, 0.4]
+    # ["Red", "Red", "Blue", "Green"] => ["Blue", "Red", "Green", "Red"]
+    zipped_arrays = list(zip(feat, label))
+    np.random.shuffle(zipped_arrays)
+    feat_array, label_array = zip(*zipped_arrays)
+
+    batch = pa.RecordBatch.from_arrays([
+        pa.array([[x] for x in label_array]),
+        pa.array([[x] for x in feat_array])
+    ], ["label_key", "color_feature"])
 
     schema = text_format.Parse(
         """
@@ -239,7 +264,7 @@ class SkLearnMutualInformationTest(absltest.TestCase):
           }
         }
         feature {
-          name: "perfect_feature"
+          name: "color_feature"
           type: BYTES
           shape {
             dim {
@@ -253,15 +278,15 @@ class SkLearnMutualInformationTest(absltest.TestCase):
         """
         features {
           path {
-            step: "perfect_feature"
+            step: "color_feature"
           }
           custom_stats {
             name: 'sklearn_adjusted_mutual_information'
-            num: 1.7319986
+            num: 1.0798653
           }
           custom_stats {
             name: 'sklearn_mutual_information'
-            num: 1.7319986
+            num: 1.0983102
           }
         }""", statistics_pb2.DatasetFeatureStatistics())
     self._assert_mi_output_equal(batch, expected, schema,
@@ -341,7 +366,7 @@ class SkLearnMutualInformationTest(absltest.TestCase):
           name: "label_key"
           type: INT
           int_domain {
-            is_categorical: false
+            is_categorical: true
           }
           shape {
             dim {
@@ -368,8 +393,6 @@ class SkLearnMutualInformationTest(absltest.TestCase):
           }
         }
         """, schema_pb2.Schema())
-    # Note that the MI is different from above since the label is declared as
-    # continuous feature.
     expected = text_format.Parse(
         """
         features {
@@ -378,11 +401,24 @@ class SkLearnMutualInformationTest(absltest.TestCase):
           }
           custom_stats {
             name: 'sklearn_adjusted_mutual_information'
-            num: 1.7319986
+            num: 0.9297553
           }
           custom_stats {
             name: 'sklearn_mutual_information'
-            num: 1.7319986
+            num: 1.0900597
+          }
+        }
+        features {
+          path {
+            step: "unique_feat_array"
+          }
+          custom_stats {
+            name: "sklearn_adjusted_mutual_information"
+            num: 0.0
+          }
+          custom_stats {
+            name: "sklearn_mutual_information"
+            num: 1.0900597
           }
         }""", statistics_pb2.DatasetFeatureStatistics())
     self._assert_mi_output_equal(batch, expected, schema,
@@ -406,6 +442,9 @@ class SkLearnMutualInformationTest(absltest.TestCase):
               size: 1
             }
           }
+          int_domain {
+            is_categorical: true
+          }
         }
         feature {
           name: "fa"
@@ -426,11 +465,11 @@ class SkLearnMutualInformationTest(absltest.TestCase):
           }
           custom_stats {
             name: 'sklearn_adjusted_mutual_information'
-            num: 0.4361111
+            num: 0.3960841
           }
           custom_stats {
             name: 'sklearn_mutual_information'
-            num: 0.4361111
+            num: 0.8809502
           }
         }""", statistics_pb2.DatasetFeatureStatistics())
     self._assert_mi_output_equal(batch, expected, schema,
@@ -542,8 +581,8 @@ class SkLearnMutualInformationTest(absltest.TestCase):
           }
           """, schema_pb2.Schema())
 
-    with self.assertRaisesRegexp(ValueError,
-                                 "Feature label_key not found in the schema."):
+    with self.assertRaisesRegex(ValueError,
+                                "Feature label_key not found in the schema."):
       sklearn_mutual_information.SkLearnMutualInformation(
           types.FeaturePath(["label_key"]), schema, TEST_SEED).compute(batch)
 
@@ -571,8 +610,8 @@ class SkLearnMutualInformationTest(absltest.TestCase):
           }
           """, schema_pb2.Schema())
 
-    with self.assertRaisesRegexp(ValueError,
-                                 "Label column contains unsupported data."):
+    with self.assertRaisesRegex(ValueError,
+                                "Label column contains unsupported data."):
       sklearn_mutual_information.SkLearnMutualInformation(
           types.FeaturePath(["label_key"]), schema, TEST_SEED).compute(batch)
 
