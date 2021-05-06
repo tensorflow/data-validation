@@ -46,7 +46,7 @@ _CombinedEstimate = collections.namedtuple(
 
 # Strings longer than this will be attributed to a single "large string" token
 # (constants.LARGE_BYTES_PLACEHOLDER) for top-k computations.
-_LARGE_STRING_THRESHOLD = 32
+_LARGE_STRING_THRESHOLD = 1024
 
 
 class _CombinedSketch(object):

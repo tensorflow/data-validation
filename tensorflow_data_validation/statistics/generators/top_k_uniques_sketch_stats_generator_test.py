@@ -1278,8 +1278,8 @@ class TopKUniquesSketchStatsGeneratorTest(
     # 4 'a', 3 large blob strings, 1 'b', 1'c'
     batches = [
         pa.RecordBatch.from_arrays([
-            pa.array([[b'a', b'b', b'f' * 33, b'a'],
-                      [b'a', b'f' * 34, b'f' * 33, b'a']]),
+            pa.array([[b'a', b'b', b'f' * 1025, b'a'],
+                      [b'a', b'f' * 1025, b'f' * 1026, b'a']]),
         ], ['fa']),
         pa.RecordBatch.from_arrays([
             pa.array([['c']]),
