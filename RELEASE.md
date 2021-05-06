@@ -6,8 +6,9 @@
 
 ## Bug Fixes and Other Changes
 
-*  Increased the threshold beyond which a string feature value is considered
-   "large" by the experimental sketch-based top-k/unique generator to 1024.
+*   Increased the threshold beyond which a string feature value is considered
+    "large" by the experimental sketch-based top-k/unique generator to 1024.
+*   Added normalized AMI to sklearn mutual information generator.
 
 ## Known Issues
 

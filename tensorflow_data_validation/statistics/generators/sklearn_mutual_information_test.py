@@ -97,6 +97,10 @@ class SkLearnMutualInformationTest(absltest.TestCase):
             name: "sklearn_mutual_information"
             num: 1.1622766
           }
+          custom_stats {
+            name: "sklearn_normalized_adjusted_mutual_information"
+            num: 0.9496162
+          }
         }
         features {
           path {
@@ -109,6 +113,10 @@ class SkLearnMutualInformationTest(absltest.TestCase):
           custom_stats {
             name: "sklearn_mutual_information"
             num: 0.0211485
+          }
+          custom_stats {
+            name: "sklearn_normalized_adjusted_mutual_information"
+            num: 0.0161305
           }
         }""", statistics_pb2.DatasetFeatureStatistics())
     self._assert_mi_output_equal(batch, expected, schema,
@@ -187,6 +195,10 @@ class SkLearnMutualInformationTest(absltest.TestCase):
             name: "sklearn_mutual_information"
             num: 1.2277528
           }
+          custom_stats {
+            name: "sklearn_normalized_adjusted_mutual_information"
+            num: 1.0
+          }
         }
         features {
           path {
@@ -200,6 +212,10 @@ class SkLearnMutualInformationTest(absltest.TestCase):
             name: "sklearn_mutual_information"
             num: 0.0392891
           }
+          custom_stats {
+            name: "sklearn_normalized_adjusted_mutual_information"
+            num: 0.0299668
+          }
         }
         features {
           path {
@@ -211,6 +227,10 @@ class SkLearnMutualInformationTest(absltest.TestCase):
           }
           custom_stats {
             name: "sklearn_mutual_information"
+            num: 0.0
+          }
+          custom_stats {
+            name: "sklearn_normalized_adjusted_mutual_information"
             num: 0.0
           }
         }""", statistics_pb2.DatasetFeatureStatistics())
@@ -288,6 +308,10 @@ class SkLearnMutualInformationTest(absltest.TestCase):
             name: 'sklearn_mutual_information'
             num: 1.0983102
           }
+          custom_stats {
+            name: "sklearn_normalized_adjusted_mutual_information"
+            num: 0.2438967
+          }
         }""", statistics_pb2.DatasetFeatureStatistics())
     self._assert_mi_output_equal(batch, expected, schema,
                                  types.FeaturePath(["label_key"]))
@@ -340,6 +364,10 @@ class SkLearnMutualInformationTest(absltest.TestCase):
           custom_stats {
             name: 'sklearn_mutual_information'
             num: 1.0900597
+          }
+          custom_stats {
+            name: "sklearn_normalized_adjusted_mutual_information"
+            num: 1.0
           }
         }""", statistics_pb2.DatasetFeatureStatistics())
     self._assert_mi_output_equal(batch, expected, schema,
@@ -407,6 +435,10 @@ class SkLearnMutualInformationTest(absltest.TestCase):
             name: 'sklearn_mutual_information'
             num: 1.0900597
           }
+          custom_stats {
+            name: "sklearn_normalized_adjusted_mutual_information"
+            num: 1.0
+          }
         }
         features {
           path {
@@ -420,7 +452,103 @@ class SkLearnMutualInformationTest(absltest.TestCase):
             name: "sklearn_mutual_information"
             num: 1.0900597
           }
+          custom_stats {
+            name: "sklearn_normalized_adjusted_mutual_information"
+            num: 0.0
+          }
         }""", statistics_pb2.DatasetFeatureStatistics())
+    self._assert_mi_output_equal(batch, expected, schema,
+                                 types.FeaturePath(["label_key"]))
+
+  def test_mi_classif_categorical_label_small_sample(self):
+    label_array = pa.array([[0]])
+    feat_array = pa.array([["Red"]])
+    batch = pa.RecordBatch.from_arrays(
+        [label_array, feat_array],
+        ["label_key", "feature"])
+    schema = text_format.Parse(
+        """
+        feature {
+          name: "label_key"
+          type: INT
+          int_domain {
+            is_categorical: true
+          }
+          shape {
+            dim {
+              size: 1
+            }
+          }
+        }
+        feature {
+          name: "feature"
+          type: BYTES
+          shape {
+            dim {
+              size: 1
+            }
+          }
+        }
+        """, schema_pb2.Schema())
+    expected = text_format.Parse(
+        """
+        features {
+          path {
+            step: "feature"
+          }
+          custom_stats {
+            name: 'sklearn_adjusted_mutual_information'
+            num: 0
+          }
+          custom_stats {
+            name: 'sklearn_mutual_information'
+            num: 0
+          }
+          custom_stats {
+            name: "sklearn_normalized_adjusted_mutual_information"
+            num: 0
+          }
+        }""", statistics_pb2.DatasetFeatureStatistics())
+    self._assert_mi_output_equal(batch, expected, schema,
+                                 types.FeaturePath(["label_key"]))
+
+  def test_mi_regression_numeric_label_small_sample(self):
+    label_array = pa.array([[0], [0]])
+
+    # Make sure the features are not all unique. Otherwise the column will be
+    # dropped.
+    feat_array = pa.array([["Red"], ["Red"]])
+    batch = pa.RecordBatch.from_arrays(
+        [label_array, feat_array],
+        ["label_key", "feature"])
+
+    schema = text_format.Parse(
+        """
+        feature {
+          name: "label_key"
+          type: INT
+          int_domain {
+            is_categorical: false
+          }
+          shape {
+            dim {
+              size: 1
+            }
+          }
+        }
+        feature {
+          name: "feature"
+          type: BYTES
+          shape {
+            dim {
+              size: 1
+            }
+          }
+        }
+        """, schema_pb2.Schema())
+
+    # Since the label is numeric, no mutual information is calculated.
+    expected = statistics_pb2.DatasetFeatureStatistics()
     self._assert_mi_output_equal(batch, expected, schema,
                                  types.FeaturePath(["label_key"]))
 
@@ -471,6 +599,10 @@ class SkLearnMutualInformationTest(absltest.TestCase):
             name: 'sklearn_mutual_information'
             num: 0.8809502
           }
+          custom_stats {
+            name: "sklearn_normalized_adjusted_mutual_information"
+            num: 0.4568877
+          }
         }""", statistics_pb2.DatasetFeatureStatistics())
     self._assert_mi_output_equal(batch, expected, schema,
                                  types.FeaturePath(["label_key"]))
@@ -520,6 +652,117 @@ class SkLearnMutualInformationTest(absltest.TestCase):
           custom_stats {
             name: "sklearn_mutual_information"
             num: 0.4063665
+          }
+          custom_stats {
+            name: "sklearn_normalized_adjusted_mutual_information"
+            num: 0.3268321
+          }
+        }""", statistics_pb2.DatasetFeatureStatistics())
+    self._assert_mi_output_equal(batch, expected, schema,
+                                 types.FeaturePath(["label_key"]))
+
+  def test_mi_with_imputed_categorical_label(self):
+    label_array = pa.array([["Red"], ["Blue"], ["Red"], None, None, ["Green"],
+                            ["Green"]])
+    # A categorical feature with missing values.
+    feat_array = pa.array([
+        ["Red"], ["Blue"], ["Red"], ["Green"], ["Blue"], ["Green"], ["Green"]])
+    batch = pa.RecordBatch.from_arrays([label_array, feat_array],
+                                       ["label_key", "fa"])
+
+    schema = text_format.Parse(
+        """
+        feature {
+          name: "label_key"
+          type: BYTES
+          shape {
+            dim {
+              size: 1
+            }
+          }
+        }
+        feature {
+          name: "fa"
+          type: BYTES
+          shape {
+            dim {
+              size: 1
+            }
+          }
+        }
+        """, schema_pb2.Schema())
+
+    expected = text_format.Parse(
+        """
+        features {
+          path {
+            step: "fa"
+          }
+          custom_stats {
+            name: 'sklearn_adjusted_mutual_information'
+            num: 0.1980421
+          }
+          custom_stats {
+            name: 'sklearn_mutual_information'
+            num: 0.8809502
+          }
+          custom_stats {
+            name: "sklearn_normalized_adjusted_mutual_information"
+            num: 0.2960819
+          }
+        }""", statistics_pb2.DatasetFeatureStatistics())
+    self._assert_mi_output_equal(batch, expected, schema,
+                                 types.FeaturePath(["label_key"]))
+
+  def test_mi_with_imputed_numerical_label(self):
+    label_array = pa.array([
+        [0.1], [0.2], [0.8], [0.7], [0.2], [np.NaN], None,
+        [0.1], [0.2], [0.8], [0.7], [0.2], [0.2], [0.3]])
+    feat_array = pa.array([
+        [0.1], [0.2], [0.8], [0.7], [0.2], [0.2], [0.3],
+        [0.1], [0.2], [0.8], [0.7], [0.2], [0.2], [0.3]])
+    batch = pa.RecordBatch.from_arrays([label_array, feat_array],
+                                       ["label_key", "fa"])
+
+    schema = text_format.Parse(
+        """
+        feature {
+          name: "fa"
+          type: FLOAT
+          shape {
+            dim {
+              size: 1
+            }
+          }
+        }
+        feature {
+          name: "label_key"
+          type: FLOAT
+          shape {
+            dim {
+              size: 1
+            }
+          }
+        }
+        """, schema_pb2.Schema())
+
+    expected = text_format.Parse(
+        """
+        features {
+          path {
+            step: "fa"
+          }
+          custom_stats {
+            name: "sklearn_adjusted_mutual_information"
+            num: 0.2640041
+          }
+          custom_stats {
+            name: "sklearn_mutual_information"
+            num: 0.3825569
+          }
+          custom_stats {
+            name: "sklearn_normalized_adjusted_mutual_information"
+            num: 0.244306
           }
         }""", statistics_pb2.DatasetFeatureStatistics())
     self._assert_mi_output_equal(batch, expected, schema,

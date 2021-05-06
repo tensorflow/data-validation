@@ -205,11 +205,19 @@ def _get_test_stats_with_mi(feature_paths):
                   num: 0.0
                 }
                 custom_stats {
+                  name: "max_sklearn_normalized_adjusted_mutual_information"
+                  num: 0.0
+                }
+                custom_stats {
                   name: "mean_sklearn_adjusted_mutual_information"
                   num: 0.0
                 }
                 custom_stats {
                   name: "mean_sklearn_mutual_information"
+                  num: 0.0
+                }
+                custom_stats {
+                  name: "mean_sklearn_normalized_adjusted_mutual_information"
                   num: 0.0
                 }
                 custom_stats {
@@ -221,11 +229,19 @@ def _get_test_stats_with_mi(feature_paths):
                   num: 0.0
                 }
                 custom_stats {
+                  name: "median_sklearn_normalized_adjusted_mutual_information"
+                  num: 0.0
+                }
+                custom_stats {
                   name: "min_sklearn_adjusted_mutual_information"
                   num: 0.0
                 }
                 custom_stats {
                   name: "min_sklearn_mutual_information"
+                  num: 0.0
+                }
+                custom_stats {
+                  name: "min_sklearn_normalized_adjusted_mutual_information"
                   num: 0.0
                 }
                 custom_stats {
@@ -237,11 +253,19 @@ def _get_test_stats_with_mi(feature_paths):
                   num: 2.0
                 }
                 custom_stats {
+                  name: "num_partitions_sklearn_normalized_adjusted_mutual_information"
+                  num: 2.0
+                }
+                custom_stats {
                   name: "std_dev_sklearn_adjusted_mutual_information"
                   num: 0.0
                 }
                 custom_stats {
                   name: "std_dev_sklearn_mutual_information"
+                  num: 0.0
+                }
+                custom_stats {
+                  name: "std_dev_sklearn_normalized_adjusted_mutual_information"
                   num: 0.0
                 }
         """, statistics_pb2.FeatureNameStatistics())

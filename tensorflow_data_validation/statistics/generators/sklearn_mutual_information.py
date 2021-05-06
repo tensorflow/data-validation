@@ -19,6 +19,8 @@ from __future__ import division
 from __future__ import print_function
 
 import sys
+from typing import Dict, List, Optional, Sequence, Set, Text, Union
+
 import numpy as np
 import pandas as pd
 import pyarrow as pa
@@ -28,8 +30,6 @@ from tensorflow_data_validation.statistics.generators import partitioned_stats_g
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
 from tfx_bsl.arrow import array_util
-
-from typing import Dict, List, Set, Text
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -44,9 +44,11 @@ except ImportError as e:
                     'tensorflow-data-validation[mutual-information]": {}'
                     .format(e))
 
-MUTUAL_INFORMATION_KEY = "sklearn_mutual_information"
-ADJUSTED_MUTUAL_INFORMATION_KEY = "sklearn_adjusted_mutual_information"
-CATEGORICAL_FEATURE_IMPUTATION_FILL_VALUE = "__missing_category__"
+_MUTUAL_INFORMATION_KEY = "sklearn_mutual_information"
+_ADJUSTED_MUTUAL_INFORMATION_KEY = "sklearn_adjusted_mutual_information"
+_NORMALIZED_ADJUSTED_MUTUAL_INFORMATION_KEY = "sklearn_normalized_adjusted_mutual_information"
+_CATEGORICAL_FEATURE_IMPUTATION_FILL_VALUE = "__missing_category__"
+_KNN_N_NEIGHBORS = 3
 
 
 def _flatten_and_impute(examples: pa.RecordBatch,
@@ -54,7 +56,7 @@ def _flatten_and_impute(examples: pa.RecordBatch,
                        ) -> Dict[types.FeaturePath, np.ndarray]:
   """Flattens and imputes the values in the input Arrow RecordBatch.
 
-  Replaces missing values with CATEGORICAL_FEATURE_IMPUTATION_FILL_VALUE
+  Replaces missing values with _CATEGORICAL_FEATURE_IMPUTATION_FILL_VALUE
   for categorical features and 10*max(feature_values) for numeric features.
   We impute missing values with an extreme value that is far from observed
   values so it does not incorrectly impact KNN results. 10*max(feature_values)
@@ -76,7 +78,7 @@ def _flatten_and_impute(examples: pa.RecordBatch,
                                         examples.columns):
     feature_path = types.FeaturePath([column_name])
     imputation_fill_value = (
-        CATEGORICAL_FEATURE_IMPUTATION_FILL_VALUE
+        _CATEGORICAL_FEATURE_IMPUTATION_FILL_VALUE
         if feature_path in categorical_features else sys.maxsize)
     if pa.types.is_null(feature_array.type):
       # If null array, impute all values.
@@ -198,51 +200,99 @@ class SkLearnMutualInformation(partitioned_stats_generator.PartitionedStatsFn):
     Returns:
       Dict[FeatureName, Dict[str,float]] where the keys of the dicts are the
       feature name and values are a dict where the keys are
-      MUTUAL_INFORMATION_KEY and ADJUSTED_MUTUAL_INFORMATION_KEY and the values
-      are the MI and AMI for that feature.
+      _MUTUAL_INFORMATION_KEY, _ADJUSTED_MUTUAL_INFORMATION_KEY,
+      _NORMALIZED_ADJUSTED_MUTUAL_INFORMATION_KEY and the values are the MI,
+      AMI, and normalized AMI for that feature.
     """
     result = {}
+
+    # Calculate MI for each feature.
+    mi_per_feature = _sklearn_calculate_mi_wrapper(
+        df.values,
+        labels,
+        discrete_features=discrete_feature_mask,
+        copy=True,
+        seed=seed,
+        is_label_categorical=self._label_feature_is_categorical)
+
+    if mi_per_feature is None:
+      # MI could not be calculated.
+      return result
+
+    # There are multiple ways to normalized AMI. We choose to calculate it as:
+    # Normalized AMI(X, Y) = AMI(X, Y) / (Max{H(X), H(Y)} - shuffle_mi(X, Y))
+    # Where H(X) is the entropy of X.
+    #
+    # We can derive entropy from MI(X, X) as follows:
+    # MI(X, X) = H(X) - H(X|X) = H(X)
+
+    # Calculate H(feature), for each feature.
+    entropy_per_feature = []
+    for col in df.columns:
+      col_is_categorical = col in self._categorical_features
+      entropy = _sklearn_calculate_mi_wrapper(
+          np.array([[x] for x in df[col].values]),
+          df[col].values,
+          discrete_features=col_is_categorical,
+          copy=True,
+          seed=seed,
+          is_label_categorical=col_is_categorical)
+      # The entropy might not exist for a feature. This is because now we are
+      # treating each feature as a label. The features could be a mix of
+      # categorical and numerical features, thus MI is calculated on a case by
+      # case basis, and may not exist in some cases.
+      # Setting it to 0 will not affect the normalized AMI result, since we are
+      # looking for max entropy.
+      entropy_per_feature.append(entropy[0] if entropy else 0)
+
+    # Calculate H(label)
     if self._label_feature_is_categorical:
-      mi_per_feature = mutual_info_classif(
-          df.values,
-          labels,
-          discrete_features=discrete_feature_mask,
-          copy=True,
-          random_state=seed)
-
-      np.random.shuffle(labels)
-
-      shuffled_mi_per_feature = mutual_info_classif(
-          df.values,
-          labels,
-          discrete_features=discrete_feature_mask,
-          copy=False,
-          random_state=seed)
+      # Encode categorical labels as numerical.
+      _, integerized_label = np.unique(labels, return_inverse=True)
+      labels_as_feature = np.array([[x] for x in integerized_label])
     else:
-      # Skip if sample size is smaller than the default value of n_neighbors.
-      if df.values.shape[0] < 4:
-        return result
-      mi_per_feature = mutual_info_regression(
-          df.values,
-          labels,
-          discrete_features=discrete_feature_mask,
-          copy=True,
-          random_state=seed)
+      labels_as_feature = np.array([[x] for x in labels])
+    label_entropy = _sklearn_calculate_mi_wrapper(
+        labels_as_feature,
+        labels,
+        discrete_features=self._label_feature_is_categorical,
+        copy=True,
+        seed=seed,
+        is_label_categorical=self._label_feature_is_categorical)
+    # label_entropy is guaranteed to exist. If it does not exist, then
+    # mi_per_feature would have been None (and we would have exited this).
+    assert len(label_entropy) == 1
+    label_entropy = label_entropy[0]
 
-      np.random.shuffle(labels)
+    # Shuffle the labels and calculate the MI. This allows us to adjust
+    # the MI for any memorization in the model.
+    np.random.shuffle(labels)
+    shuffled_mi_per_feature = _sklearn_calculate_mi_wrapper(
+        df.values,
+        labels,
+        discrete_features=discrete_feature_mask,
+        copy=False,
+        seed=seed,
+        is_label_categorical=self._label_feature_is_categorical)
 
-      shuffled_mi_per_feature = mutual_info_regression(
-          df.values,
-          labels,
-          discrete_features=discrete_feature_mask,
-          copy=False,
-          random_state=seed)
+    for i, (mi, shuffle_mi, entropy) in enumerate(
+        zip(mi_per_feature, shuffled_mi_per_feature, entropy_per_feature)):
+      max_entropy = max(label_entropy, entropy)
+      ami = mi - shuffle_mi
 
-    for i, (mi, shuffled_mi) in enumerate(
-        zip(mi_per_feature, shuffled_mi_per_feature)):
+      # Bound normalized AMI to be in [0, 1].
+      # shuffle_mi <= max_entropy always holds.
+      if max_entropy == shuffle_mi:
+        # In the case of equality, MI(X, Y) <= max_entropy == shuffle_mi.
+        # So AMI = MI(X, Y) - shuffle_mi < 0. We cap it at 0.
+        normalized_ami = 0
+      else:
+        normalized_ami = min(1, max(0, ami / (max_entropy - shuffle_mi)))
+
       result[df.columns[i]] = {
-          MUTUAL_INFORMATION_KEY: mi.clip(min=0),
-          ADJUSTED_MUTUAL_INFORMATION_KEY: mi - shuffled_mi
+          _MUTUAL_INFORMATION_KEY: mi.clip(min=0),
+          _ADJUSTED_MUTUAL_INFORMATION_KEY: ami,
+          _NORMALIZED_ADJUSTED_MUTUAL_INFORMATION_KEY: normalized_ami
       }
     return result
 
@@ -269,10 +319,14 @@ class SkLearnMutualInformation(partitioned_stats_generator.PartitionedStatsFn):
     for i, column in enumerate(df):
       if column in self._categorical_features:
         # Encode categorical columns.
-        str_array = [(
-            x.decode("utf-8", "replace") if isinstance(x, bytes) else
-            (x if x is not None else CATEGORICAL_FEATURE_IMPUTATION_FILL_VALUE))
-                     for x in df[column].values]
+        def maybe_decode_or_impute(x):
+          if isinstance(x, bytes):
+            return x.decode("utf-8", "replace")
+          elif x is not None:
+            return x
+          else:
+            return _CATEGORICAL_FEATURE_IMPUTATION_FILL_VALUE
+        str_array = [maybe_decode_or_impute(x) for x in df[column].values]
         unique_elements, df[column] = np.unique(str_array, return_inverse=True)
         is_categorical_feature[i] = True
         # Drop the categroical features that all its values are unique if the
@@ -333,3 +387,45 @@ class SkLearnMutualInformation(partitioned_stats_generator.PartitionedStatsFn):
         supported_column_names.append(column_name)
 
     return pa.RecordBatch.from_arrays(supported_columns, supported_column_names)
+
+
+def _sklearn_calculate_mi_wrapper(
+    feature: np.ndarray, label: np.ndarray,
+    discrete_features: Union[bool, Sequence[bool]], seed: int, copy: bool,
+    is_label_categorical: bool) -> Optional[np.ndarray]:
+  """Wraps sklearn calculate mi with some additional validation.
+
+  Args:
+    feature: The features.
+    label: The labels.
+    discrete_features: If bool, then determines whether to consider all
+      features discrete or continuous. If array, then it should be either a
+      boolean mask with shape (n_features,) or array with indices of discrete
+      features.
+    seed: Determines random number generation for adding small noise to
+      continuous variables in order to remove repeated values. Pass an int for
+      reproducible results across multiple function calls.
+    copy: Whether to make a copy of the given data. If set to False, the
+      initial data will be overwritten.
+    is_label_categorical: True if the label is a categorical feature.
+
+  Returns:
+    A numpy array of mutual information of each feature. Will return None if MI
+    cannot be calculated.
+  """
+  if is_label_categorical:
+    calc_mi_fn = mutual_info_classif
+  else:
+    # Skip if sample size is smaller than number of required neighbors plus
+    # itself.
+    if len(feature) <= _KNN_N_NEIGHBORS:
+      return None
+    calc_mi_fn = mutual_info_regression
+
+  return calc_mi_fn(
+      feature,
+      label,
+      discrete_features=discrete_features,
+      n_neighbors=_KNN_N_NEIGHBORS,
+      copy=copy,
+      random_state=seed)
