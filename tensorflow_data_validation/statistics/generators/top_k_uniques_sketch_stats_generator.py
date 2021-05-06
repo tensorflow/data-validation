@@ -44,6 +44,11 @@ _CombinedEstimate = collections.namedtuple(
     "_CombinedEstimate", ["distinct", "topk_unweighted", "topk_weighted"])
 
 
+# Strings longer than this will be attributed to a single "large string" token
+# (constants.LARGE_BYTES_PLACEHOLDER) for top-k computations.
+_LARGE_STRING_THRESHOLD = 32
+
+
 class _CombinedSketch(object):
   """Wrapper for the three sketches for a single feature."""
   __slots__ = ["_distinct", "_topk_unweighted", "_topk_weighted"]
@@ -136,13 +141,16 @@ class TopKUniquesSketchStatsGenerator(stats_generator.CombinerStatsGenerator):
     self._frequency_threshold = frequency_threshold
     self._weighted_frequency_threshold = weighted_frequency_threshold
     self._store_output_in_custom_stats = store_output_in_custom_stats
-    self._num_top_values_gauge = beam.metrics.Metrics.gauge(
+    # They should be gauges, but not all runners support gauges so they are
+    # made distributions.
+    # TODO(b/130840752): support gauges in the internal runner.
+    self._num_top_values_gauge = beam.metrics.Metrics.distribution(
         constants.METRICS_NAMESPACE, "num_top_values")
-    self._num_rank_histogram_buckets_gauge = beam.metrics.Metrics.gauge(
+    self._num_rank_histogram_buckets_gauge = beam.metrics.Metrics.distribution(
         constants.METRICS_NAMESPACE, "num_rank_histogram_buckets")
-    self._num_mg_buckets_gauge = beam.metrics.Metrics.gauge(
+    self._num_mg_buckets_gauge = beam.metrics.Metrics.distribution(
         constants.METRICS_NAMESPACE, "num_mg_buckets")
-    self._num_kmv_buckets_gauge = beam.metrics.Metrics.gauge(
+    self._num_kmv_buckets_gauge = beam.metrics.Metrics.distribution(
         constants.METRICS_NAMESPACE, "num_kmv_buckets")
 
   def _update_combined_sketch_for_feature(
@@ -155,23 +163,24 @@ class TopKUniquesSketchStatsGenerator(stats_generator.CombinerStatsGenerator):
 
     combined_sketch = accumulator.get(feature_name, None)
     if combined_sketch is None:
-      self._num_kmv_buckets_gauge.set(self._num_kmv_buckets)
+      self._num_kmv_buckets_gauge.update(self._num_kmv_buckets)
 
       def make_mg_sketch():
         num_buckets = max(self._num_misragries_buckets, self._num_top_values,
                           self._num_rank_histogram_buckets)
-        self._num_mg_buckets_gauge.set(num_buckets)
-        self._num_top_values_gauge.set(self._num_top_values)
-        self._num_rank_histogram_buckets_gauge.set(
+        self._num_mg_buckets_gauge.update(num_buckets)
+        self._num_top_values_gauge.update(self._num_top_values)
+        self._num_rank_histogram_buckets_gauge.update(
             self._num_rank_histogram_buckets)
         return MisraGriesSketch(
             num_buckets=num_buckets,
             invalid_utf8_placeholder=constants.NON_UTF8_PLACEHOLDER,
-            # Maximum sketch size: 32 * num_buckets * constant_factor.
-            large_string_threshold=32,
+            # Maximum sketch size:
+            # _LARGE_STRING_THRESHOLD * num_buckets * constant_factor.
+            large_string_threshold=_LARGE_STRING_THRESHOLD,
             large_string_placeholder=constants.LARGE_BYTES_PLACEHOLDER)
 
-      self._num_top_values_gauge.set(self._num_top_values)
+      self._num_top_values_gauge.update(self._num_top_values)
       combined_sketch = _CombinedSketch(
           distinct=KmvSketch(self._num_kmv_buckets),
           topk_unweighted=make_mg_sketch(),
