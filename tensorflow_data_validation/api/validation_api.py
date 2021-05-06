@@ -23,6 +23,7 @@ import logging
 from typing import Callable, List, Optional, Text
 import apache_beam as beam
 import pyarrow as pa
+import pandas as pd
 import tensorflow as tf
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
@@ -55,6 +56,17 @@ _GLOBAL_ONLY_ANOMALY_TYPES = frozenset([
     anomalies_pb2.AnomalyInfo.DATASET_HIGH_NUM_EXAMPLES,
 ])
 
+def preprocess_numerical_to_categorical_by_own_quantiles(
+    dataframe: pd.DataFrame,
+):
+  # TODO: refactor implementation from private project
+  return dataframe
+
+def preprocess_numerical_to_categorical_by_training_quantiles(
+    dataframe: pd.DataFrame,
+):
+  # TODO: refactor implementation from private project
+  return dataframe
 
 def infer_schema(
     statistics: statistics_pb2.DatasetFeatureStatisticsList,
