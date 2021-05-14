@@ -40,8 +40,6 @@ _PER_FEATURE_WEIGHT_OVERRIDE_JSON_KEY = 'per_feature_weight_override_json'
 
 
 # TODO(b/118833241): Set MI default configs when MI is a default generator.
-# TODO(b/174481712): Support for vocab_paths is not yet implemented. Remove this
-# note once it is.
 class StatsOptions(object):
   """Options for generating statistics."""
 
