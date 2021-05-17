@@ -177,7 +177,7 @@ def display_schema(schema: schema_pb2.Schema) -> None:
   display(features_df)
   # Do not truncate columns.
   if not domains_df.empty:
-    pd.set_option('max_colwidth', -1)
+    pd.set_option('max_colwidth', None)
     display(domains_df)
 
 
@@ -214,7 +214,7 @@ def get_anomalies_dataframe(anomalies: anomalies_pb2.Anomalies) -> pd.DataFrame:
           'Anomaly long description'
       ]).set_index('Feature name')
   # Do not truncate columns.
-  pd.set_option('max_colwidth', -1)
+  pd.set_option('max_colwidth', None)
   return anomalies_df
 
 
