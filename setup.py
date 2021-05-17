@@ -178,7 +178,7 @@ setup(
     # six, and protobuf) with TF.
     install_requires=[
         'absl-py>=0.9,<0.13',
-        'apache-beam[gcp]>=2.28,<3',
+        'apache-beam[gcp]>=2.29,<3',
         # TODO(b/139941423): Consider using multi-processing provided by
         # Beam's DirectRunner.
         'joblib>=0.12,<0.15',  # Dependency for multi-processing.
@@ -187,7 +187,7 @@ setup(
         'protobuf>=3.9.2,<4',
         'pyarrow>=1,<3',
         'six>=1.12,<2',
-        'tensorflow>=1.15.2,!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,<3',
+        'tensorflow>=1.15.2,!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,<3',
         'tensorflow-metadata' + select_constraint(
             default='>=0.30,<0.31',
             nightly='>=0.31.0.dev',

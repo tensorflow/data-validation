@@ -9,6 +9,8 @@
 *   Increased the threshold beyond which a string feature value is considered
     "large" by the experimental sketch-based top-k/unique generator to 1024.
 *   Added normalized AMI to sklearn mutual information generator.
+*   Depends on `apache-beam[gcp]>=2.29,<3`.
+*   Depends on `tensorflow>=1.15.2,!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,<3`.
 
 ## Known Issues
 
