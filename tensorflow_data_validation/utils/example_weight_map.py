@@ -13,7 +13,6 @@
 # limitations under the License.
 """ExampleWeightMap."""
 
-import itertools
 from typing import FrozenSet, Mapping, Optional
 
 from tensorflow_data_validation import types
@@ -39,11 +38,12 @@ class ExampleWeightMap(object):
                                              types.FeatureName]] = None):
     self._weight_feature = weight_feature
     self._per_feature_override = per_feature_override
-    self._all_weight_features = frozenset(
-        itertools.chain(
-            [] if self._per_feature_override is None else
-            self._per_feature_override.values(),
-            [] if self._weight_feature is None else [self._weight_feature]))
+    all_weight_features = []
+    if self._per_feature_override is not None:
+      all_weight_features.extend(self._per_feature_override.values())
+    if self._weight_feature is not None:
+      all_weight_features.append(self._weight_feature)
+    self._all_weight_features = frozenset(all_weight_features)
 
   def get(self, feature_path: types.FeaturePath) -> Optional[types.FeatureName]:
     if self._per_feature_override is None:
