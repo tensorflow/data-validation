@@ -1,5 +1,9 @@
 # TensorFlow Data Validation Anomalies Reference
 
+<!--*
+freshness: { owner: 'caveness' reviewed: '2021-05-20' }
+*-->
+
 TFDV checks for anomalies by comparing a schema and statistics proto(s). The
 following chart lists the anomaly types that TFDV can detect, the schema and
 statistics fields that are used to detect each anomaly type, and the
