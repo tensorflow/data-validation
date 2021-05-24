@@ -30,9 +30,6 @@ and try out the [example notebook](https://colab.research.google.com/github/tens
 Some of the techniques implemented in TFDV are described in a
 [technical paper published in SysML'19](https://mlsys.org/Conferences/2019/doc/2019/167.pdf).
 
-
-Caution: TFDV may be backwards incompatible before version 1.0.
-
 ## Installing from PyPI
 
 The recommended way to install TFDV is using the
@@ -168,7 +165,8 @@ other *untested* combinations may also work.
 
 tensorflow-data-validation                                                            | apache-beam[gcp] | pyarrow | tensorflow        | tensorflow-metadata | tensorflow-transform | tfx-bsl
 ------------------------------------------------------------------------------------- | ---------------- | ------- | ----------------- | ------------------- | -------------------- | -------
-[GitHub master](https://github.com/tensorflow/data-validation/blob/master/RELEASE.md) | 2.28.0           | 2.0.0   | nightly (1.x/2.x) | 0.30.0              | n/a                  | 0.30.0
+[GitHub master](https://github.com/tensorflow/data-validation/blob/master/RELEASE.md) | 2.29.0           | 2.0.0   | nightly (1.x/2.x) | 1.0.0              | n/a                  | 1.0.0
+[1.0.0](https://github.com/tensorflow/data-validation/blob/v1.0.0/RELEASE.md)         | 2.29.0           | 2.0.0   | 1.15 / 2.5        | 1.0.0               | n/a                   | 1.0.0
 [0.30.0](https://github.com/tensorflow/data-validation/blob/v0.30.0/RELEASE.md)       | 2.28.0           | 2.0.0   | 1.15 / 2.4        | 0.30.0              | n/a                  | 0.30.0
 [0.29.0](https://github.com/tensorflow/data-validation/blob/v0.29.0/RELEASE.md)       | 2.28.0           | 2.0.0   | 1.15 / 2.4        | 0.29.0              | n/a                  | 0.29.0
 [0.28.0](https://github.com/tensorflow/data-validation/blob/v0.28.0/RELEASE.md)       | 2.28.0           | 2.0.0   | 1.15 / 2.4        | 0.28.0              | n/a                  | 0.28.1
