@@ -29,6 +29,7 @@ from __future__ import division
 from __future__ import print_function
 
 import abc
+from typing import Optional
 import numpy as np
 import pyarrow as pa
 import six
@@ -135,7 +136,7 @@ class NLDomainInferringStatsGenerator(
   """
 
   def __init__(self,
-               classifier: NLClassifierInterface = None,
+               classifier: Optional[NLClassifierInterface] = None,
                match_ratio: float = _MATCH_RATIO,
                values_threshold: int = _VALUES_THRESHOLD) -> None:
     """Initializes a NLDomainInferringStatsGenerator.

@@ -32,7 +32,7 @@ from __future__ import print_function
 
 import abc
 import collections
-from typing import List, Iterable, Text
+from typing import Iterable, List, Optional, Text
 import numpy as np
 import pandas as pd
 import pyarrow as pa
@@ -213,7 +213,7 @@ class ImageStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
   """Computes the statistics for features of image format."""
 
   def __init__(self,
-               image_decoder: ImageDecoderInterface = None,
+               image_decoder: Optional[ImageDecoderInterface] = None,
                name: Text = 'ImageStatsGenerator',
                is_image_ratio_threshold: float = _IS_IMAGE_RATIO,
                values_threshold: int = _VALUES_THRESHOLD,
