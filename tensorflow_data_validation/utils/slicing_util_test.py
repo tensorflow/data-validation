@@ -107,6 +107,17 @@ class SlicingUtilTest(absltest.TestCase):
         slicing_util.get_feature_value_slicer(features)(input_record_batch),
         expected_result)
 
+  def test_get_feature_value_slicer_feature_not_in_record_batch(self):
+    features = {'c': [0]}
+    input_record_batch = pa.RecordBatch.from_arrays([
+        pa.array([[1], [2, 1]]),
+        pa.array([['dog'], ['cat']]),
+    ], ['a', 'b'])
+    expected_result = []
+    self._check_results(
+        slicing_util.get_feature_value_slicer(features)(input_record_batch),
+        expected_result)
+
   def test_get_feature_value_slicer_bytes_feature_valid_utf8(self):
     features = {'b': None}
     input_record_batch = pa.RecordBatch.from_arrays([
