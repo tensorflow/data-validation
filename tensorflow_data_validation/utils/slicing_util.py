@@ -24,7 +24,9 @@ import functools
 from typing import Any, Dict, Iterable, Optional, Text, Union
 import numpy as np
 import pandas as pd
-from pandas import DataFrame
+# TODO(b/189942510): Remove unused import after the blocking bug is resolved.
+# (See bug for more context).
+import pandas.core.computation.expressions  # pylint: disable=unused-import
 import pyarrow as pa
 import six
 from tensorflow_data_validation import constants
@@ -127,8 +129,10 @@ def get_feature_value_slicer(
           feature_array, True)
       non_missing_values = np.asarray(flattened)
       # Create dataframe with feature value and parent index.
-      df = DataFrame({feature_name: non_missing_values,
-                      _PARENT_INDEX_COLUMN: value_parent_indices})
+      df = pd.DataFrame({
+          feature_name: non_missing_values,
+          _PARENT_INDEX_COLUMN: value_parent_indices
+      })
       df.drop_duplicates(inplace=True)
       # Filter based on slice values
       if values is not None:
