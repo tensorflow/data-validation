@@ -184,7 +184,7 @@ setup(
         'joblib>=0.12,<0.15',  # Dependency for multi-processing.
         'numpy>=1.16,<1.20',
         'pandas>=1.0,<2',
-        'protobuf>=3.9.2,<4',
+        'protobuf>=3.13,<4',
         'pyarrow>=1,<3',
         'six>=1.12,<2',
         'tensorflow>=1.15.2,!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,<3',
