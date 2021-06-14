@@ -6,8 +6,6 @@
 
 ## Bug Fixes and Other Changes
 
-*   Optimized certain stats generators that needs to materialize the input
-    RecordBatches.
 *   Depends on `protobuf>=3.13,<4`.
 
 ## Known Issues
