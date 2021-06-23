@@ -108,7 +108,7 @@ class _BinaryDistribution(Distribution):
 
 
 def _make_mutual_information_requirements():
-  return ['scikit-learn>=0.18,<0.24']
+  return ['scikit-learn>=0.23,<0.24', 'scipy>=1.5,<2']
 
 
 def _make_visualization_requirements():

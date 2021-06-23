@@ -4,7 +4,12 @@
 
 ## Major Features and Improvements
 
+*   Added a util that estimates mutual information using knn.
+
 ## Bug Fixes and Other Changes
+
+*   Depends on 'scikit-learn>=0.23,<0.24' ("mutual-information" extra only)
+*   Depends on 'scipy>=1.5,<2' ("mutual-information" extra only)
 
 ## Known Issues
 
