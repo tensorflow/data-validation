@@ -95,6 +95,249 @@ _NONE_NUM = 10.
 _NOISE_AMPLITUDE = 1e-10
 
 
+def mutual_information(
+    feature_list0: List[np.ndarray],
+    feature_list1: List[np.ndarray],
+    is_categorical_list0: List[bool],
+    is_categorical_list1: List[bool],
+    k: int = 3,
+    estimate_method: str = 'larger_data',
+    weight_feature: Optional[np.ndarray] = None,
+    filter_feature: Optional[np.ndarray] = None,
+    output_each: bool = False,
+    seed: Optional[int] = None) -> Union[np.float, Tuple[np.float, np.ndarray]]:
+  """Computes MI between two lists of features (numpy arrays).
+
+  The mutual information value is scaled by log(2) in the end so that the unit
+  is bit.
+
+  The paper (1) in the module doc string gives the method for computing MI
+  between two lists of ordinal features. The paper (2) provides the method
+  for computing MI between a list of ordinal features and a list of categorical
+  features. For the general case, suppose we have ordinal feature set C0, C1,
+  and categorical feature set D0, D1. Then we can derive
+
+  I({C0,D0};{C1,D1}) = I({C0,C1};{D0,D1}) + I(C0;C1) + I(D0;D1) - I(C0;D0)
+                       - I(C1;D1),
+
+  where the right hand side terms can all be computed by using the methods in
+  the two papers.
+
+  Args:
+    feature_list0: (list(np.ndarray)) A list of features.
+    feature_list1: (list(np.ndarray)) A list of features.
+    is_categorical_list0: (list(bool)) Whether the first list of features are
+      categorical or not.
+    is_categorical_list1: (list(bool)) Whether the second list of features are
+      categorical or not.
+    k: (int) The number of nearest neighbors. It has to be an integer no less
+      than 3.
+    estimate_method: (str) 'smaller_data' or 'larger_data' estimator in the
+      above paper.
+    weight_feature: (np.ndarray) A feature that contains weights for each
+      sample.
+    filter_feature: (np.ndarray) A feature that is used as the filter to drop
+      all data where this filter has missing values. By default, it is None and
+      no filtering is done.
+    output_each: (bool) Whether to output the contribution from each individual
+      sample. The output values are not scaled by the number of samples.
+    seed: (int) Random seed for the tiny noise.
+
+  Returns:
+    (float | (float, np.ndarray)) The mutual information between the features in
+        feature_list0 and feature_list1. If output_each is True, an np array of
+        the contributions from all samples is also output, whose mean is equal
+        to the mutual information.
+  """
+  _validate_args(feature_list0, feature_list1, is_categorical_list0,
+                 is_categorical_list1, k, estimate_method, weight_feature,
+                 filter_feature, output_each, seed)
+
+  cf_list0, cf_list1, df_list0, df_list1, weights = _feature_list_to_numpy_arrays(
+      feature_list0, feature_list1, is_categorical_list0, is_categorical_list1,
+      weight_feature, filter_feature)
+
+  # Try to reuse these data in later computations to avoid converting Feature to
+  # numpy array multiple times.
+  final_mi, each = _mi_for_arrays(cf_list0, cf_list1, df_list0, df_list1,
+                                  weights, k, estimate_method, seed)
+  if output_each:
+    return final_mi, each
+  return final_mi
+
+
+def adjusted_mutual_information(
+    feature_list0: List[np.ndarray],
+    feature_list1: List[np.ndarray],
+    is_categorical_list0: List[bool],
+    is_categorical_list1: List[bool],
+    k: int = 3,
+    estimate_method: str = 'larger_data',
+    weight_feature: Optional[np.ndarray] = None,
+    filter_feature: Optional[np.ndarray] = None,
+    seed: Optional[int] = None,
+) -> float:
+  """Computes adjusted MI between two lists of features.
+
+  Args:
+    feature_list0: (list(np.ndarray)) a list of features represented as numpy
+      arrays.
+    feature_list1: (list(np.ndarray)) a list of features represented as numpy
+      arrays.
+    is_categorical_list0: (list(bool)) Whether the first list of features are
+      categorical or not.
+    is_categorical_list1: (list(bool)) Whether the second list of features are
+      categorical or not.
+    k: (int) The number of nearest neighbors. It has to be an integer no less
+      than 3.
+    estimate_method: (str) 'smaller_data' or 'larger_data' estimator in the
+      above paper.
+    weight_feature: (np.ndarray) numpy array that are weights for each example.
+    filter_feature: (np.ndarray) numpy array that is used as the filter to drop
+      all data where this has missing values. By default, it is None and no
+      filtering is done.
+    seed: (int) the numpy random seed.
+
+  Returns:
+    The adjusted mutual information between the features in feature_list0 and
+    feature_list1.
+  """
+  _validate_args(feature_list0, feature_list1, is_categorical_list0,
+                 is_categorical_list1, k, estimate_method, weight_feature,
+                 filter_feature, False, seed)
+
+  cf_list0, cf_list1, df_list0, df_list1, weights = _feature_list_to_numpy_arrays(
+      feature_list0, feature_list1, is_categorical_list0, is_categorical_list1,
+      weight_feature, filter_feature)
+
+  return _adjusted_mi_for_arrays(cf_list0, cf_list1, df_list0, df_list1,
+                                 weights, k, estimate_method, seed)
+
+
+def _mi_for_arrays(c_arrs0: List[np.ndarray],
+                   c_arrs1: List[np.ndarray],
+                   d_arrs0: List[np.ndarray],
+                   d_arrs1: List[np.ndarray],
+                   weights: Optional[np.ndarray] = None,
+                   k: int = 3,
+                   estimate_method: str = 'larger_data',
+                   seed: Optional[int] = None) -> Tuple[float, np.ndarray]:
+  """Computes MI for a list of np.ndarrays."""
+  assert (bool(c_arrs0 + d_arrs0) and
+          bool(c_arrs1 + d_arrs1)), 'Both sides are expected to be nonempty.'
+  fs = list(itertools.chain(c_arrs0, c_arrs1, d_arrs0, d_arrs1))
+  for other_f in fs[1:]:
+    assert len(fs[0]) == len(other_f)
+
+  np.random.seed(seed)
+
+  # Scale ordinal features, and replace missing values in all features.
+  c_arrs0 = [
+      _replace_none_categorical(_unit_variance_scale(f)) for f in c_arrs0
+  ]
+  c_arrs1 = [
+      _replace_none_categorical(_unit_variance_scale(f)) for f in c_arrs1
+  ]
+  d_arrs0 = [_to_dense_discrete_array(f) for f in d_arrs0]
+  d_arrs1 = [_to_dense_discrete_array(f) for f in d_arrs1]
+
+  arr0 = _to_noisy_numpy_array(c_arrs0)
+  arr1 = _to_noisy_numpy_array(c_arrs1)
+  df0 = _merge_categorical(d_arrs0)
+  df1 = _merge_categorical(d_arrs1)
+
+  if weights is None:
+    weights = np.ones_like(fs[0], dtype=float)
+
+  if (arr0 is None and arr1 is None) or (df0 is None and df1 is None):
+    mi_c01_d01, each_c01_d01 = 0., 0.
+  else:
+    arr = np.hstack(([] if arr0 is None else [arr0]) +
+                    ([] if arr1 is None else [arr1]))
+    df = _merge_categorical(([] if df0 is None else [df0]) +
+                            ([] if df1 is None else [df1]))
+    mi_c01_d01, each_c01_d01 = _mi_high_dim_cd(arr, df, k, estimate_method,
+                                               weights)
+
+  if arr0 is None or arr1 is None:
+    mi_c0_c1, each_c0_c1 = 0., 0.
+  else:
+    mi_c0_c1, each_c0_c1 = _mi_high_dim_cc(arr0, arr1, k, estimate_method,
+                                           weights)
+
+  if df0 is None or df1 is None:
+    mi_d0_d1, each_d0_d1 = 0., 0.
+  else:
+    mi_d0_d1, each_d0_d1 = _mi_high_dim_dd(df0, df1, weights)
+
+  if arr0 is None or df0 is None:
+    mi_c0_d0, each_c0_d0 = 0., 0.
+  else:
+    mi_c0_d0, each_c0_d0 = _mi_high_dim_cd(arr0, df0, k, estimate_method,
+                                           weights)
+
+  if arr1 is None or df1 is None:
+    mi_c1_d1, each_c1_d1 = 0., 0.
+  else:
+    mi_c1_d1, each_c1_d1 = _mi_high_dim_cd(arr1, df1, k, estimate_method,
+                                           weights)
+
+  final_mi = max(0., mi_c01_d01 + mi_c0_c1 + mi_d0_d1 - mi_c0_d0 - mi_c1_d1)
+  each = each_c01_d01 + each_c0_c1 + each_d0_d1 - each_c0_d0 - each_c1_d1
+  assert isinstance(each, np.ndarray)
+
+  return final_mi, each
+
+
+def _adjusted_mi_for_arrays(
+    c_arrs0: List[np.ndarray],
+    c_arrs1: List[np.ndarray],
+    d_arrs0: List[np.ndarray],
+    d_arrs1: List[np.ndarray],
+    weights: Optional[np.ndarray] = None,
+    k: int = 3,
+    estimate_method: str = 'larger_data',
+    seed: Optional[int] = None,
+) -> float:
+  """Computes AdjustedMutualInformation for given np.ndarrays.
+
+  Args:
+    c_arrs0: Continuous arrays for side 0.
+    c_arrs1: Continuous arrays for side 1.
+    d_arrs0: Discrete arrays for side 0.
+    d_arrs1: Discrete arrays for side 1.
+    weights: Weights for data points.
+    k: The number of nearest neighbors to check when computing MI.
+    estimate_method: Underlying estimate method for computing MI.
+    seed: The seed for RNGs.
+
+  Returns:
+    AMI
+  """
+  if seed is not None:
+    np.random.seed(seed)
+
+  # Always set `output_each` to be False.
+  seed1 = None if seed is None else np.random.randint(0, 1000)
+  mi, _ = _mi_for_arrays(c_arrs0, c_arrs1, d_arrs0, d_arrs1, weights, k,
+                         estimate_method, seed1)
+
+  # We use the same seed to shuffle several features together.
+  shuffle_seed = np.random.randint(0, 1000)  # a fixed seed for shuffling
+  array_length = next(itertools.chain(c_arrs0, c_arrs1, d_arrs0, d_arrs1)).size
+  np.random.seed(shuffle_seed)
+  shuffled_index = np.random.permutation(array_length)
+
+  shuffled_c_arrs0 = [a[shuffled_index] for a in c_arrs0]
+  shuffled_d_arrs0 = [a[shuffled_index] for a in d_arrs0]
+
+  seed2 = None if seed is None else np.random.randint(0, 1000)
+  mi_shuffled, _ = _mi_for_arrays(shuffled_c_arrs0, c_arrs1, shuffled_d_arrs0,
+                                  d_arrs1, weights, k, estimate_method, seed2)
+
+  return max(mi - mi_shuffled, 0.0)
+
+
 def _to_dense_discrete_array(f: np.ndarray) -> np.ndarray:
   ret = f.astype(bytes)
   ret[pd.isnull(f)] = _NONE_STR
@@ -198,81 +441,6 @@ def _validate_args(
   assert seed is None or isinstance(seed, int) and seed > 0
 
 
-def _mi_for_arrays(c_arrs0: List[np.ndarray],
-                   c_arrs1: List[np.ndarray],
-                   d_arrs0: List[np.ndarray],
-                   d_arrs1: List[np.ndarray],
-                   weights: Optional[np.ndarray] = None,
-                   k: int = 3,
-                   estimate_method: str = 'larger_data',
-                   seed: Optional[int] = None) -> Tuple[float, np.ndarray]:
-  """Computes MI for a list of np.ndarrays."""
-  assert (bool(c_arrs0 + d_arrs0) and
-          bool(c_arrs1 + d_arrs1)), 'Both sides are expected to be nonempty.'
-  fs = list(itertools.chain(c_arrs0, c_arrs1, d_arrs0, d_arrs1))
-  for other_f in fs[1:]:
-    assert len(fs[0]) == len(other_f)
-
-  np.random.seed(seed)
-
-  # Scale ordinal features, and replace missing values in all features.
-  c_arrs0 = [
-      _replace_none_categorical(_unit_variance_scale(f)) for f in c_arrs0
-  ]
-  c_arrs1 = [
-      _replace_none_categorical(_unit_variance_scale(f)) for f in c_arrs1
-  ]
-  d_arrs0 = [_to_dense_discrete_array(f) for f in d_arrs0]
-  d_arrs1 = [_to_dense_discrete_array(f) for f in d_arrs1]
-
-  arr0 = _to_noisy_numpy_array(c_arrs0)
-  arr1 = _to_noisy_numpy_array(c_arrs1)
-  df0 = _merge_categorical(d_arrs0)
-  df1 = _merge_categorical(d_arrs1)
-
-  if weights is None:
-    weights = np.ones_like(fs[0], dtype=float)
-
-  if (arr0 is None and arr1 is None) or (df0 is None and df1 is None):
-    mi_c01_d01, each_c01_d01 = 0., 0.
-  else:
-    arr = np.hstack(([] if arr0 is None else [arr0]) +
-                    ([] if arr1 is None else [arr1]))
-    df = _merge_categorical(([] if df0 is None else [df0]) +
-                            ([] if df1 is None else [df1]))
-    mi_c01_d01, each_c01_d01 = _mi_high_dim_cd(arr, df, k, estimate_method,
-                                               weights)
-
-  if arr0 is None or arr1 is None:
-    mi_c0_c1, each_c0_c1 = 0., 0.
-  else:
-    mi_c0_c1, each_c0_c1 = _mi_high_dim_cc(arr0, arr1, k, estimate_method,
-                                           weights)
-
-  if df0 is None or df1 is None:
-    mi_d0_d1, each_d0_d1 = 0., 0.
-  else:
-    mi_d0_d1, each_d0_d1 = _mi_high_dim_dd(df0, df1, weights)
-
-  if arr0 is None or df0 is None:
-    mi_c0_d0, each_c0_d0 = 0., 0.
-  else:
-    mi_c0_d0, each_c0_d0 = _mi_high_dim_cd(arr0, df0, k, estimate_method,
-                                           weights)
-
-  if arr1 is None or df1 is None:
-    mi_c1_d1, each_c1_d1 = 0., 0.
-  else:
-    mi_c1_d1, each_c1_d1 = _mi_high_dim_cd(arr1, df1, k, estimate_method,
-                                           weights)
-
-  final_mi = max(0., mi_c01_d01 + mi_c0_c1 + mi_d0_d1 - mi_c0_d0 - mi_c1_d1)
-  each = each_c01_d01 + each_c0_c1 + each_d0_d1 - each_c0_d0 - each_c1_d1
-  assert isinstance(each, np.ndarray)
-
-  return final_mi, each
-
-
 def _fill_missing_values(f: np.ndarray, is_categorical: bool) -> np.ndarray:
   """Fills `f` with `np.nan` for missing values.
 
@@ -338,77 +506,6 @@ def _feature_list_to_numpy_arrays(
     df_list1 = [f[filter_feature] for f in df_list1]
     weights = weights[filter_feature]
   return cf_list0, cf_list1, df_list0, df_list1, weights
-
-
-def mutual_information(
-    feature_list0: List[np.ndarray],
-    feature_list1: List[np.ndarray],
-    is_categorical_list0: List[bool],
-    is_categorical_list1: List[bool],
-    k: int = 3,
-    estimate_method: str = 'larger_data',
-    weight_feature: Optional[np.ndarray] = None,
-    filter_feature: Optional[np.ndarray] = None,
-    output_each: bool = False,
-    seed: Optional[int] = None) -> Union[np.float, Tuple[np.float, np.ndarray]]:
-  """Computes MI between two lists of features (numpy arrays).
-
-  The mutual information value is scaled by log(2) in the end so that the unit
-  is bit.
-
-  The paper (1) in the module doc string gives the method for computing MI
-  between two lists of ordinal features. The paper (2) provides the method
-  for computing MI between a list of ordinal features and a list of categorical
-  features. For the general case, suppose we have ordinal feature set C0, C1,
-  and categorical feature set D0, D1. Then we can derive
-
-  I({C0,D0};{C1,D1}) = I({C0,C1};{D0,D1}) + I(C0;C1) + I(D0;D1) - I(C0;D0)
-                       - I(C1;D1),
-
-  where the right hand side terms can all be computed by using the methods in
-  the two papers.
-
-  Args:
-    feature_list0: (list(np.ndarray)) A list of features.
-    feature_list1: (list(np.ndarray)) A list of features.
-    is_categorical_list0: (list(bool)) Whether the first list of features are
-      categorical or not.
-    is_categorical_list1: (list(bool)) Whether the second list of features are
-      categorical or not.
-    k: (int) The number of nearest neighbors. It has to be an integer no less
-      than 3.
-    estimate_method: (str) 'smaller_data' or 'larger_data' estimator in the
-      above paper.
-    weight_feature: (np.ndarray) A feature that contains weights for each
-      sample.
-    filter_feature: (np.ndarray) A feature that is used as the filter to drop
-      all data where this filter has missing values. By default, it is None and
-      no filtering is done.
-    output_each: (bool) Whether to output the contribution from each individual
-      sample. The output values are not scaled by the number of samples.
-    seed: (int) Random seed for the tiny noise.
-
-  Returns:
-    (float | (float, np.ndarray)) The mutual information between the features in
-        feature_list0 and feature_list1. If output_each is True, an np array of
-        the contributions from all samples is also output, whose mean is equal
-        to the mutual information.
-  """
-  _validate_args(feature_list0, feature_list1, is_categorical_list0,
-                 is_categorical_list1, k, estimate_method, weight_feature,
-                 filter_feature, output_each, seed)
-
-  cf_list0, cf_list1, df_list0, df_list1, weights = _feature_list_to_numpy_arrays(
-      feature_list0, feature_list1, is_categorical_list0, is_categorical_list1,
-      weight_feature, filter_feature)
-
-  # Try to reuse these data in later computations to avoid converting Feature to
-  # numpy array multiple times.
-  final_mi, each = _mi_for_arrays(cf_list0, cf_list1, df_list0, df_list1,
-                                  weights, k, estimate_method, seed)
-  if output_each:
-    return final_mi, each
-  return final_mi
 
 
 def _to_noisy_numpy_array(cf_list: List[np.ndarray]) -> Optional[np.ndarray]:
@@ -556,100 +653,3 @@ def _mi_high_dim_dd(df0: np.ndarray, df1: np.ndarray,
   mi = mi0 + mi1 - mi01
   final_mi = max(0., mi)
   return final_mi, each0 + each1 - each01
-
-
-def _adjusted_mi_for_arrays(
-    c_arrs0: List[np.ndarray],
-    c_arrs1: List[np.ndarray],
-    d_arrs0: List[np.ndarray],
-    d_arrs1: List[np.ndarray],
-    weights: Optional[np.ndarray] = None,
-    k: int = 3,
-    estimate_method: str = 'larger_data',
-    seed: Optional[int] = None,
-) -> float:
-  """Computes AdjustedMutualInformation for given np.ndarrays.
-
-  Args:
-    c_arrs0: Continuous arrays for side 0.
-    c_arrs1: Continuous arrays for side 1.
-    d_arrs0: Discrete arrays for side 0.
-    d_arrs1: Discrete arrays for side 1.
-    weights: Weights for data points.
-    k: The number of nearest neighbors to check when computing MI.
-    estimate_method: Underlying estimate method for computing MI.
-    seed: The seed for RNGs.
-
-  Returns:
-    AMI
-  """
-  if seed is not None:
-    np.random.seed(seed)
-
-  # Always set `output_each` to be False.
-  seed1 = None if seed is None else np.random.randint(0, 1000)
-  mi, _ = _mi_for_arrays(c_arrs0, c_arrs1, d_arrs0, d_arrs1, weights, k,
-                         estimate_method, seed1)
-
-  # We use the same seed to shuffle several features together.
-  shuffle_seed = np.random.randint(0, 1000)  # a fixed seed for shuffling
-  array_length = next(itertools.chain(c_arrs0, c_arrs1, d_arrs0, d_arrs1)).size
-  np.random.seed(shuffle_seed)
-  shuffled_index = np.random.permutation(array_length)
-
-  shuffled_c_arrs0 = [a[shuffled_index] for a in c_arrs0]
-  shuffled_d_arrs0 = [a[shuffled_index] for a in d_arrs0]
-
-  seed2 = None if seed is None else np.random.randint(0, 1000)
-  mi_shuffled, _ = _mi_for_arrays(shuffled_c_arrs0, c_arrs1, shuffled_d_arrs0,
-                                  d_arrs1, weights, k, estimate_method, seed2)
-
-  return max(mi - mi_shuffled, 0.0)
-
-
-def adjusted_mutual_information(
-    feature_list0: List[np.ndarray],
-    feature_list1: List[np.ndarray],
-    is_categorical_list0: List[bool],
-    is_categorical_list1: List[bool],
-    k: int = 3,
-    estimate_method: str = 'larger_data',
-    weight_feature: Optional[np.ndarray] = None,
-    filter_feature: Optional[np.ndarray] = None,
-    seed: Optional[int] = None,
-) -> float:
-  """Computes adjusted MI between two lists of features.
-
-  Args:
-    feature_list0: (list(np.ndarray)) a list of features represented as numpy
-      arrays.
-    feature_list1: (list(np.ndarray)) a list of features represented as numpy
-      arrays.
-    is_categorical_list0: (list(bool)) Whether the first list of features are
-      categorical or not.
-    is_categorical_list1: (list(bool)) Whether the second list of features are
-      categorical or not.
-    k: (int) The number of nearest neighbors. It has to be an integer no less
-      than 3.
-    estimate_method: (str) 'smaller_data' or 'larger_data' estimator in the
-      above paper.
-    weight_feature: (np.ndarray) numpy array that are weights for each example.
-    filter_feature: (np.ndarray) numpy array that is used as the filter to drop
-      all data where this has missing values. By default, it is None and no
-      filtering is done.
-    seed: (int) the numpy random seed.
-
-  Returns:
-    The adjusted mutual information between the features in feature_list0 and
-    feature_list1.
-  """
-  _validate_args(feature_list0, feature_list1, is_categorical_list0,
-                 is_categorical_list1, k, estimate_method, weight_feature,
-                 filter_feature, False, seed)
-
-  cf_list0, cf_list1, df_list0, df_list1, weights = _feature_list_to_numpy_arrays(
-      feature_list0, feature_list1, is_categorical_list0, is_categorical_list1,
-      weight_feature, filter_feature)
-
-  return _adjusted_mi_for_arrays(cf_list0, cf_list1, df_list0, df_list1,
-                                 weights, k, estimate_method, seed)
