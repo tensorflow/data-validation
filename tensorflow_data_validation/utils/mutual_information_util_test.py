@@ -88,7 +88,7 @@ class RanklabMutualInformationTest(parameterized.TestCase):
       result = _MI([f1, f2, f3], [f0], [False] * 3, [False],
                    estimate_method=method,
                    seed=21)
-      self.assertAlmostEqual(result, expected, delta=1e-2)
+      self.assertAlmostEqual(result, expected, delta=2e-2)
 
   def testAddingIndependentFeature(self):
     # Adding an independent feature into the computation, does not alter the
