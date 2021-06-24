@@ -631,12 +631,6 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
     self._num_instances = beam.metrics.Metrics.counter(
         constants.METRICS_NAMESPACE, 'num_instances')
 
-    # TODO(b/175966315): Remove this once all supported versions have setup
-    # defined.
-    if not getattr(
-        super(_CombinerStatsGeneratorsCombineFn, self), 'setup', None):
-      self.setup()
-
   def _for_each_generator(self,
                           func: Callable[..., Any],
                           *args: Iterable[Any]) -> List[Any]:
