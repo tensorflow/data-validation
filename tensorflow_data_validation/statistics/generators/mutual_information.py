@@ -348,16 +348,18 @@ class MutualInformation(partitioned_stats_generator.PartitionedStatsFn):
   ```
   """
 
-  def __init__(self,
-               label_feature: types.FeaturePath,
-               schema: Optional[schema_pb2.Schema] = None,
-               max_encoding_length: int = 512,
-               seed: int = 12345,
-               multivalent_features: Optional[Set[types.FeaturePath]] = None,
-               categorical_features: Optional[Set[types.FeaturePath]] = None,
-               features_to_ignore: Optional[Set[types.FeaturePath]] = None,
-               normalize_by_max: bool = False,
-               allow_invalid_partitions: bool = False):
+  def __init__(
+      self,
+      label_feature: types.FeaturePath,
+      schema: Optional[schema_pb2.Schema] = None,
+      max_encoding_length: int = 512,
+      seed: int = 12345,
+      multivalent_features: Optional[Set[types.FeaturePath]] = None,
+      categorical_features: Optional[Set[types.FeaturePath]] = None,
+      features_to_ignore: Optional[Set[types.FeaturePath]] = None,
+      normalize_by_max: bool = False,
+      allow_invalid_partitions: bool = False,
+      custom_stats_key: str = _ADJUSTED_MUTUAL_INFORMATION_KEY):
     """Initializes MutualInformation.
 
     Args:
@@ -376,9 +378,11 @@ class MutualInformation(partitioned_stats_generator.PartitionedStatsFn):
         dividing by the maximum possible information AMI(Y, Y).
       allow_invalid_partitions: If True, generator tolerates input partitions
         that are invalid (e.g. size of partion is < the k for the KNN), where
-        invalid partitions return no stats. The min_partitions_stat_presence arg
-        to PartitionedStatisticsAnalyzer controls how many partitions may be
-        invalid while still reporting the metric.
+        invalid partitions return no stats. The min_partitions_stat_presence
+        arg to PartitionedStatisticsAnalyzer controls how many partitions may
+        be invalid while still reporting the metric.
+      custom_stats_key: A string that determines the key used in the custom
+        statistic. This defaults to `_ADJUSTED_MUTUAL_INFORMATION_KEY`.
 
     Raises:
       ValueError: If label_feature does not exist in the schema.
@@ -410,6 +414,7 @@ class MutualInformation(partitioned_stats_generator.PartitionedStatsFn):
     self._seed = seed
     self._features_to_ignore = features_to_ignore
     self._allow_invalid_partitions = allow_invalid_partitions
+    self._custom_stats_key = custom_stats_key
 
   def _is_unique_array(self, array: np.ndarray):
     values = np.asarray(array.flatten(), dtype=np.str)
@@ -445,7 +450,7 @@ class MutualInformation(partitioned_stats_generator.PartitionedStatsFn):
       for feature_name in examples_record_batch.schema.names:
         feature_path = types.FeaturePath([feature_name])
         if feature_path != self._label_feature:
-          result[feature_path] = {_ADJUSTED_MUTUAL_INFORMATION_KEY: 0.0}
+          result[feature_path] = {self._custom_stats_key: 0.0}
       return stats_util.make_dataset_feature_stats_proto(result)
 
     # TODO(pachristopher): Currently encoded examples operate on lists. Consider
@@ -467,15 +472,15 @@ class MutualInformation(partitioned_stats_generator.PartitionedStatsFn):
   def _normalize_mi_values(self, raw_mi: Dict[types.FeaturePath, Dict[str,
                                                                       float]]):
     """Normalizes values to a 0 to 1 scale by dividing by AMI(label, label)."""
-    max_ami = raw_mi.pop(self._label_feature)[_ADJUSTED_MUTUAL_INFORMATION_KEY]
+    max_ami = raw_mi.pop(self._label_feature)[self._custom_stats_key]
     normalized_mi = {}
     for feature_name, value in raw_mi.items():
       if max_ami > 0:
-        normalized_value = value[_ADJUSTED_MUTUAL_INFORMATION_KEY] / max_ami
+        normalized_value = value[self._custom_stats_key] / max_ami
       else:
         normalized_value = 0.0
       normalized_mi[feature_name] = {
-          _ADJUSTED_MUTUAL_INFORMATION_KEY: normalized_value
+          self._custom_stats_key: normalized_value
       }
     return normalized_mi
 
@@ -498,7 +503,7 @@ class MutualInformation(partitioned_stats_generator.PartitionedStatsFn):
     Returns:
       Dict[FeatureName, Dict[str,float]] where the keys of the dicts are the
       feature name and values are a dict where the key is
-      _ADJUSTED_MUTUAL_INFORMATION_KEY and the values are the MI and AMI for
+      self._custom_stats_key and the values are the MI and AMI for
       that
       feature.
     """
@@ -527,18 +532,18 @@ class MutualInformation(partitioned_stats_generator.PartitionedStatsFn):
       feature_array = np.array(examples_dict[feature_column])
       # A feature that is always empty cannot be predictive.
       if feature_array.size == 0:
-        result[feature_column] = {_ADJUSTED_MUTUAL_INFORMATION_KEY: 0.0}
+        result[feature_column] = {self._custom_stats_key: 0.0}
         continue
       # If a categorical feature is fully unique, it cannot be predictive.
       if (feature_column in self._categorical_features and
           self._is_unique_array(feature_array)):
-        result[feature_column] = {_ADJUSTED_MUTUAL_INFORMATION_KEY: 0.0}
+        result[feature_column] = {self._custom_stats_key: 0.0}
         continue
 
       # If a feature is always null, it cannot be predictive.
       all_values_are_null = False if np.sum(~pd.isnull(feature_array)) else True
       if all_values_are_null:
-        result[feature_column] = {_ADJUSTED_MUTUAL_INFORMATION_KEY: 0.0}
+        result[feature_column] = {self._custom_stats_key: 0.0}
         continue
 
       feature_list = list(feature_array.T)
@@ -555,5 +560,5 @@ class MutualInformation(partitioned_stats_generator.PartitionedStatsFn):
           feature_categorical_mask,
           k=k,
           seed=seed)
-      result[feature_column] = {_ADJUSTED_MUTUAL_INFORMATION_KEY: ami}
+      result[feature_column] = {self._custom_stats_key: ami}
     return result
