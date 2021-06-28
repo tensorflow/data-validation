@@ -4,7 +4,11 @@
 
 ## Major Features and Improvements
 
-*   Added a util that estimates mutual information using knn.
+*   Added statistics/generators/mutual_information.py. It estimates AMI using a
+    knn estimation. It differs from sklearn_mutual_information.py in that this
+    supports multivalent features/labels (by encoding) and multivariate
+    features/labels. The plan is to deprecate sklearn_mutual_information.py in
+    the future.
 
 ## Bug Fixes and Other Changes
 
