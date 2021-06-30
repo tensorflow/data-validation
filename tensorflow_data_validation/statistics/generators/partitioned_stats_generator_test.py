@@ -18,6 +18,9 @@ from __future__ import division
 from __future__ import print_function
 
 from absl.testing import absltest
+from absl.testing import parameterized
+import apache_beam as beam
+from apache_beam.testing import util as beam_test_util
 import numpy as np
 import pyarrow as pa
 from tensorflow_data_validation import constants
@@ -31,7 +34,38 @@ from tensorflow.python.util.protobuf import compare
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
-TEST_SEED = 10
+TEST_SEED = 12345
+
+
+def _create_sample_partition_tests():
+  result = []
+
+  def _create_default_generator(sample_size):
+    return partitioned_stats_generator._SampleRecordBatchRows(sample_size)
+
+  testcase = {
+      'testcase_name': 'default_sample_partition',
+      'create_generator_fn': _create_default_generator,
+      'is_default': True
+  }
+  result.append(testcase)
+
+  def _create_small_mem_generator(sample_size):
+    result = partitioned_stats_generator._SampleRecordBatchRows(sample_size)
+    result._MERGE_RECORD_BATCH_BYTE_SIZE_THRESHOLD = 5
+    return result
+
+  testcase = {
+      'testcase_name': 'small_cache_sample_partition',
+      'create_generator_fn': _create_small_mem_generator,
+      'is_default': False
+  }
+
+  result.append(testcase)
+  return result
+
+
+_SAMPLE_PARTITION_TESTS = _create_sample_partition_tests()
 
 
 class AssignToPartitionTest(absltest.TestCase):
@@ -83,7 +117,7 @@ class PartitionedStatisticsAnalyzer(absltest.TestCase):
     actual = combiner.extract_output(combiner.merge_accumulators(accumulators))
     compare.assertProtoEqual(self, actual, expected, normalize_numbers=True)
 
-  def test_statistic_analyzer_with_invalid_featureeature(self):
+  def test_statistic_analyzer_with_invalid_feature(self):
     statistics = [
         text_format.Parse(
             """
@@ -190,6 +224,165 @@ class PartitionedStatisticsAnalyzer(absltest.TestCase):
             min_partitions_stat_presence=2), expected)
 
 
+class SampleRecordBatchRows(parameterized.TestCase):
+  """Tests SamplePartition."""
+
+  def _partition_matcher(self, expected):
+    """This matches partitions for equality.
+
+    A partition is Tuple(int, record_batch).
+
+    Args:
+      expected: Tuple(int, record_batch). The expected partition.
+
+    Returns:
+      A callable that can be used with `beam_test_util.assert_that`.
+    """
+
+    def _matcher(actual):
+      for expected_tuple, actual_tuple in zip(expected, actual):
+        self.assertEqual(expected_tuple[0], actual_tuple[0])
+        expected_rb = expected_tuple[1]
+        actual_rb = actual_tuple[1]
+        self.assertIsInstance(expected_rb, pa.RecordBatch)
+        self.assertTrue(
+            actual_rb.equals(expected_rb), f'Record Batches not equal. '
+            f'actual: {actual_rb.to_pydict()}\nexpected: {expected_rb.to_pydict()}'
+        )
+
+    return _matcher
+
+  @parameterized.named_parameters(*(_SAMPLE_PARTITION_TESTS))
+  def test_sample_partition_combine(self, create_generator_fn, is_default):
+    # The max_batches_per_sample is smaller than all record batches, so we
+    # randomly select records.
+    del is_default
+    np.random.seed(12345)  # set seed so selection of records is deterministic.
+    record_batch = pa.RecordBatch.from_arrays([
+        pa.array([['Green'], ['Red'], ['Blue'], ['Green']]),
+        pa.array([['Label'], ['Label'], ['Label'], ['Label']]),
+    ], ['fa', 'label_key'])
+    expected = [(1,
+                 pa.RecordBatch.from_arrays([
+                     pa.array([['Blue'], ['Green']]),
+                     pa.array([['Label'], ['Label']]),
+                 ], ['fa', 'label_key']))]
+    partitioned_rbs = [(1, record_batch)]
+    with beam.Pipeline() as p:
+      result = (
+          p | beam.Create(partitioned_rbs, reshuffle=False)
+          | beam.CombinePerKey(create_generator_fn(sample_size=2)))
+
+      beam_test_util.assert_that(result, self._partition_matcher(expected))
+
+  @parameterized.named_parameters(*(_SAMPLE_PARTITION_TESTS))
+  def test_sample_partition_combine_num_records_smaller_than_max(
+      self, create_generator_fn, is_default):
+    # Sample size 10 requested, but we only have 2 rbs of 3 row each.
+    # We expect to get 1 rb with 6 rows.
+    np.random.seed(888)  # set seed so selection of records is deterministic.
+    record_batch = pa.RecordBatch.from_arrays([
+        pa.array([['Green'], ['Blue'], ['Red']]),
+        pa.array([['Label'], ['Label'], ['Label']]),
+    ], ['fa', 'label_key'])
+    if is_default:
+      expected_sample_arr = [['Green'], ['Blue'], ['Blue'], ['Red'], ['Red'],
+                             ['Green']]
+    else:
+      # Due to the small cache, we need to compact early. Thus the order of
+      # elements is different.
+      expected_sample_arr = [['Green'], ['Blue'], ['Red'], ['Green'], ['Blue'],
+                             ['Red']]
+    expected = [(1,
+                 pa.RecordBatch.from_arrays([
+                     pa.array(expected_sample_arr),
+                     pa.array([['Label'], ['Label'], ['Label'], ['Label'],
+                               ['Label'], ['Label']]),
+                 ], ['fa', 'label_key']))]
+    partitioned_rbs = [(1, record_batch), (1, record_batch)]
+    with beam.Pipeline() as p:
+      result = (
+          p | beam.Create(partitioned_rbs, reshuffle=False)
+          | beam.CombinePerKey(create_generator_fn(sample_size=10)))
+
+      beam_test_util.assert_that(result, self._partition_matcher(expected))
+
+  @parameterized.named_parameters(*(_SAMPLE_PARTITION_TESTS))
+  def test_sample_partition_combine_many_to_one(self, create_generator_fn,
+                                                is_default):
+    # Merge 11 record batches of size 1 into a record batch of 10 rows.
+    del is_default
+    record_batch = pa.RecordBatch.from_arrays([
+        pa.array([['Green']]),
+        pa.array([['Label']]),
+    ], ['fa', 'label_key'])
+    expected = [(1,
+                 pa.RecordBatch.from_arrays([
+                     pa.array([['Green']] * 10),
+                     pa.array([['Label']] * 10),
+                 ], ['fa', 'label_key']))]
+    partitioned_rbs = [(1, record_batch)] * 11
+    with beam.Pipeline() as p:
+      result = (
+          p | beam.Create(partitioned_rbs, reshuffle=False)
+          | beam.CombinePerKey(create_generator_fn(sample_size=10)))
+
+      beam_test_util.assert_that(result, self._partition_matcher(expected))
+
+  @parameterized.named_parameters(*(_SAMPLE_PARTITION_TESTS))
+  def test_sample_partition_combine_empty(self, create_generator_fn,
+                                          is_default):
+    # Merge empty record batches.
+    del is_default
+    record_batch = pa.RecordBatch.from_arrays([
+        pa.array([['Green']] * 10),
+        pa.array([['Label']] * 10),
+    ], ['fa', 'label_key'])
+    empty_record_batch = pa.RecordBatch.from_arrays([
+        pa.array([]),
+        pa.array([]),
+    ], ['fa', 'label_key'])
+    expected = [(1, record_batch)]
+    partitioned_rbs = [(1, empty_record_batch), (1, record_batch),
+                       (1, empty_record_batch)]
+    with beam.Pipeline() as p:
+      result = (
+          p | beam.Create(partitioned_rbs, reshuffle=False)
+          | beam.CombinePerKey(create_generator_fn(sample_size=10)))
+
+      beam_test_util.assert_that(result, self._partition_matcher(expected))
+
+  @parameterized.named_parameters(*(_SAMPLE_PARTITION_TESTS))
+  def test_sample_partition_of_empty_rb(self, create_generator_fn, is_default):
+    # Sampling from a partition containing only an empty rb.
+    del is_default
+    expected = []
+    empty_record_batch = pa.RecordBatch.from_arrays([
+        pa.array([]),
+        pa.array([]),
+    ], ['fa', 'label_key'])
+    partitioned_rbs = [(1, empty_record_batch)]
+    with beam.Pipeline() as p:
+      result = (
+          p | beam.Create(partitioned_rbs, reshuffle=False)
+          | beam.CombinePerKey(create_generator_fn(sample_size=10)))
+
+      beam_test_util.assert_that(result, self._partition_matcher(expected))
+
+  @parameterized.named_parameters(*(_SAMPLE_PARTITION_TESTS))
+  def test_sample_empty_partition(self, create_generator_fn, is_default):
+    # Sampling from an empty partition.
+    del is_default
+    expected = []
+    partitioned_rbs = []
+    with beam.Pipeline() as p:
+      result = (
+          p | beam.Create(partitioned_rbs, reshuffle=False)
+          | beam.CombinePerKey(create_generator_fn(sample_size=10)))
+
+      beam_test_util.assert_that(result, self._partition_matcher(expected))
+
+
 def _get_test_stats_with_mi(feature_paths):
   """Get stats proto for MI test."""
   result = statistics_pb2.DatasetFeatureStatistics()
@@ -274,8 +467,8 @@ def _get_test_stats_with_mi(feature_paths):
   return result
 
 
-class NonStreamingCustomStatsGeneratorTest(
-    test_util.TransformStatsGeneratorTest):
+class NonStreamingCustomStatsGeneratorTest(test_util.TransformStatsGeneratorTest
+                                          ):
   """Tests for NonStreamingCustomStatsGenerator."""
 
   def setUp(self):
@@ -452,7 +645,8 @@ class NonStreamingCustomStatsGeneratorTest(
     generator = partitioned_stats_generator.NonStreamingCustomStatsGenerator(
         sklearn_mutual_information.SkLearnMutualInformation(
             label_feature=types.FeaturePath(['label_key']),
-            schema=self.schema, seed=TEST_SEED),
+            schema=self.schema,
+            seed=TEST_SEED),
         num_partitions=2,
         min_partitions_stat_presence=2,
         seed=TEST_SEED,

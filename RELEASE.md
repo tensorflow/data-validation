@@ -9,6 +9,7 @@
     supports multivalent features/labels (by encoding) and multivariate
     features/labels. The plan is to deprecate sklearn_mutual_information.py in
     the future.
+*   Fixed NonStreamingCustomStatsGenerator to respect max_batches_per_partition.
 
 ## Bug Fixes and Other Changes
 

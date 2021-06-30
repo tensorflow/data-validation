@@ -17,13 +17,10 @@ A Beam transform will compute the custom statistic over multiple samples of the
 data to estimate the true value of the statistic over the entire dataset.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-
-from __future__ import print_function
-
 import collections
 import functools
+from typing import Dict, Iterable, Text, Tuple
+
 import apache_beam as beam
 import numpy as np
 import pyarrow as pa
@@ -31,7 +28,6 @@ from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import stats_util
 from tfx_bsl.arrow import table_util
-from typing import Dict, Iterable, List, Text, Tuple
 
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
@@ -176,14 +172,201 @@ class PartitionedStatisticsAnalyzer(beam.CombineFn):
     return stats_util.make_dataset_feature_stats_proto(valid_stats_summary)
 
 
+class _SampleRecordBatchRowsAccumulator(object):
+  """Accumulator to keep track of the current (top-k) sample of records."""
+
+  __slots__ = [
+      'record_batches', 'curr_byte_size', 'random_ints'
+  ]
+
+  def __init__(self):
+    # Record batches to sample.
+    self.record_batches = []
+    # Current total byte size of all the pa.RecordBatches accumulated.
+    self.curr_byte_size = 0
+
+    # This is a list of numpy array of random integers. Each element maps to one
+    # row in each record batch. Each row should only be assigned a random number
+    # once, in order to avoid sampling bias. Thus, we need to preserve the
+    # assigned number for each accumulator, across multiple `compacts`.
+    self.random_ints = []
+
+
+# TODO(b/192393883): move this to tfx_bsl.
+@beam.typehints.with_input_types(pa.RecordBatch)
+@beam.typehints.with_output_types(pa.RecordBatch)
+class _SampleRecordBatchRows(beam.CombineFn):
+  """Samples rows from record batches.
+
+  The record batches in the partition can vary in the number of rows.
+  SamplePartition guarantees that the sample returned is always going to be
+  <= sample_size.
+
+  The actual sampling occurs in `compact`. It uses np.partition to calculate
+  the top-k of record batch's rows. Where the top-k is a random number assigned
+  to each row. Given a uniform distribution of the random number, we can keep a
+  running sample of the partition of size k. This gives each row an equal
+  probability of being selected.
+  """
+
+  # The combiner accumulates record batches to sample from a partition.
+  # The top-k rows of record batches are selected and merged when the
+  # accumulator's record batches exeeds this size. The accumulator keeps tracks
+  # of all record batches seen, in order to reduce the amount of take and merge
+  # operations on record batches.
+  _MERGE_RECORD_BATCH_BYTE_SIZE_THRESHOLD = 20 << 20  # 20MiB
+
+  def __init__(self, sample_size: int):
+    """Initializes the analyzer."""
+    self._sample_size = sample_size
+
+  def create_accumulator(self) -> _SampleRecordBatchRowsAccumulator:
+    """Creates an accumulator."""
+    return _SampleRecordBatchRowsAccumulator()
+
+  def add_input(
+      self, accumulator: _SampleRecordBatchRowsAccumulator,
+      record_batch: pa.RecordBatch) -> _SampleRecordBatchRowsAccumulator:
+    """Adds the input into the accumulator."""
+
+    accumulator.record_batches.append(record_batch)
+    accumulator.curr_byte_size += table_util.TotalByteSize(record_batch)
+
+    curr_random_ints = np.random.randint(
+        0,
+        np.iinfo(np.int64).max,
+        dtype=np.int64,
+        size=(record_batch.num_rows,))
+    accumulator.random_ints.append(curr_random_ints)
+
+    if (accumulator.curr_byte_size >
+        self._MERGE_RECORD_BATCH_BYTE_SIZE_THRESHOLD):
+      accumulator = self._compact_impl(accumulator)
+    return accumulator
+
+  def merge_accumulators(
+      self, accumulators: Iterable[_SampleRecordBatchRowsAccumulator]
+  ) -> _SampleRecordBatchRowsAccumulator:
+    """Merges together a list of _SampleRecordBatchRowsAccumulator."""
+    result = _SampleRecordBatchRowsAccumulator()
+
+    for acc in accumulators:
+      result.record_batches.extend(acc.record_batches)
+      result.curr_byte_size += acc.curr_byte_size
+      result.random_ints.extend(acc.random_ints)
+      # Compact if we are over the threshold.
+      if result.curr_byte_size > self._MERGE_RECORD_BATCH_BYTE_SIZE_THRESHOLD:
+        result = self._compact_impl(result)
+
+    result = self._compact_impl(result)
+    return result
+
+  def compact(
+      self, accumulator: _SampleRecordBatchRowsAccumulator
+  ) -> _SampleRecordBatchRowsAccumulator:
+    return self._compact_impl(accumulator)
+
+  def extract_output(self,
+                     accumulator: _SampleRecordBatchRowsAccumulator
+                    ) -> pa.RecordBatch:
+    """Returns the sample as a record batch."""
+    # We force the compact, to comply with the contract of outputting one record
+    # batch.
+    acc = self._compact_impl(accumulator)
+    assert len(acc.record_batches) == 1
+    return acc.record_batches[0]
+
+  def _compact_impl(
+      self, accumulator: _SampleRecordBatchRowsAccumulator
+  ) -> _SampleRecordBatchRowsAccumulator:
+    """Compacts the accumulator.
+
+    This compact selects samples rows from the record batch, and merges them
+    into one record batch. We can then clear the cache of all record batches
+    seen so far. If the accumulator holds too few record batches, then nothing
+    will be compacted.
+
+    The sampling is done by assigning each row in the record batch a random
+    number. Then we choose the top-k of the random numbers to get a sample of
+    size k.
+
+    Args:
+      accumulator: The _SampleRecordBatchRowsAccumulator to compact.
+
+    Returns:
+      A _SampleRecordBatchRowsAccumulator that contains one or a list of record
+      batch.
+    """
+    total_rows = np.sum([rb.num_rows for rb in accumulator.record_batches])
+    if total_rows < 1:
+      # There is nothing to compact.
+      return accumulator
+    k = min(self._sample_size, total_rows)
+
+    rand_ints = np.concatenate(accumulator.random_ints)
+
+    # Find the value that is the breakpoint for the top-k.
+    kth_value = np.partition(rand_ints, k - 1)[k - 1]
+
+    # This mask will always have >= 1 Trues.
+    equals_to_kth = (rand_ints == kth_value)
+
+    # This mask will always have < k Trues.
+    less_than_kth = rand_ints < kth_value
+
+    # Since there may be duplicate values, `equals_to_kth + less_than_kth` might
+    # be greater than `k`. We need to keep track of how many to add, without
+    # surpassing `k`.
+    kth_to_add = k - np.sum(less_than_kth)
+
+    # Preserve the random integers that we had assigned to each row.
+    sample_random_ints = rand_ints[rand_ints <= kth_value][:k]
+
+    beg = 0
+    sample_indices = []
+    for rb in accumulator.record_batches:
+      size = rb.num_rows
+      end = beg + size
+      less_than_kth_indices = np.nonzero(less_than_kth[beg:end])[0]
+      indices = less_than_kth_indices
+
+      # Add indices of any duplicate values that are equal to `k`.
+      if kth_to_add > 0:
+        equals_to_kth_indices = np.nonzero(equals_to_kth[beg:end])[0]
+        if equals_to_kth_indices.size > 0:
+          if equals_to_kth_indices.size >= kth_to_add:
+            indices = np.concatenate(
+                [less_than_kth_indices, equals_to_kth_indices[:kth_to_add]])
+            kth_to_add = 0
+          else:
+            indices = np.concatenate(
+                [less_than_kth_indices, equals_to_kth_indices])
+            kth_to_add -= equals_to_kth_indices.size
+
+      sample_indices.append(indices)
+      beg += size
+
+    result = _SampleRecordBatchRowsAccumulator()
+
+    # Take and merge the record batches, based on the sampled indices.
+    rbs = []
+    for rb, indices in zip(accumulator.record_batches, sample_indices):
+      rbs.append(table_util.RecordBatchTake(rb, pa.array(indices)))
+    compressed_rb = table_util.MergeRecordBatches(rbs)
+    result.record_batches = [compressed_rb]
+    result.curr_byte_size = table_util.TotalByteSize(compressed_rb)
+    result.random_ints = [sample_random_ints]
+
+    return result
+
+
 def _process_partition(
-    partition: Tuple[Tuple[types.SliceKey, int], List[pa.RecordBatch]],
+    partition: Tuple[Tuple[types.SliceKey, int], pa.RecordBatch],
     stats_fn: PartitionedStatsFn
 ) -> Tuple[types.SliceKey, statistics_pb2.DatasetFeatureStatistics]:
-  """Process batches in a single partition."""
-  (slice_key, _), record_batches = partition
-  return slice_key, stats_fn.compute(
-      table_util.MergeRecordBatches(record_batches))
+  """Process batch in a single partition."""
+  (slice_key, _), record_batch = partition
+  return slice_key, stats_fn.compute(record_batch)
 
 
 # Input type check is commented out, as beam python will fail the type check
@@ -205,25 +388,24 @@ class _GenerateNonStreamingCustomStats(beam.PTransform):
     self._min_partitions_stat_presence = min_partitions_stat_presence
     self._name = name
     self._seed = seed
-    self._max_batches_per_partition = int(max_examples_per_partition /
-                                          batch_size)
+    self._max_examples_per_partition = max_examples_per_partition
+
     # Seeds the random number generator used in the partitioner.
     np.random.seed(self._seed)
 
   def expand(self, pcoll: beam.pvalue.PCollection) -> beam.pvalue.PCollection:
     """Estimates the user defined statistic."""
 
-    return (
-        pcoll
-        | 'AssignBatchToPartition' >> beam.Map(
-            _assign_to_partition, num_partitions=self._num_partitions)
-        | 'GroupPartitionsIntoList' >> beam.CombinePerKey(
-            beam.combiners.SampleCombineFn(self._max_batches_per_partition))
-        | 'ProcessPartition' >> beam.Map(_process_partition,
-                                         stats_fn=self._stats_fn)
-        | 'ComputeMetaStats' >> beam.CombinePerKey(
-            PartitionedStatisticsAnalyzer(min_partitions_stat_presence=self
-                                          ._min_partitions_stat_presence)))
+    return (pcoll
+            | 'AssignBatchToPartition' >> beam.Map(
+                _assign_to_partition, num_partitions=self._num_partitions)
+            | 'GroupPartitionsIntoList' >> beam.CombinePerKey(
+                _SampleRecordBatchRows(self._max_examples_per_partition))
+            | 'ProcessPartition' >> beam.Map(
+                _process_partition, stats_fn=self._stats_fn)
+            | 'ComputeMetaStats' >> beam.CombinePerKey(
+                PartitionedStatisticsAnalyzer(min_partitions_stat_presence=self
+                                              ._min_partitions_stat_presence)))
 
 
 class NonStreamingCustomStatsGenerator(stats_generator.TransformStatsGenerator):
