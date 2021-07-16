@@ -179,6 +179,9 @@ setup(
     install_requires=[
         'absl-py>=0.9,<0.13',
         'apache-beam[gcp]>=2.29,<3',
+        # TODO(b/193746372): Remove bigquery dependency after TF 2.6 becomes
+        # available.
+        'google-cloud-bigquery>=1.28.0,<2.21',
         # TODO(b/139941423): Consider using multi-processing provided by
         # Beam's DirectRunner.
         'joblib>=0.12,<0.15',  # Dependency for multi-processing.
