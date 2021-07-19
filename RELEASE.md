@@ -1,6 +1,4 @@
-<!-- mdlint off(HEADERS_TOO_MANY_H1) -->
-
-# Version 1.1.0
+# Version 1.1.1
 
 ## Major Features and Improvements
 
@@ -8,11 +6,8 @@
 
 ## Bug Fixes and Other Changes
 
-*   Optimized certain stats generators that needs to materialize the input
-    RecordBatches.
-*   Depends on `protobuf>=3.13,<4`.
-*   Depends on `tensorflow-metadata>=1.1,<1.2`.
-*   Depends on `tfx-bsl>=1.1,<1.2`.
+*   Depends on `google-cloud-bigquery>=1.28.0,<2.21`.
+*   Depends on `tfx-bsl>=1.1.1,<1.2`.
 
 ## Known Issues
 
