@@ -179,6 +179,7 @@ setup(
     install_requires=[
         'absl-py>=0.9,<0.13',
         'apache-beam[gcp]>=2.29,<3',
+        'google-cloud-bigquery>=1.28.0,<2.21',
         # TODO(b/139941423): Consider using multi-processing provided by
         # Beam's DirectRunner.
         'joblib>=0.12,<0.15',  # Dependency for multi-processing.
@@ -193,7 +194,7 @@ setup(
             nightly='>=1.2.0.dev',
             git_master='@git+https://github.com/tensorflow/metadata@master'),
         'tfx-bsl' + select_constraint(
-            default='>=1.1,<1.2',
+            default='>=1.1.1,<1.2',
             nightly='>=1.2.0.dev',
             git_master='@git+https://github.com/tensorflow/tfx-bsl@master'),
     ],
