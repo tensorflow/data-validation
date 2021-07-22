@@ -15,6 +15,8 @@
 
 *   Depends on 'scikit-learn>=0.23,<0.24' ("mutual-information" extra only)
 *   Depends on 'scipy>=1.5,<2' ("mutual-information" extra only)
+*   Fixes error when using tfdv.experimental_get_feature_value_slicer with
+    pandas==1.3.0.
 
 ## Known Issues
 
