@@ -8,6 +8,8 @@
 
 *   Depends on `google-cloud-bigquery>=1.28.0,<2.21`.
 *   Depends on `tfx-bsl>=1.1.1,<1.2`.
+*   Fixes error when using tfdv.experimental_get_feature_value_slicer with
+*   pandas==1.3.0.
 
 ## Known Issues
 
