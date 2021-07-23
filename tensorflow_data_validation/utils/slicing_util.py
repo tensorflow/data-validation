@@ -157,8 +157,10 @@ def get_feature_value_slicer(
     for col_name in sorted(merged_df.columns):
       if col_name in [_PARENT_INDEX_COLUMN, _SLICE_KEY_COLUMN]:
         continue
-      slice_key_col = (_to_slice_key(col_name) + '_' +
-                       merged_df[col_name].apply(_to_slice_key))
+      feature_value_part = merged_df[col_name].apply(_to_slice_key)
+      if feature_value_part.empty:
+        feature_value_part = feature_value_part.astype(pd.StringDtype())
+      slice_key_col = _to_slice_key(col_name) + '_' + feature_value_part
       if index == 0:
         merged_df[_SLICE_KEY_COLUMN] = slice_key_col
         index += 1
