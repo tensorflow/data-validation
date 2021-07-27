@@ -274,6 +274,9 @@ def _get_combined_statistics(
         'lhs_statistics is of type %s, should be '
         'a DatasetFeatureStatisticsList proto.' % type(lhs_statistics).__name__)
 
+  if not lhs_statistics.datasets:
+    raise ValueError('lhs_statistics proto contains no dataset.')
+
   if len(lhs_statistics.datasets) != 1:
     raise ValueError('lhs_statistics proto contains multiple datasets. Only '
                      'one dataset is currently supported.')
