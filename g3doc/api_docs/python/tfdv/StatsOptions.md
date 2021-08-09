@@ -2,7 +2,7 @@
 <meta itemprop="name" content="tfdv.StatsOptions" />
 <meta itemprop="path" content="Stable" />
 <meta itemprop="property" content="desired_batch_size"/>
-<meta itemprop="property" content="feature_whitelist"/>
+<meta itemprop="property" content="feature_allowlist"/>
 <meta itemprop="property" content="generators"/>
 <meta itemprop="property" content="num_histogram_buckets"/>
 <meta itemprop="property" content="num_quantiles_histogram_buckets"/>
@@ -28,7 +28,7 @@ Options for generating statistics.
 ```python
 __init__(
     generators=None,
-    feature_whitelist=None,
+    feature_allowlist=None,
     schema=None,
     weight_feature=None,
     slice_functions=None,
@@ -56,7 +56,7 @@ Initializes statistics options.
 *   <b>`generators`</b>: An optional list of statistics generators. A statistics
     generator must extend either CombinerStatsGenerator or
     TransformStatsGenerator.
-*   <b>`feature_whitelist`</b>: An optional list of names of the features to
+*   <b>`feature_allowlist`</b>: An optional list of names of the features to
     calculate statistics for.
 *   <b>`schema`</b>: An optional tensorflow_metadata Schema proto. Currently we
     use the schema to infer categorical and bytes features.
@@ -112,7 +112,7 @@ Initializes statistics options.
 
 
 
-<h3 id="feature_whitelist"><code>feature_whitelist</code></h3>
+<h3 id="feature_allowlist"><code>feature_allowlist</code></h3>
 
 
 
