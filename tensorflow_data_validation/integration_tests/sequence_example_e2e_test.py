@@ -1699,20 +1699,12 @@ class SequenceExampleStatsTest(parameterized.TestCase):
 
   def _assert_schema_equal(self, lhs, rhs):
     def _assert_features_equal(lhs, rhs):
-      feature_name_to_feature_pair = dict()
-      for f in lhs.feature:
-        feature_name_to_feature_pair[f.name] = [f, None]
-      for f in rhs.feature:
-        pair = feature_name_to_feature_pair.get(f.name)
-        if pair is None:
-          feature_name_to_feature_pair[f.name] = [None, f]
-        else:
-          pair[1] = f
-
-      for feature_name, (lhs_feature, rhs_feature) in (
-          feature_name_to_feature_pair.items()):
-        self.assertIsNotNone(lhs_feature, 'feature {}'.format(feature_name))
-        self.assertIsNotNone(rhs_feature, 'feature {}'.format(feature_name))
+      lhs_feature_map = {f.name: f for f in lhs.feature}
+      rhs_feature_map = {f.name: f for f in rhs.feature}
+      self.assertEmpty(set(lhs_feature_map) - set(rhs_feature_map))
+      self.assertEmpty(set(rhs_feature_map) - set(lhs_feature_map))
+      for feature_name, lhs_feature in lhs_feature_map.items():
+        rhs_feature = rhs_feature_map[feature_name]
         if lhs_feature.type != schema_pb2.STRUCT:
           self.assertEqual(
               lhs_feature, rhs_feature,
