@@ -398,17 +398,17 @@ class SampleRecordBatchRows(parameterized.TestCase):
     runner.wait_until_finish()
     actual_metrics = runner.metrics()
     expected_counters = {
-        '_sample_record_batch_rows_num_instances': 2,
-        '_sample_record_batch_rows_num_compacts': 1,
+        'sample_record_batch_rows_num_instances': 2,
+        'sample_record_batch_rows_num_compacts': 1,
     }
     expected_distributions = {
-        '_sample_record_batch_rows_combine_num_record_batches': {
+        'sample_record_batch_rows_combine_num_record_batches': {
             'count': 1,
             'sum': 2,
             'max': 2,
             'min': 2,
         },
-        '_sample_record_batch_rows_combine_byte_size': {
+        'sample_record_batch_rows_combine_byte_size': {
             'count': 1,
             'sum': 42,
             'max': 42,

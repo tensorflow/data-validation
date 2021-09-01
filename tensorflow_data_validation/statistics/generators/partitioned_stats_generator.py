@@ -223,17 +223,17 @@ class _SampleRecordBatchRows(beam.CombineFn):
     # Number of record batches in accumulator when compacting.
     self._combine_num_record_batches = beam.metrics.Metrics.distribution(
         constants.METRICS_NAMESPACE,
-        '_sample_record_batch_rows_combine_num_record_batches')
+        'sample_record_batch_rows_combine_num_record_batches')
     # Post compress byte size.
     self._combine_byte_size = beam.metrics.Metrics.distribution(
         constants.METRICS_NAMESPACE,
-        '_sample_record_batch_rows_combine_byte_size')
+        'sample_record_batch_rows_combine_byte_size')
     # Number of compacts.
     self._num_compacts = beam.metrics.Metrics.counter(
-        constants.METRICS_NAMESPACE, '_sample_record_batch_rows_num_compacts')
+        constants.METRICS_NAMESPACE, 'sample_record_batch_rows_num_compacts')
     # Total number of rows.
     self._num_instances = beam.metrics.Metrics.counter(
-        constants.METRICS_NAMESPACE, '_sample_record_batch_rows_num_instances')
+        constants.METRICS_NAMESPACE, 'sample_record_batch_rows_num_instances')
 
   def create_accumulator(self) -> _SampleRecordBatchRowsAccumulator:
     """Creates an accumulator."""
