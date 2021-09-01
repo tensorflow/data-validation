@@ -24,6 +24,7 @@ from typing import Dict, Iterable, Text, Tuple
 import apache_beam as beam
 import numpy as np
 import pyarrow as pa
+from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import stats_util
@@ -219,6 +220,20 @@ class _SampleRecordBatchRows(beam.CombineFn):
   def __init__(self, sample_size: int):
     """Initializes the analyzer."""
     self._sample_size = sample_size
+    # Number of record batches in accumulator when compacting.
+    self._combine_num_record_batches = beam.metrics.Metrics.distribution(
+        constants.METRICS_NAMESPACE,
+        '_sample_record_batch_rows_combine_num_record_batches')
+    # Post compress byte size.
+    self._combine_byte_size = beam.metrics.Metrics.distribution(
+        constants.METRICS_NAMESPACE,
+        '_sample_record_batch_rows_combine_byte_size')
+    # Number of compacts.
+    self._num_compacts = beam.metrics.Metrics.counter(
+        constants.METRICS_NAMESPACE, '_sample_record_batch_rows_num_compacts')
+    # Total number of rows.
+    self._num_instances = beam.metrics.Metrics.counter(
+        constants.METRICS_NAMESPACE, '_sample_record_batch_rows_num_instances')
 
   def create_accumulator(self) -> _SampleRecordBatchRowsAccumulator:
     """Creates an accumulator."""
@@ -228,6 +243,8 @@ class _SampleRecordBatchRows(beam.CombineFn):
       self, accumulator: _SampleRecordBatchRowsAccumulator,
       record_batch: pa.RecordBatch) -> _SampleRecordBatchRowsAccumulator:
     """Adds the input into the accumulator."""
+    num_rows = record_batch.num_rows
+    self._num_instances.inc(num_rows)
 
     accumulator.record_batches.append(record_batch)
     accumulator.curr_byte_size += table_util.TotalByteSize(record_batch)
@@ -236,7 +253,7 @@ class _SampleRecordBatchRows(beam.CombineFn):
         0,
         np.iinfo(np.int64).max,
         dtype=np.int64,
-        size=(record_batch.num_rows,))
+        size=(num_rows,))
     accumulator.random_ints.append(curr_random_ints)
 
     if (accumulator.curr_byte_size >
@@ -264,6 +281,7 @@ class _SampleRecordBatchRows(beam.CombineFn):
   def compact(
       self, accumulator: _SampleRecordBatchRowsAccumulator
   ) -> _SampleRecordBatchRowsAccumulator:
+    self._num_compacts.inc(1)
     return self._compact_impl(accumulator)
 
   def extract_output(self,
@@ -297,6 +315,7 @@ class _SampleRecordBatchRows(beam.CombineFn):
       A _SampleRecordBatchRowsAccumulator that contains one or a list of record
       batch.
     """
+    self._combine_num_record_batches.update(len(accumulator.record_batches))
     total_rows = np.sum([rb.num_rows for rb in accumulator.record_batches])
     if total_rows < 1:
       # There is nothing to compact.
@@ -356,6 +375,8 @@ class _SampleRecordBatchRows(beam.CombineFn):
     result.record_batches = [compressed_rb]
     result.curr_byte_size = table_util.TotalByteSize(compressed_rb)
     result.random_ints = [sample_random_ints]
+
+    self._combine_byte_size.update(result.curr_byte_size)
 
     return result
 

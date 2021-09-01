@@ -382,6 +382,58 @@ class SampleRecordBatchRows(parameterized.TestCase):
 
       beam_test_util.assert_that(result, self._partition_matcher(expected))
 
+  def test_sample_metrics(self):
+    record_batch = pa.RecordBatch.from_arrays([
+        pa.array([['Green']]),
+        pa.array([['Label']]),
+    ], ['fa', 'label_key'])
+    partitioned_rbs = [(1, record_batch)] * 2
+    with beam.Pipeline() as p:
+      _ = (
+          p | beam.Create(partitioned_rbs, reshuffle=False)
+          | beam.CombinePerKey(
+              partitioned_stats_generator._SampleRecordBatchRows(1)))
+
+    runner = p.run()
+    runner.wait_until_finish()
+    actual_metrics = runner.metrics()
+    expected_counters = {
+        '_sample_record_batch_rows_num_instances': 2,
+        '_sample_record_batch_rows_num_compacts': 1,
+    }
+    expected_distributions = {
+        '_sample_record_batch_rows_combine_num_record_batches': {
+            'count': 1,
+            'sum': 2,
+            'max': 2,
+            'min': 2,
+        },
+        '_sample_record_batch_rows_combine_byte_size': {
+            'count': 1,
+            'sum': 42,
+            'max': 42,
+            'min': 42,
+        },
+    }
+    for counter_name in expected_counters:
+      actual_counter = actual_metrics.query(
+          beam.metrics.metric.MetricsFilter().with_name(
+              counter_name))['counters']
+      self.assertEqual(actual_counter[0].committed,
+                       expected_counters[counter_name])
+    for counter_name in expected_distributions:
+      actual_counter = actual_metrics.query(
+          beam.metrics.metric.MetricsFilter().with_name(
+              counter_name))['distributions']
+      self.assertEqual(actual_counter[0].committed.count,
+                       expected_distributions[counter_name]['count'])
+      self.assertEqual(actual_counter[0].committed.sum,
+                       expected_distributions[counter_name]['sum'])
+      self.assertEqual(actual_counter[0].committed.max,
+                       expected_distributions[counter_name]['max'])
+      self.assertEqual(actual_counter[0].committed.min,
+                       expected_distributions[counter_name]['min'])
+
 
 def _get_test_stats_with_mi(feature_paths):
   """Get stats proto for MI test."""
