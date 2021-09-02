@@ -202,7 +202,7 @@ TEST(JensenShannonDivergence, NoOverlap) {
   EXPECT_NEAR(result, 1, 1e-5);
 }
 
-TEST(JensenShannonDivergence, AllValuesInOneBucket) {
+TEST(JensenShannonDivergence, OneHasAllValuesInOneBucket) {
   const DatasetForTesting dataset_1(
       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
         name: 'float'
@@ -226,6 +226,35 @@ TEST(JensenShannonDivergence, AllValuesInOneBucket) {
             type: STANDARD
           }
         })"));
+  double result;
+  TF_ASSERT_OK(UpdateJensenShannonDivergenceResult(
+      dataset_1.feature_stats_view(), dataset_2.feature_stats_view(), result));
+  EXPECT_NEAR(result, 1, 1e-5);
+}
+
+TEST(JensenShannonDivergence, BothHaveAllValuesInOneBucket) {
+  const DatasetForTesting dataset_1(
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
+        name: 'float'
+        type: FLOAT
+        num_stats {
+          common_stats {}
+          histograms {
+            buckets { low_value: 1.0 high_value: 1.0 sample_count: 4.0 }
+            type: STANDARD
+          }
+        })pb"));
+  const DatasetForTesting dataset_2(
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
+        name: 'float'
+        type: FLOAT
+        num_stats {
+          common_stats {}
+          histograms {
+            buckets { low_value: 2.0 high_value: 2.0 sample_count: 4.0 }
+            type: STANDARD
+          }
+        })pb"));
   double result;
   TF_ASSERT_OK(UpdateJensenShannonDivergenceResult(
       dataset_1.feature_stats_view(), dataset_2.feature_stats_view(), result));

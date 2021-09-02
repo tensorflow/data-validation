@@ -68,6 +68,20 @@ std::set<double> GetHistogramBoundaries(const Histogram& histogram) {
   return boundaries;
 }
 
+// When a histogram contains only a single value, adds that value again
+// to the boundaries vector.
+void AddSingleValueBoundary(const std::set<double>& histogram_boundaries,
+                            const Histogram& histogram,
+                            std::vector<double>& boundaries) {
+  if (histogram_boundaries.size() != 1) {
+    return;
+  }
+  double bucket_value = histogram.buckets().at(0).low_value();
+  auto it =
+      std::upper_bound(boundaries.begin(), boundaries.end(), bucket_value);
+  boundaries.insert(it, bucket_value);
+}
+
 // Adds new buckets to the histogram that are specified by the
 // bucket_boundaries.
 // To calculate the sample counts for each new bucket, this function assumes
@@ -165,21 +179,11 @@ void AlignHistograms(Histogram& histogram_1, Histogram& histogram_2) {
                  histogram_2_boundaries.begin(), histogram_2_boundaries.end(),
                  std::inserter(boundaries_set, boundaries_set.end()));
   std::vector<double> boundaries(boundaries_set.begin(), boundaries_set.end());
-  if (histogram_1_boundaries.size() == 1 ||
-      histogram_2_boundaries.size() == 1) {
-    // If one of the histograms contains only a single value, add that value
-    // to the boundaries vector so that the rebucketing will create a bucket
-    // with that single value.
-    double bucket_value;
-    if (histogram_1_boundaries.size() == 1) {
-      bucket_value = histogram_1.buckets().at(0).low_value();
-    } else {
-      bucket_value = histogram_2.buckets().at(0).low_value();
-    }
-    auto it =
-        std::upper_bound(boundaries.begin(), boundaries.end(), bucket_value);
-    boundaries.insert(it, bucket_value);
-  }
+  // If a histogram contains only a single value, add that value
+  // to the boundaries vector so that the rebucketing will create a bucket
+  // with that single value.
+  AddSingleValueBoundary(histogram_1_boundaries, histogram_1, boundaries);
+  AddSingleValueBoundary(histogram_2_boundaries, histogram_2, boundaries);
   RebucketHistogram(boundaries, histogram_1);
   RebucketHistogram(boundaries, histogram_2);
 }
