@@ -19,15 +19,18 @@ from __future__ import division
 
 from __future__ import print_function
 
-import collections
-
+from typing import List, Optional, Mapping, Text
 from tensorflow_data_validation.anomalies.proto import validation_config_pb2
 from tensorflow_data_validation.types import FeaturePath
-from typing import List, Optional, Mapping, Text
+
+# TODO(https://issues.apache.org/jira/browse/SPARK-22674): Switch to
+# `collections.namedtuple` or `typing.NamedTuple` once the Spark issue is
+# resolved.
+from tfx_bsl.types import tfx_namedtuple  # pylint: disable=g-bad-import-order
 
 
 class ReasonFeatureNeeded(
-    collections.namedtuple('ReasonFeatureNeeded', ['comment'])):
+    tfx_namedtuple.namedtuple('ReasonFeatureNeeded', ['comment'])):
   """A named tuple to indicate why a feature is needed for struct2tensor."""
 
   def __new__(cls, comment: Text):

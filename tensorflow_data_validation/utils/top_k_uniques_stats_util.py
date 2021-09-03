@@ -18,7 +18,6 @@ from __future__ import division
 
 from __future__ import print_function
 
-import collections
 from typing import FrozenSet, List, Optional, Union
 
 import apache_beam as beam
@@ -29,9 +28,14 @@ from tensorflow_data_validation.utils import stats_util
 
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
+# TODO(https://issues.apache.org/jira/browse/SPARK-22674): Switch to
+# `collections.namedtuple` or `typing.NamedTuple` once the Spark issue is
+# resolved.
+from tfx_bsl.types import tfx_namedtuple  # pylint: disable=g-bad-import-order
+
 # Tuple to hold feature value and count for an item.
-FeatureValueCount = collections.namedtuple('FeatureValueCount',
-                                           ['feature_value', 'count'])
+FeatureValueCount = tfx_namedtuple.namedtuple('FeatureValueCount',
+                                              ['feature_value', 'count'])
 
 # Custom stats names.
 _TOPK_SKETCH_CUSTOM_STATS_NAME = 'topk_sketch_rank_histogram'

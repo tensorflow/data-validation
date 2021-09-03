@@ -39,10 +39,14 @@ from tensorflow_data_validation.utils import stats_util
 from tensorflow_data_validation.utils import vocab_util
 
 from tfx_bsl import sketches
-from tfx_bsl.types import tfx_namedtuple
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
+
+# TODO(https://issues.apache.org/jira/browse/SPARK-22674): Switch to
+# `collections.namedtuple` or `typing.NamedTuple` once the Spark issue is
+# resolved.
+from tfx_bsl.types import tfx_namedtuple  # pylint: disable=g-bad-import-order
 
 _NL_DOMAIN = 'natural_language_domain'
 _INT_VALUE = 'int_value'

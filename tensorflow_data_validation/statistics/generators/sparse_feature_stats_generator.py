@@ -28,16 +28,19 @@ from __future__ import division
 
 from __future__ import print_function
 
-import collections
-
+from typing import Dict, Iterable, List, Text, Tuple, Union
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.statistics.generators.constituents import count_missing_generator
 from tensorflow_data_validation.statistics.generators.constituents import length_diff_generator
-from typing import Dict, Iterable, List, Text, Tuple, Union
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
+
+# TODO(https://issues.apache.org/jira/browse/SPARK-22674): Switch to
+# `collections.namedtuple` or `typing.NamedTuple` once the Spark issue is
+# resolved.
+from tfx_bsl.types import tfx_namedtuple  # pylint: disable=g-bad-import-order
 
 # LINT.IfChange(custom_stat_names)
 _MAX_LENGTH_DIFF_NAME = 'max_length_diff'
@@ -48,7 +51,7 @@ _MISSING_VALUE_NAME = 'missing_value'
 
 # Named tuple containing the FeaturePaths for the value and index features
 # that comprise a given sparse feature.
-_SparseFeatureComponents = collections.namedtuple(
+_SparseFeatureComponents = tfx_namedtuple.namedtuple(
     '_SparseFeatureComponents', ['value_feature', 'index_features'])
 
 

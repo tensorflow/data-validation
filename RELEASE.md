@@ -31,6 +31,8 @@
 
 ## Bug Fixes and Other Changes
 
+*   Switched from namedtuple to tfx_namedtuple in order to avoid pickling issues
+    with PySpark.
 *   Depends on 'scikit-learn>=0.23,<0.24' ("mutual-information" extra only)
 *   Depends on 'scipy>=1.5,<2' ("mutual-information" extra only)
 *   Depends on `apache-beam[gcp]>=2.31,<3`.

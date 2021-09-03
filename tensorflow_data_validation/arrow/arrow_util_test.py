@@ -17,7 +17,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import collections
 import itertools
 
 from absl.testing import absltest
@@ -29,6 +28,11 @@ from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.utils.example_weight_map import ExampleWeightMap
 from tfx_bsl.arrow import array_util
+
+# TODO(https://issues.apache.org/jira/browse/SPARK-22674): Switch to
+# `collections.namedtuple` or `typing.NamedTuple` once the Spark issue is
+# resolved.
+from tfx_bsl.types import tfx_namedtuple  # pylint: disable=g-bad-import-order
 
 
 _INPUT_RECORD_BATCH = pa.RecordBatch.from_arrays([
@@ -62,8 +66,8 @@ _EXAMPLE_WEIGHT_MAP = ExampleWeightMap(
         types.FeaturePath(["f2", "sf2", "ssf1"]): "w_override1",
     })
 
-ExpectedArray = collections.namedtuple("ExpectedArray",
-                                       ["array", "parent_indices", "weights"])
+ExpectedArray = tfx_namedtuple.namedtuple(
+    "ExpectedArray", ["array", "parent_indices", "weights"])
 _FEATURES_TO_ARRAYS = {
     types.FeaturePath(["f1"]): ExpectedArray(
         pa.array([[1], [2, 3]]), [0, 1], [1, 2]),

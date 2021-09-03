@@ -14,11 +14,15 @@
 
 """Utilities to compute quantiles."""
 import bisect
-import collections
 from typing import List
 
 import numpy as np
 from tensorflow_metadata.proto.v0 import statistics_pb2
+
+# TODO(https://issues.apache.org/jira/browse/SPARK-22674): Switch to
+# `collections.namedtuple` or `typing.NamedTuple` once the Spark issue is
+# resolved.
+from tfx_bsl.types import tfx_namedtuple  # pylint: disable=g-bad-import-order
 
 
 def find_median(quantiles: np.ndarray) -> float:
@@ -84,8 +88,8 @@ def generate_quantiles_histogram(quantiles: np.ndarray,
 
 
 # Named tuple with details for each bucket in a histogram.
-Bucket = collections.namedtuple(
-    'Bucket', ['low_value', 'high_value', 'sample_count'])
+Bucket = tfx_namedtuple.namedtuple('Bucket',
+                                   ['low_value', 'high_value', 'sample_count'])
 
 
 def generate_equi_width_histogram(quantiles: np.ndarray,

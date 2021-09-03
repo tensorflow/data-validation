@@ -36,7 +36,6 @@ specified list of features, or all categorical features in the provided schema.
 
 import collections
 import operator
-import typing
 from typing import Any, Dict, Iterator, Iterable, Optional, Sequence, Text, Tuple, Union
 
 import apache_beam as beam
@@ -56,12 +55,18 @@ from tensorflow_data_validation.utils.example_weight_map import ExampleWeightMap
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
+# TODO(https://issues.apache.org/jira/browse/SPARK-22674): Switch to
+# `collections.namedtuple` or `typing.NamedTuple` once the Spark issue is
+# resolved.
+from tfx_bsl.types import tfx_namedtuple  # pylint: disable=g-bad-import-order
+
 _XType = Union[Text, bytes]
 _YType = Union[Text, bytes, int]
 _CountType = Union[int, float]
 
-_SlicedYKey = typing.NamedTuple('_SlicedYKey', [('slice_key', types.SliceKey),
-                                                ('y', _YType)])
+_SlicedYKey = tfx_namedtuple.TypedNamedTuple('_SlicedYKey',
+                                             [('slice_key', types.SliceKey),
+                                              ('y', _YType)])
 
 
 # TODO(embr,zhuo): FeaturePathTuple is used instead of FeaturePath because:
@@ -70,50 +75,50 @@ _SlicedYKey = typing.NamedTuple('_SlicedYKey', [('slice_key', types.SliceKey),
 #    NamedTuple.
 #  Once the latter is supported we can change all FEaturePathTuples back to
 #  FeaturePaths.
-_SlicedXKey = typing.NamedTuple('_SlicedXKey',
-                                [('slice_key', types.SliceKey),
-                                 ('x_path', types.FeaturePathTuple),
-                                 ('x', _XType)])
+_SlicedXKey = tfx_namedtuple.TypedNamedTuple(
+    '_SlicedXKey', [('slice_key', types.SliceKey),
+                    ('x_path', types.FeaturePathTuple), ('x', _XType)])
 
-_SlicedXYKey = typing.NamedTuple('_SlicedXYKey',
-                                 [('slice_key', types.SliceKey),
-                                  ('x_path', types.FeaturePathTuple),
-                                  ('x', _XType), ('y', _YType)])
+_SlicedXYKey = tfx_namedtuple.TypedNamedTuple(
+    '_SlicedXYKey', [('slice_key', types.SliceKey),
+                     ('x_path', types.FeaturePathTuple), ('x', _XType),
+                     ('y', _YType)])
 
-_LiftSeriesKey = typing.NamedTuple('_LiftSeriesKey',
-                                   [('slice_key', types.SliceKey),
-                                    ('x_path', types.FeaturePathTuple),
-                                    ('y', _YType), ('y_count', _CountType)])
+_LiftSeriesKey = tfx_namedtuple.TypedNamedTuple(
+    '_LiftSeriesKey', [('slice_key', types.SliceKey),
+                       ('x_path', types.FeaturePathTuple), ('y', _YType),
+                       ('y_count', _CountType)])
 
-_SlicedFeatureKey = typing.NamedTuple('_SlicedFeatureKey',
-                                      [('slice_key', types.SliceKey),
-                                       ('x_path', types.FeaturePathTuple)])
+_SlicedFeatureKey = tfx_namedtuple.TypedNamedTuple(
+    '_SlicedFeatureKey', [('slice_key', types.SliceKey),
+                          ('x_path', types.FeaturePathTuple)])
 
-_ConditionalYRate = typing.NamedTuple('_ConditionalYRate',
-                                      [('x_path', types.FeaturePathTuple),
-                                       ('x', _XType), ('xy_count', _CountType),
-                                       ('x_count', _CountType)])
+_ConditionalYRate = tfx_namedtuple.TypedNamedTuple(
+    '_ConditionalYRate', [('x_path', types.FeaturePathTuple), ('x', _XType),
+                          ('xy_count', _CountType), ('x_count', _CountType)])
 
-_YRate = typing.NamedTuple('_YRate', [('y_count', _CountType),
-                                      ('example_count', _CountType)])
+_YRate = tfx_namedtuple.TypedNamedTuple('_YRate',
+                                        [('y_count', _CountType),
+                                         ('example_count', _CountType)])
 
-_LiftInfo = typing.NamedTuple('_LiftInfo', [('x', _XType), ('y', _YType),
+_LiftInfo = tfx_namedtuple.TypedNamedTuple('_LiftInfo',
+                                           [('x', _XType), ('y', _YType),
                                             ('lift', float),
                                             ('xy_count', _CountType),
                                             ('x_count', _CountType),
                                             ('y_count', _CountType)])
 
-_LiftValue = typing.NamedTuple('_LiftValue', [('x', _XType), ('lift', float),
-                                              ('xy_count', _CountType),
-                                              ('x_count', _CountType)])
+_LiftValue = tfx_namedtuple.TypedNamedTuple('_LiftValue',
+                                            [('x', _XType), ('lift', float),
+                                             ('xy_count', _CountType),
+                                             ('x_count', _CountType)])
 
-_LiftSeries = typing.NamedTuple('_LiftSeries',
-                                [('y', _YType), ('y_count', _CountType),
-                                 ('lift_values', Iterable[_LiftValue])])
-_ValuePresence = typing.NamedTuple('_ValuePresence',
-                                   [('example_indices', np.ndarray),
-                                    ('values', np.ndarray),
-                                    ('weights', np.ndarray)])
+_LiftSeries = tfx_namedtuple.TypedNamedTuple(
+    '_LiftSeries', [('y', _YType), ('y_count', _CountType),
+                    ('lift_values', Iterable[_LiftValue])])
+_ValuePresence = tfx_namedtuple.TypedNamedTuple(
+    '_ValuePresence', [('example_indices', np.ndarray), ('values', np.ndarray),
+                       ('weights', np.ndarray)])
 
 # Beam counter to track the number of non-utf8 values.
 _NON_UTF8_VALUES_COUNTER = beam.metrics.Metrics.counter(
