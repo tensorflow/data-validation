@@ -219,6 +219,7 @@ cc_test(
         ":statistics_view",
         ":test_util",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
+        "@com_google_absl//absl/strings",
     ],
 )
 

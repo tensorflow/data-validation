@@ -14,6 +14,7 @@ limitations under the License.
 ==============================================================================*/
 #include "tensorflow_data_validation/anomalies/dataset_constraints_util.h"
 
+#include "absl/strings/substitute.h"
 #include "tensorflow_data_validation/anomalies/internal_types.h"
 #include "tensorflow_data_validation/anomalies/statistics_view.h"
 #include "tensorflow_data_validation/anomalies/test_util.h"
@@ -125,6 +126,29 @@ TEST(DatasetConstraintsUtilTest,
       ParseTextProtoOrDie<NumericValueComparator>(
           R"(min_fraction_threshold: 0.5, max_fraction_threshold: 1.0)");
   EXPECT_THAT(comparator, EqualsProto(expected_comparator));
+}
+
+TEST(DatasetConstraintsUtilTest, UpdateWithLargeNumExamples) {
+  DatasetFeatureStatistics previous_span_statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"pb(num_examples: 4)pb");
+  DatasetStatsView previous_span_stats_view =
+      DatasetStatsView(previous_span_statistics, /*by_weight=*/false);
+  uint64 large_num_examples = pow(2, 33);
+  DatasetFeatureStatistics current_statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(
+          absl::Substitute(R"(num_examples: $0)", large_num_examples));
+  DatasetStatsView current_stats_view = DatasetStatsView(
+      current_statistics, /*by_weight=*/false, /*environment=*/absl::nullopt,
+      std::make_shared<DatasetStatsView>(previous_span_stats_view),
+      /*serving=*/std::shared_ptr<DatasetStatsView>(),
+      /*previous_version=*/std::shared_ptr<DatasetStatsView>());
+  NumericValueComparator comparator =
+      ParseTextProtoOrDie<NumericValueComparator>(
+          R"pb(min_fraction_threshold: 1.0, max_fraction_threshold: 1.0)pb");
+
+  // Check that UpdateNumExamplesComparatorDirect runs without errors.
+  UpdateNumExamplesComparatorDirect(current_stats_view,
+                                    DatasetComparatorType::DRIFT, &comparator);
 }
 
 TEST(DatasetConstraintsUtilTest,

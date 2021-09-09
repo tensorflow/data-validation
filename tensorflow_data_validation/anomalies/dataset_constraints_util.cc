@@ -50,11 +50,12 @@ std::vector<Description> UpdateNumExamplesComparatorDirect(
       !comparator->has_max_fraction_threshold()) {
     return {};
   }
-  int num_examples = stats.GetNumExamples();
+  double num_examples = stats.GetNumExamples();
   // ValidateFeatureStatistics does not attempt to detect anomalies in
   // datasets that have num_examples == 0. Check that here.
-  CHECK(num_examples > 0) << "Invalid input. Num examples must be greater than "
-                             "0.";
+  CHECK(num_examples > 0.0)
+      << "Invalid input. Num examples must be greater than "
+         "0.";
 
   const absl::optional<DatasetStatsView> control_stats =
       ((comparator_type == DatasetComparatorType::DRIFT)
@@ -68,21 +69,20 @@ std::vector<Description> UpdateNumExamplesComparatorDirect(
                                                        : "previous version");
 
   std::vector<Description> descriptions = {};
-  int control_num_examples = control_stats->GetNumExamples();
-  CHECK(control_num_examples >= 0) << "Invalid input. Control num examples "
+  double control_num_examples = control_stats->GetNumExamples();
+  CHECK(control_num_examples >= 0.0) << "Invalid input. Control num examples "
                                       "must not be negative";
 
   double num_examples_ratio;
-  if (control_num_examples != 0) {
-    num_examples_ratio =
-        static_cast<double>(num_examples) / control_num_examples;
+  if (control_num_examples != 0.0) {
+    num_examples_ratio = num_examples / control_num_examples;
   }
 
   // TODO(b/138589350): Check for possible case of ratio == 1.0 but num_examples
   // != control_num_examples.
   if (comparator->has_max_fraction_threshold()) {
     double max_threshold = comparator->max_fraction_threshold();
-    if (control_num_examples == 0) {
+    if (control_num_examples == 0.0) {
       comparator->clear_max_fraction_threshold();
       descriptions.push_back(
           {tensorflow::metadata::v0::AnomalyInfo::COMPARATOR_HIGH_NUM_EXAMPLES,
@@ -108,7 +108,7 @@ std::vector<Description> UpdateNumExamplesComparatorDirect(
   }
   if (comparator->has_min_fraction_threshold()) {
     double min_threshold = comparator->min_fraction_threshold();
-    if (control_num_examples != 0 &&
+    if (control_num_examples != 0.0 &&
         num_examples_ratio < comparator->min_fraction_threshold()) {
       comparator->set_min_fraction_threshold(num_examples_ratio);
       descriptions.push_back(
