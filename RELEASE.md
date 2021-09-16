@@ -12,6 +12,8 @@
     large numbers of examples.
 *   Depends on
     `tensorflow>=1.15.2,!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,<3`.
+*   Fixed a bug wherein slicing on a feature missing from some batches could
+    produce slice keys derived from a different feature.
 
 ## Known Issues
 

@@ -123,8 +123,12 @@ def get_feature_value_slicer(
     """
     per_feature_parent_indices = []
     for feature_name, values in six.iteritems(features):
-      feature_array = record_batch.column(
-          record_batch.schema.get_field_index(feature_name))
+      idx = record_batch.schema.get_field_index(feature_name)
+      # If the feature name does not appear in the schema for this record batch,
+      # drop it from the set of sliced features.
+      if idx < 0:
+        continue
+      feature_array = record_batch.column(idx)
       flattened, value_parent_indices = arrow_util.flatten_nested(
           feature_array, True)
       non_missing_values = np.asarray(flattened)
@@ -138,7 +142,10 @@ def get_feature_value_slicer(
       if values is not None:
         df = df.loc[df[feature_name].isin(values)]
       per_feature_parent_indices.append(df)
-
+    # If there are no features to slice on, yield no output.
+    # TODO(b/200081813): Produce output with an appropriate placeholder key.
+    if not per_feature_parent_indices:
+      return
     # Join dataframes based on parent indices.
     # Note that we want the parent indices per slice key to be sorted in the
     # merged dataframe. The individual dataframes have the parent indices in

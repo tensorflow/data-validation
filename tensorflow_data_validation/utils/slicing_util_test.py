@@ -31,6 +31,7 @@ class SlicingUtilTest(absltest.TestCase):
   def _check_results(self, got, expected):
     got_dict = {g[0]: g[1] for g in got}
     expected_dict = {e[0]: e[1] for e in expected}
+
     self.assertCountEqual(got_dict.keys(), expected_dict.keys())
     for k, got_record_batch in got_dict.items():
       expected_record_batch = expected_dict[k]
@@ -80,6 +81,25 @@ class SlicingUtilTest(absltest.TestCase):
         slicing_util.get_feature_value_slicer(features)(input_record_batch),
         expected_result)
 
+  def test_get_feature_value_slicer_one_feature_not_in_batch(self):
+    features = {'not_an_actual_feature': None, 'a': None}
+    input_record_batch = pa.RecordBatch.from_arrays([
+        pa.array([[1], [2, 1]]),
+        pa.array([['dog'], ['cat']]),
+    ], ['a', 'b'])
+    expected_result = [
+        (u'a_1',
+         pa.RecordBatch.from_arrays(
+             [pa.array([[1], [2, 1]]),
+              pa.array([['dog'], ['cat']])], ['a', 'b'])),
+        (u'a_2',
+         pa.RecordBatch.from_arrays(
+             [pa.array([[2, 1]]), pa.array([['cat']])], ['a', 'b'])),
+    ]
+    self._check_results(
+        slicing_util.get_feature_value_slicer(features)(input_record_batch),
+        expected_result)
+
   def test_get_feature_value_slicer_single_feature(self):
     features = {'a': [2]}
     input_record_batch = pa.RecordBatch.from_arrays([
@@ -109,6 +129,18 @@ class SlicingUtilTest(absltest.TestCase):
 
   def test_get_feature_value_slicer_feature_not_in_record_batch(self):
     features = {'c': [0]}
+    input_record_batch = pa.RecordBatch.from_arrays([
+        pa.array([[1], [2, 1]]),
+        pa.array([['dog'], ['cat']]),
+    ], ['a', 'b'])
+    expected_result = []
+    self._check_results(
+        slicing_util.get_feature_value_slicer(features)(input_record_batch),
+        expected_result)
+
+  def test_get_feature_value_slicer_feature_not_in_record_batch_all_values(
+      self):
+    features = {'c': None}
     input_record_batch = pa.RecordBatch.from_arrays([
         pa.array([[1], [2, 1]]),
         pa.array([['dog'], ['cat']]),
