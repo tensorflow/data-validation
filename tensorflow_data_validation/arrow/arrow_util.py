@@ -342,3 +342,29 @@ def get_nest_level(array_type: pa.DataType) -> int:
   if pa.types.is_null(array_type):
     result += 1
   return result
+
+
+def get_column(record_batch: pa.RecordBatch,
+               feature_name: types.FeatureName,
+               missing_ok: bool = False) -> Optional[pa.Array]:
+  """Get a column by feature name.
+
+  Args:
+    record_batch: A pa.RecordBatch.
+    feature_name: The name of a feature (column) within record_batch.
+    missing_ok: If True, returns None for missing feature names.
+
+  Returns:
+    The column with the specified name, or None if missing_ok is true and
+    a column with the specified name is missing, or more than one exist.
+
+  Raises:
+    KeyError: If a column with the specified name is missing, or more than
+    one exist, and missing_ok is False.
+  """
+  idx = record_batch.schema.get_field_index(feature_name)
+  if idx < 0:
+    if missing_ok:
+      return None
+    raise KeyError('missing column %s' % feature_name)
+  return record_batch.column(idx)

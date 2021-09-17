@@ -340,6 +340,14 @@ class ArrowUtilTest(parameterized.TestCase):
     self.assertTrue(flattened.equals(pa.array([1, 2])))
     np.testing.assert_array_equal(parent_indices, [0, 1])
 
+  def testGetColumn(self):
+    self.assertTrue(
+        arrow_util.get_column(_INPUT_RECORD_BATCH,
+                              "f1").equals(pa.array([[1], [2, 3]])))
+    self.assertIsNone(
+        arrow_util.get_column(_INPUT_RECORD_BATCH, "xyz", missing_ok=True))
+    with self.assertRaises(KeyError):
+      arrow_util.get_column(_INPUT_RECORD_BATCH, "xyz")
 
 if __name__ == "__main__":
   absltest.main()

@@ -23,6 +23,7 @@ from absl.testing import parameterized
 import numpy as np
 import pyarrow as pa
 import six
+from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.arrow import decoded_examples_to_arrow
 
 
@@ -189,8 +190,7 @@ class DecodedExamplesToArrowPyTest(parameterized.TestCase):
         input_examples)
     self.assertLen(expected_output, record_batch.num_columns)
     for feature_name, expected_arrow_array in six.iteritems(expected_output):
-      actual = record_batch.column(
-          record_batch.schema.get_field_index(feature_name))
+      actual = arrow_util.get_column(record_batch, feature_name)
       self.assertTrue(
           expected_arrow_array.equals(actual),
           "{} vs {}".format(expected_arrow_array, actual))

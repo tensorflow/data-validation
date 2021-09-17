@@ -339,15 +339,14 @@ def _filter_features(
   Returns:
     An Arrow RecordBatch containing only features on the allowlist.
   """
-  schema = record_batch.schema
-  column_names = set(schema.names)
   columns_to_select = []
   column_names_to_select = []
   for feature_name in feature_allowlist:
-    if feature_name in column_names:
-      columns_to_select.append(
-          record_batch.column(schema.get_field_index(feature_name)))
-      column_names_to_select.append(feature_name)
+    col = arrow_util.get_column(record_batch, feature_name, missing_ok=True)
+    if col is None:
+      continue
+    columns_to_select.append(col)
+    column_names_to_select.append(feature_name)
   return pa.RecordBatch.from_arrays(columns_to_select, column_names_to_select)
 
 
@@ -523,8 +522,7 @@ class NumExamplesStatsGenerator(stats_generator.CombinerStatsGenerator):
                 examples: pa.RecordBatch) -> List[float]:
     accumulator[0] += examples.num_rows
     if self._weight_feature:
-      weights_column = examples.column(
-          examples.schema.get_field_index(self._weight_feature))
+      weights_column = arrow_util.get_column(examples, self._weight_feature)
       accumulator[1] += np.sum(np.asarray(weights_column.flatten()))
     return accumulator
 
@@ -787,13 +785,13 @@ def generate_partial_statistics_in_memory(
   """
   result = []
   if options.feature_allowlist:
-    schema = record_batch.schema
-    columns = [
-        record_batch.column(schema.get_field_index(f))
-        for f in options.feature_allowlist
-    ]
-    record_batch = pa.RecordBatch.from_arrays(columns,
-                                              list(options.feature_allowlist))
+    columns, features = [], []
+    for feature_name in options.feature_allowlist:
+      c = arrow_util.get_column(record_batch, feature_name, missing_ok=True)
+      if c is not None:
+        columns.append(c)
+        features.append(feature_name)
+    record_batch = pa.RecordBatch.from_arrays(columns, features)
   for generator in stats_generators:
     result.append(
         generator.add_input(generator.create_accumulator(), record_batch))

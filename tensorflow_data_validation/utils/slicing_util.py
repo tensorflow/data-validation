@@ -123,12 +123,12 @@ def get_feature_value_slicer(
     """
     per_feature_parent_indices = []
     for feature_name, values in six.iteritems(features):
-      idx = record_batch.schema.get_field_index(feature_name)
+      feature_array = arrow_util.get_column(
+          record_batch, feature_name, missing_ok=True)
       # If the feature name does not appear in the schema for this record batch,
       # drop it from the set of sliced features.
-      if idx < 0:
+      if feature_array is None:
         continue
-      feature_array = record_batch.column(idx)
       flattened, value_parent_indices = arrow_util.flatten_nested(
           feature_array, True)
       non_missing_values = np.asarray(flattened)
