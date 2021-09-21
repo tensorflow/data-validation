@@ -58,7 +58,7 @@ import collections
 import itertools
 import math
 import sys
-from typing import Any, Callable, Dict, Iterable, List, Optional, Text
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Text
 
 import apache_beam as beam
 import numpy as np
@@ -70,6 +70,7 @@ from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import quantiles_util
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
+from tensorflow_data_validation.utils import top_k_uniques_stats_util
 from tensorflow_data_validation.utils.example_weight_map import ExampleWeightMap
 from tfx_bsl import sketches
 from tfx_bsl.arrow import array_util
@@ -763,15 +764,14 @@ def _make_num_values_custom_stats_proto(
 
 
 def _make_feature_stats_proto(
-    feature_path: types.FeaturePath,
-    basic_stats: _PartialBasicStats,
+    feature_path: types.FeaturePath, basic_stats: _PartialBasicStats,
     parent_basic_stats: Optional[_PartialBasicStats],
     make_quantiles_sketch_fn: Callable[[], sketches.QuantilesSketch],
-    num_values_histogram_buckets: int,
-    num_histogram_buckets: int,
-    num_quantiles_histogram_buckets: int,
-    is_bytes: bool, is_categorical: bool, has_weights: bool
-) -> statistics_pb2.FeatureNameStatistics:
+    num_values_histogram_buckets: int, num_histogram_buckets: int,
+    num_quantiles_histogram_buckets: int, is_bytes: bool,
+    categorical_numeric_types: Mapping[types.FeaturePath,
+                                       'schema_pb2.FeatureType'],
+    has_weights: bool) -> statistics_pb2.FeatureNameStatistics:
   """Convert the partial basic stats into a FeatureNameStatistics proto.
 
   Args:
@@ -786,7 +786,8 @@ def _make_feature_stats_proto(
     num_quantiles_histogram_buckets: Number of buckets in a
         quantiles NumericStatistics.histogram.
     is_bytes: A boolean indicating whether the feature is bytes.
-    is_categorical: A boolean indicating whether the feature is categorical.
+    categorical_numeric_types: A mapping from feature path to type derived from
+        the schema.
     has_weights: A boolean indicating whether a weight feature is specified.
 
   Returns:
@@ -810,10 +811,12 @@ def _make_feature_stats_proto(
   # We trust user's claim.
   elif is_bytes:
     result.type = statistics_pb2.FeatureNameStatistics.BYTES
-  elif is_categorical:
-    result.type = statistics_pb2.FeatureNameStatistics.INT
+  # TODO(b/199427429): Fix this type inference.
+  elif feature_path in categorical_numeric_types:
+    result.type = top_k_uniques_stats_util.get_statistics_feature_type(
+        categorical_numeric_types, feature_path)
   else:
-    # We don't have an "unknown" type so use STRING here.
+    # We don't have an "unknown" type, so default to STRING here.
     result.type = statistics_pb2.FeatureNameStatistics.STRING
 
   # Construct common statistics proto.
@@ -839,9 +842,10 @@ def _make_feature_stats_proto(
     # Add the common stats into bytes stats.
     bytes_stats_proto.common_stats.CopyFrom(common_stats_proto)
     result.bytes_stats.CopyFrom(bytes_stats_proto)
+  # TODO(b/187054148): Update to allow FLOAT
   if (result.type == statistics_pb2.FeatureNameStatistics.STRING or
-      (is_categorical and
-       result.type == statistics_pb2.FeatureNameStatistics.INT)):
+      feature_path in categorical_numeric_types and
+      result.type == statistics_pb2.FeatureNameStatistics.INT):
     # Construct string statistics proto.
     string_stats_proto = _make_string_stats_proto(basic_stats.string_stats,
                                                   total_num_values)
@@ -985,8 +989,8 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
 
     self._bytes_features = set(
         schema_util.get_bytes_features(schema) if schema else [])
-    self._categorical_features = set(
-        schema_util.get_categorical_numeric_features(schema) if schema else [])
+    self._categorical_numeric_types = schema_util.get_categorical_numeric_feature_types(
+        schema) if schema else {}
     self._example_weight_map = example_weight_map
     self._num_values_histogram_buckets = num_values_histogram_buckets
     self._num_histogram_buckets = num_histogram_buckets
@@ -1035,14 +1039,14 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
           stats_for_feature.bytes_stats.update(feature_array)
         else:
           stats_for_feature.string_stats.update(feature_array)
-      elif feature_type == statistics_pb2.FeatureNameStatistics.INT:
-        if feature_path in self._categorical_features:
-          stats_for_feature.string_stats.update(feature_array)
-        else:
-          stats_for_feature.numeric_stats.update(feature_array, weights)
-      elif feature_type == statistics_pb2.FeatureNameStatistics.FLOAT:
+      # We want to compute string stats for a numeric only if a top-k stats
+      # generator is running, hence the dependency on this library function.
+      elif top_k_uniques_stats_util.output_categorical_numeric(
+          self._categorical_numeric_types, feature_path, feature_type):
+        stats_for_feature.string_stats.update(feature_array)
+      elif feature_type in (statistics_pb2.FeatureNameStatistics.FLOAT,
+                            statistics_pb2.FeatureNameStatistics.INT):
         stats_for_feature.numeric_stats.update(feature_array, weights)
-
     return accumulator
 
   # Merge together a list of basic common statistics.
@@ -1052,7 +1056,6 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
     result = {}
     for accumulator in accumulators:
       for feature_path, basic_stats in accumulator.items():
-        is_categorical = feature_path in self._categorical_features
         current_type = basic_stats.common_stats.type
         existing_stats = result.get(feature_path)
         if existing_stats is None:
@@ -1076,7 +1079,8 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
           if current_type is not None:
             if feature_path in self._bytes_features:
               existing_stats.bytes_stats += basic_stats.bytes_stats
-            elif (is_categorical or
+            elif (top_k_uniques_stats_util.output_categorical_numeric(
+                self._categorical_numeric_types, feature_path, current_type) or
                   current_type == statistics_pb2.FeatureNameStatistics.STRING):
               existing_stats.string_stats += basic_stats.string_stats
             elif current_type in (statistics_pb2.FeatureNameStatistics.INT,
@@ -1111,14 +1115,10 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
       # Construct the FeatureNameStatistics proto from the partial
       # basic stats.
       feature_stats_proto = _make_feature_stats_proto(
-          feature_path,
-          basic_stats,
-          accumulator.get(feature_path.parent()),
-          self._make_quantiles_sketch_fn,
-          self._num_values_histogram_buckets, self._num_histogram_buckets,
-          self._num_quantiles_histogram_buckets,
-          feature_path in self._bytes_features,
-          feature_path in self._categorical_features,
+          feature_path, basic_stats, accumulator.get(feature_path.parent()),
+          self._make_quantiles_sketch_fn, self._num_values_histogram_buckets,
+          self._num_histogram_buckets, self._num_quantiles_histogram_buckets,
+          feature_path in self._bytes_features, self._categorical_numeric_types,
           self._example_weight_map.get(feature_path) is not None)
       # Copy the constructed FeatureNameStatistics proto into the
       # DatasetFeatureStatistics proto.

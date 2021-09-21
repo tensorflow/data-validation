@@ -390,7 +390,7 @@ class SchemaUtilTest(parameterized.TestCase):
             types.FeaturePath(['ff', 'ff_fa'])
         ])
 
-  def test_get_categorical_numeric_features(self):
+  def test_get_categorical_numeric_feature_types(self):
     schema = text_format.Parse(
         """
         feature {
@@ -403,10 +403,6 @@ class SchemaUtilTest(parameterized.TestCase):
         feature {
           name: "fb"
           type: BYTES
-        }
-        feature {
-          name: "fc"
-          type: FLOAT
         }
         feature {
           name: "fc"
@@ -431,13 +427,17 @@ class SchemaUtilTest(parameterized.TestCase):
             }
           }
         }
+        feature {
+          name: "fe"
+          type: FLOAT
+        }
         """, schema_pb2.Schema())
     self.assertEqual(
-        schema_util.get_categorical_numeric_features(schema), [
-            types.FeaturePath(['fa']),
-            types.FeaturePath(['fc']),
-            types.FeaturePath(['fd', 'fd_fa'])
-        ])
+        schema_util.get_categorical_numeric_feature_types(schema), {
+            types.FeaturePath(['fa']): schema_pb2.INT,
+            types.FeaturePath(['fc']): schema_pb2.INT,
+            types.FeaturePath(['fd', 'fd_fa']): schema_pb2.INT,
+        })
 
   def test_is_categorical_features(self):
     schema = text_format.Parse(
@@ -640,7 +640,7 @@ class SchemaUtilTest(parameterized.TestCase):
         schema_util.look_up_feature('feature1', container), feature_1)
     self.assertEqual(
         schema_util.look_up_feature('feature2', container), feature_2)
-    self.assertEqual(schema_util.look_up_feature('feature3', container), None)
+    self.assertIsNone(schema_util.look_up_feature('feature3', container), None)
 
 if __name__ == '__main__':
   absltest.main()

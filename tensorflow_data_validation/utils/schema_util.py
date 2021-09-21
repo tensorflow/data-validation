@@ -19,7 +19,7 @@ from __future__ import division
 from __future__ import print_function
 
 import logging
-from typing import Any, Iterable, List, Optional, Set, Text, Tuple, Union
+from typing import Any, Iterable, List, Mapping, Optional, Set, Text, Tuple, Union
 
 from tensorflow_data_validation import types
 from tensorflow_data_validation.utils import io_util
@@ -243,21 +243,33 @@ def is_categorical_feature(feature: schema_pb2.Feature):
     return False
 
 
-def get_categorical_numeric_features(
-    schema: schema_pb2.Schema) -> List[types.FeaturePath]:
-  """Get the list of numeric features that should be treated as categorical.
+def get_categorical_numeric_feature_types(
+    schema: schema_pb2.Schema
+) -> Mapping[types.FeaturePath, 'schema_pb2.FeatureType']:
+  """Get a mapping of numeric categorical features to their schema type.
 
   Args:
     schema: The schema for the data.
 
   Returns:
-    A list of int features that should be considered categorical.
+    A map from feature path of numeric features that should be considered
+    categorical to their schema type.
+
+  Raises:
+    ValueError: If a feature path is duplicated within the schema and
+    associated with more than one type.
   """
-  categorical_features = []
+  categorical_numeric_types = {}
   for feature_path, feature in get_all_leaf_features(schema):
-    if feature.type == schema_pb2.INT and is_categorical_feature(feature):
-      categorical_features.append(feature_path)
-  return categorical_features
+    if feature_path in categorical_numeric_types and categorical_numeric_types[
+        feature_path] != feature.type:
+      raise ValueError(
+          'Schema contains inconsistently typed duplicates for %s' %
+          feature_path)
+    if feature.type in (schema_pb2.INT,
+                        schema_pb2.FLOAT) and is_categorical_feature(feature):
+      categorical_numeric_types[feature_path] = feature.type
+  return categorical_numeric_types
 
 
 def get_categorical_features(schema: schema_pb2.Schema

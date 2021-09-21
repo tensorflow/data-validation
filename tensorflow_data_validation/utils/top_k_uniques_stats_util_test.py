@@ -24,6 +24,7 @@ from tensorflow_data_validation.utils import top_k_uniques_stats_util
 
 from google.protobuf import text_format
 
+from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
@@ -107,8 +108,9 @@ class TopKUniquesStatsUtilTest(absltest.TestCase):
     result = (
         top_k_uniques_stats_util.make_feature_stats_proto_topk_uniques(
             types.FeaturePath(['fa']),
-            is_categorical=False,
-            num_top_values=3, frequency_threshold=1,
+            feature_type=statistics_pb2.FeatureNameStatistics.STRING,
+            num_top_values=3,
+            frequency_threshold=1,
             weighted_frequency_threshold=1.,
             num_rank_histogram_buckets=2,
             num_unique=5,
@@ -173,11 +175,12 @@ class TopKUniquesStatsUtilTest(absltest.TestCase):
         for value_count in weighted_value_counts
     ]
     result = (
-        top_k_uniques_stats_util.
-        make_feature_stats_proto_topk_uniques_custom_stats(
+        top_k_uniques_stats_util
+        .make_feature_stats_proto_topk_uniques_custom_stats(
             types.FeaturePath(['fa']),
-            is_categorical=False,
-            num_top_values=3, frequency_threshold=1,
+            feature_type=statistics_pb2.FeatureNameStatistics.STRING,
+            num_top_values=3,
+            frequency_threshold=1,
             weighted_frequency_threshold=1.,
             num_rank_histogram_buckets=2,
             num_unique=5,
@@ -231,8 +234,9 @@ class TopKUniquesStatsUtilTest(absltest.TestCase):
     result = (
         top_k_uniques_stats_util.make_feature_stats_proto_topk_uniques(
             types.FeaturePath(['fa']),
-            is_categorical=True,
-            num_top_values=3, frequency_threshold=1,
+            feature_type=statistics_pb2.FeatureNameStatistics.INT,
+            num_top_values=3,
+            frequency_threshold=1,
             num_rank_histogram_buckets=2,
             num_unique=4,
             value_count_list=top_k_value_count_list))
@@ -284,8 +288,9 @@ class TopKUniquesStatsUtilTest(absltest.TestCase):
     result = (
         top_k_uniques_stats_util.make_feature_stats_proto_topk_uniques(
             types.FeaturePath(['fa']),
-            is_categorical=True,
-            num_top_values=3, frequency_threshold=1,
+            feature_type=statistics_pb2.FeatureNameStatistics.INT,
+            num_top_values=3,
+            frequency_threshold=1,
             num_rank_histogram_buckets=2,
             num_unique=4,
             value_count_list=top_k_value_count_list))
@@ -336,14 +341,57 @@ class TopKUniquesStatsUtilTest(absltest.TestCase):
         top_k_uniques_stats_util.make_dataset_feature_stats_proto_topk_single(
             types.FeaturePath(['fa']).steps(),
             value_count_list=value_count_list,
-            categorical_features=frozenset(
-                [types.FeaturePath(['fa']),
-                 types.FeaturePath(['fb'])]),
+            categorical_numeric_types={
+                types.FeaturePath(['fa']): schema_pb2.INT,
+                types.FeaturePath(['fb']): schema_pb2.INT
+            },
             is_weighted_stats=False,
-            num_top_values=3, frequency_threshold=1,
+            num_top_values=3,
+            frequency_threshold=1,
             num_rank_histogram_buckets=2))
     test_util.assert_dataset_feature_stats_proto_equal(
         self, result, expected_result)
+
+  def test_get_statistics_feature_type(self):
+    type_mapping = {
+        types.FeaturePath(['fa']): schema_pb2.INT,
+        types.FeaturePath(['fb']): schema_pb2.FLOAT,
+    }
+    self.assertEqual(
+        top_k_uniques_stats_util.get_statistics_feature_type(
+            type_mapping, types.FeaturePath(['fa'])),
+        statistics_pb2.FeatureNameStatistics.INT)
+    self.assertEqual(
+        top_k_uniques_stats_util.get_statistics_feature_type(
+            type_mapping, types.FeaturePath(['fb'])),
+        statistics_pb2.FeatureNameStatistics.FLOAT)
+    self.assertEqual(
+        top_k_uniques_stats_util.get_statistics_feature_type(
+            type_mapping, types.FeaturePath(['fc'])),
+        statistics_pb2.FeatureNameStatistics.STRING)
+
+  def test_output_categorical_numeric(self):
+    type_mapping = {
+        types.FeaturePath(['fa']): schema_pb2.INT,
+        types.FeaturePath(['fb']): schema_pb2.FLOAT,
+    }
+    self.assertTrue(
+        top_k_uniques_stats_util.output_categorical_numeric(
+            type_mapping, types.FeaturePath(['fa']),
+            statistics_pb2.FeatureNameStatistics.INT))
+    self.assertFalse(
+        top_k_uniques_stats_util.output_categorical_numeric(
+            type_mapping, types.FeaturePath(['fb']),
+            statistics_pb2.FeatureNameStatistics.FLOAT))
+    self.assertFalse(
+        top_k_uniques_stats_util.output_categorical_numeric(
+            type_mapping, types.FeaturePath(['fc']),
+            statistics_pb2.FeatureNameStatistics.INT))
+    self.assertFalse(
+        top_k_uniques_stats_util.output_categorical_numeric(
+            type_mapping, types.FeaturePath(['fb']),
+            statistics_pb2.FeatureNameStatistics.INT))
+
 
 if __name__ == '__main__':
   absltest.main()

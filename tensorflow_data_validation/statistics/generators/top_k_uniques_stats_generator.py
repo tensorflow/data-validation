@@ -17,7 +17,7 @@
 This generator computes these values for string and categorical features.
 """
 
-from typing import Any, FrozenSet, Iterable, Iterator, Optional, Text, Tuple, Union
+from typing import Any, FrozenSet, Iterable, Iterator, Mapping, Optional, Text, Tuple, Union
 import apache_beam as beam
 import numpy as np
 import pandas as pd
@@ -62,7 +62,8 @@ def _weighted_unique(values: np.ndarray, weights: np.ndarray
 def _to_topk_tuples(
     sliced_record_batch: Tuple[types.SliceKey, pa.RecordBatch],
     bytes_features: FrozenSet[types.FeaturePath],
-    categorical_features: FrozenSet[types.FeaturePath],
+    categorical_numeric_types: Mapping[types.FeaturePath,
+                                       'schema_pb2.FeatureType'],
     example_weight_map: ExampleWeightMap,
 ) -> Iterable[Tuple[Tuple[types.SliceKey, types.FeaturePathTuple, Any], Union[
     int, Tuple[int, Union[int, float]]]]]:
@@ -80,7 +81,7 @@ def _to_topk_tuples(
     if feature_path in bytes_features:
       continue
     if ((feature_type == statistics_pb2.FeatureNameStatistics.INT and
-         feature_path in categorical_features) or
+         feature_path in categorical_numeric_types) or
         feature_type == statistics_pb2.FeatureNameStatistics.STRING):
       flattened_values, parent_indices = arrow_util.flatten_nested(
           feature_array, weights is not None)
@@ -127,8 +128,9 @@ class _ComputeTopKUniquesStats(beam.PTransform):
     """
     self._bytes_features = frozenset(
         schema_util.get_bytes_features(schema) if schema else [])
-    self._categorical_features = frozenset(
-        schema_util.get_categorical_numeric_features(schema) if schema else [])
+    self._categorical_numeric_types = (
+        schema_util.get_categorical_numeric_feature_types(schema)
+        if schema else {})
     self._example_weight_map = example_weight_map
     self._num_top_values = num_top_values
     self._frequency_threshold = frequency_threshold
@@ -163,7 +165,7 @@ class _ComputeTopKUniquesStats(beam.PTransform):
         | 'ToTopKTuples' >> beam.FlatMap(
             _to_topk_tuples,
             bytes_features=self._bytes_features,
-            categorical_features=self._categorical_features,
+            categorical_numeric_types=self._categorical_numeric_types,
             example_weight_map=self._example_weight_map)
         | 'CombineCountsAndWeights' >> beam.CombinePerKey(sum_fn)
         | 'Rearrange' >> beam.MapTuple(lambda k, v: ((k[0], k[1]), (v, k[2]))))
@@ -181,27 +183,28 @@ class _ComputeTopKUniquesStats(beam.PTransform):
             max(self._num_top_values, self._num_rank_histogram_buckets))
         | 'Unweighted_ToFeatureValueCount' >> beam.MapTuple(
             # pylint: disable=g-long-lambda
-            lambda k, v: (k, [top_k_uniques_stats_util.FeatureValueCount(
-                t[1], t[0]) for t in v])
+            lambda k, v: (k, [
+                top_k_uniques_stats_util.FeatureValueCount(t[1], t[0])
+                for t in v
+            ])
             # pylint: enable=g-long-lambda
-            )
+        )
         | 'Unweighted_ToProto' >> beam.MapTuple(
             # pylint: disable=g-long-lambda
-            lambda k, v: (
-                k[0],
-                top_k_uniques_stats_util.
-                make_dataset_feature_stats_proto_topk_single(
-                    feature_path_tuple=k[1],
-                    value_count_list=v,
-                    categorical_features=self._categorical_features,
-                    is_weighted_stats=False,
-                    num_top_values=self._num_top_values,
-                    frequency_threshold=self._frequency_threshold,
-                    num_rank_histogram_buckets=self._num_rank_histogram_buckets)
-                )
+            lambda k, v:
+            (k[0],
+             top_k_uniques_stats_util.
+             make_dataset_feature_stats_proto_topk_single(
+                 feature_path_tuple=k[1],
+                 value_count_list=v,
+                 categorical_numeric_types=self._categorical_numeric_types,
+                 is_weighted_stats=False,
+                 num_top_values=self._num_top_values,
+                 frequency_threshold=self._frequency_threshold,
+                 num_rank_histogram_buckets=self._num_rank_histogram_buckets))
             # pylint: enable=g-long-lambda
-            ))
-        # (slice_key, DatasetFeatureStatistics)
+        ))
+    # (slice_key, DatasetFeatureStatistics)
 
     uniques = (
         top_k_tuples_combined
@@ -209,33 +212,35 @@ class _ComputeTopKUniquesStats(beam.PTransform):
         | 'Uniques_CountPerFeatureName' >> beam.combiners.Count().PerElement()
         | 'Uniques_ConvertToSingleFeatureStats' >> beam.MapTuple(
             # pylint: disable=g-long-lambda
-            lambda k, v: (
-                k[0],
-                top_k_uniques_stats_util.
-                make_dataset_feature_stats_proto_unique_single(
-                    feature_path_tuple=k[1],
-                    num_uniques=v,
-                    categorical_features=self._categorical_features))
+            lambda k, v:
+            (k[0],
+             top_k_uniques_stats_util.
+             make_dataset_feature_stats_proto_unique_single(
+                 feature_path_tuple=k[1],
+                 num_uniques=v,
+                 categorical_numeric_types=self._categorical_numeric_types))
             # pylint: enable=g-long-lambda
-            ))
-        # (slice_key, DatasetFeatureStatistics)
+        ))
+    # (slice_key, DatasetFeatureStatistics)
 
     result_protos = [top_k, uniques]
 
     if has_any_weight:
       weighted_top_k = (
           top_k_tuples_combined
-          | 'Weighted_DropCountsAndRearrange'
-          >> beam.MapTuple(lambda k, v: (k, (v[0][1], v[1])))
+          | 'Weighted_DropCountsAndRearrange' >>
+          beam.MapTuple(lambda k, v: (k, (v[0][1], v[1])))
           # (slice_key, feature), (weight, value)
           | 'Weighted_TopK' >> beam.combiners.Top().PerKey(
               max(self._num_top_values, self._num_rank_histogram_buckets))
           | 'Weighted_ToFeatureValueCount' >> beam.MapTuple(
               # pylint: disable=g-long-lambda
-              lambda k, v: (k, [top_k_uniques_stats_util.FeatureValueCount(
-                  t[1], t[0]) for t in v])
+              lambda k, v: (k, [
+                  top_k_uniques_stats_util.FeatureValueCount(t[1], t[0])
+                  for t in v
+              ])
               # pylint: enable=g-long-lambda
-              )
+          )
           | 'Weighted_ToProto' >> beam.MapTuple(
               # pylint: disable=g-long-lambda
               lambda k, v:
@@ -244,14 +249,13 @@ class _ComputeTopKUniquesStats(beam.PTransform):
                make_dataset_feature_stats_proto_topk_single(
                    feature_path_tuple=k[1],
                    value_count_list=v,
-                   categorical_features=self._categorical_features,
+                   categorical_numeric_types=self._categorical_numeric_types,
                    is_weighted_stats=True,
                    num_top_values=self._num_top_values,
                    frequency_threshold=self._weighted_frequency_threshold,
-                   num_rank_histogram_buckets=self._num_rank_histogram_buckets
-               ))
+                   num_rank_histogram_buckets=self._num_rank_histogram_buckets))
               # pylint: enable=g-long-lambda
-              ))
+          ))
       # (slice_key, DatasetFeatureStatistics)
 
       result_protos.append(weighted_top_k)
