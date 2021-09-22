@@ -19,7 +19,7 @@ from __future__ import division
 from __future__ import print_function
 
 import abc
-from typing import Any, Dict, Hashable, Iterable, List, Optional, Text, TypeVar
+from typing import Any, Dict, Generic, Hashable, Iterable, List, Optional, Text, TypeVar
 
 import apache_beam as beam
 import pyarrow as pa
@@ -57,7 +57,7 @@ class StatsGenerator(object):
 ACCTYPE = TypeVar('ACCTYPE')
 
 
-class CombinerStatsGenerator(StatsGenerator):
+class CombinerStatsGenerator(Generic[ACCTYPE], StatsGenerator):
   """A StatsGenerator which computes statistics using a combiner function.
 
   This class computes statistics using a combiner function. It emits partial
@@ -96,7 +96,7 @@ class CombinerStatsGenerator(StatsGenerator):
     """
     pass
 
-  def create_accumulator(self) -> ACCTYPE:  # pytype: disable=invalid-annotation
+  def create_accumulator(self) -> ACCTYPE:
     """Returns a fresh, empty accumulator.
 
     Returns:
@@ -151,8 +151,7 @@ class CombinerStatsGenerator(StatsGenerator):
     return accumulator
 
   def extract_output(
-      self, accumulator: ACCTYPE
-  ) -> statistics_pb2.DatasetFeatureStatistics:  # pytype: disable=invalid-annotation
+      self, accumulator: ACCTYPE) -> statistics_pb2.DatasetFeatureStatistics:
     """Returns result of converting accumulator into the output value.
 
     Args:
@@ -167,7 +166,7 @@ class CombinerStatsGenerator(StatsGenerator):
   # needed.
 
 
-class CombinerFeatureStatsGenerator(StatsGenerator):
+class CombinerFeatureStatsGenerator(Generic[ACCTYPE], StatsGenerator):
   """Generate feature level statistics using combiner function.
 
   This interface is a simplification of CombinerStatsGenerator for the special
@@ -185,7 +184,7 @@ class CombinerFeatureStatsGenerator(StatsGenerator):
     """
     pass
 
-  def create_accumulator(self) -> ACCTYPE:  # pytype: disable=invalid-annotation
+  def create_accumulator(self) -> ACCTYPE:
     """Returns a fresh, empty accumulator.
 
     Returns:
@@ -234,7 +233,7 @@ class CombinerFeatureStatsGenerator(StatsGenerator):
     return accumulator
 
   def extract_output(
-      self, accumulator: ACCTYPE) -> statistics_pb2.FeatureNameStatistics:  # pytype: disable=invalid-annotation
+      self, accumulator: ACCTYPE) -> statistics_pb2.FeatureNameStatistics:
     """Returns result of converting accumulator into the output value.
 
     Args:
@@ -249,7 +248,8 @@ class CombinerFeatureStatsGenerator(StatsGenerator):
 CONSTITUENT_ACCTYPE = TypeVar('CONSTITUENT_ACCTYPE')
 
 
-class ConstituentStatsGenerator(object, metaclass=abc.ABCMeta):
+class ConstituentStatsGenerator(
+    Generic[CONSTITUENT_ACCTYPE], metaclass=abc.ABCMeta):
   """A stats generator meant to be used as a part of a composite generator.
 
   A constituent stats generator facilitates sharing logic between several stats
@@ -292,7 +292,7 @@ class ConstituentStatsGenerator(object, metaclass=abc.ABCMeta):
     """
 
   @abc.abstractmethod
-  def create_accumulator(self) -> CONSTITUENT_ACCTYPE:  # pytype: disable=invalid-annotation
+  def create_accumulator(self) -> CONSTITUENT_ACCTYPE:
     """Returns a fresh, empty accumulator.
 
     Returns:
@@ -342,7 +342,7 @@ class ConstituentStatsGenerator(object, metaclass=abc.ABCMeta):
     return accumulator
 
   @abc.abstractmethod
-  def extract_output(self, accumulator: CONSTITUENT_ACCTYPE) -> Any:  # pytype: disable=invalid-annotation
+  def extract_output(self, accumulator: CONSTITUENT_ACCTYPE) -> Any:
     """Returns result of converting accumulator into the output value.
 
     Args:
@@ -354,7 +354,8 @@ class ConstituentStatsGenerator(object, metaclass=abc.ABCMeta):
     """
 
 
-class CompositeStatsGenerator(CombinerStatsGenerator):
+class CompositeStatsGenerator(CombinerStatsGenerator,
+                              Generic[CONSTITUENT_ACCTYPE]):
   """A combiner generator built from ConstituentStatsGenerators.
 
   Typical usage involves overriding the __init__, to provide a set of
@@ -406,7 +407,7 @@ class CompositeStatsGenerator(CombinerStatsGenerator):
     for c in self._constituents:
       c.setup()
 
-  def create_accumulator(self) -> List[CONSTITUENT_ACCTYPE]:  # pytype: disable=invalid-annotation
+  def create_accumulator(self) -> List[CONSTITUENT_ACCTYPE]:
     return [c.create_accumulator() for c in self._constituents]
 
   def add_input(
@@ -432,7 +433,7 @@ class CompositeStatsGenerator(CombinerStatsGenerator):
 
   def extract_output(
       self, accumulator: List[CONSTITUENT_ACCTYPE]
-  ) -> statistics_pb2.FeatureNameStatistics:  # pytype: disable=invalid-annotation
+  ) -> statistics_pb2.DatasetFeatureStatistics:
     return self.extract_composite_output(
         dict(
             zip(self._keys,
@@ -441,7 +442,7 @@ class CompositeStatsGenerator(CombinerStatsGenerator):
 
   def extract_composite_output(
       self, accumulator: Dict[Text,
-                              Any]) -> statistics_pb2.FeatureNameStatistics:
+                              Any]) -> statistics_pb2.DatasetFeatureStatistics:
     """Extracts output from a dict of outputs for each constituent combiner.
 
     Args:
