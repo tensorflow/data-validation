@@ -22,10 +22,11 @@ from __future__ import print_function
 
 import base64
 import sys
-from typing import List, Optional, Text, Tuple
+from typing import Dict, List, Optional, Text, Tuple, Union
 
 import pandas as pd
 from tensorflow_data_validation import types
+
 from tensorflow_data_validation.utils import stats_util
 from tensorflow_metadata.proto.v0 import anomalies_pb2
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -50,6 +51,15 @@ except ImportError as e:
                    'install TFDV using '
                    '"pip install tensorflow-data-validation[visualization]"\n'
                    .format(e))
+
+_NL_CUSTOM_STATS_NAME = 'nl_statistics'
+_TOKEN_NAME_KEY = 'token_name'
+_FREQUENCY_KEY = 'frequency'
+_FRACTION_OF_SEQ_KEY = 'fraction_of_sequences'
+_PER_SEQ_MIN_FREQ_KEY = 'per_sequence_min_frequency'
+_PER_SEQ_MAX_FREQ_KEY = 'per_sequence_max_frequency'
+_PER_SEQ_AVG_FREQ_KEY = 'per_sequence_avg_frequency'
+_POSITIONS_KEY = 'positions'
 
 
 def _add_quotes(input_str: types.FeatureName) -> types.FeatureName:
@@ -214,7 +224,7 @@ def get_anomalies_dataframe(anomalies: anomalies_pb2.Anomalies) -> pd.DataFrame:
           'Anomaly long description'
       ]).set_index('Feature name')
   # Do not truncate columns.
-  pd.set_option('max_colwidth', -1)
+  pd.set_option('max_colwidth', None)
   return anomalies_df
 
 
@@ -424,3 +434,140 @@ def compare_slices(statistics: statistics_pb2.DatasetFeatureStatisticsList,
   rhs_stats = stats_util.get_slice_stats(statistics, rhs_slice_key)
   visualize_statistics(lhs_stats, rhs_stats,
                        lhs_name=lhs_slice_key, rhs_name=rhs_slice_key)
+
+
+def get_natural_language_statistics_dataframes(
+    lhs_statistics: statistics_pb2.DatasetFeatureStatisticsList,
+    rhs_statistics: Optional[
+        statistics_pb2.DatasetFeatureStatisticsList] = None,
+    lhs_name: Text = 'lhs_statistics',
+    rhs_name: Text = 'rhs_statistics',
+    allowlist_features: Optional[List[types.FeaturePath]] = None,
+    denylist_features: Optional[List[types.FeaturePath]] = None
+) -> Optional[Dict[str, Dict[Union[int, str], Union[Dict[str, pd.DataFrame],
+                                                    pd.DataFrame]]]]:
+  """Gets the `NaturalLanguageStatistics` as a dict of pandas.DataFrame.
+
+  Each pd.DataFrame can be fed into a plot with little to no manipulation.
+
+  For example, to plot the `token_length_histogram` in plot.ly:
+  ```
+  import pandas a pd
+  import plotly
+  import tensorflow_data_validation as tfdv
+  from tensorflow_data_validation.utils import display_util as tfdv_display_util
+
+  data = pd.DataFrame.from_dict({"col": [1, 2, 3]})
+  statistics = tfdv.generate_statistics_from_dataframe(data)
+
+  df = tfdv_display_util.get_natural_language_statistics_dataframes(statistics)
+  hist, bin_edges = np.histogram(df[ds_name][feature_name][
+                      'token_length_histogram']['high_values'])
+  fig = plotly.graph_objs.Figure(data=[
+      plotly.graph_objs.Bar(x=bin_edges, y=hist, name='Histogram'),
+  ])
+  ```
+
+  The resulting dict contains `token_length_histogram` and each token name as
+  its keys. For each token, the data frame represents a list of stats as well
+  as the token's positions histogram.
+
+  Args:
+    lhs_statistics: A DatasetFeatureStatisticsList protocol buffer.
+    rhs_statistics: An optional DatasetFeatureStatisticsList protocol buffer to
+      compare with lhs_statistics.
+    lhs_name: Name of the lhs_statistics dataset.
+    rhs_name: Name of the rhs_statistics dataset.
+    allowlist_features: Set of features to be visualized.
+    denylist_features: Set of features to ignore for visualization.
+
+  Returns:
+    A dict of pandas data frames. Returns None if natural language statistics
+    does not exist in the statistics proto.
+  """
+  combined_statistics = _get_combined_statistics(lhs_statistics, rhs_statistics,
+                                                 lhs_name, rhs_name,
+                                                 allowlist_features,
+                                                 denylist_features)
+  nlp_stats = _get_natural_language_statistics(combined_statistics)
+  if not nlp_stats:
+    return None
+
+  result = {}
+  for ds_name, features_dict in nlp_stats.items():
+    result[ds_name] = {}
+    for feature_name, nlp_stat in features_dict.items():
+      result[ds_name][feature_name] = {
+          'token_length_histogram':
+              _get_histogram_dataframe(nlp_stat.token_length_histogram),
+          'token_statistics':
+              _get_token_statistics(list(nlp_stat.token_statistics))
+      }
+  return result
+
+
+def _get_natural_language_statistics(
+    statistics: statistics_pb2.DatasetFeatureStatisticsList
+) -> Dict[str, Dict[str, statistics_pb2.NaturalLanguageStatistics]]:
+  """Gets the Natural Language stat out of the custom statistic."""
+  result = {}
+  for dataset in statistics.datasets:
+    if not dataset.name:
+      continue
+    features_dict = {}
+    for feature in dataset.features:
+      for custom_stats in feature.custom_stats:
+        if custom_stats.name == _NL_CUSTOM_STATS_NAME:
+          nlp_stat = statistics_pb2.NaturalLanguageStatistics()
+          custom_stats.any.Unpack(nlp_stat)
+          if feature.name:
+            feature_name = feature.name
+          else:
+            feature_name = str(types.FeaturePath.from_proto(feature.path))
+          features_dict[feature_name] = nlp_stat
+    if features_dict:
+      result[dataset.name] = features_dict
+  return result
+
+
+def _get_token_statistics(
+    token_statistic: List[
+        statistics_pb2.NaturalLanguageStatistics.TokenStatistics]
+) -> pd.DataFrame:
+  """Returns a dict of each token's stats."""
+  nlp_stats_dict = {
+      _TOKEN_NAME_KEY: [],
+      _FREQUENCY_KEY: [],
+      _FRACTION_OF_SEQ_KEY: [],
+      _PER_SEQ_MIN_FREQ_KEY: [],
+      _PER_SEQ_MAX_FREQ_KEY: [],
+      _PER_SEQ_AVG_FREQ_KEY: [],
+      _POSITIONS_KEY: [],
+  }
+  for token in token_statistic:
+    if token.WhichOneof('token') == 'string_token':
+      token_name = token.string_token
+    else:
+      token_name = token.int_token
+    nlp_stats_dict[_TOKEN_NAME_KEY].append(token_name)
+    nlp_stats_dict[_FREQUENCY_KEY].append(token.frequency)
+    nlp_stats_dict[_FRACTION_OF_SEQ_KEY].append(token.fraction_of_sequences)
+    nlp_stats_dict[_PER_SEQ_MIN_FREQ_KEY].append(
+        token.per_sequence_min_frequency)
+    nlp_stats_dict[_PER_SEQ_MAX_FREQ_KEY].append(
+        token.per_sequence_max_frequency)
+    nlp_stats_dict[_PER_SEQ_AVG_FREQ_KEY].append(
+        token.per_sequence_avg_frequency)
+    nlp_stats_dict[_POSITIONS_KEY].append(
+        _get_histogram_dataframe(token.positions))
+  return pd.DataFrame.from_dict(nlp_stats_dict)
+
+
+def _get_histogram_dataframe(
+    histogram: statistics_pb2.Histogram) -> pd.DataFrame:
+  """Gets the `Histogram` as a pandas.DataFrame."""
+  return pd.DataFrame.from_dict({
+      'high_values': [b.high_value for b in histogram.buckets],
+      'low_values': [b.low_value for b in histogram.buckets],
+      'sample_counts': [b.sample_count for b in histogram.buckets],
+  })

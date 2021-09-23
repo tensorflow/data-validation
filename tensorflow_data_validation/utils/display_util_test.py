@@ -18,17 +18,43 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from typing import Any, Dict
+
 from absl.testing import absltest
 from google.protobuf import text_format
+import pandas as pd
 from tensorflow_data_validation import types
 from tensorflow_data_validation.utils import display_util
 from tensorflow_data_validation.utils import test_util
+
 from tensorflow_metadata.proto.v0 import anomalies_pb2
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
 class DisplayUtilTest(absltest.TestCase):
+
+  def _assert_dict_equal(self, expected: Dict[Any, Any], actual: Dict[Any,
+                                                                      Any]):
+    """Asserts that two dicts are equal.
+
+    The dicts can be arbitrarily nested and contain pandas data frames.
+
+    Args:
+      expected: the expected dict.
+      actual: the actual dict
+    """
+    for key, expected_val in expected.items():
+      self.assertIn(key, actual, f'Expected key: {key}')
+      actual_val = actual[key]
+      if isinstance(expected_val, dict):
+        self.assertIsInstance(actual_val, dict)
+        self._assert_dict_equal(expected_val, actual_val)
+      elif isinstance(expected_val, pd.DataFrame):
+        self.assertIsInstance(actual_val, pd.DataFrame)
+        pd.testing.assert_frame_equal(expected_val, actual_val)
+      else:
+        self.assertEqual(expected_val, actual_val)
 
   def test_get_statistics_html(self):
     statistics = text_format.Parse("""
@@ -446,6 +472,347 @@ class DisplayUtilTest(absltest.TestCase):
     anomalies = anomalies_pb2.Anomalies()
     actual_output = display_util.get_anomalies_dataframe(anomalies)
     self.assertEqual(actual_output.shape, (0, 2))
+
+  def test_get_natural_language_statistics_dataframes(self):
+    statistics = text_format.Parse("""
+    datasets {
+      num_examples: 3
+      features {
+        name: 'feature_name'
+        type: BYTES
+        custom_stats {
+          name: "nl_statistics"
+        }
+      }
+    }
+    """, statistics_pb2.DatasetFeatureStatisticsList())
+
+    nl_stats = text_format.Parse(
+        """
+        feature_coverage: 1.0
+        avg_token_length: 3.6760780287474333
+        token_length_histogram {
+          buckets {
+            low_value: 1.0
+            high_value: 1.0
+            sample_count: 194.8
+          }
+        }
+        token_statistics {
+          int_token: 88
+        }
+        token_statistics {
+          string_token: "[UNK]"
+        }
+        token_statistics {
+          string_token: "[PAD]"
+          frequency: 48852.0
+          fraction_of_sequences: 1.0
+          per_sequence_min_frequency: 220.0
+          per_sequence_avg_frequency: 244.26
+          per_sequence_max_frequency: 251.0
+          positions {
+            buckets {
+              high_value: 0.1
+              sample_count: 2866.0
+            }
+          }
+        }
+        sequence_length_histogram {
+          buckets {
+            low_value: 5.0
+            high_value: 7.0
+            sample_count: 20.0
+          }
+        }
+        min_sequence_length: 5
+        max_sequence_length: 36
+        """, statistics_pb2.NaturalLanguageStatistics())
+
+    statistics.datasets[0].features[0].custom_stats[0].any.Pack(nl_stats)
+    actual = display_util.get_natural_language_statistics_dataframes(
+        statistics)
+
+    expected = {
+        'lhs_statistics': {
+            'feature_name': {
+                'token_length_histogram':
+                    pd.DataFrame.from_dict({
+                        'high_values': [1.0],
+                        'low_values': [1.0],
+                        'sample_counts': [194.8]
+                    }),
+                'token_statistics':
+                    pd.DataFrame.from_dict({
+                        'token_name': [88, '[UNK]', '[PAD]'],
+                        'frequency': [0.0, 0.0, 48852.0],
+                        'fraction_of_sequences': [0.0, 0.0, 1.0],
+                        'per_sequence_min_frequency': [0.0, 0.0, 220.0],
+                        'per_sequence_max_frequency': [0.0, 0.0, 251.0],
+                        'per_sequence_avg_frequency': [0.0, 0.0, 244.26],
+                        'positions': [
+                            pd.DataFrame.from_dict({
+                                'high_values': [],
+                                'low_values': [],
+                                'sample_counts': []
+                            }),
+                            pd.DataFrame.from_dict({
+                                'high_values': [],
+                                'low_values': [],
+                                'sample_counts': []
+                            }),
+                            pd.DataFrame.from_dict({
+                                'high_values': [0.1],
+                                'low_values': [0.0],
+                                'sample_counts': [2866.0]
+                            })
+                        ]
+                    })
+            }
+        }
+    }
+
+    self._assert_dict_equal(expected, actual)
+
+  def test_get_natural_language_statistics_dataframes_feature_path(self):
+    statistics = text_format.Parse("""
+    datasets {
+      num_examples: 3
+      features {
+        path {
+          step: "my"
+          step: "feature"
+        }
+        type: BYTES
+        custom_stats {
+          name: "nl_statistics"
+        }
+      }
+    }
+    """, statistics_pb2.DatasetFeatureStatisticsList())
+
+    nl_stats = text_format.Parse(
+        """
+        feature_coverage: 1.0
+        avg_token_length: 3.6760780287474333
+        token_length_histogram {
+          buckets {
+            low_value: 1.0
+            high_value: 1.0
+            sample_count: 194.8
+          }
+        }
+        token_statistics {
+          int_token: 88
+        }
+        token_statistics {
+          string_token: "[UNK]"
+        }
+        token_statistics {
+          string_token: "[PAD]"
+          frequency: 48852.0
+          fraction_of_sequences: 1.0
+          per_sequence_min_frequency: 220.0
+          per_sequence_avg_frequency: 244.26
+          per_sequence_max_frequency: 251.0
+          positions {
+            buckets {
+              high_value: 0.1
+              sample_count: 2866.0
+            }
+          }
+        }
+        sequence_length_histogram {
+          buckets {
+            low_value: 5.0
+            high_value: 7.0
+            sample_count: 20.0
+          }
+        }
+        min_sequence_length: 5
+        max_sequence_length: 36
+        """, statistics_pb2.NaturalLanguageStatistics())
+
+    statistics.datasets[0].features[0].custom_stats[0].any.Pack(nl_stats)
+    actual = display_util.get_natural_language_statistics_dataframes(
+        statistics)
+
+    expected = {
+        'lhs_statistics': {
+            'my.feature': {
+                'token_length_histogram':
+                    pd.DataFrame.from_dict({
+                        'high_values': [1.0],
+                        'low_values': [1.0],
+                        'sample_counts': [194.8]
+                    }),
+                'token_statistics':
+                    pd.DataFrame.from_dict({
+                        'token_name': [88, '[UNK]', '[PAD]'],
+                        'frequency': [0.0, 0.0, 48852.0],
+                        'fraction_of_sequences': [0.0, 0.0, 1.0],
+                        'per_sequence_min_frequency': [0.0, 0.0, 220.0],
+                        'per_sequence_max_frequency': [0.0, 0.0, 251.0],
+                        'per_sequence_avg_frequency': [0.0, 0.0, 244.26],
+                        'positions': [
+                            pd.DataFrame.from_dict({
+                                'high_values': [],
+                                'low_values': [],
+                                'sample_counts': []
+                            }),
+                            pd.DataFrame.from_dict({
+                                'high_values': [],
+                                'low_values': [],
+                                'sample_counts': []
+                            }),
+                            pd.DataFrame.from_dict({
+                                'high_values': [0.1],
+                                'low_values': [0.0],
+                                'sample_counts': [2866.0]
+                            })
+                        ]
+                    })
+            }
+        }
+    }
+
+    self._assert_dict_equal(expected, actual)
+
+  def test_get_natural_language_statistics_many_features_dataframes(self):
+    statistics = text_format.Parse("""
+    datasets {
+      num_examples: 3
+      features {
+        name: 'feature_name'
+        type: BYTES
+        custom_stats {
+          name: "nl_statistics"
+        }
+      }
+      features {
+        name: 'feature_name_2'
+        type: BYTES
+        custom_stats {
+          name: "nl_statistics"
+        }
+      }
+    }
+    """, statistics_pb2.DatasetFeatureStatisticsList())
+
+    nl_stats = text_format.Parse(
+        """
+        feature_coverage: 1.0
+        avg_token_length: 3.6760780287474333
+        token_length_histogram {
+          buckets {
+            low_value: 1.0
+            high_value: 1.0
+            sample_count: 194.8
+          }
+        }
+        token_statistics {
+          int_token: 88
+        }
+        token_statistics {
+          string_token: "[UNK]"
+        }
+        token_statistics {
+          string_token: "[PAD]"
+          frequency: 48852.0
+          fraction_of_sequences: 1.0
+          per_sequence_min_frequency: 220.0
+          per_sequence_avg_frequency: 244.26
+          per_sequence_max_frequency: 251.0
+          positions {
+            buckets {
+              high_value: 0.1
+              sample_count: 2866.0
+            }
+          }
+        }
+        sequence_length_histogram {
+          buckets {
+            low_value: 5.0
+            high_value: 7.0
+            sample_count: 20.0
+          }
+        }
+        min_sequence_length: 5
+        max_sequence_length: 36
+        """, statistics_pb2.NaturalLanguageStatistics())
+
+    statistics.datasets[0].features[0].custom_stats[0].any.Pack(nl_stats)
+    statistics.datasets[0].features[1].custom_stats[0].any.Pack(nl_stats)
+    actual = display_util.get_natural_language_statistics_dataframes(
+        statistics, statistics)
+
+    token_length_histogram = pd.DataFrame.from_dict({
+        'high_values': [1.0],
+        'low_values': [1.0],
+        'sample_counts': [194.8]
+    })
+    token_statistics = pd.DataFrame.from_dict({
+        'token_name': [88, '[UNK]', '[PAD]'],
+        'frequency': [0.0, 0.0, 48852.0],
+        'fraction_of_sequences': [0.0, 0.0, 1.0],
+        'per_sequence_min_frequency': [0.0, 0.0, 220.0],
+        'per_sequence_max_frequency': [0.0, 0.0, 251.0],
+        'per_sequence_avg_frequency': [0.0, 0.0, 244.26],
+        'positions': [
+            pd.DataFrame.from_dict({
+                'high_values': [],
+                'low_values': [],
+                'sample_counts': []
+            }),
+            pd.DataFrame.from_dict({
+                'high_values': [],
+                'low_values': [],
+                'sample_counts': []
+            }),
+            pd.DataFrame.from_dict({
+                'high_values': [0.1],
+                'low_values': [0.0],
+                'sample_counts': [2866.0]
+            })
+        ]
+    })
+    expected = {
+        'lhs_statistics': {
+            'feature_name': {
+                'token_length_histogram': token_length_histogram,
+                'token_statistics': token_statistics
+            },
+            'feature_name_2': {
+                'token_length_histogram': token_length_histogram,
+                'token_statistics': token_statistics
+            }
+        },
+        'rhs_statistics': {
+            'feature_name': {
+                'token_length_histogram': token_length_histogram,
+                'token_statistics': token_statistics
+            },
+            'feature_name_2': {
+                'token_length_histogram': token_length_histogram,
+                'token_statistics': token_statistics
+            }
+        }
+    }
+
+    self._assert_dict_equal(expected, actual)
+
+  def test_get_nonexistent_natural_language_statistics_dataframes(self):
+    statistics = text_format.Parse("""
+    datasets {
+      num_examples: 3
+      features {
+        name: 'a'
+        type: BYTES
+      }
+    }
+    """, statistics_pb2.DatasetFeatureStatisticsList())
+    actual = display_util.get_natural_language_statistics_dataframes(statistics)
+    self.assertIsNone(actual)
 
 
 if __name__ == '__main__':
