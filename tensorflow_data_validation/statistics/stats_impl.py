@@ -50,6 +50,8 @@ _DEFAULT_MG_SKETCH_SIZE = 1024
 _DEFAULT_KMV_SKETCH_SIZE = 16384
 
 
+@beam.typehints.with_input_types(pa.RecordBatch)
+@beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatisticsList)
 class GenerateStatisticsImpl(beam.PTransform):
   """PTransform that applies a set of generators over input examples."""
 
@@ -59,9 +61,7 @@ class GenerateStatisticsImpl(beam.PTransform):
       ) -> None:
     self._options = options
 
-  def expand(
-      self, dataset: beam.PCollection[pa.RecordBatch]
-  ) -> beam.PCollection[statistics_pb2.DatasetFeatureStatisticsList]:
+  def expand(self, dataset: beam.pvalue.PCollection) -> beam.pvalue.PCollection:
     # If a set of allowed features are provided, keep only those features.
     if self._options.feature_allowlist:
       dataset |= ('FilterFeaturesByAllowList' >> beam.Map(
@@ -88,6 +88,8 @@ class GenerateStatisticsImpl(beam.PTransform):
 # statistics over anomalous examples. Specifically, it is used to compute
 # statistics over examples found for each anomaly (i.e., the anomaly type
 # will be the slice key).
+@beam.typehints.with_input_types(types.BeamSlicedRecordBatch)
+@beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatisticsList)
 class GenerateSlicedStatisticsImpl(beam.PTransform):
   """PTransform that applies a set of generators to sliced input examples."""
 
@@ -109,9 +111,7 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
     self._is_slicing_enabled = (
         is_slicing_enabled or bool(self._options.experimental_slice_functions))
 
-  def expand(
-      self, dataset: beam.PCollection[types.SlicedRecordBatch]
-  ) -> beam.PCollection[statistics_pb2.DatasetFeatureStatisticsList]:
+  def expand(self, dataset: beam.pvalue.PCollection) -> beam.pvalue.PCollection:
     # Handles generators by their type:
     #   - CombinerStatsGenerators will be wrapped in a single CombinePerKey by
     #     _CombinerStatsGeneratorsCombineFn.

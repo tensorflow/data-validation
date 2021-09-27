@@ -31,11 +31,13 @@ from tfx_bsl.coders import batch_util
 
 # TODO(pachristopher): Deprecate this.
 @beam.ptransform_fn
+@beam.typehints.with_input_types(types.BeamExample)
+@beam.typehints.with_output_types(pa.RecordBatch)
 def BatchExamplesToArrowRecordBatches(
-    examples: beam.PCollection[types.Example],
+    examples: beam.pvalue.PCollection,
     desired_batch_size: Optional[int] = constants
     .DEFAULT_DESIRED_INPUT_BATCH_SIZE
-) -> beam.PCollection[pa.RecordBatch]:
+) -> beam.pvalue.PCollection:
   """Batches example dicts into Arrow record batches.
 
   Args:
@@ -53,4 +55,4 @@ def BatchExamplesToArrowRecordBatches(
       | "DecodeExamplesToRecordBatch" >> beam.Map(
           # pylint: disable=unnecessary-lambda
           lambda x: decoded_examples_to_arrow.DecodedExamplesToRecordBatch(x)))
-  # pylint: enable=unnecessary-lambda
+          # pylint: enable=unnecessary-lambda

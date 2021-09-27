@@ -20,7 +20,7 @@ from __future__ import division
 from __future__ import print_function
 
 import logging
-from typing import Callable, Iterable, List, Optional, Text, Tuple
+from typing import Callable, List, Optional, Text
 import apache_beam as beam
 import pyarrow as pa
 import tensorflow as tf
@@ -561,18 +561,21 @@ def _get_default_dataset_statistics(
                    'slice (i.e., "All Examples" slice) is currently supported.')
 
 
+@beam.typehints.with_input_types(
+    beam.typehints.Tuple[pa.RecordBatch, anomalies_pb2.Anomalies])
+@beam.typehints.with_output_types(types.BeamSlicedRecordBatch)
 class _GenerateAnomalyReasonSliceKeys(beam.DoFn):
   """Yields a slice key for each anomaly reason in the Anomalies proto."""
 
-  def process(
-      self, element: Tuple[pa.RecordBatch, anomalies_pb2.Anomalies]
-  ) -> Iterable[types.SlicedRecordBatch]:
+  def process(self, element):
     record_batch, anomalies_proto = element
     for sliced_record_batch in slicing_util.generate_slices(
         record_batch, [anomalies_util.get_anomalies_slicer(anomalies_proto)]):
       yield sliced_record_batch
 
 
+@beam.typehints.with_input_types(pa.RecordBatch)
+@beam.typehints.with_output_types(types.BeamSlicedRecordBatch)
 class IdentifyAnomalousExamples(beam.PTransform):
   """API for identifying anomalous examples.
 
@@ -607,9 +610,7 @@ class IdentifyAnomalousExamples(beam.PTransform):
       raise ValueError('options must include a schema.')
     self._options = options
 
-  def expand(
-      self, dataset: beam.PCollection[pa.RecordBatch]
-  ) -> beam.PCollection[types.SlicedRecordBatch]:
+  def expand(self, dataset: beam.pvalue.PCollection) -> beam.pvalue.PCollection:
     return (
         dataset
         | 'DetectAnomaliesInExamples' >> beam.Map(
