@@ -65,15 +65,6 @@ SliceFunction = Callable[[pa.RecordBatch], Iterable[SlicedRecordBatch]]
 # b/152929669.
 FeaturePathTuple = Tuple[FeatureName, ...]
 
-# For use in Beam type annotations, because Beam's support for Python types
-# in Beam type annotations is not complete.
-# TODO(b/111217539): Remove this once Beam supports arbitrary Python types
-# to be used in the type annotations.
-BeamExample = beam.typehints.Dict[FeatureName, beam.typehints
-                                  .Optional[np.ndarray]]
-BeamSliceKey = beam.typehints.Optional[Text]
-BeamSlicedRecordBatch = beam.typehints.Tuple[BeamSliceKey, pa.RecordBatch]
-
 
 class FeaturePath(object):
   """Represents the path to a feature in an input example.
