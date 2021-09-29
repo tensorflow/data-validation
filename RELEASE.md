@@ -6,6 +6,9 @@
 
 ## Bug Fixes and Other Changes
 
+*   Variance calculations have been updated to be more numerically stable for
+    large datasets or large magnitue numeric data.
+
 ## Known Issues
 
 ## Breaking Changes

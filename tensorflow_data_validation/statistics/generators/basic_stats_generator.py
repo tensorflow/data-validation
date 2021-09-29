@@ -71,6 +71,7 @@ from tensorflow_data_validation.utils import quantiles_util
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
 from tensorflow_data_validation.utils import top_k_uniques_stats_util
+from tensorflow_data_validation.utils import variance_util
 from tensorflow_data_validation.utils.example_weight_map import ExampleWeightMap
 from tfx_bsl import sketches
 from tfx_bsl.arrow import array_util
@@ -243,20 +244,15 @@ class _PartialCommonStats(object):
 class _PartialNumericStats(object):
   """Holds partial numeric statistics for a single feature."""
 
-  __slots__ = ['sum', 'sum_of_squares', 'num_zeros', 'num_nan', 'min', 'max',
-               'finite_min', 'finite_max', 'quantiles_summary', 'has_weights',
-               'weighted_sum', 'weighted_sum_of_squares',
-               'weighted_total_num_values', 'weighted_quantiles_summary']
+  __slots__ = [
+      'num_zeros', 'num_nan', 'min', 'max', 'finite_min', 'finite_max',
+      'quantiles_summary', 'has_weights', 'weighted_quantiles_summary',
+      'mean_var_accumulator', 'weighted_mean_var_accumulator'
+  ]
 
   def __init__(
       self, has_weights: bool,
       make_quantiles_sketch_fn: Callable[[], sketches.QuantilesSketch]):
-    # Explicitly make the sum and the sum of squares to be float in order to
-    # avoid numpy overflow warnings.
-    # The sum of all the values for this feature.
-    self.sum = 0.0
-    # The sum of squares of all the values for this feature.
-    self.sum_of_squares = 0.0
     # The number of values for this feature that equal 0.
     self.num_zeros = 0
     # The number of NaN values for this feature. This is computed only for
@@ -274,22 +270,21 @@ class _PartialNumericStats(object):
     self.quantiles_summary = make_quantiles_sketch_fn()
 
     self.has_weights = has_weights
+
+    # Accumulator for mean and variance.
+    self.mean_var_accumulator = variance_util.MeanVarAccumulator()
     # Keep track of partial weighted numeric stats.
     if has_weights:
-      # The weighted sum of all the values for this feature.
-      self.weighted_sum = 0.0
-      # The weighted sum of squares of all the values for this feature.
-      self.weighted_sum_of_squares = 0.0
-      # The sum of weights of all the values for this feature (
-      # excluding the weights for NaN values)
-      self.weighted_total_num_values = 0.0
       # Summary of the weighted quantiles for the values in this feature.
       self.weighted_quantiles_summary = make_quantiles_sketch_fn()
+      # Accumulator for weighted mean and weighted variance.
+      self.weighted_mean_var_accumulator = (
+          variance_util.WeightedMeanVarAccumulator())
+    else:
+      self.weighted_mean_var_accumulator = None
 
   def __iadd__(self, other: '_PartialNumericStats') -> '_PartialNumericStats':
     """Merge two partial numeric statistics and return the merged statistics."""
-    self.sum += other.sum
-    self.sum_of_squares += other.sum_of_squares
     self.num_zeros += other.num_zeros
     self.num_nan += other.num_nan
     self.min = min(self.min, other.min)
@@ -297,13 +292,12 @@ class _PartialNumericStats(object):
     self.finite_min = min(self.finite_min, other.finite_min)
     self.finite_max = max(self.finite_max, other.finite_max)
     self.quantiles_summary.Merge(other.quantiles_summary)
-
+    self.mean_var_accumulator.merge(other.mean_var_accumulator)
     assert self.has_weights == other.has_weights
     if self.has_weights:
-      self.weighted_sum += other.weighted_sum
-      self.weighted_sum_of_squares += other.weighted_sum_of_squares
-      self.weighted_total_num_values += other.weighted_total_num_values
       self.weighted_quantiles_summary.Merge(other.weighted_quantiles_summary)
+      self.weighted_mean_var_accumulator.merge(
+          other.weighted_mean_var_accumulator)
     return self
 
   def update(
@@ -333,9 +327,7 @@ class _PartialNumericStats(object):
       return
     # This is to avoid integer overflow when computing sum or sum of squares.
     values_no_nan_as_double = values_no_nan.astype(np.float64)
-    self.sum += np.sum(values_no_nan_as_double)
-    self.sum_of_squares += np.sum(
-        values_no_nan_as_double* values_no_nan_as_double)
+    self.mean_var_accumulator.update(values_no_nan_as_double)
     # Use np.minimum.reduce(values_no_nan, initial=self.min) once we upgrade
     # to numpy 1.16
     curr_min = np.min(values_no_nan)
@@ -353,13 +345,11 @@ class _PartialNumericStats(object):
     if weights is not None:
       flat_weights = weights[value_parent_indices]
       flat_weights_no_nan = flat_weights[non_nan_mask]
-      weighted_values = flat_weights_no_nan * values_no_nan
-      self.weighted_sum += np.sum(weighted_values)
-      self.weighted_sum_of_squares += np.sum(weighted_values * values_no_nan)
+      self.weighted_mean_var_accumulator.update(values_no_nan_as_double,
+                                                flat_weights_no_nan)
       self.weighted_quantiles_summary.AddValues(
           pa.array(values_no_nan),
           pa.array(flat_weights_no_nan))
-      self.weighted_total_num_values += np.sum(flat_weights_no_nan)
 
 
 class _PartialStringStats(object):
@@ -610,12 +600,9 @@ def _make_numeric_stats_proto(
           numeric_stats.num_nan)
     return result
 
-  mean = numeric_stats.sum / total_num_values
-  variance = max(
-      0, (numeric_stats.sum_of_squares / total_num_values) -
-      mean * mean)
-  result.mean = float(mean)
-  result.std_dev = math.sqrt(variance)
+  result.mean = float(numeric_stats.mean_var_accumulator.mean)
+  result.std_dev = math.sqrt(
+      max(0, numeric_stats.mean_var_accumulator.variance))
   result.num_zeros = numeric_stats.num_zeros
   result.min = float(numeric_stats.min)
   result.max = float(numeric_stats.max)
@@ -650,17 +637,14 @@ def _make_numeric_stats_proto(
 
   # Add weighted numeric stats to the proto.
   if has_weights:
+    assert numeric_stats.weighted_mean_var_accumulator is not None
     weighted_numeric_stats_proto = statistics_pb2.WeightedNumericStatistics()
-
-    if numeric_stats.weighted_total_num_values == 0:
-      weighted_mean = 0
-      weighted_variance = 0
-    else:
-      weighted_mean = (numeric_stats.weighted_sum /
-                       numeric_stats.weighted_total_num_values)
-      weighted_variance = max(0, (numeric_stats.weighted_sum_of_squares /
-                                  numeric_stats.weighted_total_num_values)
-                              - weighted_mean**2)
+    weighted_total_num_values = (
+        numeric_stats.weighted_mean_var_accumulator.weights_mean *
+        numeric_stats.weighted_mean_var_accumulator.count)
+    weighted_mean = numeric_stats.weighted_mean_var_accumulator.mean
+    weighted_variance = max(
+        0, numeric_stats.weighted_mean_var_accumulator.variance)
     weighted_numeric_stats_proto.mean = weighted_mean
     weighted_numeric_stats_proto.std_dev = math.sqrt(weighted_variance)
 
@@ -680,14 +664,14 @@ def _make_numeric_stats_proto(
     # add it to the numeric stats proto.
     weighted_std_histogram = quantiles_util.generate_equi_width_histogram(
         weighted_quantiles, numeric_stats.finite_min, numeric_stats.finite_max,
-        numeric_stats.weighted_total_num_values, num_histogram_buckets)
+        weighted_total_num_values, num_histogram_buckets)
     weighted_std_histogram.num_nan = numeric_stats.num_nan
     weighted_numeric_stats_proto.histograms.extend([weighted_std_histogram])
 
     # Construct the weighted quantiles histogram from the quantiles and
     # add it to the numeric stats proto.
     weighted_q_histogram = quantiles_util.generate_quantiles_histogram(
-        weighted_quantiles, numeric_stats.weighted_total_num_values,
+        weighted_quantiles, weighted_total_num_values,
         num_quantiles_histogram_buckets)
     weighted_q_histogram.num_nan = numeric_stats.num_nan
     weighted_numeric_stats_proto.histograms.extend([weighted_q_histogram])
