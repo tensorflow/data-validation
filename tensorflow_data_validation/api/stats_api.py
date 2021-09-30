@@ -55,8 +55,6 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
 # TODO(b/112146483): Test the Stats API with unicode input.
-@beam.typehints.with_input_types(pa.RecordBatch)
-@beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatisticsList)
 class GenerateStatistics(beam.PTransform):
   """API for generating data statistics.
 
@@ -89,7 +87,9 @@ class GenerateStatistics(beam.PTransform):
                       type(options).__name__)
     self._options = options
 
-  def expand(self, dataset: beam.pvalue.PCollection) -> beam.pvalue.PCollection:
+  def expand(
+      self, dataset: beam.PCollection[pa.RecordBatch]
+  ) -> beam.PCollection[statistics_pb2.DatasetFeatureStatisticsList]:
     if self._options.sample_rate is not None:
       dataset |= ('SampleExamplesAtRate(%s)' % self._options.sample_rate >>
                   beam.FlatMap(_sample_at_rate,
@@ -121,7 +121,7 @@ class WriteStatisticsToBinaryFile(beam.PTransform):
     """
     self._output_path = output_path
 
-  def expand(self, stats: beam.pvalue.PCollection) -> beam.pvalue.PDone:
+  def expand(self, stats: beam.PCollection) -> beam.pvalue.PDone:
     return (stats
             | 'WriteStats' >> beam.io.WriteToText(
                 self._output_path,
@@ -144,7 +144,7 @@ class WriteStatisticsToTFRecord(beam.PTransform):
     """
     self._output_path = output_path
 
-  def expand(self, stats: beam.pvalue.PCollection) -> beam.pvalue.PDone:
+  def expand(self, stats: beam.PCollection) -> beam.pvalue.PDone:
     return (stats
             | 'WriteStats' >> beam.io.WriteToTFRecord(
                 self._output_path,
