@@ -8,7 +8,9 @@
 
 *   Variance calculations have been updated to be more numerically stable for
     large datasets or large magnitue numeric data.
-
+*   When running per-example validation against a schema, output of
+    validate_examples_in_tfrecord and validate_examples_in_csv now optionally
+    return samples of anomalous examples.
 ## Known Issues
 
 ## Breaking Changes

@@ -18,6 +18,8 @@ from __future__ import print_function
 
 import os
 from absl.testing import absltest
+from absl.testing import parameterized
+import pandas as pd
 import tensorflow as tf
 
 from tensorflow_data_validation.statistics import stats_options
@@ -29,9 +31,11 @@ from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
-class ValidationLibTest(absltest.TestCase):
+class ValidationLibTest(parameterized.TestCase):
 
-  def test_validate_examples_in_tfrecord(self):
+  @parameterized.named_parameters(('no_sampled_examples', 0),
+                                  ('sampled_examples', 99))
+  def test_validate_examples_in_tfrecord(self, num_sampled_examples):
     input_examples = [
         # This example is anomalous because its feature contains a value that is
         # not in the string_domain specified in the schema.
@@ -230,7 +234,17 @@ class ValidationLibTest(absltest.TestCase):
     """, statistics_pb2.DatasetFeatureStatisticsList())
 
     actual_result = validation_lib.validate_examples_in_tfrecord(
-        data_location=input_data_path, stats_options=options)
+        data_location=input_data_path,
+        stats_options=options,
+        num_sampled_examples=num_sampled_examples)
+    if num_sampled_examples:
+      actual_result, sampled_examples = actual_result
+      self.assertCountEqual(
+          [('annotated_enum_ENUM_TYPE_UNEXPECTED_STRING_VALUES',
+            [text_format.Parse(input_examples[0], tf.train.Example())]),
+           ('unknown_feature_SCHEMA_NEW_COLUMN',
+            [text_format.Parse(input_examples[1], tf.train.Example())])],
+          sampled_examples.items())
     compare_fn = test_util.make_dataset_feature_stats_list_proto_equal_fn(
         self, expected_result)
     compare_fn([actual_result])
@@ -459,6 +473,37 @@ class ValidationLibTest(absltest.TestCase):
     compare_fn = test_util.make_dataset_feature_stats_list_proto_equal_fn(
         self, expected_result)
     compare_fn([result])
+
+  def test_validate_examples_in_csv_with_examples(self):
+    data_location, _, options, expected_result = (
+        self._get_anomalous_csv_test(
+            delimiter=',',
+            output_column_names=False,
+            generate_single_file=True,
+            has_schema=True))
+
+    result, sampled_examples = validation_lib.validate_examples_in_csv(
+        data_location=data_location,
+        stats_options=options,
+        column_names=None,
+        delimiter=',',
+        num_sampled_examples=99)
+    compare_fn = test_util.make_dataset_feature_stats_list_proto_equal_fn(
+        self, expected_result)
+    compare_fn([result])
+    self.assertCountEqual([
+        'annotated_enum_ENUM_TYPE_UNEXPECTED_STRING_VALUES',
+    ], sampled_examples.keys())
+    got_df = sampled_examples[
+        'annotated_enum_ENUM_TYPE_UNEXPECTED_STRING_VALUES']
+    expected_df = pd.DataFrame.from_records(
+        [['D', 1]], columns=['annotated_enum', 'other_feature'])
+    expected_df['annotated_enum'] = expected_df['annotated_enum'].astype(bytes)
+    # We can't be too picky about dtypes; try to coerce to expected types.
+    for col in got_df.columns:
+      if col in expected_df.columns:
+        got_df[col] = got_df[col].astype(expected_df[col].dtype)
+    self.assertTrue(expected_df.equals(got_df))
 
   def test_validate_examples_in_csv_no_header_in_file(self):
     data_location, column_names, options, expected_result = (
