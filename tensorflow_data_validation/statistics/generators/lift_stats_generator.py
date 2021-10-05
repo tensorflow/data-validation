@@ -35,10 +35,12 @@ specified list of features, or all categorical features in the provided schema.
 """
 
 import collections
+import datetime
 import operator
-from typing import Any, Dict, Iterator, Iterable, Optional, Sequence, Text, Tuple, Union
+from typing import Any, Dict, Hashable, Iterator, Iterable, List, Optional, Sequence, Text, Tuple, TypeVar, Union
 
 import apache_beam as beam
+from apache_beam.utils import shared
 import numpy as np
 import pyarrow as pa
 import six
@@ -55,19 +57,23 @@ from tensorflow_data_validation.utils.example_weight_map import ExampleWeightMap
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
-# TODO(https://issues.apache.org/jira/browse/SPARK-22674): Switch to
-# `collections.namedtuple` or `typing.NamedTuple` once the Spark issue is
-# resolved.
+# TODO(b/170996403): Switch to`collections.namedtuple` or `typing.NamedTuple`
+# once the Spark issue is resolved.
 from tfx_bsl.types import tfx_namedtuple  # pylint: disable=g-bad-import-order
 
 _XType = Union[Text, bytes]
 _YType = Union[Text, bytes, int]
 _CountType = Union[int, float]
 
+_JoinKeyType = TypeVar('_JoinKeyType')
+
+_LeftJoinValueType = TypeVar('_LeftJoinValueType')
+
+_RightJoinValueType = TypeVar('_RightJoinValueType')
+
 _SlicedYKey = tfx_namedtuple.TypedNamedTuple('_SlicedYKey',
                                              [('slice_key', types.SliceKey),
                                               ('y', _YType)])
-
 
 # TODO(embr,zhuo): FeaturePathTuple is used instead of FeaturePath because:
 #  - FeaturePath does not have a deterministic coder
@@ -260,8 +266,9 @@ def _to_partial_copresence_counts(
     if num_xy_pairs_batch_copresent:
       num_xy_pairs_batch_copresent.update(len(copresence_counts))
     for (x, y), count in copresence_counts.items():
-      yield (_SlicedXYKey(slice_key=slice_key, x_path=x_path.steps(), x=x,
-                          y=y), count)
+      sliced_xy_key = _SlicedXYKey(
+          slice_key=slice_key, x_path=x_path.steps(), x=x, y=y)
+      yield sliced_xy_key, count
 
 
 def _to_partial_counts(
@@ -405,89 +412,40 @@ def _make_dataset_feature_stats_proto(
   return key.slice_key, stats
 
 
-def _cross_join_y_keys(
-    join_info: Tuple[types.SliceKey, Dict[Text, Sequence[Any]]]
-    # TODO(b/147153346) update dict value list element type annotation to:
-    # Union[_YKey, Tuple[_YType,
-    #                    Tuple[types.FeaturePathTuple, _XType, _CountType]]]
-) -> Iterator[Tuple[_SlicedXYKey, _CountType]]:
-  slice_key, join_args = join_info
-  for x_path, x, _ in join_args['x_counts']:
-    for y in join_args['y_keys']:
-      yield _SlicedXYKey(slice_key=slice_key, x_path=x_path, x=x, y=y), 0
+def _make_placeholder_counts(
+    join_result: Tuple[types.SliceKey, Tuple[types.FeaturePathTuple, _XType,
+                                             _CountType], _YType]
+) -> Tuple[_SlicedXYKey, _CountType]:
+  slice_key, x_path_value_and_count, y = join_result
+  x_path, x, _ = x_path_value_and_count
+  return _SlicedXYKey(slice_key=slice_key, x_path=x_path, x=x, y=y), 0
 
 
-def _join_x_counts(
-    join_info: Tuple[_SlicedXKey, Dict[Text, Sequence[Any]]],
-    # TODO(b/147153346) update dict value list element type annotation to:
-    # Union[_CountType, Tuple[_YType, _CountType]]
-    num_xy_pairs_distinct: beam.metrics.metric.Metrics.DelegatingCounter,
-    num_x_values_distinct: beam.metrics.metric.Metrics.DelegatingCounter,
-) -> Iterator[Tuple[_SlicedYKey, _ConditionalYRate]]:
-  """Joins x_count with all xy_counts for that x.
-
-  This function expects the result of a CoGroupByKey, in which the key is a
-  tuple of the form (slice_key, x_path, x), and one of the grouped streams has
-  just one element, the number of examples in a given slice for which x is
-  present in x_path, and the other grouped stream is the set of all (x, y) pairs
-  for that x along with the number of examples in which  both x and y are
-  present in their respective paths. Schematically, join_info looks like:
-
-  (slice, x_path, x), {'x_count': [x_count],
-                       'xy_counts': [(y_1, xy_1_count), ..., (y_k, xy_k_count)]}
-
-  If the value of x_count is less than min_x_count, no rates will be yielded.
-
-  Args:
-    join_info: A CoGroupByKey result
-    num_xy_pairs_distinct: A beam counter metric for the number of distinct xy
-      pairs across all features.
-    num_x_values_distinct: A beam counter metric for the number of distinct x
-      values across all features.
-
-  Yields:
-    Per-(slice, x_path, y, x) tuples of the form (_SlicedYKey(slice, y),
-    _ConditionalYRate(x_path, x, xy_count, x_count)).
-  """
-  # (slice_key, x_path, x), join_inputs = join_info
-  key, join_inputs = join_info
-  if not join_inputs['x_count']:
-    return
-  x_count = join_inputs['x_count'][0]
-  num_x_values_distinct.inc(1)
-  for y, xy_count in join_inputs['xy_counts']:
-    num_xy_pairs_distinct.inc(1)
-    yield _SlicedYKey(key.slice_key, y), _ConditionalYRate(
-        x_path=key.x_path, x=key.x, xy_count=xy_count, x_count=x_count)
+def _make_conditional_y_rates(
+    join_result: Tuple[_SlicedXKey, Tuple[_YType, _CountType], _CountType],
+    num_xy_pairs_distinct: beam.metrics.metric.Metrics.DelegatingCounter
+) -> Tuple[_SlicedYKey, _ConditionalYRate]:
+  """Creates conditional y rates from slice y rates and the per-x y rates."""
+  sliced_x_key, y_and_xy_count, x_count = join_result
+  y, xy_count = y_and_xy_count
+  num_xy_pairs_distinct.inc(1)
+  sliced_y_key = _SlicedYKey(sliced_x_key.slice_key, y)
+  conditional_y_rate = _ConditionalYRate(
+      x_path=sliced_x_key.x_path,
+      x=sliced_x_key.x,
+      xy_count=xy_count,
+      x_count=x_count)
+  return sliced_y_key, conditional_y_rate
 
 
-def _join_example_counts(
-    join_info: Tuple[types.SliceKey, Dict[Text, Sequence[Any]]]
-    # TODO(b/147153346) update dict value list element type annotation to:
-    # Union[_CountType, Tuple[_YType, _CountType]]
-) -> Iterator[Tuple[_SlicedYKey, _YRate]]:
-  """Joins slice example count with all values of y within that slice.
-
-  This function expects the result of a CoGroupByKey, in which the key is the
-  slice_key, one of the grouped streams has just one element, the total number
-  of examples within the slice, and the other grouped stream is the set of all
-  y values and number of times that y value appears in this slice.
-  Schematically, join_info looks like:
-
-  slice_key, {'example_count': [example_count],
-              'y_counts': [(y_1, y_1_count), ..., (y_k, y_k_count)]}
-
-  Args:
-    join_info: A CoGroupByKey result.
-
-  Yields:
-    Per-(slice, y) tuples (_SlicedYKey(slice, y),
-                           _YRate(y_count, example_count)).
-  """
-  slice_key, join_inputs = join_info
-  example_count = join_inputs['example_count'][0]
-  for y, y_count in join_inputs['y_counts']:
-    yield _SlicedYKey(slice_key, y), _YRate(y_count, example_count)
+def _make_y_rates(
+    join_result: Tuple[types.SliceKey, Tuple[_YType, _CountType], _CountType]
+) -> Tuple[_SlicedYKey, _YRate]:
+  slice_key, y_and_count, example_count = join_result
+  y, y_count = y_and_count
+  sliced_y_key = _SlicedYKey(slice_key, y)
+  y_rate = _YRate(y_count=y_count, example_count=example_count)
+  return sliced_y_key, y_rate
 
 
 def _compute_lifts(
@@ -532,6 +490,70 @@ def _compute_lifts(
                y_count=y_rate.y_count))
 
 
+class _WeakRefFrozenMapping(collections.abc.Mapping, object):
+  """A weakly-referencable dict, necessary to allow use with shared.Shared.
+
+  Note that the mapping will not be frozen until freeze() is called.
+  """
+
+  def __init__(self):
+    self._dict = {}
+    self._is_frozen = False
+
+  def __setitem__(self, key: Hashable, value: Any):
+    assert not self._is_frozen
+    self._dict[key] = value
+
+  def freeze(self):
+    self._is_frozen = True
+
+  def __getitem__(self, key: Hashable) -> Any:
+    return self._dict[key]
+
+  def __iter__(self) -> Iterator[Hashable]:
+    return iter(self._dict)
+
+  def __len__(self) -> int:
+    return len(self._dict)
+
+
+class _LookupInnerJoinDoFn(beam.DoFn):
+  """A DoFn which performs a lookup inner join using a side input."""
+
+  def __init__(self):
+    self._shared_handle = shared.Shared()
+    self._right_lookup_contruction_seconds_distribution = (
+        beam.metrics.Metrics.distribution(constants.METRICS_NAMESPACE,
+                                          'right_lookup_construction_seconds'))
+
+  def process(
+      self, left_element: Tuple[_JoinKeyType, _LeftJoinValueType],
+      right_iterable: Iterable[Tuple[_JoinKeyType, _RightJoinValueType]]
+  ) -> Iterator[Tuple[_JoinKeyType, _LeftJoinValueType, _RightJoinValueType]]:
+
+    def construct_lookup():
+      start = datetime.datetime.now()
+      result = _WeakRefFrozenMapping()
+      for key, value in right_iterable:
+        lst = result.get(key, None)
+        if lst is None:
+          lst = []
+          result[key] = lst
+        lst.append(value)
+      result.freeze()
+      self._right_lookup_contruction_seconds_distribution.update(
+          int((datetime.datetime.now() - start).total_seconds()))
+      return result
+
+    right_lookup = self._shared_handle.acquire(construct_lookup)
+    key, left_value = left_element
+    right_values = right_lookup.get(key)
+    if right_values is None:
+      return
+    for right_value in right_values:
+      yield key, left_value, right_value
+
+
 @beam.typehints.with_input_types(Tuple[_SlicedFeatureKey, _LiftInfo])
 @beam.typehints.with_output_types(Tuple[_SlicedFeatureKey, _LiftSeries])
 class _FilterLifts(beam.PTransform):
@@ -558,13 +580,14 @@ class _FilterLifts(beam.PTransform):
 
     def move_y_info_to_key(key, value):
       slice_key, x_path = key
-      return (_LiftSeriesKey(
-          slice_key=slice_key, x_path=x_path, y=value.y, y_count=value.y_count),
-              _LiftValue(
-                  x=value.x,
-                  lift=value.lift,
-                  xy_count=value.xy_count,
-                  x_count=value.x_count))
+      lift_series_key = _LiftSeriesKey(
+          slice_key=slice_key, x_path=x_path, y=value.y, y_count=value.y_count)
+      lift_value = _LiftValue(
+          x=value.x,
+          lift=value.lift,
+          xy_count=value.xy_count,
+          x_count=value.x_count)
+      return lift_series_key, lift_value
 
     # Push y_* into key so that we get per-slice, per-x-path, per-y top and
     # bottom k when calling {Largest,Smallest}PerKey.
@@ -595,15 +618,19 @@ class _FilterLifts(beam.PTransform):
                        | 'MergeTopAndBottom' >> beam.Flatten()
                        | 'FlattenTopAndBottomLifts' >>
                        beam.FlatMapTuple(lambda k, vs: ((k, v) for v in vs))
-                       | 'ReGroupTopAndBottom' >> beam.GroupByKey())
+                       | 'ReGroupTopAndBottom' >> beam.CombinePerKey(
+                           beam.combiners.ToListCombineFn()))
     elif self._top_k_per_y:
       grouped_lifts = top_k
     elif self._bottom_k_per_y:
       grouped_lifts = bottom_k
     else:
-      grouped_lifts = lifts | 'GroupByYs' >> beam.GroupByKey()
+      grouped_lifts = lifts | 'CombinePerY' >> beam.CombinePerKey(
+          beam.combiners.ToListCombineFn())
 
-    def move_y_info_to_value(key, lift_values):
+    def move_y_info_to_value(
+        key: _LiftSeriesKey,
+        lift_values: List[_LiftValue]) -> Tuple[_SlicedFeatureKey, _LiftSeries]:
       return (_SlicedFeatureKey(key.slice_key, key.x_path),
               _LiftSeries(
                   y=key.y, y_count=key.y_count, lift_values=lift_values))
@@ -614,9 +641,6 @@ class _FilterLifts(beam.PTransform):
             | 'MoveYInfoToValue' >> beam.MapTuple(move_y_info_to_value))
 
 
-# No typehint for input, since it's a multi-input PTransform for which Beam
-# doesn't yet support typehints (BEAM-3280).
-@beam.typehints.with_output_types(Tuple[_SlicedXYKey, _CountType])
 class _GetPlaceholderCopresenceCounts(beam.PTransform):
   """A PTransform for computing all possible x-y pairs, to support 0 lifts."""
 
@@ -624,8 +648,11 @@ class _GetPlaceholderCopresenceCounts(beam.PTransform):
     self._x_paths = x_paths
     self._min_x_count = min_x_count
 
-  def expand(self, x_counts_and_ys: Tuple[Tuple[_SlicedXKey, _CountType],
-                                          _SlicedYKey]):
+  def expand(
+      self, x_counts_and_ys: Tuple[beam.PCollection[Tuple[_SlicedXKey,
+                                                          _CountType]],
+                                   beam.PCollection[_SlicedYKey]]
+  ) -> beam.PCollection[Tuple[_SlicedXYKey, _CountType]]:
     x_counts, y_keys = x_counts_and_ys
 
     # slice, y
@@ -638,19 +665,16 @@ class _GetPlaceholderCopresenceCounts(beam.PTransform):
         | 'MoveXToValue_XCountsKey' >> beam.MapTuple(
             lambda k, v: (k.slice_key, (k.x_path, k.x, v))))
 
+    # TODO(b/201480787): consider creating the cross product of all distinct
+    # x-values and y-values in the entire dataset (rather than per slice)
     # _SlicedXYKey(slice, x_path, x, y), 0
-    return (
-        {
-            'y_keys': y_keys_by_slice,
-            'x_counts': x_counts_by_slice
-        }
-        | 'CoGroupByForPlaceholderYRates' >> beam.CoGroupByKey()
-        | 'CrossXYValues' >> beam.FlatMap(_cross_join_y_keys))
+    return (x_counts_by_slice
+            | 'JoinWithPlaceholderYRates' >> beam.ParDo(
+                _LookupInnerJoinDoFn(),
+                right_iterable=beam.pvalue.AsIter(y_keys_by_slice))
+            | 'MakePlaceholderCounts' >> beam.Map(_make_placeholder_counts))
 
 
-# No typehint for input, since it's a multi-input PTransform for which Beam
-# doesn't yet support typehints (BEAM-3280).
-@beam.typehints.with_output_types(Tuple[_SlicedYKey, _ConditionalYRate])
 class _GetConditionalYRates(beam.PTransform):
   """A PTransform for computing the rate of each y value, given an x value."""
 
@@ -667,11 +691,12 @@ class _GetConditionalYRates(beam.PTransform):
         constants.METRICS_NAMESPACE, 'num_xy_pairs_distinct')
     self._num_xy_pairs_batch_copresent = beam.metrics.Metrics.distribution(
         constants.METRICS_NAMESPACE, 'num_xy_pairs_batch_copresent')
-    self._num_x_values_distinct = beam.metrics.Metrics.counter(
-        constants.METRICS_NAMESPACE, 'num_x_values_distinct')
 
-  def expand(self, sliced_record_batchs_and_ys: Tuple[types.SlicedRecordBatch,
-                                                      _SlicedYKey]):
+  def expand(
+      self, sliced_record_batchs_and_ys: Tuple[
+          beam.PCollection[types.SlicedRecordBatch],
+          beam.PCollection[_SlicedYKey]]
+  ) -> beam.PCollection[Tuple[_SlicedYKey, _ConditionalYRate]]:
     sliced_record_batchs, y_keys = sliced_record_batchs_and_ys
 
     # _SlicedXYKey(slice, x_path, x, y), xy_count
@@ -714,18 +739,15 @@ class _GetConditionalYRates(beam.PTransform):
         | 'MoveYToValue' >> beam.MapTuple(move_y_to_value))
 
     # _SlicedYKey(slice, y), _ConditionalYRate(x_path, x, xy_count, x_count)
-    return ({
-        'x_count': x_counts,
-        'xy_counts': copresence_counts
-    }
-            | 'CoGroupByForConditionalYRates' >> beam.CoGroupByKey()
-            | 'JoinXCounts' >>
-            beam.FlatMap(_join_x_counts, self._num_xy_pairs_distinct,
-                         self._num_x_values_distinct))
+    return (
+        copresence_counts
+        | 'JoinXCounts' >> beam.ParDo(
+            _LookupInnerJoinDoFn(), right_iterable=beam.pvalue.AsIter(x_counts))
+        | 'MakeConditionalYRates' >> beam.Map(
+            _make_conditional_y_rates,
+            num_xy_pairs_distinct=self._num_xy_pairs_distinct))
 
 
-@beam.typehints.with_input_types(types.SlicedRecordBatch)
-@beam.typehints.with_output_types(Tuple[_SlicedYKey, _YRate])
 class _GetYRates(beam.PTransform):
   """A PTransform for computing the rate of each y value within each slice."""
 
@@ -736,7 +758,9 @@ class _GetYRates(beam.PTransform):
     self._y_boundaries = y_boundaries
     self._weight_column_name = weight_column_name
 
-  def expand(self, sliced_record_batchs):
+  def expand(
+      self, sliced_record_batchs: beam.PCollection[types.SlicedRecordBatch]
+  ) -> beam.PCollection[Tuple[_SlicedYKey, _YRate]]:
     # slice, example_count
     example_counts = (
         sliced_record_batchs
@@ -757,12 +781,11 @@ class _GetYRates(beam.PTransform):
         | 'MoveYToValue' >> beam.MapTuple(move_y_to_value))
 
     # _SlicedYKey(slice, y), _YRate(y_count, example_count)
-    return ({
-        'y_counts': y_counts,
-        'example_count': example_counts
-    }
-            | 'CoGroupByForYRates' >> beam.CoGroupByKey()
-            | 'JoinExampleCounts' >> beam.FlatMap(_join_example_counts))
+    return (y_counts
+            | 'JoinExampleCounts' >> beam.ParDo(
+                _LookupInnerJoinDoFn(),
+                right_iterable=beam.pvalue.AsIter(example_counts))
+            | 'MakeYRates' >> beam.Map(_make_y_rates))
 
 
 @beam.typehints.with_input_types(types.SlicedRecordBatch)

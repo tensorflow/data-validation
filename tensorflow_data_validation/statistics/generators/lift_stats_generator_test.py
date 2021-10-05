@@ -529,7 +529,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
   def test_lift_int_y(self):
     examples = [
         pa.RecordBatch.from_arrays([
-            pa.array([[11], [11], [22], [11]]),
+            pa.array([['a'], ['a'], ['b'], ['a']]),
             pa.array([[1], [0], [1], [0]]),
         ], ['categorical_x', 'int_y']),
     ]
@@ -555,11 +555,11 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
                 name: "Lift (Y=0)"
                 rank_histogram {
                   buckets {
-                    label: "11"
+                    label: "a"
                     sample_count: 1.3333333
                   }
                   buckets {
-                    label: "22"
+                    label: "b"
                   }
                 }
               }
@@ -567,11 +567,11 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
                 name: "Lift (Y=1)"
                 rank_histogram {
                   buckets {
-                    label: "22"
+                    label: "b"
                     sample_count: 2.0
                   }
                   buckets {
-                    label: "11"
+                    label: "a"
                     sample_count: 0.6666667
                   }
                 }
@@ -593,13 +593,13 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
                     y_int: 0
                     y_count: 2
                     lift_values {
-                      x_int: 11
+                      x_string: "a"
                       lift: 1.3333333
                       x_count: 3
                       x_and_y_count: 2
                     }
                     lift_values {
-                      x_int: 22
+                      x_string: "b"
                       lift: 0.0
                       x_count: 1
                       x_and_y_count: 0
@@ -609,13 +609,13 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
                     y_int: 1
                     y_count: 2
                     lift_values {
-                      x_int: 22
+                      x_string: "b"
                       lift: 2.0
                       x_count: 1
                       x_and_y_count: 1
                     }
                     lift_values {
-                      x_int: 11
+                      x_string: "a"
                       lift: 0.6666667
                       x_count: 3
                       x_and_y_count: 1
@@ -628,26 +628,31 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
 
     def metrics_verify_fn(metric_results):
       num_xy_pairs_distinct_counters = metric_results.query(
-          beam.metrics.metric.MetricsFilter().with_name(
-              'num_xy_pairs_distinct'))['counters']
+          beam.metrics.metric.MetricsFilter().with_name('num_xy_pairs_distinct')
+      )[beam.metrics.metric.MetricResults.COUNTERS]
       self.assertLen(num_xy_pairs_distinct_counters, 1)
       self.assertEqual(4, num_xy_pairs_distinct_counters[0].committed)
 
-      num_x_values_distinct_counters = metric_results.query(
-          beam.metrics.metric.MetricsFilter().with_name(
-              'num_x_values_distinct'))['counters']
-      self.assertLen(num_x_values_distinct_counters, 1)
-      self.assertEqual(2, num_x_values_distinct_counters[0].committed)
-
       num_xy_pairs_batch_copresent_dists = metric_results.query(
           beam.metrics.metric.MetricsFilter().with_name(
-              'num_xy_pairs_batch_copresent'))['distributions']
+              'num_xy_pairs_batch_copresent'))[
+                  beam.metrics.metric.MetricResults.DISTRIBUTIONS]
       self.assertLen(num_xy_pairs_batch_copresent_dists, 1)
       num_xy_pairs_batch_copresent_dist = num_xy_pairs_batch_copresent_dists[0]
       self.assertEqual(3, num_xy_pairs_batch_copresent_dist.committed.sum)
       self.assertEqual(1, num_xy_pairs_batch_copresent_dist.committed.count)
       self.assertEqual(3, num_xy_pairs_batch_copresent_dist.committed.min)
       self.assertEqual(3, num_xy_pairs_batch_copresent_dist.committed.max)
+
+      placeholder_right_lookup_dists = metric_results.query(
+          beam.metrics.metric.MetricsFilter().with_name(
+              'right_lookup_construction_seconds').with_step(
+                  'JoinWithPlaceholderYRates'))[
+                      beam.metrics.metric.MetricResults.DISTRIBUTIONS]
+      print(placeholder_right_lookup_dists)
+      self.assertLen(placeholder_right_lookup_dists, 1)
+      placeholder_right_lookup_dist = (placeholder_right_lookup_dists[0])
+      self.assertGreater(placeholder_right_lookup_dist.committed.count, 0)
 
     generator = lift_stats_generator.LiftStatsGenerator(
         schema=schema,
