@@ -13,7 +13,7 @@
 # limitations under the License
 """Util functions regarding to Arrow objects."""
 
-from typing import Dict, Iterable, Optional, Text, Tuple
+from typing import Dict, Iterable, Optional, Text, Tuple, Union
 
 import numpy as np
 import pyarrow as pa
@@ -87,6 +87,52 @@ def is_list_like(data_type: pa.DataType) -> bool:
   return pa.types.is_list(data_type) or pa.types.is_large_list(data_type)
 
 
+def _get_field(struct_array: pa.StructArray,
+               field: Union[str, int]) -> pa.Array:
+  """Returns struct_array.field(field) with null propagation.
+
+  This function is equivalent to struct_array.field() but correctly handles
+  null propagation (the parent struct's null values are propagated to children).
+
+  Args:
+    struct_array: A struct array which should be queried.
+    field: The request field to retrieve.
+
+  Returns:
+    A pa.Array containing the requested field.
+
+  Raises:
+    KeyError: If field is not a child field in struct_array.
+  """
+  child_array = struct_array.field(field)
+
+  # In case all values are present then there's no need for special handling.
+  # We can return child_array as is to avoid a performance penalty caused by
+  # constructing and flattening the returned array.
+  if struct_array.null_count == 0:
+    return child_array
+  # is_valid returns a BooleanArray with two buffers the buffer at offset
+  # 0 is always None and buffer 1 contains the data on which fields are
+  # valid/not valid.
+  # (https://arrow.apache.org/docs/format/Columnar.html#buffer-listing-for-each-layout)
+  validity_bitmap_buffer = struct_array.is_valid().buffers()[1]
+
+  # Construct a new struct array with a single field.  Calling flatten() on the
+  # new array guarantees validity bitmaps are merged correctly.
+  new_type = pa.struct([pa.field(field, child_array.type)])
+  if (child_array.null_count == 0 and child_array.offset != 0):
+    # TODO(https://issues.apache.org/jira/browse/ARROW-14156): Remove this
+    # special handling once flattening a struct that has children that were
+    # sliced produces arrays with a correct validity bitmap.
+    child_array = pa.concat_arrays([pa.nulls(0, child_array.type), child_array])
+  filtered_struct = pa.StructArray.from_buffers(
+      new_type,
+      len(struct_array), [validity_bitmap_buffer],
+      null_count=struct_array.null_count,
+      children=[child_array])
+  return filtered_struct.flatten()[0]
+
+
 def get_array(
     record_batch: pa.RecordBatch,
     query_path: types.FeaturePath,
@@ -147,10 +193,12 @@ def get_array(
       flat_indices = example_indices[parent_indices]
 
     step = query_path.steps()[0]
+
     try:
-      child_array = flat_struct_array.field(step)
+      child_array = _get_field(flat_struct_array, step)
     except KeyError:
-      raise KeyError('query_path step "{}" not in struct.'.format(step))
+      raise KeyError(f'query_path step "{step}" not in struct.')
+
     relative_path = types.FeaturePath(query_path.steps()[1:])
     return _recursion_helper(relative_path, child_array, flat_indices)
 
@@ -292,7 +340,8 @@ def enumerate_arrays(
       for field in flat_struct_array.type:
         field_name = field.name
         yield from _recursion_helper(
-            feature_path.child(field_name), flat_struct_array.field(field_name),
+            feature_path.child(field_name),
+            _get_field(flat_struct_array, field_name),
             flat_all_weights)
     else:
       weights = all_weights.get(example_weight_map.get(feature_path))

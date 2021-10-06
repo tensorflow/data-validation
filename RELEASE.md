@@ -11,6 +11,7 @@
 *   When running per-example validation against a schema, output of
     validate_examples_in_tfrecord and validate_examples_in_csv now optionally
     return samples of anomalous examples.
+*   Changes to source code ensures that it can now work with `pyarrow>=3`.
 ## Known Issues
 
 ## Breaking Changes
