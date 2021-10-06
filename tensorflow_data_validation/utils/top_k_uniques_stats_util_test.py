@@ -379,7 +379,7 @@ class TopKUniquesStatsUtilTest(absltest.TestCase):
         top_k_uniques_stats_util.output_categorical_numeric(
             type_mapping, types.FeaturePath(['fa']),
             statistics_pb2.FeatureNameStatistics.INT))
-    self.assertFalse(
+    self.assertTrue(
         top_k_uniques_stats_util.output_categorical_numeric(
             type_mapping, types.FeaturePath(['fb']),
             statistics_pb2.FeatureNameStatistics.FLOAT))
@@ -391,6 +391,10 @@ class TopKUniquesStatsUtilTest(absltest.TestCase):
         top_k_uniques_stats_util.output_categorical_numeric(
             type_mapping, types.FeaturePath(['fb']),
             statistics_pb2.FeatureNameStatistics.INT))
+    self.assertFalse(
+        top_k_uniques_stats_util.output_categorical_numeric(
+            type_mapping, types.FeaturePath(['fa']),
+            statistics_pb2.FeatureNameStatistics.FLOAT))
 
 
 if __name__ == '__main__':

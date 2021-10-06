@@ -24,7 +24,8 @@
 
 ## Major Features and Improvements
 
-*   N/A
+*   Float features can now be analyzed as categorical for the purposes of top-k
+    and unique count using experimental sketch based generators.
 
 ## Bug Fixes and Other Changes
 

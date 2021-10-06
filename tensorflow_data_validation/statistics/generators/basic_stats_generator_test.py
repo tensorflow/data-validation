@@ -1730,7 +1730,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         num_quantiles_histogram_buckets=4, epsilon=0.001)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_categorical_feature(self):
+  def test_categorical_int_feature(self):
     batches = [
         pa.RecordBatch.from_arrays([pa.array([[1, 5, 10], [0]])], ['c']),
         pa.RecordBatch.from_arrays([pa.array([[1, 1, 1, 5, 15], [-1]])], ['c']),
@@ -1738,11 +1738,13 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                                    ['c'])
     ]
     expected_result = {
-        types.FeaturePath(['c']): text_format.Parse(
-            """
+        types.FeaturePath(['c']):
+            text_format.Parse(
+                """
             path {
               step: 'c'
             }
+            type: INT
             string_stats {
               common_stats {
                 num_non_missing: 4
@@ -1771,13 +1773,78 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               }
               avg_length: 1.29999995232
             }
-            """, statistics_pb2.FeatureNameStatistics())}
+            """, statistics_pb2.FeatureNameStatistics())
+    }
     schema = text_format.Parse(
         """
         feature {
           name: "c"
           type: INT
           int_domain {
+            is_categorical: true
+          }
+        }
+        """, schema_pb2.Schema())
+    generator = basic_stats_generator.BasicStatsGenerator(
+        schema=schema,
+        num_values_histogram_buckets=3,
+        num_histogram_buckets=3,
+        num_quantiles_histogram_buckets=4)
+    self.assertCombinerOutputEqual(batches, generator, expected_result)
+
+  def test_categorical_float_feature(self):
+    batches = [
+        pa.RecordBatch.from_arrays([pa.array([[1.0, 5.0, 10.0], [0.0]])],
+                                   ['c']),
+        pa.RecordBatch.from_arrays(
+            [pa.array([[1.0, 1.0, 1.0, 5.0, 15.0], [-1.0]])], ['c']),
+        pa.RecordBatch.from_arrays([pa.array([None, None], type=pa.null())],
+                                   ['c'])
+    ]
+    expected_result = {
+        types.FeaturePath(['c']):
+            text_format.Parse(
+                """
+            path {
+              step: 'c'
+            }
+            type: FLOAT
+            string_stats {
+              common_stats {
+                num_non_missing: 4
+                min_num_values: 1
+                max_num_values: 5
+                avg_num_values: 2.5
+                num_values_histogram {
+                  buckets {
+                    low_value: 1.0
+                    high_value: 1.0
+                    sample_count: 1.3333333
+                  }
+                  buckets {
+                    low_value: 1.0
+                    high_value: 3.0
+                    sample_count: 1.3333333
+                  }
+                  buckets {
+                    low_value: 3.0
+                    high_value: 5.0
+                    sample_count: 1.3333333
+                  }
+                  type: QUANTILES
+                }
+                tot_num_values: 10
+              }
+              avg_length: 3.3
+            }
+            """, statistics_pb2.FeatureNameStatistics())
+    }
+    schema = text_format.Parse(
+        """
+        feature {
+          name: "c"
+          type: FLOAT
+          float_domain {
             is_categorical: true
           }
         }

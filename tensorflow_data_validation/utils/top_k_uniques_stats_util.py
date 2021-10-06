@@ -302,10 +302,15 @@ def output_categorical_numeric(categorical_numeric_types: Mapping[
   if feature_path not in categorical_numeric_types:
     return False
   schema_type = categorical_numeric_types[feature_path]
+
+  # Only output categorical numeric if the feature was declared categorical
+  # numeric and the Arrow type (INT/FLOAT) matches the schema type (INT/FLOAT).
   if (feature_type == statistics_pb2.FeatureNameStatistics.INT and
       schema_type == schema_pb2.INT):
     return True
-  # TODO(b/187054148): Allow floats.
+  if (feature_type == statistics_pb2.FeatureNameStatistics.FLOAT and
+      schema_type == schema_pb2.FLOAT):
+    return True
 
   return False
 

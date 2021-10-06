@@ -26,6 +26,7 @@ from typing import Dict, List, Optional, Text
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import example_weight_map
+from tensorflow_data_validation.utils import schema_util
 
 from google.protobuf import json_format
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -403,4 +404,11 @@ class StatsOptions(object):
   @experimental_use_sketch_based_topk_uniques.setter
   def experimental_use_sketch_based_topk_uniques(
       self, use_sketch_based_topk_uniques: bool) -> None:
+    # Check that if sketch based generators are turned off we don't have any
+    # categorical float features in the schema.
+    if (self.schema and not use_sketch_based_topk_uniques and
+        schema_pb2.FLOAT in schema_util.get_categorical_numeric_feature_types(
+            self.schema).values()):
+      raise ValueError('Categorical float features set in schema require '
+                       'experimental_use_sketch_based_topk_uniques')
     self._use_sketch_based_topk_uniques = use_sketch_based_topk_uniques

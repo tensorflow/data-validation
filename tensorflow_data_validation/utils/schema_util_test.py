@@ -152,8 +152,7 @@ class SchemaUtilTest(parameterized.TestCase):
         }
         """, schema_pb2.Schema())
 
-    with self.assertRaisesRegexp(ValueError,
-                                 'Feature.*not found in the schema'):
+    with self.assertRaisesRegex(ValueError, 'Feature.*not found in the schema'):
       _ = schema_util.get_feature(schema, 'feature2')
 
   def test_get_feature_using_path_not_present(self):
@@ -169,8 +168,7 @@ class SchemaUtilTest(parameterized.TestCase):
           }
         }
         """, schema_pb2.Schema())
-    with self.assertRaisesRegexp(ValueError,
-                                 'Feature.*not found in the schema'):
+    with self.assertRaisesRegex(ValueError, 'Feature.*not found in the schema'):
       _ = schema_util.get_feature(
           schema, types.FeaturePath(['feature1', 'sub_feature2']))
 
@@ -181,13 +179,13 @@ class SchemaUtilTest(parameterized.TestCase):
           name: "feature1"
         }
         """, schema_pb2.Schema())
-    with self.assertRaisesRegexp(ValueError,
-                                 'does not refer to a valid STRUCT feature'):
+    with self.assertRaisesRegex(ValueError,
+                                'does not refer to a valid STRUCT feature'):
       _ = schema_util.get_feature(
           schema, types.FeaturePath(['feature1', 'sub_feature2']))
 
   def test_get_feature_invalid_schema_input(self):
-    with self.assertRaisesRegexp(TypeError, 'should be a Schema proto'):
+    with self.assertRaisesRegex(TypeError, 'should be a Schema proto'):
       _ = schema_util.get_feature({}, 'feature')
 
   def test_get_string_domain_schema_level_domain(self):
@@ -314,11 +312,11 @@ class SchemaUtilTest(parameterized.TestCase):
         }
         """, schema_pb2.Schema())
 
-    with self.assertRaisesRegexp(ValueError, 'has no domain associated'):
+    with self.assertRaisesRegex(ValueError, 'has no domain associated'):
       _ = schema_util.get_domain(schema, 'feature1')
 
   def test_get_domain_invalid_schema_input(self):
-    with self.assertRaisesRegexp(TypeError, 'should be a Schema proto'):
+    with self.assertRaisesRegex(TypeError, 'should be a Schema proto'):
       _ = schema_util.get_domain({}, 'feature')
 
   def test_write_load_schema_text(self):
@@ -338,7 +336,7 @@ class SchemaUtilTest(parameterized.TestCase):
     self.assertEqual(schema, loaded_schema)
 
   def test_write_schema_text_invalid_schema_input(self):
-    with self.assertRaisesRegexp(TypeError, 'should be a Schema proto'):
+    with self.assertRaisesRegex(TypeError, 'should be a Schema proto'):
       _ = schema_util.write_schema_text({}, 'schema.pbtxt')
 
   def test_get_bytes_features(self):
@@ -431,12 +429,20 @@ class SchemaUtilTest(parameterized.TestCase):
           name: "fe"
           type: FLOAT
         }
+        feature {
+          name: "fg"
+          type: FLOAT
+          float_domain {
+             is_categorical: true
+          }
+        }
         """, schema_pb2.Schema())
     self.assertEqual(
         schema_util.get_categorical_numeric_feature_types(schema), {
             types.FeaturePath(['fa']): schema_pb2.INT,
             types.FeaturePath(['fc']): schema_pb2.INT,
             types.FeaturePath(['fd', 'fd_fa']): schema_pb2.INT,
+            types.FeaturePath(['fg']): schema_pb2.FLOAT,
         })
 
   def test_is_categorical_features(self):
@@ -479,18 +485,18 @@ class SchemaUtilTest(parameterized.TestCase):
     self.assertEqual(actual_schema, expected_schema)
 
   def test_set_domain_invalid_schema(self):
-    with self.assertRaisesRegexp(TypeError, 'should be a Schema proto'):
+    with self.assertRaisesRegex(TypeError, 'should be a Schema proto'):
       schema_util.set_domain({}, 'feature', schema_pb2.IntDomain())
 
   def test_set_domain_invalid_domain(self):
-    with self.assertRaisesRegexp(TypeError, 'domain is of type'):
+    with self.assertRaisesRegex(TypeError, 'domain is of type'):
       schema_util.set_domain(schema_pb2.Schema(), 'feature', {})
 
   def test_set_domain_invalid_global_domain(self):
     schema = schema_pb2.Schema()
     schema.feature.add(name='feature')
     schema.string_domain.add(name='domain1', value=['a', 'b'])
-    with self.assertRaisesRegexp(ValueError, 'Invalid global string domain'):
+    with self.assertRaisesRegex(ValueError, 'Invalid global string domain'):
       schema_util.set_domain(schema, 'feature', 'domain2')
 
   def test_get_categorical_features(self):
@@ -531,10 +537,20 @@ class SchemaUtilTest(parameterized.TestCase):
             }
           }
         }
+        feature {
+          name: "fe"
+          type: FLOAT
+          float_domain {
+            is_categorical: true
+          }
+        }
         """, schema_pb2.Schema())
-    expected = set([types.FeaturePath(['fa']),
-                    types.FeaturePath(['fb']),
-                    types.FeaturePath(['fd', 'fd_fa'])])
+    expected = set([
+        types.FeaturePath(['fa']),
+        types.FeaturePath(['fb']),
+        types.FeaturePath(['fd', 'fd_fa']),
+        types.FeaturePath(['fe']),
+    ])
     self.assertEqual(schema_util.get_categorical_features(schema), expected)
 
   def test_get_multivalent_features(self):

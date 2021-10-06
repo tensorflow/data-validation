@@ -17,6 +17,7 @@
 This generator computes these values for string and categorical features.
 """
 
+import logging
 from typing import Any, FrozenSet, Iterable, Iterator, Mapping, Optional, Text, Tuple, Union
 import apache_beam as beam
 import numpy as np
@@ -59,6 +60,29 @@ def _weighted_unique(values: np.ndarray, weights: np.ndarray
   return zip(gb['value'].tolist(), gb['count'].tolist(), gb['weight'].tolist())
 
 
+def _should_run(categorical_numeric_types: Mapping[types.FeaturePath,
+                                                   'schema_pb2.FeatureType'],
+                feature_path: types.FeaturePath,
+                feature_type: Optional[int]) -> bool:
+  """Check if top-k analysis should run on a feature."""
+  # if it's not a categorical int feature nor a string feature, we don't
+  # bother with topk stats.
+  if feature_type == statistics_pb2.FeatureNameStatistics.STRING:
+    return True
+  if top_k_uniques_stats_util.output_categorical_numeric(
+      categorical_numeric_types, feature_path, feature_type):
+    # This top-k uniques generator implementation only supports categorical
+    # INT.
+    if feature_type == statistics_pb2.FeatureNameStatistics.INT:
+      return True
+    else:
+      logging.error(
+          'Categorical float feature %s not supported for TopKUniquesStatsGenerator',
+          feature_path)
+    return feature_type == statistics_pb2.FeatureNameStatistics.INT
+  return False
+
+
 def _to_topk_tuples(
     sliced_record_batch: Tuple[types.SliceKey, pa.RecordBatch],
     bytes_features: FrozenSet[types.FeaturePath],
@@ -80,28 +104,27 @@ def _to_topk_tuples(
         feature_path, feature_array_type)
     if feature_path in bytes_features:
       continue
-    if ((feature_type == statistics_pb2.FeatureNameStatistics.INT and
-         feature_path in categorical_numeric_types) or
-        feature_type == statistics_pb2.FeatureNameStatistics.STRING):
-      flattened_values, parent_indices = arrow_util.flatten_nested(
-          feature_array, weights is not None)
-      if weights is not None and flattened_values:
-        # Slow path: weighted uniques.
-        flattened_values_np = np.asarray(flattened_values)
-        weights_ndarray = weights[parent_indices]
-        for value, count, weight in _weighted_unique(
-            flattened_values_np, weights_ndarray):
-          yield (slice_key, feature_path.steps(), value), (count, weight)
+    if not _should_run(categorical_numeric_types, feature_path, feature_type):
+      continue
+    flattened_values, parent_indices = arrow_util.flatten_nested(
+        feature_array, weights is not None)
+    if weights is not None and flattened_values:
+      # Slow path: weighted uniques.
+      flattened_values_np = np.asarray(flattened_values)
+      weights_ndarray = weights[parent_indices]
+      for value, count, weight in _weighted_unique(flattened_values_np,
+                                                   weights_ndarray):
+        yield (slice_key, feature_path.steps(), value), (count, weight)
+    else:
+      value_counts = flattened_values.value_counts()
+      values = value_counts.field('values').to_pylist()
+      counts = value_counts.field('counts').to_pylist()
+      if has_any_weight:
+        for value, count in zip(values, counts):
+          yield ((slice_key, feature_path.steps(), value), (count, 1))
       else:
-        value_counts = flattened_values.value_counts()
-        values = value_counts.field('values').to_pylist()
-        counts = value_counts.field('counts').to_pylist()
-        if has_any_weight:
-          for value, count in zip(values, counts):
-            yield ((slice_key, feature_path.steps(), value), (count, 1))
-        else:
-          for value, count in zip(values, counts):
-            yield ((slice_key, feature_path.steps(), value), count)
+        for value, count in zip(values, counts):
+          yield ((slice_key, feature_path.steps(), value), count)
 
 
 class _ComputeTopKUniquesStats(beam.PTransform):

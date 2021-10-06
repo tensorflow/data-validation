@@ -191,6 +191,27 @@ INVALID_STATS_OPTIONS = [
         'exception_type': ValueError,
         'error_message': 'Invalid semantic_domain_stats_sample_rate 2'
     },
+    {
+        'testcase_name':
+            'categorical_float_without_sketch_generators',
+        'stats_options_kwargs': {
+            'experimental_use_sketch_based_topk_uniques':
+                False,
+            'schema':
+                schema_pb2.Schema(
+                    feature=[
+                        schema_pb2.Feature(
+                            name='f',
+                            type=schema_pb2.FLOAT,
+                            float_domain=schema_pb2.FloatDomain(
+                                is_categorical=True))
+                    ],),
+        },
+        'exception_type':
+            ValueError,
+        'error_message': ('Categorical float features set in schema require '
+                          'experimental_use_sketch_based_topk_uniques'),
+    },
 ]
 
 

@@ -14,6 +14,7 @@
 """Module that computes the top-k and uniques statistics for string features."""
 
 import collections
+import logging
 from typing import Any, Dict, Iterable, Optional, Text
 
 import numpy as np
@@ -105,6 +106,24 @@ class TopKUniquesCombinerStatsGenerator(
   def create_accumulator(self) -> Dict[types.FeatureName, _ValueCounts]:
     return {}
 
+  def _should_run(self, feature_path: types.FeaturePath,
+                  feature_type: Optional[int]) -> bool:
+    # if it's not a categorical int feature nor a string feature, we don't
+    # bother with topk stats.
+    if feature_type == statistics_pb2.FeatureNameStatistics.STRING:
+      return True
+    if top_k_uniques_stats_util.output_categorical_numeric(
+        self._categorical_numeric_types, feature_path, feature_type):
+      # This top-k uniques generator implementation only supports categorical
+      # INT.
+      if feature_type == statistics_pb2.FeatureNameStatistics.INT:
+        return True
+      else:
+        logging.error(('Categorical float feature %s not supported for '
+                       'TopKUniquesCombinerStatsGenerator'), feature_path)
+        return False
+    return False
+
   def add_input(
       self, accumulator: Dict[types.FeaturePath,
                               _ValueCounts], input_record_batch: pa.RecordBatch
@@ -115,35 +134,32 @@ class TopKUniquesCombinerStatsGenerator(
         enumerate_leaves_only=True):
       feature_type = stats_util.get_feature_type_from_arrow_type(
           feature_path, leaf_array.type)
-      # if it's not a categorical int feature nor a string feature, we don't
-      # bother with topk stats.
-      if ((feature_type == statistics_pb2.FeatureNameStatistics.INT and
-           feature_path in self._categorical_numeric_types) or
-          feature_type == statistics_pb2.FeatureNameStatistics.STRING):
-        flattened_values, parent_indices = arrow_util.flatten_nested(
-            leaf_array, weights is not None)
-        unweighted_counts = collections.Counter()
-        # Compute unweighted counts.
-        value_counts = flattened_values.value_counts()
-        values = value_counts.field('values').to_pylist()
-        counts = value_counts.field('counts').to_pylist()
-        for value, count in zip(values, counts):
-          unweighted_counts[value] = count
+      if not self._should_run(feature_path, feature_type):
+        continue
+      flattened_values, parent_indices = arrow_util.flatten_nested(
+          leaf_array, weights is not None)
+      unweighted_counts = collections.Counter()
+      # Compute unweighted counts.
+      value_counts = flattened_values.value_counts()
+      values = value_counts.field('values').to_pylist()
+      counts = value_counts.field('counts').to_pylist()
+      for value, count in zip(values, counts):
+        unweighted_counts[value] = count
 
-        # Compute weighted counts if a weight feature is specified.
-        weighted_counts = _WeightedCounter()
-        if weights is not None:
-          flattened_values_np = np.asarray(flattened_values)
-          weighted_counts.weighted_update(
-              flattened_values_np, weights[parent_indices])
+      # Compute weighted counts if a weight feature is specified.
+      weighted_counts = _WeightedCounter()
+      if weights is not None:
+        flattened_values_np = np.asarray(flattened_values)
+        weighted_counts.weighted_update(flattened_values_np,
+                                        weights[parent_indices])
 
-        if feature_path not in accumulator:
-          accumulator[feature_path] = _ValueCounts(
-              unweighted_counts=unweighted_counts,
-              weighted_counts=weighted_counts)
-        else:
-          accumulator[feature_path].unweighted_counts.update(unweighted_counts)
-          accumulator[feature_path].weighted_counts.update(weighted_counts)
+      if feature_path not in accumulator:
+        accumulator[feature_path] = _ValueCounts(
+            unweighted_counts=unweighted_counts,
+            weighted_counts=weighted_counts)
+      else:
+        accumulator[feature_path].unweighted_counts.update(unweighted_counts)
+        accumulator[feature_path].weighted_counts.update(weighted_counts)
 
     return accumulator
 

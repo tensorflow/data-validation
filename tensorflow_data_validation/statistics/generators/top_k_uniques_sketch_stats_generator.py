@@ -196,6 +196,15 @@ class TopKUniquesSketchStatsGenerator(stats_generator.CombinerStatsGenerator):
   def create_accumulator(self) -> Dict[tfdv_types.FeaturePath, _CombinedSketch]:
     return {}
 
+  def _should_run(self, feature_path: tfdv_types.FeaturePath,
+                  feature_type: Optional[int]) -> bool:
+    # Only compute top-k and unique stats for categorical numeric and string
+    # features (excluding string features declared as bytes).
+    if feature_type == statistics_pb2.FeatureNameStatistics.STRING:
+      return feature_path not in self._bytes_features
+    return top_k_uniques_stats_util.output_categorical_numeric(
+        self._categorical_numeric_types, feature_path, feature_type)
+
   def add_input(
       self, accumulator: Dict[tfdv_types.FeaturePath, _CombinedSketch],
       input_record_batch: pa.RecordBatch
@@ -206,15 +215,7 @@ class TopKUniquesSketchStatsGenerator(stats_generator.CombinerStatsGenerator):
         enumerate_leaves_only=True):
       feature_type = stats_util.get_feature_type_from_arrow_type(
           feature_path, leaf_array.type)
-      feature_is_categorical_int = (
-          feature_type == statistics_pb2.FeatureNameStatistics.INT and
-          feature_path in self._categorical_numeric_types)
-      feature_is_string = (
-          feature_type == statistics_pb2.FeatureNameStatistics.STRING and
-          feature_path not in self._bytes_features)
-      # Only compute top-k and unique stats for categorical and string features
-      # (excluding string features declared as bytes).
-      if feature_is_categorical_int or feature_is_string:
+      if self._should_run(feature_path, feature_type):
         self._update_combined_sketch_for_feature(feature_path, leaf_array,
                                                  weights, accumulator)
     return accumulator

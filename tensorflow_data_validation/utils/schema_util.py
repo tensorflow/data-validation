@@ -239,6 +239,9 @@ def is_categorical_feature(feature: schema_pb2.Feature):
             feature.WhichOneof('domain_info') in [
                 'bool_domain', 'natural_language_domain'
             ])
+  elif feature.type == schema_pb2.FLOAT:
+    return (feature.HasField('float_domain') and
+            feature.float_domain.is_categorical)
   else:
     return False
 

@@ -18,6 +18,7 @@ from __future__ import division
 from __future__ import print_function
 
 from absl.testing import absltest
+from absl.testing import parameterized
 import pyarrow as pa
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import top_k_uniques_sketch_stats_generator as sketch_generator
@@ -29,8 +30,8 @@ from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
-class TopKUniquesSketchStatsGeneratorTest(
-    test_util.CombinerStatsGeneratorTest):
+class TopKUniquesSketchStatsGeneratorTest(test_util.CombinerStatsGeneratorTest,
+                                          parameterized.TestCase):
   """Tests for TopKUniquesSketchStatsGenerator."""
 
   def test_topk_uniques_sketch_with_single_bytes_feature(self):
@@ -649,13 +650,35 @@ class TopKUniquesSketchStatsGeneratorTest(
         num_top_values=4, num_rank_histogram_buckets=3)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_topk_uniques_sketch_with_categorical_feature(self):
+  @parameterized.named_parameters(
+      {
+          'testcase_name': 'int',
+          'is_float': False
+      }, {
+          'testcase_name': 'float',
+          'is_float': True
+      })
+  def test_topk_uniques_sketch_with_categorical_numeric_feature(
+      self, is_float):
     # fa: 4 12, 2 23, 2 34, 2 45
+    def _map_nested_list(fn, val):
+      if isinstance(val, list):
+        return list([_map_nested_list(fn, v) for v in val])
+      return fn(val)
+
+    data = [[[12, 23, 34, 12], [45, 23]], [[12, 12, 34, 45]]]
+    if is_float == 'float':
+      data = _map_nested_list(float, data)
+      type_enum = 'FLOAT'
+      domain = 'float_domain'
+    else:
+      type_enum = 'INT'
+      domain = 'int_domain'
     batches = [
-        pa.RecordBatch.from_arrays([pa.array([[12, 23, 34, 12], [45, 23]])],
-                                   ['fa']),
-        pa.RecordBatch.from_arrays([pa.array([[12, 12, 34, 45]])], ['fa']),
+        pa.RecordBatch.from_arrays([pa.array(data[0])], ['fa']),
+        pa.RecordBatch.from_arrays([pa.array(data[1])], ['fa']),
     ]
+
     expected_result = {
         types.FeaturePath(['fa']):
             text_format.Parse(
@@ -663,7 +686,7 @@ class TopKUniquesSketchStatsGeneratorTest(
                 path {
                   step: 'fa'
                 }
-                type: INT
+                type: %s
                 string_stats {
                   unique: 4
                   top_values {
@@ -702,18 +725,19 @@ class TopKUniquesSketchStatsGeneratorTest(
                       sample_count: 2.0
                     }
                   }
-              }""", statistics_pb2.FeatureNameStatistics())
+              }""" % type_enum, statistics_pb2.FeatureNameStatistics())
     }
+
     schema = text_format.Parse(
         """
         feature {
           name: "fa"
-          type: INT
-          int_domain {
+          type: %s
+          %s {
             is_categorical: true
           }
         }
-        """, schema_pb2.Schema())
+        """ % (type_enum, domain), schema_pb2.Schema())
     generator = sketch_generator.TopKUniquesSketchStatsGenerator(
         schema=schema, num_top_values=4, num_rank_histogram_buckets=3)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
@@ -1182,7 +1206,7 @@ class TopKUniquesSketchStatsGeneratorTest(
         store_output_in_custom_stats=True)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_schema_claims_categorical_but_actually_float(self):
+  def test_schema_claims_categorical_int_but_actually_float(self):
     schema = text_format.Parse("""
     feature {
       name: "a"
@@ -1194,6 +1218,23 @@ class TopKUniquesSketchStatsGeneratorTest(
     generator = sketch_generator.TopKUniquesSketchStatsGenerator(
         schema=schema,
         num_top_values=4, num_rank_histogram_buckets=3)
+    self.assertCombinerOutputEqual(
+        batches, generator, expected_feature_stats={})
+
+  def test_schema_claims_categorical_float_but_actually_int(self):
+    schema = text_format.Parse(
+        """
+    feature {
+      name: "a"
+      type: FLOAT
+      float_domain { is_categorical: true }
+    }""", schema_pb2.Schema())
+    batches = [
+        pa.RecordBatch.from_arrays([pa.array([], type=pa.list_(pa.int64()))],
+                                   ['a'])
+    ]
+    generator = sketch_generator.TopKUniquesSketchStatsGenerator(
+        schema=schema, num_top_values=4, num_rank_histogram_buckets=3)
     self.assertCombinerOutputEqual(
         batches, generator, expected_feature_stats={})
 

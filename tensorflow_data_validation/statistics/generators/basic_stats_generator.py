@@ -828,8 +828,8 @@ def _make_feature_stats_proto(
     result.bytes_stats.CopyFrom(bytes_stats_proto)
   # TODO(b/187054148): Update to allow FLOAT
   if (result.type == statistics_pb2.FeatureNameStatistics.STRING or
-      feature_path in categorical_numeric_types and
-      result.type == statistics_pb2.FeatureNameStatistics.INT):
+      top_k_uniques_stats_util.output_categorical_numeric(
+          categorical_numeric_types, feature_path, result.type)):
     # Construct string statistics proto.
     string_stats_proto = _make_string_stats_proto(basic_stats.string_stats,
                                                   total_num_values)
