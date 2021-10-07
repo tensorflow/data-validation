@@ -124,8 +124,9 @@ class Materializer(object):
     if self._deleted:
       raise ValueError("Materializer must not be used after cleanup.")
     def _iter():
-      for record in tf.data.TFRecordDataset(self._output_files()):
-        yield pickle.loads(record.numpy())
+      for path in self._output_files():
+        for record in tf.compat.v1.io.tf_record_iterator(path):
+          yield pickle.loads(record)
     return _iter()
 
   def cleanup(self):
