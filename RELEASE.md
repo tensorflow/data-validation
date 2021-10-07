@@ -4,6 +4,9 @@
 
 ## Major Features and Improvements
 
+*   Float features can now be analyzed as categorical for the purposes of top-k
+    and unique count using experimental sketch based generators.
+
 ## Bug Fixes and Other Changes
 
 *   Variance calculations have been updated to be more numerically stable for
@@ -23,9 +26,6 @@
 # Version 1.3.0
 
 ## Major Features and Improvements
-
-*   Float features can now be analyzed as categorical for the purposes of top-k
-    and unique count using experimental sketch based generators.
 
 ## Bug Fixes and Other Changes
 
