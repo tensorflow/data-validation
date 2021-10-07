@@ -140,3 +140,20 @@ def load_anomalies_text(input_path: Text) -> anomalies_pb2.Anomalies:
   anomalies_text = io_util.read_file_to_string(input_path)
   text_format.Parse(anomalies_text, anomalies)
   return anomalies
+
+
+def load_anomalies_binary(input_path: Text) -> anomalies_pb2.Anomalies:
+  """Loads the Anomalies proto stored in binary format in the input path.
+
+  Args:
+    input_path: File path from which to load the Anomalies proto.
+
+  Returns:
+    An Anomalies protocol buffer.
+  """
+  anomalies_proto = anomalies_pb2.Anomalies()
+
+  anomalies_proto.ParseFromString(io_util.read_file_to_string(
+      input_path, binary_mode=True))
+
+  return anomalies_proto

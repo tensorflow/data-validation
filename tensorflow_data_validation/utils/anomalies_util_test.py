@@ -536,6 +536,31 @@ class AnomaliesUtilTest(parameterized.TestCase):
     with self.assertRaisesRegex(TypeError, 'should be an Anomalies proto'):
       anomalies_util.write_anomalies_text({}, 'anomalies.pbtxt')
 
+  def test_load_anomalies_binary(self):
+    anomalies = text_format.Parse(
+        """
+         anomaly_info {
+           key: "feature_1"
+           value {
+              description: "Examples contain values missing from the "
+                "schema."
+              severity: ERROR
+              short_description: "Unexpected string values"
+              reason {
+                type: ENUM_TYPE_UNEXPECTED_STRING_VALUES
+                short_description: "Unexpected string values"
+                description: "Examples contain values missing from the "
+                  "schema."
+              }
+            }
+          }""", anomalies_pb2.Anomalies())
+    anomalies_path = os.path.join(FLAGS.test_tmpdir, 'anomalies.binpb')
+    with open(anomalies_path, 'w+b') as file:
+      file.write(anomalies.SerializeToString())
+    self.assertEqual(
+        anomalies,
+        anomalies_util.load_anomalies_binary(input_path=anomalies_path))
+
 
 if __name__ == '__main__':
   absltest.main()
