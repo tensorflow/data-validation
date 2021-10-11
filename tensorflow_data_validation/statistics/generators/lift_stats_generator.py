@@ -525,6 +525,15 @@ class _LookupInnerJoinDoFn(beam.DoFn):
     self._right_lookup_contruction_seconds_distribution = (
         beam.metrics.Metrics.distribution(constants.METRICS_NAMESPACE,
                                           'right_lookup_construction_seconds'))
+    # These should be gauges, but not all runners support gauges so they are
+    # made distributions, which are equivalent.
+    # TODO(b/130840752): support gauges in the internal runner.
+    self._right_lookup_num_keys = (
+        beam.metrics.Metrics.distribution(constants.METRICS_NAMESPACE,
+                                          'right_lookup_num_keys'))
+    self._right_lookup_num_values = (
+        beam.metrics.Metrics.distribution(constants.METRICS_NAMESPACE,
+                                          'right_lookup_num_values'))
 
   def process(
       self, left_element: Tuple[_JoinKeyType, _LeftJoinValueType],
@@ -534,15 +543,19 @@ class _LookupInnerJoinDoFn(beam.DoFn):
     def construct_lookup():
       start = datetime.datetime.now()
       result = _WeakRefFrozenMapping()
+      num_values = 0
       for key, value in right_iterable:
         lst = result.get(key, None)
         if lst is None:
           lst = []
           result[key] = lst
         lst.append(value)
+        num_values += 1
       result.freeze()
       self._right_lookup_contruction_seconds_distribution.update(
           int((datetime.datetime.now() - start).total_seconds()))
+      self._right_lookup_num_keys.update(len(result))
+      self._right_lookup_num_values.update(num_values)
       return result
 
     right_lookup = self._shared_handle.acquire(construct_lookup)

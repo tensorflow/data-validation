@@ -644,15 +644,41 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
       self.assertEqual(3, num_xy_pairs_batch_copresent_dist.committed.min)
       self.assertEqual(3, num_xy_pairs_batch_copresent_dist.committed.max)
 
-      placeholder_right_lookup_dists = metric_results.query(
+      placeholder_num_right_keys_dists = metric_results.query(
+          beam.metrics.metric.MetricsFilter().with_name(
+              'right_lookup_num_keys').with_step(
+                  'JoinWithPlaceholderYRates'))[
+                      beam.metrics.metric.MetricResults.DISTRIBUTIONS]
+      self.assertLen(placeholder_num_right_keys_dists, 1)
+      placeholder_num_right_keys_dist = placeholder_num_right_keys_dists[0]
+      # min and max should always equal because this dist is really a gauge
+      # The expected number of distinct keys is the number of slices, as the
+      # lookup is built from a stream of slice_key / y-value pairs.
+      self.assertEqual(1, placeholder_num_right_keys_dist.committed.min)
+      self.assertEqual(1, placeholder_num_right_keys_dist.committed.max)
+
+      placeholder_num_right_values_dists = metric_results.query(
+          beam.metrics.metric.MetricsFilter().with_name(
+              'right_lookup_num_values').with_step(
+                  'JoinWithPlaceholderYRates'))[
+                      beam.metrics.metric.MetricResults.DISTRIBUTIONS]
+      self.assertLen(placeholder_num_right_values_dists, 1)
+      placeholder_num_right_values_dist = placeholder_num_right_values_dists[0]
+      # min and max should always equal because this dist is really a gauge
+      # The expected number of values is the total number of y-values across
+      # all slices, as the lookup is built from a stream of slice_key / y-value
+      # pairs.
+      self.assertEqual(2, placeholder_num_right_values_dist.committed.min)
+      self.assertEqual(2, placeholder_num_right_values_dist.committed.max)
+
+      placeholder_construction_dists = metric_results.query(
           beam.metrics.metric.MetricsFilter().with_name(
               'right_lookup_construction_seconds').with_step(
                   'JoinWithPlaceholderYRates'))[
                       beam.metrics.metric.MetricResults.DISTRIBUTIONS]
-      print(placeholder_right_lookup_dists)
-      self.assertLen(placeholder_right_lookup_dists, 1)
-      placeholder_right_lookup_dist = (placeholder_right_lookup_dists[0])
-      self.assertGreater(placeholder_right_lookup_dist.committed.count, 0)
+      self.assertLen(placeholder_construction_dists, 1)
+      placeholder_construction_dist = placeholder_construction_dists[0]
+      self.assertGreater(placeholder_construction_dist.committed.count, 0)
 
     generator = lift_stats_generator.LiftStatsGenerator(
         schema=schema,
