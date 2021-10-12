@@ -222,8 +222,8 @@ class CombinerStatsGeneratorTest(absltest.TestCase):
           continue
         compare.assertProtoEqual(
             self,
-            actual_feature_stats,
             expected_stats,
+            actual_feature_stats,
             normalize_numbers=True)
 
       self.assertEqual(  # pylint: disable=g-generic-assert
@@ -234,8 +234,8 @@ class CombinerStatsGeneratorTest(absltest.TestCase):
                  actual_cross_feature_stats.path_y.step[0])
         compare.assertProtoEqual(
             self,
-            actual_cross_feature_stats,
             expected_cross_feature_stats[cross],
+            actual_cross_feature_stats,
             normalize_numbers=True)
     # Run generator to check that merge_accumulators() works correctly.
     accumulators = [
@@ -396,7 +396,7 @@ class CombinerFeatureStatsGeneratorTest(absltest.TestCase):
     result = generator.extract_output(
         generator.merge_accumulators(accumulators))
     compare.assertProtoEqual(
-        self, result, expected_result, normalize_numbers=True)
+        self, expected_result, result, normalize_numbers=True)
 
     # Run generator to check that compact() works correctly after
     # merging accumulators.
@@ -407,7 +407,7 @@ class CombinerFeatureStatsGeneratorTest(absltest.TestCase):
     result = generator.extract_output(
         generator.compact(generator.merge_accumulators(accumulators)))
     compare.assertProtoEqual(
-        self, result, expected_result, normalize_numbers=True)
+        self, expected_result, result, normalize_numbers=True)
 
     # Run generator to check that add_input() works correctly when adding
     # inputs to a non-empty accumulator.
@@ -418,7 +418,7 @@ class CombinerFeatureStatsGeneratorTest(absltest.TestCase):
 
     result = generator.extract_output(accumulator)
     compare.assertProtoEqual(
-        self, result, expected_result, normalize_numbers=True)
+        self, expected_result, result, normalize_numbers=True)
 
 
 def make_arrow_record_batches_equal_fn(
