@@ -16,6 +16,7 @@
     return samples of anomalous examples.
 *   Changes to source code ensures that it can now work with `pyarrow>=3`.
 *   Add `load_anomalies_binary` utility function.
+*   Depends on `pyarrow>=1,<6`.
 
 ## Known Issues
 
