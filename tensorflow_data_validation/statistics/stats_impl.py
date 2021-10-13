@@ -14,7 +14,6 @@
 
 """Implementation of statistics generators."""
 
-import itertools
 import math
 import random
 from typing import Any, Callable, cast, Dict, Iterable, List, Optional, Text, Tuple
@@ -591,12 +590,6 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
   (https://issues.apache.org/jira/browse/BEAM-3737).
   """
 
-  # This needs to be large enough to allow for efficient merging of
-  # accumulators in the individual stats generators, but shouldn't be too large
-  # as it also acts as cap on the maximum memory usage of the computation.
-  # TODO(b/73789023): Ideally we should automatically infer the batch size.
-  _DESIRED_MERGE_ACCUMULATOR_BATCH_SIZE = 100
-
   # The combiner accumulates record batches from the upstream and merges them
   # when certain conditions are met. A merged record batch would allow better
   # vectorized processing, but we have to pay for copying and the RAM to
@@ -716,35 +709,15 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
       accumulators: Iterable[_CombinerStatsGeneratorsCombineFnAcc]
       ) -> _CombinerStatsGeneratorsCombineFnAcc:
     result = self.create_accumulator()
-    # Make sure accumulators is an iterator (so it remembers its position).
-    accumulators = iter(accumulators)
-    while True:
-      # Repeatedly take the next N from `accumulators` (an iterator).
-      # If there are less than N remaining, all is taken.
-      batched_accumulators = list(itertools.islice(
-          accumulators, self._DESIRED_MERGE_ACCUMULATOR_BATCH_SIZE))
-      if not batched_accumulators:
-        break
-
-      # Batch together remaining examples in each accumulator, and
-      # feed to each generator. Note that there might still be remaining
-      # examples after this, but a compact() might follow and flush the
-      # remaining examples, and extract_output() in the end will flush anyways.
-      batched_partial_accumulators = []
-      for acc in batched_accumulators:
-        result.input_record_batches.extend(acc.input_record_batches)
-        result.curr_batch_size += acc.curr_batch_size
-        result.curr_byte_size += acc.curr_byte_size
-        self._maybe_do_batch(result)
-        batched_partial_accumulators.append(acc.partial_accumulators)
-
-      batched_accumulators_by_generator = list(
-          zip(*batched_partial_accumulators))
-
+    for accumulator in accumulators:
+      result.input_record_batches.extend(accumulator.input_record_batches)
+      result.curr_batch_size += accumulator.curr_batch_size
+      result.curr_byte_size += accumulator.curr_byte_size
+      self._maybe_do_batch(result)
       result.partial_accumulators = self._for_each_generator(
-          lambda gen, b, m: gen.merge_accumulators(itertools.chain((b,), m)),
+          lambda gen, x, y: gen.merge_accumulators([x, y]),
           result.partial_accumulators,
-          batched_accumulators_by_generator)
+          accumulator.partial_accumulators)
 
     return result
 
