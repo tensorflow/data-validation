@@ -50,7 +50,6 @@ _NON_UTF8_VALUES_COUNTER = beam.metrics.Metrics.counter(
 
 def make_feature_stats_proto_topk_uniques(
     feature_path: types.FeaturePath,
-    feature_type: 'statistics_pb2.FeatureNameStatistics.Type',
     num_top_values: int,
     num_rank_histogram_buckets: int,
     num_unique: int,
@@ -63,7 +62,6 @@ def make_feature_stats_proto_topk_uniques(
 
   Args:
     feature_path: The path of the feature.
-    feature_type: The type of the feature.
     num_top_values: The number of most frequent feature values to keep for
       string features.
     num_rank_histogram_buckets: The number of buckets in the rank histogram for
@@ -83,9 +81,8 @@ def make_feature_stats_proto_topk_uniques(
 
   # Create a FeatureNameStatistics proto that includes the unweighted top-k
   # stats.
-  result = _make_feature_stats_proto_topk(feature_path, value_count_list,
-                                          feature_type, False, num_top_values,
-                                          frequency_threshold,
+  result = _make_feature_stats_proto_topk(feature_path, value_count_list, False,
+                                          num_top_values, frequency_threshold,
                                           num_rank_histogram_buckets)
 
   # If weights were provided, create another FeatureNameStatistics proto that
@@ -94,9 +91,8 @@ def make_feature_stats_proto_topk_uniques(
   if weighted_value_count_list:
     assert weighted_frequency_threshold is not None
     weighted_result = _make_feature_stats_proto_topk(
-        feature_path, weighted_value_count_list, feature_type, True,
-        num_top_values, weighted_frequency_threshold,
-        num_rank_histogram_buckets)
+        feature_path, weighted_value_count_list, True, num_top_values,
+        weighted_frequency_threshold, num_rank_histogram_buckets)
 
     result.string_stats.weighted_string_stats.CopyFrom(
         weighted_result.string_stats.weighted_string_stats)
@@ -108,7 +104,6 @@ def make_feature_stats_proto_topk_uniques(
 
 def make_feature_stats_proto_topk_uniques_custom_stats(
     feature_path: types.FeaturePath,
-    feature_type: 'statistics_pb2.FeatureNameStatistics.Type',
     num_top_values: int,
     num_rank_histogram_buckets: int,
     num_unique: int,
@@ -121,8 +116,6 @@ def make_feature_stats_proto_topk_uniques_custom_stats(
 
   Args:
     feature_path: The path of the feature.
-    feature_type: The type of the feature. This may be the inferred type, or
-      a type derived from the schema.
     num_top_values: The number of most frequent feature values to keep for
       string features.
     num_rank_histogram_buckets: The number of buckets in the rank histogram for
@@ -142,13 +135,11 @@ def make_feature_stats_proto_topk_uniques_custom_stats(
 
   result = statistics_pb2.FeatureNameStatistics()
   result.path.CopyFrom(feature_path.to_proto())
-  result.type = feature_type
 
   # Create a FeatureNameStatistics proto that includes the unweighted top-k
   # stats.
   topk_stats = _make_feature_stats_proto_topk(feature_path, value_count_list,
-                                              feature_type, False,
-                                              num_top_values,
+                                              False, num_top_values,
                                               frequency_threshold,
                                               num_rank_histogram_buckets)
 
@@ -164,9 +155,8 @@ def make_feature_stats_proto_topk_uniques_custom_stats(
   if weighted_value_count_list:
     assert weighted_frequency_threshold is not None
     weighted_topk_stats = _make_feature_stats_proto_topk(
-        feature_path, weighted_value_count_list, feature_type, True,
-        num_top_values, weighted_frequency_threshold,
-        num_rank_histogram_buckets)
+        feature_path, weighted_value_count_list, True, num_top_values,
+        weighted_frequency_threshold, num_rank_histogram_buckets)
 
     # Weighted Topk rank histogram.
     weighted_topk_custom_stats = result.custom_stats.add(
@@ -183,24 +173,18 @@ def make_feature_stats_proto_topk_uniques_custom_stats(
 def make_dataset_feature_stats_proto_unique_single(
     feature_path_tuple: types.FeaturePathTuple,
     num_uniques: int,
-    categorical_numeric_types: Mapping[types.FeaturePath,
-                                       'schema_pb2.FeatureType'],
 ) -> statistics_pb2.DatasetFeatureStatistics:
   """Makes a DatasetFeatureStatistics proto with uniques stats for a feature."""
   feature_path = types.FeaturePath(feature_path_tuple)
   result = statistics_pb2.DatasetFeatureStatistics()
   result.features.add().CopyFrom(
-      _make_feature_stats_proto_uniques(
-          feature_path, num_uniques,
-          get_statistics_feature_type(categorical_numeric_types, feature_path)))
+      _make_feature_stats_proto_uniques(feature_path, num_uniques))
   return result
 
 
 def make_dataset_feature_stats_proto_topk_single(
     feature_path_tuple: types.FeaturePathTuple,
     value_count_list: List[FeatureValueCount],
-    categorical_numeric_types: Mapping[types.FeaturePath,
-                                       'schema_pb2.FeatureType'],
     is_weighted_stats: bool, num_top_values: int,
     frequency_threshold: Union[int, float],
     num_rank_histogram_buckets: int) -> statistics_pb2.DatasetFeatureStatistics:
@@ -208,22 +192,19 @@ def make_dataset_feature_stats_proto_topk_single(
   feature_path = types.FeaturePath(feature_path_tuple)
   result = statistics_pb2.DatasetFeatureStatistics()
   result.features.add().CopyFrom(
-      _make_feature_stats_proto_topk(
-          feature_path, value_count_list,
-          get_statistics_feature_type(categorical_numeric_types,
-                                      feature_path), is_weighted_stats,
-          num_top_values, frequency_threshold, num_rank_histogram_buckets))
+      _make_feature_stats_proto_topk(feature_path, value_count_list,
+                                     is_weighted_stats, num_top_values,
+                                     frequency_threshold,
+                                     num_rank_histogram_buckets))
   return result
 
 
 def _make_feature_stats_proto_uniques(
     feature_path: types.FeaturePath, num_uniques: int,
-    feature_type: 'statistics_pb2.FeatureNameStatistics.Type'
 ) -> statistics_pb2.FeatureNameStatistics:
   """Makes a FeatureNameStatistics proto containing the uniques stats."""
   result = statistics_pb2.FeatureNameStatistics()
   result.path.CopyFrom(feature_path.to_proto())
-  result.type = feature_type
   result.string_stats.unique = num_uniques
   return result
 
@@ -231,7 +212,6 @@ def _make_feature_stats_proto_uniques(
 def _make_feature_stats_proto_topk(
     feature_path: types.FeaturePath,
     top_k_values_pairs: List[FeatureValueCount],
-    feature_type: 'statistics_pb2.FeatureNameStatistics.Type',
     is_weighted_stats: bool, num_top_values: int,
     frequency_threshold: Union[float, int],
     num_rank_histogram_buckets: int) -> statistics_pb2.FeatureNameStatistics:
@@ -247,7 +227,6 @@ def _make_feature_stats_proto_topk(
 
   result = statistics_pb2.FeatureNameStatistics()
   result.path.CopyFrom(feature_path.to_proto())
-  result.type = feature_type
 
   if is_weighted_stats:
     string_stats = result.string_stats.weighted_string_stats
@@ -313,30 +292,3 @@ def output_categorical_numeric(categorical_numeric_types: Mapping[
     return True
 
   return False
-
-
-def get_statistics_feature_type(
-    categorical_numeric_types: Mapping[types.FeaturePath,
-                                       'schema_pb2.FeatureType'],
-    feature_path: types.FeaturePath
-) -> 'statistics_pb2.FeatureNameStatistics.Type':
-  """Retrieve the statistics_pb2.FeatureNameStatistics.Type for a feature.
-
-  Args:
-    categorical_numeric_types: A mapping from feature path to schema feature
-      type for categorical numeric features.
-    feature_path: The path of a feature.
-
-  Returns:
-    * INT if the path is present in the mapping and maps to a schema_pb2.INT
-    * FLOAT if the path is present in the mapping and maps to a schema_pb2.FLOAT
-    * STRING otherwise
-  """
-  # TODO(b/199427429): Replace this to stop relying on Schema types for output.
-  if feature_path in categorical_numeric_types:
-    schema_type = categorical_numeric_types[feature_path]
-    if schema_type == schema_pb2.INT:
-      return statistics_pb2.FeatureNameStatistics.INT
-    elif schema_type == schema_pb2.FLOAT:
-      return statistics_pb2.FeatureNameStatistics.FLOAT
-  return statistics_pb2.FeatureNameStatistics.STRING

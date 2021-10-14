@@ -52,7 +52,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         path {
           step: 'fa'
         }
-        type: STRING
         string_stats {
           top_values {
             value: 'a'
@@ -98,7 +97,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         path {
           step: 'fa'
         }
-        type: STRING
         string_stats {
           unique: 5
         }
@@ -141,7 +139,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
               path {
                 step: 'fa'
               }
-              type: STRING
               string_stats {
                 top_values {
                   value: 'a'
@@ -184,7 +181,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         text_format.Parse(
             """
             features {
-              type: STRING
               string_stats {
                 top_values {
                   value: "z"
@@ -231,7 +227,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
               path {
                 step: 'fa'
               }
-              type: STRING
               string_stats {
                 weighted_string_stats {
                   top_values {
@@ -276,7 +271,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         text_format.Parse(
             """
             features {
-              type: STRING
               string_stats {
                 weighted_string_stats {
                   top_values {
@@ -325,7 +319,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
               path {
                 step: 'fa'
               }
-              type: STRING
               string_stats {
                 unique: 5
               }
@@ -333,7 +326,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         text_format.Parse(
             """
             features {
-              type: STRING
               string_stats {
                 unique: 5
               }
@@ -374,7 +366,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         path {
           step: 'fa'
         }
-        type: STRING
         string_stats {
           top_values {
             value: 'a'
@@ -420,7 +411,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         path {
           step: 'fa'
         }
-        type: STRING
         string_stats {
           unique: 5
         }
@@ -454,7 +444,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         path {
           step: 'fa'
         }
-        type: STRING
         string_stats {
           top_values {
             value: 'a'
@@ -500,7 +489,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         path {
           step: 'fb'
         }
-        type: STRING
         string_stats {
           top_values {
             value: 'c'
@@ -542,7 +530,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         path {
           step: 'fa'
         }
-        type: STRING
         string_stats {
           unique: 5
         }
@@ -553,7 +540,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         path {
           step: 'fb'
         }
-        type: STRING
         string_stats {
           unique: 3
         }
@@ -612,7 +598,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         path {
           step: 'fa'
         }
-        type: STRING
         string_stats {
           top_values {
             value: 'a'
@@ -658,7 +643,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         path {
           step: 'fb'
         }
-        type: STRING
         string_stats {
           top_values {
             value: 'c'
@@ -700,7 +684,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         path {
           step: 'fa'
         }
-        type: STRING
         string_stats {
           unique: 5
         }
@@ -711,7 +694,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         path {
           step: 'fb'
         }
-        type: STRING
         string_stats {
           unique: 3
         }
@@ -745,7 +727,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         path {
           step: 'fa'
         }
-        type: STRING
         string_stats {
           top_values {
             value: 'a'
@@ -783,7 +764,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         path {
           step: 'fa'
         }
-        type: STRING
         string_stats {
           unique: 5
         }
@@ -817,7 +797,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         path {
           step: 'fa'
         }
-        type: STRING
         string_stats {
           top_values {
             value: 'a'
@@ -863,7 +842,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         path {
           step: 'fa'
         }
-        type: STRING
         string_stats {
           unique: 5
         }
@@ -981,7 +959,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         path {
           step: 'fa'
         }
-        type: STRING
         string_stats {
           top_values {
             value: 'a'
@@ -1013,7 +990,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         path {
           step: 'fa'
         }
-        type: STRING
         string_stats {
           weighted_string_stats {
             top_values {
@@ -1057,7 +1033,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         path {
           step: 'fa'
         }
-        type: STRING
         string_stats {
           unique: 5
         }
@@ -1089,7 +1064,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         path {
           step: 'fa'
         }
-        type: STRING
         string_stats {
           top_values {
             value: 'a'
@@ -1121,7 +1095,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         path {
           step: 'fa'
         }
-        type: STRING
         string_stats {
           unique: 2
         }
@@ -1164,7 +1137,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         path {
           step: 'fa'
         }
-        type: STRING
         string_stats {
           top_values {
             value: 'a'
@@ -1198,7 +1170,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         path {
           step: 'fb'
         }
-        type: STRING
         string_stats {
           top_values {
             value: '1'
@@ -1232,7 +1203,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         path {
           step: 'fa'
         }
-        type: STRING
         string_stats {
           unique: 5
         }
@@ -1244,7 +1214,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         path {
           step: 'fb'
         }
-        type: STRING
         string_stats {
           unique: 2
         }
@@ -1256,7 +1225,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         path {
           step: 'fa'
         }
-        type: STRING
         string_stats {
           top_values {
             value: 'b'
@@ -1290,7 +1258,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         path {
           step: 'fb'
         }
-        type: STRING
         string_stats {
           top_values {
             value: '0'
@@ -1324,7 +1291,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         path {
           step: 'fa'
         }
-        type: STRING
         string_stats {
           unique: 5
         }
@@ -1336,7 +1302,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         path {
           step: 'fb'
         }
-        type: STRING
         string_stats {
           unique: 2
         }
@@ -1376,7 +1341,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         text_format.Parse(
             """
             features{
-              type: STRING
               string_stats {
                 top_values {
                   value: "d"
@@ -1456,7 +1420,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
             }""", statistics_pb2.DatasetFeatureStatistics()),
         text_format.Parse("""
             features {
-              type: STRING
               string_stats {
                 unique: 4
               }
@@ -1478,7 +1441,6 @@ class TopkUniquesStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
             }""", statistics_pb2.DatasetFeatureStatistics()),
         text_format.Parse("""
             features {
-              type: STRING
               string_stats {
                 weighted_string_stats {
                   top_values {

@@ -49,7 +49,6 @@ class TopKUniquesCombinerStatsGeneratorTest(
         path {
           step: 'fa'
         }
-        type: STRING
         string_stats {
           unique: 5
           top_values {
@@ -124,7 +123,6 @@ class TopKUniquesCombinerStatsGeneratorTest(
                 path {
                   step: 'fa'
                 }
-                type: STRING
                 string_stats {
                   unique: 5
                   top_values {
@@ -205,7 +203,6 @@ class TopKUniquesCombinerStatsGeneratorTest(
         types.FeaturePath(['fb']):
                 text_format.Parse(
                     """
-                  type: STRING
                   string_stats {
                     unique: 5
                     top_values {
@@ -309,7 +306,6 @@ class TopKUniquesCombinerStatsGeneratorTest(
                 path {
                   step: 'fa'
                 }
-                type: STRING
                 string_stats {
                   unique: 5
                   top_values {
@@ -376,7 +372,6 @@ class TopKUniquesCombinerStatsGeneratorTest(
                 path {
                   step: 'fa'
                 }
-                type: STRING
                 string_stats {
                   unique: 5
                   top_values {
@@ -422,7 +417,6 @@ class TopKUniquesCombinerStatsGeneratorTest(
                 path {
                   step: 'fb'
                 }
-                type: STRING
                 string_stats {
                   unique: 3
                   top_values {
@@ -505,7 +499,6 @@ class TopKUniquesCombinerStatsGeneratorTest(
                 path {
                   step: 'fa'
                 }
-                type: STRING
                 string_stats {
                   unique: 5
                   top_values {
@@ -551,7 +544,6 @@ class TopKUniquesCombinerStatsGeneratorTest(
                 path {
                   step: 'fb'
                 }
-                type: STRING
                 string_stats {
                   unique: 3
                   top_values {
@@ -613,7 +605,6 @@ class TopKUniquesCombinerStatsGeneratorTest(
                 path {
                   step: 'fa'
                 }
-                type: STRING
                 string_stats {
                   unique: 5
                   top_values {
@@ -676,7 +667,6 @@ class TopKUniquesCombinerStatsGeneratorTest(
                 path {
                   step: 'fa'
                 }
-                type: INT
                 string_stats {
                   unique: 4
                   top_values {
@@ -749,7 +739,6 @@ class TopKUniquesCombinerStatsGeneratorTest(
         path {
           step: 'fa'
         }
-        type: STRING
         string_stats {
           unique: 5
           top_values {
@@ -862,7 +851,6 @@ class TopKUniquesCombinerStatsGeneratorTest(
     expected_result = {
         types.FeaturePath(['c', 'f1']):
             text_format.Parse("""
-              type: STRING
               string_stats {
                 unique: 4
                 top_values {

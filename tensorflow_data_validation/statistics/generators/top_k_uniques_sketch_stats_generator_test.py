@@ -54,7 +54,6 @@ class TopKUniquesSketchStatsGeneratorTest(test_util.CombinerStatsGeneratorTest,
         path {
           step: 'fa'
         }
-        type: STRING
         string_stats {
           unique: 5
           top_values {
@@ -128,7 +127,6 @@ class TopKUniquesSketchStatsGeneratorTest(test_util.CombinerStatsGeneratorTest,
                 path {
                   step: 'fa'
                 }
-                type: STRING
                 string_stats {
                   unique: 5
                   top_values {
@@ -209,7 +207,6 @@ class TopKUniquesSketchStatsGeneratorTest(test_util.CombinerStatsGeneratorTest,
         types.FeaturePath(['fb']):
             text_format.Parse(
                 """
-                  type: STRING
                   string_stats {
                     unique: 5
                     top_values {
@@ -311,7 +308,6 @@ class TopKUniquesSketchStatsGeneratorTest(test_util.CombinerStatsGeneratorTest,
                 path {
                   step: 'fa'
                 }
-                type: STRING
                 string_stats {
                   unique: 5
                   top_values {
@@ -376,7 +372,6 @@ class TopKUniquesSketchStatsGeneratorTest(test_util.CombinerStatsGeneratorTest,
                 path {
                   step: 'fa'
                 }
-                type: STRING
                 string_stats {
                   unique: 5
                   top_values {
@@ -422,7 +417,6 @@ class TopKUniquesSketchStatsGeneratorTest(test_util.CombinerStatsGeneratorTest,
                 path {
                   step: 'fb'
                 }
-                type: STRING
                 string_stats {
                   unique: 3
                   top_values {
@@ -499,7 +493,6 @@ class TopKUniquesSketchStatsGeneratorTest(test_util.CombinerStatsGeneratorTest,
                 path {
                   step: 'fa'
                 }
-                type: STRING
                 string_stats {
                   unique: 5
                   top_values {
@@ -545,7 +538,6 @@ class TopKUniquesSketchStatsGeneratorTest(test_util.CombinerStatsGeneratorTest,
                 path {
                   step: 'fb'
                 }
-                type: STRING
                 string_stats {
                   unique: 3
                   top_values {
@@ -605,7 +597,6 @@ class TopKUniquesSketchStatsGeneratorTest(test_util.CombinerStatsGeneratorTest,
                 path {
                   step: 'fa'
                 }
-                type: STRING
                 string_stats {
                   unique: 5
                   top_values {
@@ -686,7 +677,6 @@ class TopKUniquesSketchStatsGeneratorTest(test_util.CombinerStatsGeneratorTest,
                 path {
                   step: 'fa'
                 }
-                type: %s
                 string_stats {
                   unique: 4
                   top_values {
@@ -725,7 +715,7 @@ class TopKUniquesSketchStatsGeneratorTest(test_util.CombinerStatsGeneratorTest,
                       sample_count: 2.0
                     }
                   }
-              }""" % type_enum, statistics_pb2.FeatureNameStatistics())
+              }""", statistics_pb2.FeatureNameStatistics())
     }
 
     schema = text_format.Parse(
@@ -758,7 +748,6 @@ class TopKUniquesSketchStatsGeneratorTest(test_util.CombinerStatsGeneratorTest,
         path {
           step: 'fa'
         }
-        type: STRING
         string_stats {
           unique: 5
           top_values {
@@ -869,7 +858,6 @@ class TopKUniquesSketchStatsGeneratorTest(test_util.CombinerStatsGeneratorTest,
     expected_result = {
         types.FeaturePath(['c', 'f1']):
             text_format.Parse("""
-              type: STRING
               string_stats {
                 unique: 4
                 top_values {
@@ -1042,7 +1030,6 @@ class TopKUniquesSketchStatsGeneratorTest(test_util.CombinerStatsGeneratorTest,
                 path {
                   step: 'fa'
                 }
-                type: STRING
                 string_stats {
                   unique: 5
                   top_values {
@@ -1148,7 +1135,6 @@ class TopKUniquesSketchStatsGeneratorTest(test_util.CombinerStatsGeneratorTest,
                 path {
                   step: 'fa'
                 }
-                type: STRING
                 custom_stats {
                   name: 'topk_sketch_rank_histogram'
                   rank_histogram {
@@ -1310,7 +1296,6 @@ class TopKUniquesSketchStatsGeneratorTest(test_util.CombinerStatsGeneratorTest,
                     }
                   }
                 }
-                type: STRING
                 """, statistics_pb2.FeatureNameStatistics())
     }
     self.assertCombinerOutputEqual(batches, generator, expected_result)
@@ -1372,7 +1357,6 @@ class TopKUniquesSketchStatsGeneratorTest(test_util.CombinerStatsGeneratorTest,
                     }
                   }
                 }
-                type: STRING
                 """,
                 statistics_pb2.FeatureNameStatistics())
     }

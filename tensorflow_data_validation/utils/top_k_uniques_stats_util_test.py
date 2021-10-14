@@ -36,7 +36,6 @@ class TopKUniquesStatsUtilTest(absltest.TestCase):
         path {
             step: "fa"
           }
-        type: STRING
         string_stats {
           unique: 5
           top_values {
@@ -108,7 +107,6 @@ class TopKUniquesStatsUtilTest(absltest.TestCase):
     result = (
         top_k_uniques_stats_util.make_feature_stats_proto_topk_uniques(
             types.FeaturePath(['fa']),
-            feature_type=statistics_pb2.FeatureNameStatistics.STRING,
             num_top_values=3,
             frequency_threshold=1,
             weighted_frequency_threshold=1.,
@@ -124,7 +122,6 @@ class TopKUniquesStatsUtilTest(absltest.TestCase):
         path {
             step: "fa"
           }
-        type: STRING
         custom_stats {
           name: "topk_sketch_rank_histogram"
           rank_histogram {
@@ -178,7 +175,6 @@ class TopKUniquesStatsUtilTest(absltest.TestCase):
         top_k_uniques_stats_util
         .make_feature_stats_proto_topk_uniques_custom_stats(
             types.FeaturePath(['fa']),
-            feature_type=statistics_pb2.FeatureNameStatistics.STRING,
             num_top_values=3,
             frequency_threshold=1,
             weighted_frequency_threshold=1.,
@@ -194,7 +190,6 @@ class TopKUniquesStatsUtilTest(absltest.TestCase):
         path {
           step: 'fa'
         }
-        type: INT
         string_stats {
           unique: 4
           top_values {
@@ -234,7 +229,6 @@ class TopKUniquesStatsUtilTest(absltest.TestCase):
     result = (
         top_k_uniques_stats_util.make_feature_stats_proto_topk_uniques(
             types.FeaturePath(['fa']),
-            feature_type=statistics_pb2.FeatureNameStatistics.INT,
             num_top_values=3,
             frequency_threshold=1,
             num_rank_histogram_buckets=2,
@@ -248,7 +242,6 @@ class TopKUniquesStatsUtilTest(absltest.TestCase):
         path {
           step: 'fa'
         }
-        type: INT
         string_stats {
           unique: 4
           top_values {
@@ -288,7 +281,6 @@ class TopKUniquesStatsUtilTest(absltest.TestCase):
     result = (
         top_k_uniques_stats_util.make_feature_stats_proto_topk_uniques(
             types.FeaturePath(['fa']),
-            feature_type=statistics_pb2.FeatureNameStatistics.INT,
             num_top_values=3,
             frequency_threshold=1,
             num_rank_histogram_buckets=2,
@@ -341,34 +333,12 @@ class TopKUniquesStatsUtilTest(absltest.TestCase):
         top_k_uniques_stats_util.make_dataset_feature_stats_proto_topk_single(
             types.FeaturePath(['fa']).steps(),
             value_count_list=value_count_list,
-            categorical_numeric_types={
-                types.FeaturePath(['fa']): schema_pb2.INT,
-                types.FeaturePath(['fb']): schema_pb2.INT
-            },
             is_weighted_stats=False,
             num_top_values=3,
             frequency_threshold=1,
             num_rank_histogram_buckets=2))
     test_util.assert_dataset_feature_stats_proto_equal(
         self, result, expected_result)
-
-  def test_get_statistics_feature_type(self):
-    type_mapping = {
-        types.FeaturePath(['fa']): schema_pb2.INT,
-        types.FeaturePath(['fb']): schema_pb2.FLOAT,
-    }
-    self.assertEqual(
-        top_k_uniques_stats_util.get_statistics_feature_type(
-            type_mapping, types.FeaturePath(['fa'])),
-        statistics_pb2.FeatureNameStatistics.INT)
-    self.assertEqual(
-        top_k_uniques_stats_util.get_statistics_feature_type(
-            type_mapping, types.FeaturePath(['fb'])),
-        statistics_pb2.FeatureNameStatistics.FLOAT)
-    self.assertEqual(
-        top_k_uniques_stats_util.get_statistics_feature_type(
-            type_mapping, types.FeaturePath(['fc'])),
-        statistics_pb2.FeatureNameStatistics.STRING)
 
   def test_output_categorical_numeric(self):
     type_mapping = {

@@ -254,8 +254,6 @@ class TopKUniquesSketchStatsGenerator(stats_generator.CombinerStatsGenerator):
       feature_stats_proto = (
           make_feature_stats_proto(
               feature_path=feature_path,
-              feature_type=top_k_uniques_stats_util.get_statistics_feature_type(
-                  self._categorical_numeric_types, feature_path),
               frequency_threshold=self._frequency_threshold,
               weighted_frequency_threshold=self._weighted_frequency_threshold,
               num_top_values=self._num_top_values,

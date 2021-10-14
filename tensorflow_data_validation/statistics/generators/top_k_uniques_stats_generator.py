@@ -220,7 +220,6 @@ class _ComputeTopKUniquesStats(beam.PTransform):
              make_dataset_feature_stats_proto_topk_single(
                  feature_path_tuple=k[1],
                  value_count_list=v,
-                 categorical_numeric_types=self._categorical_numeric_types,
                  is_weighted_stats=False,
                  num_top_values=self._num_top_values,
                  frequency_threshold=self._frequency_threshold,
@@ -240,8 +239,7 @@ class _ComputeTopKUniquesStats(beam.PTransform):
              top_k_uniques_stats_util.
              make_dataset_feature_stats_proto_unique_single(
                  feature_path_tuple=k[1],
-                 num_uniques=v,
-                 categorical_numeric_types=self._categorical_numeric_types))
+                 num_uniques=v))
             # pylint: enable=g-long-lambda
         ))
     # (slice_key, DatasetFeatureStatistics)
@@ -272,7 +270,6 @@ class _ComputeTopKUniquesStats(beam.PTransform):
                make_dataset_feature_stats_proto_topk_single(
                    feature_path_tuple=k[1],
                    value_count_list=v,
-                   categorical_numeric_types=self._categorical_numeric_types,
                    is_weighted_stats=True,
                    num_top_values=self._num_top_values,
                    frequency_threshold=self._weighted_frequency_threshold,

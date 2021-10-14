@@ -2001,7 +2001,9 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         num_quantiles_histogram_buckets=4)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_schema_claims_categorical_but_actually_float(self):
+  def test_schema_claims_categorical_int_but_actually_float(self):
+    # Categorical generators do not run for mismatched declared vs. actual
+    # numeric types.
     schema = text_format.Parse("""
     feature {
       name: "a"
@@ -2024,6 +2026,53 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     generator = basic_stats_generator.BasicStatsGenerator(
         schema=schema,
         num_values_histogram_buckets=2, num_histogram_buckets=3,
+        num_quantiles_histogram_buckets=4)
+    self.assertCombinerOutputEqual(batches, generator, expected_result)
+
+  def test_schema_claims_categorical_int_but_type_missing(self):
+    # Categorical generators will run for a declared numeric with actual string
+    # type, but output will be correctly string typed.
+    schema = text_format.Parse(
+        """
+        feature {
+          name: "a"
+          type: INT
+          int_domain { is_categorical: true }
+        }""", schema_pb2.Schema())
+    batches = [pa.RecordBatch.from_arrays([pa.array([[]])], ['a'])]
+    expected_result = {
+        types.FeaturePath(['a']):
+            text_format.Parse(
+                """
+                type: STRING
+                string_stats {
+                  common_stats {
+                    num_non_missing: 1
+                    num_missing: 0
+                    num_values_histogram {
+                      buckets {
+                        sample_count: 0.5
+                      }
+                      buckets {
+                        sample_count: 0.5
+                      }
+                      type: QUANTILES
+                    }
+                    presence_and_valency_stats {
+                      num_non_missing: 1
+                    }
+                    presence_and_valency_stats {}
+                  }
+                }
+                path {
+                  step: "a"
+                }
+                """, statistics_pb2.FeatureNameStatistics())
+    }
+    generator = basic_stats_generator.BasicStatsGenerator(
+        schema=schema,
+        num_values_histogram_buckets=2,
+        num_histogram_buckets=3,
         num_quantiles_histogram_buckets=4)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 

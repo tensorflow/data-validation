@@ -101,7 +101,6 @@ class TopKUniquesCombinerStatsGenerator(
     self._frequency_threshold = frequency_threshold
     self._weighted_frequency_threshold = weighted_frequency_threshold
     self._num_rank_histogram_buckets = num_rank_histogram_buckets
-    self._feature_type = None
 
   def create_accumulator(self) -> Dict[types.FeatureName, _ValueCounts]:
     return {}
@@ -201,8 +200,6 @@ class TopKUniquesCombinerStatsGenerator(
       feature_stats_proto = (
           top_k_uniques_stats_util.make_feature_stats_proto_topk_uniques(
               feature_path=feature_path,
-              feature_type=top_k_uniques_stats_util.get_statistics_feature_type(
-                  self._categorical_numeric_types, feature_path),
               frequency_threshold=self._frequency_threshold,
               weighted_frequency_threshold=self._weighted_frequency_threshold,
               num_top_values=self._num_top_values,

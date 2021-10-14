@@ -790,15 +790,11 @@ def _make_feature_stats_proto(
         inferred_type == statistics_pb2.FeatureNameStatistics.STRING):
       result.type = statistics_pb2.FeatureNameStatistics.BYTES
     else:
-      result.type = basic_stats.common_stats.type
+      result.type = inferred_type
   # The inferred type being None means we don't see any value for this feature.
   # We trust user's claim.
   elif is_bytes:
     result.type = statistics_pb2.FeatureNameStatistics.BYTES
-  # TODO(b/199427429): Fix this type inference.
-  elif feature_path in categorical_numeric_types:
-    result.type = top_k_uniques_stats_util.get_statistics_feature_type(
-        categorical_numeric_types, feature_path)
   else:
     # We don't have an "unknown" type, so default to STRING here.
     result.type = statistics_pb2.FeatureNameStatistics.STRING

@@ -18,7 +18,10 @@
 *   Add `load_anomalies_binary` utility function.
 *   Depends on `pyarrow>=1,<6`.
 *   Merge two accumulators at a time instead of batching.
-
+*   BasicStatsGenerator is now responsible for setting
+    FeatureNameStatistics.Type. Previously it was possible for a top-k generator
+    and BasicStatsGenerator to set different types for categorical numeric
+    features with physical type STRING.
 ## Known Issues
 
 ## Breaking Changes
