@@ -6,6 +6,9 @@
 
 *   Float features can now be analyzed as categorical for the purposes of top-k
     and unique count using experimental sketch based generators.
+*   Support SQL based slicing in TFDV. This would enable slicing (using SQL) in
+    TFX OSS and Dataflow environments. SQL based slicing is currently not
+    supported on Windows.
 
 ## Bug Fixes and Other Changes
 
@@ -22,6 +25,7 @@
     FeatureNameStatistics.Type. Previously it was possible for a top-k generator
     and BasicStatsGenerator to set different types for categorical numeric
     features with physical type STRING.
+
 ## Known Issues
 
 ## Breaking Changes

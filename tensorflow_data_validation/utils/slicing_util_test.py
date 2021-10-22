@@ -18,8 +18,13 @@ from __future__ import division
 
 from __future__ import print_function
 
+import sys
+import unittest
 from absl.testing import absltest
+import apache_beam as beam
+from apache_beam.testing import util
 import pyarrow as pa
+from tensorflow_data_validation import constants
 from tensorflow_data_validation.utils import slicing_util
 
 
@@ -175,9 +180,141 @@ class SlicingUtilTest(absltest.TestCase):
     input_record_batch = pa.RecordBatch.from_arrays([
         pa.array([[b'\xF0'], ['cat']]),
     ], ['a'])
-    with self.assertRaisesRegexp(ValueError, 'must be valid UTF-8'):
+    with self.assertRaisesRegex(ValueError, 'must be valid UTF-8'):
       _ = list(
           slicing_util.get_feature_value_slicer(features)(input_record_batch))
+
+  # The SQL based slicing uses ZetaSQL which cannot be compiled on Windows.
+  # b/191377114
+  @unittest.skipIf(
+      sys.platform.startswith('win'),
+      'SQL based slicing is not supported on Windows.')
+  def test_generate_slices_sql(self):
+    input_record_batches = [
+        pa.RecordBatch.from_arrays([
+            pa.array([[1], [2, 1], [3], [2, 1, 1], [3]]),
+            pa.array([['dog'], ['cat'], ['wolf'], ['dog', 'wolf'], ['wolf']]),
+        ], ['a', 'b']),
+        pa.RecordBatch.from_arrays([
+            pa.array([[1]]), pa.array([['dog']]), pa.array([[1]])
+        ], ['a', 'b', 'c']),
+        pa.RecordBatch.from_arrays([
+            pa.array([[1]]), pa.array([['cat']]), pa.array([[1]])
+        ], ['a', 'b', 'd']),
+        pa.RecordBatch.from_arrays([
+            pa.array([[1]]), pa.array([['cat']]), pa.array([[1]])
+        ], ['a', 'b', 'e']),
+        pa.RecordBatch.from_arrays([
+            pa.array([[1]]), pa.array([['cat']]), pa.array([[1]])
+        ], ['a', 'b', 'f']),
+        pa.RecordBatch.from_arrays([
+            pa.array([[1]]), pa.array([['cat']])], ['a', 'b']),
+    ]
+    slice_sql = """
+        SELECT
+          STRUCT(a, b)
+        FROM
+          example.a, example.b
+    """
+
+    with beam.Pipeline() as pipeline:
+      # pylint: disable=no-value-for-parameter
+      result = (
+          pipeline
+          | 'Create' >> beam.Create(input_record_batches, reshuffle=False)
+          | 'GenerateSlicesSql' >> beam.ParDo(
+              slicing_util.GenerateSlicesSqlDoFn(slice_sqls=[slice_sql])))
+
+      # pylint: enable=no-value-for-parameter
+
+      def check_result(got):
+        try:
+          self.assertLen(got, 18)
+          expected_slice_keys = ([
+              u'a_1_b_dog', u'a_1_b_cat', u'a_2_b_cat', u'a_2_b_dog',
+              u'a_1_b_wolf', u'a_2_b_wolf', u'a_3_b_wolf', u'a_1_b_dog',
+              u'a_1_b_cat', u'a_1_b_cat', u'a_1_b_cat', u'a_1_b_cat'] +
+                                 [constants.DEFAULT_SLICE_KEY] * 6)
+          actual_slice_keys = [slice_key for (slice_key, _) in got]
+          self.assertCountEqual(expected_slice_keys, actual_slice_keys)
+
+        except AssertionError as err:
+          raise util.BeamAssertException(err)
+
+      util.assert_that(result, check_result)
+
+  # The SQL based slicing uses ZetaSQL which cannot be compiled on Windows.
+  # b/191377114
+  @unittest.skipIf(
+      sys.platform.startswith('win'),
+      'SQL based slicing is not supported on Windows.')
+  def test_generate_slices_sql_assert_record_batches(self):
+    input_record_batches = [
+        pa.RecordBatch.from_arrays([
+            pa.array([[1], [2, 1], [3], [2, 1, 1], [3]]),
+            pa.array([['dog'], ['cat'], ['wolf'], ['dog', 'wolf'], ['wolf']]),
+        ], ['a', 'b']),
+    ]
+    slice_sql = """
+        SELECT
+          STRUCT(a, b)
+        FROM
+          example.a, example.b
+    """
+    expected_result = [
+        (u'a_1_b_dog',
+         pa.RecordBatch.from_arrays(
+             [pa.array([[1], [2, 1, 1]]), pa.array([['dog'], ['dog', 'wolf']])],
+             ['a', 'b'])
+        ),
+        (u'a_1_b_cat',
+         pa.RecordBatch.from_arrays(
+             [pa.array([[2, 1]]), pa.array([['cat']])], ['a', 'b'])
+        ),
+        (u'a_2_b_cat',
+         pa.RecordBatch.from_arrays(
+             [pa.array([[2, 1]]), pa.array([['cat']])], ['a', 'b'])
+        ),
+        (u'a_2_b_dog',
+         pa.RecordBatch.from_arrays(
+             [pa.array([[2, 1, 1]]), pa.array([['dog', 'wolf']])], ['a', 'b'])
+        ),
+        (u'a_1_b_wolf',
+         pa.RecordBatch.from_arrays(
+             [pa.array([[2, 1, 1]]), pa.array([['dog', 'wolf']])],
+             ['a', 'b'])
+        ),
+        (u'a_2_b_wolf',
+         pa.RecordBatch.from_arrays(
+             [pa.array([[2, 1, 1]]), pa.array([['dog', 'wolf']])],
+             ['a', 'b'])
+        ),
+        (u'a_3_b_wolf',
+         pa.RecordBatch.from_arrays(
+             [pa.array([[3], [3]]), pa.array([['wolf'], ['wolf']])],
+             ['a', 'b'])
+        ),
+        (constants.DEFAULT_SLICE_KEY, input_record_batches[0]),
+    ]
+
+    with beam.Pipeline() as pipeline:
+      # pylint: disable=no-value-for-parameter
+      result = (
+          pipeline
+          | 'Create' >> beam.Create(input_record_batches, reshuffle=False)
+          | 'GenerateSlicesSql' >> beam.ParDo(
+              slicing_util.GenerateSlicesSqlDoFn(slice_sqls=[slice_sql])))
+
+      # pylint: enable=no-value-for-parameter
+
+      def check_result(got):
+        try:
+          self._check_results(got, expected_result)
+
+        except AssertionError as err:
+          raise util.BeamAssertException(err)
+
+      util.assert_that(result, check_result)
 
 
 if __name__ == '__main__':

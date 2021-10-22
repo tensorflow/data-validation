@@ -74,13 +74,38 @@ class GenerateStatisticsImpl(beam.PTransform):
           dataset
           | 'GenerateSliceKeys' >> beam.FlatMap(
               slicing_util.generate_slices, slice_functions=slice_functions))
+    elif self._options.experimental_slice_sqls:
+      dataset = (
+          dataset
+          | 'GenerateSlicesSql' >> beam.ParDo(
+              slicing_util.GenerateSlicesSqlDoFn(
+                  slice_sqls=self._options.experimental_slice_sqls)))
     else:
       # TODO(pachristopher): Remove this special case if this doesn't give any
       # performance improvement.
       dataset = (dataset
                  | 'KeyWithVoid' >> beam.Map(lambda v: (None, v)))
-
+    _ = dataset | 'TrackDistinctSliceKeys' >> _TrackDistinctSliceKeys()  # pylint: disable=no-value-for-parameter
     return dataset | GenerateSlicedStatisticsImpl(self._options)
+
+
+@beam.ptransform_fn
+def _TrackDistinctSliceKeys(  # pylint: disable=invalid-name
+    slice_keys_and_values: beam.PCollection[types.SlicedRecordBatch]
+) -> beam.pvalue.PCollection[int]:
+  """Gathers slice key telemetry post slicing."""
+
+  def increment_counter(element: int):  # pylint: disable=invalid-name
+    num_distinct_slice_keys = beam.metrics.Metrics.counter(
+        constants.METRICS_NAMESPACE, 'num_distinct_slice_keys')
+    num_distinct_slice_keys.inc(element)
+    return element
+
+  return (slice_keys_and_values
+          | 'ExtractSliceKeys' >> beam.Keys()
+          | 'RemoveDuplicates' >> beam.Distinct()
+          | 'Size' >> beam.combiners.Count.Globally()
+          | 'IncrementCounter' >> beam.Map(increment_counter))
 
 
 # This transform will be used by the example validation API to compute
@@ -100,13 +125,14 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
     Args:
       options: `tfdv.StatsOptions` for generating data statistics.
       is_slicing_enabled: Whether to include slice keys in the resulting proto,
-        even if slice functions are not provided in `options`. If slice
-        functions are provided in `options`, slice keys are included regardless
-        of this value.
+        even if slice functions or slicing SQL queries are not provided in
+        `options`. If slice functions or slicing SQL queries are provided in
+        `options`, slice keys are included regardless of this value.
     """
     self._options = options
     self._is_slicing_enabled = (
-        is_slicing_enabled or bool(self._options.experimental_slice_functions))
+        is_slicing_enabled or bool(self._options.experimental_slice_functions)
+        or bool(self._options.experimental_slice_sqls))
 
   def expand(
       self, dataset: beam.PCollection[types.SlicedRecordBatch]

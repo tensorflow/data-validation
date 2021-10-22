@@ -27,6 +27,9 @@ from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import example_weight_map
 from tensorflow_data_validation.utils import schema_util
+from tensorflow_data_validation.utils import slicing_util
+from tfx_bsl.arrow import sql_util
+from tfx_bsl.coders import example_coder
 
 from google.protobuf import json_format
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -70,7 +73,8 @@ class StatsOptions(object):
       add_default_generators: bool = True,
       feature_allowlist: Optional[List[types.FeatureName]] = None,
       experimental_use_sketch_based_topk_uniques: bool = False,
-      experimental_slice_functions: Optional[List[types.SliceFunction]] = None):
+      experimental_slice_functions: Optional[List[types.SliceFunction]] = None,
+      experimental_slice_sqls: Optional[List[Text]] = None):
     """Initializes statistics options.
 
     Args:
@@ -146,6 +150,33 @@ class StatsOptions(object):
         pyarrow.RecordBatch as input and return an
         Iterable[Tuple[Text, pyarrow.RecordBatch]]. Each tuple contains the
         slice key and the corresponding sliced RecordBatch.
+        Only one of experimental_slice_functions or experimental_slice_sqls must
+        be specified.
+      experimental_slice_sqls: List of slicing SQL queries. The query must have
+        the following pattern:
+            "SELECT STRUCT({feature_name} [AS {slice_key}])
+             [FROM example.feature_name [, example.feature_name, ... ]
+             [WHERE ... ]]"
+        The “example.feature_name” inside the FROM statement is used to flatten
+        the repeated fields. For non-repeated fields, you can directly write the
+        query as follows:
+            “SELECT STRUCT(non_repeated_feature_a, non_repeated_feature_b)”
+        In the query, the “example” is a key word that binds to each input
+        "row". The semantics of this variable will depend on the decoding of
+        the input data to the Arrow representation (e.g., for tf.Example, each
+        key is decoded to a separate column). Thus, structured data can be
+        readily accessed by iterating/unnesting the fields of the "example"
+        variable.
+        Example 1: Slice on each value of a feature
+            "SELECT STRUCT(gender) FROM example.gender"
+        Example 2: Slice on each value of one feature and a specified value of
+                   another.
+            "SELECT STRUCT(gender, country)
+             FROM example.gender, example.country
+             WHERE country = 'USA'"
+        Only one of experimental_slice_functions or experimental_slice_sqls must
+        be specified.
+        Note that this option is not supported on Windows.
     """
     self.generators = generators
     self.feature_allowlist = feature_allowlist
@@ -178,6 +209,7 @@ class StatsOptions(object):
     self.add_default_generators = add_default_generators
     self.experimental_use_sketch_based_topk_uniques = (
         experimental_use_sketch_based_topk_uniques)
+    self.experimental_slice_sqls = experimental_slice_sqls
 
   def to_json(self) -> Text:
     """Convert from an object to JSON representation of the __dict__ attribute.
@@ -300,6 +332,8 @@ class StatsOptions(object):
   @experimental_slice_functions.setter
   def experimental_slice_functions(
       self, slice_functions: Optional[List[types.SliceFunction]]) -> None:
+    if hasattr(self, 'experimental_slice_sqls'):
+      _validate_slicing_options(slice_functions, self.experimental_slice_sqls)
     if slice_functions is not None:
       if not isinstance(slice_functions, list):
         raise TypeError(
@@ -310,6 +344,19 @@ class StatsOptions(object):
           raise TypeError(
               'experimental_slice_functions must contain functions only.')
     self._slice_functions = slice_functions
+
+  @property
+  def experimental_slice_sqls(self) -> Optional[List[Text]]:
+    return self._slice_sqls
+
+  @experimental_slice_sqls.setter
+  def experimental_slice_sqls(self, slice_sqls: Optional[List[Text]]) -> None:
+    if hasattr(self, 'experimental_slice_functions'):
+      _validate_slicing_options(self.experimental_slice_functions, slice_sqls)
+    if slice_sqls and self.schema:
+      for slice_sql in slice_sqls:
+        _validate_sql(slice_sql, self.schema)
+    self._slice_sqls = slice_sqls
 
   @property
   def sample_rate(self) -> Optional[float]:
@@ -412,3 +459,22 @@ class StatsOptions(object):
       raise ValueError('Categorical float features set in schema require '
                        'experimental_use_sketch_based_topk_uniques')
     self._use_sketch_based_topk_uniques = use_sketch_based_topk_uniques
+
+
+def _validate_sql(sql_query: Text, schema: schema_pb2.Schema):
+  arrow_schema = example_coder.ExamplesToRecordBatchDecoder(
+      schema.SerializeToString()).ArrowSchema()
+  formatted_query = slicing_util.format_slice_sql_query(sql_query)
+  try:
+    sql_util.RecordBatchSQLSliceQuery(formatted_query, arrow_schema)
+  except Exception as e:  # pylint: disable=broad-except
+    raise ValueError('One of the slice SQL query %s raised an exception: %s.'
+                     % (sql_query, repr(e)))
+
+
+def _validate_slicing_options(
+    slice_fns: Optional[List[types.SliceFunction]] = None,
+    slice_sqls: Optional[List[Text]] = None):
+  if slice_fns and slice_sqls:
+    raise ValueError('Only one of experimental_slice_functions or '
+                     'experimental_slice_sqls must be specified.')

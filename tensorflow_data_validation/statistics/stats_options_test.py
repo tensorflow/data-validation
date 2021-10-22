@@ -17,6 +17,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import sys
+import unittest
 from absl.testing import absltest
 from absl.testing import parameterized
 from tensorflow_data_validation import types
@@ -212,6 +214,15 @@ INVALID_STATS_OPTIONS = [
         'error_message': ('Categorical float features set in schema require '
                           'experimental_use_sketch_based_topk_uniques'),
     },
+    {
+        'testcase_name': 'both_slice_fns_and_slice_sqls_specified',
+        'stats_options_kwargs': {
+            'experimental_slice_functions': [lambda x: (None, x)],
+            'experimental_slice_sqls': ['']
+        },
+        'exception_type': ValueError,
+        'error_message': 'Only one of experimental_slice_functions or'
+    },
 ]
 
 
@@ -222,6 +233,27 @@ class StatsOptionsTest(parameterized.TestCase):
                          error_message):
     with self.assertRaisesRegex(exception_type, error_message):
       stats_options.StatsOptions(**stats_options_kwargs)
+
+  # The SQL based slicing uses ZetaSQL which cannot be compiled on Windows.
+  # b/191377114
+  @unittest.skipIf(
+      sys.platform.startswith('win'),
+      'SQL based slicing is not supported on Windows.')
+  def test_stats_options_invalid_slicing_sql_query(self):
+    schema = schema_pb2.Schema(
+        feature=[schema_pb2.Feature(name='feat1', type=schema_pb2.BYTES),
+                 schema_pb2.Feature(name='feat3', type=schema_pb2.INT)],)
+    experimental_slice_sqls = [
+        """
+        SELECT
+          STRUCT(feat1, feat2)
+        FROM
+          example.feat1, example.feat2
+        """
+    ]
+    with self.assertRaisesRegex(ValueError, 'One of the slice SQL query'):
+      stats_options.StatsOptions(
+          experimental_slice_sqls=experimental_slice_sqls, schema=schema)
 
   def test_stats_options_json_round_trip(self):
     generators = [
@@ -338,7 +370,8 @@ class StatsOptionsTest(parameterized.TestCase):
       "_semantic_domain_stats_sample_rate": null,
       "_per_feature_weight_override": null,
       "_add_default_generators": true,
-      "_use_sketch_based_topk_uniques": false
+      "_use_sketch_based_topk_uniques": false,
+      "_slice_sqls": null
     }"""
     actual_options = stats_options.StatsOptions.from_json(options_json)
     expected_options_dict = stats_options.StatsOptions().__dict__
@@ -364,6 +397,7 @@ class StatsOptionsTest(parameterized.TestCase):
                      options.example_weight_map.get(types.FeaturePath(['x'])))
     self.assertEqual(frozenset(['w']),
                      options.example_weight_map.all_weight_features())
+
 
 if __name__ == '__main__':
   absltest.main()

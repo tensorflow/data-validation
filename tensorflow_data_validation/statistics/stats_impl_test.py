@@ -18,6 +18,8 @@ from __future__ import division
 
 from __future__ import print_function
 
+import sys
+import unittest
 from absl.testing import absltest
 from absl.testing import parameterized
 import apache_beam as beam
@@ -2313,41 +2315,7 @@ _GENERATE_STATS_IN_MEMORY_ONLY_TESTS = [
     },
 ]
 
-_SLICING_TESTS = [
-    {
-        'testcase_name':
-            'feature_value_slicing',
-        'record_batches': [
-            pa.RecordBatch.from_arrays([
-                pa.array([[1.0, 2.0]], type=pa.list_(pa.float32())),
-                pa.array([[b'a']], type=pa.list_(pa.binary())),
-                pa.array([np.linspace(1, 500, 500, dtype=np.int64)]),
-            ], ['a', 'b', 'c']),
-            pa.RecordBatch.from_arrays([
-                pa.array([[3.0, 4.0, np.NaN, 5.0]], type=pa.list_(
-                    pa.float32())),
-                pa.array([[b'a', b'b']], type=pa.list_(pa.binary())),
-                pa.array([np.linspace(501, 1250, 750, dtype=np.int64)]),
-            ], ['a', 'b', 'c']),
-            pa.RecordBatch.from_arrays([
-                pa.array([[1.0]], type=pa.list_(pa.float32())),
-                pa.array([[b'b']], type=pa.list_(pa.binary())),
-                pa.array([np.linspace(1251, 3000, 1750, dtype=np.int64)]),
-            ], ['a', 'b', 'c'])
-        ],
-        'options':
-            stats_options.StatsOptions(
-                experimental_slice_functions=[
-                    slicing_util.get_feature_value_slicer({'b': None})
-                ],
-                num_top_values=2,
-                num_rank_histogram_buckets=2,
-                num_values_histogram_buckets=2,
-                num_histogram_buckets=2,
-                num_quantiles_histogram_buckets=2,
-                enable_semantic_domain_stats=True),
-        'expected_result_proto_text':
-            """
+_SLICED_STATS_TEST_RESULT = """
             datasets {
               name: "All Examples"
               num_examples: 3
@@ -2861,7 +2829,84 @@ _SLICING_TESTS = [
                 }
               }
             }
-            """,
+"""
+
+_SLICING_FN_TESTS = [
+    {
+        'testcase_name':
+            'feature_value_slicing_slice_fns',
+        'record_batches': [
+            pa.RecordBatch.from_arrays([
+                pa.array([[1.0, 2.0]], type=pa.list_(pa.float32())),
+                pa.array([[b'a']], type=pa.list_(pa.binary())),
+                pa.array([np.linspace(1, 500, 500, dtype=np.int64)]),
+            ], ['a', 'b', 'c']),
+            pa.RecordBatch.from_arrays([
+                pa.array([[3.0, 4.0, np.NaN, 5.0]], type=pa.list_(
+                    pa.float32())),
+                pa.array([[b'a', b'b']], type=pa.list_(pa.binary())),
+                pa.array([np.linspace(501, 1250, 750, dtype=np.int64)]),
+            ], ['a', 'b', 'c']),
+            pa.RecordBatch.from_arrays([
+                pa.array([[1.0]], type=pa.list_(pa.float32())),
+                pa.array([[b'b']], type=pa.list_(pa.binary())),
+                pa.array([np.linspace(1251, 3000, 1750, dtype=np.int64)]),
+            ], ['a', 'b', 'c'])
+        ],
+        'options':
+            stats_options.StatsOptions(
+                experimental_slice_functions=[
+                    slicing_util.get_feature_value_slicer({'b': None})
+                ],
+                num_top_values=2,
+                num_rank_histogram_buckets=2,
+                num_values_histogram_buckets=2,
+                num_histogram_buckets=2,
+                num_quantiles_histogram_buckets=2,
+                enable_semantic_domain_stats=True),
+        'expected_result_proto_text': _SLICED_STATS_TEST_RESULT
+    },
+]
+
+_SLICING_SQL_TESTS = [
+    {
+        'testcase_name':
+            'feature_value_slicing_slice_sqls',
+        'record_batches': [
+            pa.RecordBatch.from_arrays([
+                pa.array([[1.0, 2.0]], type=pa.list_(pa.float32())),
+                pa.array([[b'a']], type=pa.list_(pa.binary())),
+                pa.array([np.linspace(1, 500, 500, dtype=np.int64)]),
+            ], ['a', 'b', 'c']),
+            pa.RecordBatch.from_arrays([
+                pa.array([[3.0, 4.0, np.NaN, 5.0]], type=pa.list_(
+                    pa.float32())),
+                pa.array([[b'a', b'b']], type=pa.list_(pa.binary())),
+                pa.array([np.linspace(501, 1250, 750, dtype=np.int64)]),
+            ], ['a', 'b', 'c']),
+            pa.RecordBatch.from_arrays([
+                pa.array([[1.0]], type=pa.list_(pa.float32())),
+                pa.array([[b'b']], type=pa.list_(pa.binary())),
+                pa.array([np.linspace(1251, 3000, 1750, dtype=np.int64)]),
+            ], ['a', 'b', 'c'])
+        ],
+        'options':
+            stats_options.StatsOptions(
+                experimental_slice_sqls=[
+                    """
+                    SELECT
+                      STRUCT(b)
+                    FROM
+                      example.b
+                    """
+                ],
+                num_top_values=2,
+                num_rank_histogram_buckets=2,
+                num_values_histogram_buckets=2,
+                num_histogram_buckets=2,
+                num_quantiles_histogram_buckets=2,
+                enable_semantic_domain_stats=True),
+        'expected_result_proto_text': _SLICED_STATS_TEST_RESULT
     },
 ]
 
@@ -2870,7 +2915,7 @@ class StatsImplTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       *(_GENERATE_STATS_TESTS + _GENERATE_STATS_NO_IN_MEMORY_TESTS +
-        _SLICING_TESTS))
+        _SLICING_FN_TESTS))
   def test_stats_impl(self,
                       record_batches,
                       options,
@@ -2881,6 +2926,57 @@ class StatsImplTest(parameterized.TestCase):
         statistics_pb2.DatasetFeatureStatisticsList())
     if schema is not None:
       options.schema = schema
+    with beam.Pipeline() as p:
+      result = (
+          p | beam.Create(record_batches, reshuffle=False)
+          | stats_impl.GenerateStatisticsImpl(options))
+      util.assert_that(
+          result,
+          test_util.make_dataset_feature_stats_list_proto_equal_fn(
+              self, expected_result))
+
+  # The SQL based slicing uses ZetaSQL which cannot be compiled on Windows.
+  # b/191377114
+  @unittest.skipIf(
+      sys.platform.startswith('win'),
+      'SQL based slicing is not supported on Windows.')
+  def test_stats_impl_slicing_sql(self):
+    record_batches = [
+        pa.RecordBatch.from_arrays([
+            pa.array([[1.0, 2.0]], type=pa.list_(pa.float32())),
+            pa.array([[b'a']], type=pa.list_(pa.binary())),
+            pa.array([np.linspace(1, 500, 500, dtype=np.int64)]),
+        ], ['a', 'b', 'c']),
+        pa.RecordBatch.from_arrays([
+            pa.array([[3.0, 4.0, np.NaN, 5.0]], type=pa.list_(
+                pa.float32())),
+            pa.array([[b'a', b'b']], type=pa.list_(pa.binary())),
+            pa.array([np.linspace(501, 1250, 750, dtype=np.int64)]),
+        ], ['a', 'b', 'c']),
+        pa.RecordBatch.from_arrays([
+            pa.array([[1.0]], type=pa.list_(pa.float32())),
+            pa.array([[b'b']], type=pa.list_(pa.binary())),
+            pa.array([np.linspace(1251, 3000, 1750, dtype=np.int64)]),
+        ], ['a', 'b', 'c'])
+    ]
+    options = stats_options.StatsOptions(
+        experimental_slice_sqls=[
+            """
+            SELECT
+              STRUCT(b)
+            FROM
+              example.b
+            """
+        ],
+        num_top_values=2,
+        num_rank_histogram_buckets=2,
+        num_values_histogram_buckets=2,
+        num_histogram_buckets=2,
+        num_quantiles_histogram_buckets=2,
+        enable_semantic_domain_stats=True)
+    expected_result = text_format.Parse(
+        _SLICED_STATS_TEST_RESULT,
+        statistics_pb2.DatasetFeatureStatisticsList())
     with beam.Pipeline() as p:
       result = (
           p | beam.Create(record_batches, reshuffle=False)

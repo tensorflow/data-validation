@@ -21,7 +21,8 @@ from __future__ import print_function
 import collections
 import functools
 
-from typing import Any, Dict, Iterable, Optional, Text, Union
+from typing import Any, Dict, Iterable, List, Optional, Text, Union
+import apache_beam as beam
 import numpy as np
 import pandas as pd
 # TODO(b/189942510): Remove unused import after the blocking bug is resolved.
@@ -33,7 +34,9 @@ from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.utils import stats_util
+from tfx_bsl.arrow import sql_util
 from tfx_bsl.arrow import table_util
+
 
 _ValueType = Iterable[Union[Text, int, bytes]]
 
@@ -222,3 +225,67 @@ def generate_slices(
     except Exception as e:
       raise ValueError('One of the slice_functions %s raised an exception: %s.'
                        % (slice_fn.__name__, repr(e)))
+
+
+def format_slice_sql_query(slice_sql_query: Text) -> Text:
+
+  return """
+         SELECT
+           ARRAY(
+             {}
+           ) as slice_key
+         FROM Examples as example;""".format(slice_sql_query)
+
+
+class GenerateSlicesSqlDoFn(beam.DoFn):
+  """A DoFn that extracts slice keys in batch based on input SQL."""
+
+  def __init__(self, slice_sqls: List[Text]):
+    self._sqls = [
+        format_slice_sql_query(slice_sql) for slice_sql in slice_sqls]
+    self._sql_slicer_schema_cache_hits = (
+        beam.metrics.Metrics.distribution(
+            constants.METRICS_NAMESPACE, 'sql_slicer_schema_cache_hits'))
+    self._sql_slicer_schema_cache_misses = (
+        beam.metrics.Metrics.distribution(
+            constants.METRICS_NAMESPACE, 'sql_slicer_schema_cache_misses'))
+
+  def setup(self):
+
+    def _generate_queries(
+        schema: pa.Schema) -> List[sql_util.RecordBatchSQLSliceQuery]:
+      return [
+          sql_util.RecordBatchSQLSliceQuery(sql, schema) for sql in self._sqls
+      ]
+
+    # A cache for compiled sql queries, keyed by record batch schemas.
+    # This way we can work with record batches of different schemas.
+    self._get_queries_for_schema = functools.lru_cache(maxsize=3)(
+        _generate_queries)
+
+  def process(self, record_batch: pa.RecordBatch
+             ) -> Iterable[types.SlicedRecordBatch]:
+    # Keep track of row indices per slice key.
+    per_slice_indices = collections.defaultdict(set)
+    for query in self._get_queries_for_schema(record_batch.schema):
+      # Example of result with batch size = 3:
+      # result = [[[('feature', 'value_1')]],
+      #           [[('feature', 'value_2')]],
+      #           []
+      #          ]
+      result = query.Execute(record_batch)
+      for i, per_row_slices in enumerate(result):
+        for slice_tuples in per_row_slices:
+          slice_key = '_'.join(map('_'.join, slice_tuples))
+          per_slice_indices[slice_key].add(i)
+
+    yield (constants.DEFAULT_SLICE_KEY, record_batch)
+    for slice_key, row_indices in per_slice_indices.items():
+      yield (slice_key,
+             table_util.RecordBatchTake(record_batch, pa.array(row_indices)))
+
+  def teardown(self):
+    self._sql_slicer_schema_cache_hits.update(
+        self._get_queries_for_schema.cache_info().hits)
+    self._sql_slicer_schema_cache_misses.update(
+        self._get_queries_for_schema.cache_info().misses)
