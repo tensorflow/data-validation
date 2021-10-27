@@ -4,6 +4,18 @@
 
 ## Major Features and Improvements
 
+## Bug Fixes and Other Changes
+
+## Known Issues
+
+## Breaking Changes
+
+## Deprecations
+
+# Version 1.4.0
+
+## Major Features and Improvements
+
 *   Float features can now be analyzed as categorical for the purposes of top-k
     and unique count using experimental sketch based generators.
 *   Support SQL based slicing in TFDV. This would enable slicing (using SQL) in
@@ -19,16 +31,22 @@
     return samples of anomalous examples.
 *   Changes to source code ensures that it can now work with `pyarrow>=3`.
 *   Add `load_anomalies_binary` utility function.
-*   Depends on `pyarrow>=1,<6`.
 *   Merge two accumulators at a time instead of batching.
 *   BasicStatsGenerator is now responsible for setting
     FeatureNameStatistics.Type. Previously it was possible for a top-k generator
     and BasicStatsGenerator to set different types for categorical numeric
     features with physical type STRING.
+*   Depends on `pyarrow>=1,<6`.
+*   Depends on `tensorflow-metadata>=1.4,<1.5`.
+*   Depends on `tfx-bsl>=1.4,<1.5`.
 
 ## Known Issues
 
+*   N/A
+
 ## Breaking Changes
+
+*   N/A
 
 ## Deprecations
 
