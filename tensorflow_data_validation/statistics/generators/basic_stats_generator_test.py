@@ -273,6 +273,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             num_stats {
               common_stats {
                 num_non_missing: 1
+                num_missing: 4
                 min_num_values: 2
                 max_num_values: 2
                 avg_num_values: 2.0
@@ -357,6 +358,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             num_stats {
               common_stats {
                 num_non_missing: 3
+                num_missing: 2
                 min_num_values: 1
                 max_num_values: 3
                 avg_num_values: 1.66666698456
@@ -456,7 +458,9 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             type: STRING
             string_stats {
               common_stats {
+                num_missing: 3
                 weighted_common_stats {
+                  num_missing: 3.0
                 }
               }
             }
@@ -499,6 +503,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             num_stats {
               common_stats {
                 num_non_missing: 3
+                num_missing: 1
                 min_num_values: 2
                 max_num_values: 4
                 avg_num_values: 3.0
@@ -528,6 +533,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 }
                 weighted_common_stats {
                   num_non_missing: 6.0
+                  num_missing: 2.0
                   avg_num_values: 3.33333333
                   tot_num_values: 20.0
                 }
@@ -640,6 +646,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             num_stats {
               common_stats {
                 num_non_missing: 3
+                num_missing: 1
                 min_num_values: 1
                 max_num_values: 3
                 avg_num_values: 2.0
@@ -669,6 +676,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 }
                 weighted_common_stats {
                   num_non_missing: 6.0
+                  num_missing: 2.0
                   avg_num_values: 1.83333333
                   tot_num_values: 11.0
                 }
@@ -939,6 +947,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             num_stats {
               common_stats {
                 num_non_missing: 3
+                num_missing: 1
                 min_num_values: 2
                 max_num_values: 4
                 avg_num_values: 3.0
@@ -968,6 +977,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 }
                 weighted_common_stats {
                   num_non_missing: 6.0
+                  num_missing: 2.0
                   avg_num_values: 3.33333333
                   tot_num_values: 20.0
                 }
@@ -1076,6 +1086,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             num_stats {
               common_stats {
                 num_non_missing: 3
+                num_missing: 1
                 min_num_values: 1
                 max_num_values: 3
                 avg_num_values: 2.0
@@ -1104,6 +1115,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 }
                 weighted_common_stats {
                   num_non_missing: 5.0
+                  num_missing: 3.0
                   avg_num_values: 1.8
                   tot_num_values: 9.0
                 }
@@ -1236,6 +1248,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             num_stats {
               common_stats {
                 num_non_missing: 3
+                num_missing: 2
                 min_num_values: 1
                 max_num_values: 3
                 avg_num_values: 2.0
@@ -1317,6 +1330,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             string_stats {
               common_stats {
                 num_non_missing: 3
+                num_missing: 2
                 min_num_values: 1
                 max_num_values: 4
                 avg_num_values: 2.33333333
@@ -1748,6 +1762,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             string_stats {
               common_stats {
                 num_non_missing: 4
+                num_missing: 2
                 min_num_values: 1
                 max_num_values: 5
                 avg_num_values: 2.5
@@ -1812,6 +1827,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             string_stats {
               common_stats {
                 num_non_missing: 4
+                num_missing: 2
                 min_num_values: 1
                 max_num_values: 5
                 avg_num_values: 2.5
@@ -2129,6 +2145,7 @@ _STRUCT_TEST_CASES = [
               struct_stats {
                 common_stats {
                   num_non_missing: 1
+                  num_missing: 1
                   min_num_values: 3
                   max_num_values: 3
                   avg_num_values: 3.0
@@ -2376,6 +2393,7 @@ _STRUCT_TEST_CASES = [
               struct_stats {
                 common_stats {
                   num_non_missing: 4
+                  num_missing: 1
                   max_num_values: 2
                   avg_num_values: 1.25
                   num_values_histogram {
@@ -3019,6 +3037,7 @@ _NESTED_TEST_CASES = [
             string_stats {
               common_stats {
                 num_non_missing: 3
+                num_missing: 2
                 min_num_values: 2
                 max_num_values: 3
                 avg_num_values: 2.666667
@@ -3037,12 +3056,14 @@ _NESTED_TEST_CASES = [
                 }
                 weighted_common_stats {
                   num_non_missing: 3.0
+                  num_missing: 2.0
                   avg_num_values: 2.6666667
                   tot_num_values: 8.0
                 }
                 tot_num_values: 8
                 presence_and_valency_stats {
                   num_non_missing: 3
+                  num_missing: 2
                   min_num_values: 2
                   max_num_values: 3
                   tot_num_values: 8
@@ -3062,6 +3083,7 @@ _NESTED_TEST_CASES = [
                 }
                 weighted_presence_and_valency_stats {
                   num_non_missing: 3.0
+                  num_missing: 2.0
                   avg_num_values: 2.6666667
                   tot_num_values: 8.0
                 }
@@ -3127,6 +3149,7 @@ _NESTED_TEST_CASES = [
             string_stats {
               common_stats {
                 num_non_missing: 2
+                num_missing: 1
                 max_num_values: 2
                 avg_num_values: 1.0
                 num_values_histogram {
@@ -3144,6 +3167,7 @@ _NESTED_TEST_CASES = [
                 tot_num_values: 2
                 presence_and_valency_stats {
                   num_non_missing: 2
+                  num_missing: 1
                   max_num_values: 2
                   tot_num_values: 2
                 }

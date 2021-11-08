@@ -6,6 +6,10 @@
 
 ## Bug Fixes and Other Changes
 
+*   BasicStatsGenerator is now responsible for setting the global num_examples.
+    This field will no longer be populated at the DatasetFeatureStatistics level
+    if default generators are disabled.
+
 ## Known Issues
 
 ## Breaking Changes

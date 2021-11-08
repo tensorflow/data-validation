@@ -58,7 +58,7 @@ import collections
 import itertools
 import math
 import sys
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Text
+from typing import Any, Callable, Iterable, List, Mapping, Optional, Text
 
 import apache_beam as beam
 import numpy as np
@@ -443,8 +443,9 @@ class _PartialBasicStats(object):
 
 def _make_presence_and_valency_stats_protos(
     parent_presence_and_valency: Optional[_PresenceAndValencyStats],
-    presence_and_valency: List[_PresenceAndValencyStats]
-    ) -> List[statistics_pb2.PresenceAndValencyStatistics]:
+    presence_and_valency: List[_PresenceAndValencyStats],
+    num_examples: int,
+) -> List[statistics_pb2.PresenceAndValencyStatistics]:
   """Converts presence and valency stats to corresponding protos."""
   result = []
   # The top-level non-missing is computed by
@@ -457,6 +458,8 @@ def _make_presence_and_valency_stats_protos(
     proto = statistics_pb2.PresenceAndValencyStatistics()
     if prev_s is not None:
       proto.num_missing = (prev_s.total_num_values - s.num_non_missing)
+    else:
+      proto.num_missing = num_examples - s.num_non_missing
     proto.num_non_missing = s.num_non_missing
     if s.num_non_missing > 0:
       proto.min_num_values = s.min_num_values
@@ -468,8 +471,9 @@ def _make_presence_and_valency_stats_protos(
 
 def _make_weighted_presence_and_valency_stats_protos(
     parent_presence_and_valency: Optional[_PresenceAndValencyStats],
-    presence_and_valency: List[_PresenceAndValencyStats]
-    ) -> List[statistics_pb2.WeightedCommonStatistics]:
+    presence_and_valency: List[_PresenceAndValencyStats],
+    weighted_num_examples: int,
+) -> List[statistics_pb2.WeightedCommonStatistics]:
   """Converts weighted presence and valency stats to corresponding protos."""
   result = []
   # The top-level non-missing is computed by
@@ -485,6 +489,8 @@ def _make_weighted_presence_and_valency_stats_protos(
     if prev_s is not None:
       proto.num_missing = (
           prev_s.weighted_total_num_values - s.weighted_num_non_missing)
+    else:
+      proto.num_missing = weighted_num_examples - s.weighted_num_non_missing
     proto.num_non_missing = s.weighted_num_non_missing
     proto.tot_num_values = s.weighted_total_num_values
     if s.weighted_num_non_missing > 0:
@@ -499,7 +505,9 @@ def _make_common_stats_proto(
     parent_common_stats: Optional[_PartialCommonStats],
     make_quantiles_sketch_fn: Callable[[], sketches.QuantilesSketch],
     num_values_histogram_buckets: int,
-    has_weights: bool
+    has_weights: bool,
+    num_examples: int,
+    weighted_num_examples: int,
 ) -> statistics_pb2.CommonStatistics:
   """Convert the partial common stats into a CommonStatistics proto."""
   result = statistics_pb2.CommonStatistics()
@@ -516,25 +524,27 @@ def _make_common_stats_proto(
   if (presence_and_valency_stats is not None and
       len(presence_and_valency_stats) > 1):
     result.presence_and_valency_stats.extend(
-        _make_presence_and_valency_stats_protos(
-            parent_presence_and_valency,
-            common_stats.presence_and_valency_stats))
+        _make_presence_and_valency_stats_protos(parent_presence_and_valency,
+                                                presence_and_valency_stats,
+                                                num_examples))
     if has_weights:
       result.weighted_presence_and_valency_stats.extend(
           _make_weighted_presence_and_valency_stats_protos(
               parent_presence_and_valency,
-              common_stats.presence_and_valency_stats))
+              common_stats.presence_and_valency_stats, weighted_num_examples))
 
   top_level_presence_and_valency = (
       _PresenceAndValencyStats(make_quantiles_sketch_fn)
       if common_stats.presence_and_valency_stats is None else
       common_stats.presence_and_valency_stats[0])
   result.num_non_missing = top_level_presence_and_valency.num_non_missing
-
   if parent_presence_and_valency is not None:
     result.num_missing = (
         parent_presence_and_valency.total_num_values -
         top_level_presence_and_valency.num_non_missing)
+  else:
+    result.num_missing = (
+        num_examples - top_level_presence_and_valency.num_non_missing)
   result.tot_num_values = top_level_presence_and_valency.total_num_values
 
   # TODO(b/79685042): Need to decide on what is the expected values for
@@ -566,6 +576,10 @@ def _make_common_stats_proto(
     if parent_presence_and_valency is not None:
       weighted_common_stats_proto.num_missing = (
           parent_presence_and_valency.weighted_total_num_values -
+          top_level_presence_and_valency.weighted_num_non_missing)
+    else:
+      weighted_common_stats_proto.num_missing = (
+          weighted_num_examples -
           top_level_presence_and_valency.weighted_num_non_missing)
 
     if top_level_presence_and_valency.weighted_num_non_missing > 0:
@@ -755,7 +769,8 @@ def _make_feature_stats_proto(
     num_quantiles_histogram_buckets: int, is_bytes: bool,
     categorical_numeric_types: Mapping[types.FeaturePath,
                                        'schema_pb2.FeatureType'],
-    has_weights: bool) -> statistics_pb2.FeatureNameStatistics:
+    has_weights: bool, num_examples: int,
+    weighted_num_examples: int) -> statistics_pb2.FeatureNameStatistics:
   """Convert the partial basic stats into a FeatureNameStatistics proto.
 
   Args:
@@ -773,6 +788,9 @@ def _make_feature_stats_proto(
     categorical_numeric_types: A mapping from feature path to type derived from
         the schema.
     has_weights: A boolean indicating whether a weight feature is specified.
+    num_examples: The global (across feature) number of examples.
+    weighted_num_examples: The global (across feature) weighted number of
+      examples.
 
   Returns:
     A statistics_pb2.FeatureNameStatistics proto.
@@ -801,11 +819,10 @@ def _make_feature_stats_proto(
 
   # Construct common statistics proto.
   common_stats_proto = _make_common_stats_proto(
-      basic_stats.common_stats,
-      parent_basic_stats.common_stats
-      if parent_basic_stats is not None else None,
-      make_quantiles_sketch_fn,
-      num_values_histogram_buckets, has_weights)
+      basic_stats.common_stats, parent_basic_stats.common_stats
+      if parent_basic_stats is not None else None, make_quantiles_sketch_fn,
+      num_values_histogram_buckets, has_weights, num_examples,
+      weighted_num_examples)
 
   # this is the total number of values at the leaf level.
   total_num_values = (
@@ -857,8 +874,7 @@ _TFDVMetrics = collections.namedtuple(
 _TFDVMetrics.__new__.__defaults__ = (0, sys.maxsize, 0, 0)
 
 
-def _update_tfdv_telemetry(
-    accumulator: Dict[types.FeaturePath, _PartialBasicStats]) -> None:
+def _update_tfdv_telemetry(accumulator: '_BasicAcctype') -> None:
   """Update TFDV Beam metrics."""
   # Aggregate type specific metrics.
   metrics = {
@@ -925,6 +941,33 @@ def _update_tfdv_telemetry(
 _NUM_QUANTILES_FACTOR_FOR_STD_HISTOGRAM = 100
 
 
+class _BasicAcctype(collections.abc.MutableMapping):
+  """Maintains per-feature state and example counts.
+
+  This class may be accessed as a dict.
+  """
+
+  def __init__(self):
+    self._dict = {}
+    self.num_examples = 0
+    self.weighted_num_examples = 0
+
+  def __getitem__(self, key: types.FeaturePath) -> _PartialBasicStats:
+    return self._dict[key]
+
+  def __setitem__(self, key: types.FeaturePath, value: _PartialBasicStats):
+    self._dict[key] = value
+
+  def __delitem__(self, key: types.FeaturePath):
+    del self._dict[key]
+
+  def __iter__(self):
+    return iter(self._dict)
+
+  def __len__(self):
+    return len(self._dict)
+
+
 # TODO(b/79685042): Currently the stats generator operates on the
 # Dict representation of input (mapping from feature name to a batch of
 # values). But we process each feature independently. We should
@@ -983,15 +1026,22 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
 
   # Create an accumulator, which maps feature name to the partial stats
   # associated with the feature.
-  def create_accumulator(self) -> Dict[types.FeaturePath, _PartialBasicStats]:
-    return {}
+  def create_accumulator(self) -> _BasicAcctype:
+    return _BasicAcctype()
 
   # Incorporates the input (a Python dict whose keys are feature names and
   # values are lists representing a batch of examples) into the accumulator.
-  def add_input(
-      self, accumulator: Dict[types.FeaturePath, _PartialBasicStats],
-      examples: pa.RecordBatch
-      ) -> Dict[types.FeaturePath, _PartialBasicStats]:
+  def add_input(self, accumulator: _BasicAcctype,
+                examples: pa.RecordBatch) -> _BasicAcctype:
+    accumulator.num_examples += examples.num_rows
+    # Get the default weight, if it exists. This is always the weight we use
+    # for weighted num examples.
+    maybe_weight_feature = self._example_weight_map.get(types.FeaturePath([]))
+    if maybe_weight_feature:
+      weights_column = arrow_util.get_column(examples, maybe_weight_feature)
+      accumulator.weighted_num_examples += np.sum(
+          np.asarray(weights_column.flatten()))
+
     for feature_path, feature_array, weights in arrow_util.enumerate_arrays(
         examples,
         example_weight_map=self._example_weight_map,
@@ -1031,10 +1081,11 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
 
   # Merge together a list of basic common statistics.
   def merge_accumulators(
-      self, accumulators: Iterable[Dict[types.FeaturePath, _PartialBasicStats]]
-  ) -> Dict[types.FeaturePath, _PartialBasicStats]:
-    result = {}
+      self, accumulators: Iterable[_BasicAcctype]) -> _BasicAcctype:
+    result = _BasicAcctype()
     for accumulator in accumulators:
+      result.num_examples += accumulator.num_examples
+      result.weighted_num_examples += accumulator.weighted_num_examples
       for feature_path, basic_stats in accumulator.items():
         current_type = basic_stats.common_stats.type
         existing_stats = result.get(feature_path)
@@ -1069,9 +1120,7 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
 
     return result
 
-  def compact(
-      self, accumulator: Dict[types.FeaturePath, _PartialBasicStats]
-  ) -> Dict[types.FeaturePath, _PartialBasicStats]:
+  def compact(self, accumulator: _BasicAcctype) -> _BasicAcctype:
     for stats in accumulator.values():
       stats.numeric_stats.quantiles_summary.Compact()
       if stats.numeric_stats.has_weights:
@@ -1082,15 +1131,16 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
     return accumulator
 
   # Return final stats as a DatasetFeatureStatistics proto.
-  def extract_output(self,
-                     accumulator: Dict[types.FeaturePath, _PartialBasicStats]
-                    ) -> statistics_pb2.DatasetFeatureStatistics:
+  def extract_output(
+      self,
+      accumulator: _BasicAcctype) -> statistics_pb2.DatasetFeatureStatistics:
     # Update TFDV telemetry.
     _update_tfdv_telemetry(accumulator)
 
     # Create a new DatasetFeatureStatistics proto.
     result = statistics_pb2.DatasetFeatureStatistics()
-
+    result.num_examples = accumulator.num_examples
+    result.weighted_num_examples = accumulator.weighted_num_examples
     for feature_path, basic_stats in accumulator.items():
       # Construct the FeatureNameStatistics proto from the partial
       # basic stats.
@@ -1099,7 +1149,8 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
           self._make_quantiles_sketch_fn, self._num_values_histogram_buckets,
           self._num_histogram_buckets, self._num_quantiles_histogram_buckets,
           feature_path in self._bytes_features, self._categorical_numeric_types,
-          self._example_weight_map.get(feature_path) is not None)
+          self._example_weight_map.get(feature_path) is not None,
+          accumulator.num_examples, accumulator.weighted_num_examples)
       # Copy the constructed FeatureNameStatistics proto into the
       # DatasetFeatureStatistics proto.
       new_feature_stats_proto = result.features.add()

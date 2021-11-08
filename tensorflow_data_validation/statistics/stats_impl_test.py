@@ -1867,7 +1867,6 @@ _GENERATE_STATS_TESTS = [
         'expected_result_proto_text':
             """
               datasets {
-                num_examples: 1
                 features {
                   custom_stats {
                     name: "_ValueCounter"
@@ -2300,7 +2299,6 @@ _GENERATE_STATS_IN_MEMORY_ONLY_TESTS = [
         'expected_result_proto_text':
             """
           datasets {
-            num_examples: 1
             features {
               custom_stats {
                 name: "_CompactIndicator"
@@ -2924,6 +2922,7 @@ class StatsImplTest(parameterized.TestCase):
     expected_result = text_format.Parse(
         expected_result_proto_text,
         statistics_pb2.DatasetFeatureStatisticsList())
+    print('EXPECTED %s' % expected_result)
     if schema is not None:
       options.schema = schema
     with beam.Pipeline() as p:
@@ -3510,49 +3509,6 @@ class StatsImplTest(parameterized.TestCase):
     self.assertEqual(stats_impl._merge_dataset_feature_stats_protos([]),
                      statistics_pb2.DatasetFeatureStatistics())
 
-  def test_make_dataset_feature_statistics_list_proto(self):
-    input_proto = text_format.Parse(
-        """
-        features: {
-          path {
-            step: "feature1"
-          }
-          type: STRING
-          string_stats {
-            common_stats {
-              num_non_missing: 3
-            }
-          }
-        }
-        """, statistics_pb2.DatasetFeatureStatistics())
-    dummy_feature = input_proto.features.add(
-        path=stats_impl._DUMMY_FEATURE_PATH.to_proto())
-    dummy_feature.custom_stats.add(name=stats_impl._NUM_EXAMPLES_KEY, num=7)
-    dummy_feature.custom_stats.add(name=stats_impl._WEIGHTED_NUM_EXAMPLES_KEY,
-                                   num=0)
-    expected = text_format.Parse(
-        """
-        datasets {
-          num_examples: 7
-          features: {
-            path {
-              step: "feature1"
-            }
-            type: STRING
-            string_stats {
-              common_stats {
-                num_non_missing: 3
-                num_missing: 4
-              }
-            }
-          }
-        }
-        """, statistics_pb2.DatasetFeatureStatisticsList())
-
-    self.assertEqual(
-        stats_impl._make_dataset_feature_statistics_list_proto([input_proto]),
-        expected)
-
   def test_tfdv_telemetry(self):
     record_batches = [
         pa.RecordBatch.from_arrays([
@@ -3584,7 +3540,6 @@ class StatsImplTest(parameterized.TestCase):
         | 'BasicStatsCombiner' >> beam.CombineGlobally(
             stats_impl._CombinerStatsGeneratorsCombineFn([
                 basic_stats_generator.BasicStatsGenerator(),
-                stats_impl.NumExamplesStatsGenerator()
             ])))
 
     runner = p.run()

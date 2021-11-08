@@ -19,7 +19,6 @@ import random
 from typing import Any, Callable, cast, Dict, Iterable, List, Optional, Text, Tuple
 
 import apache_beam as beam
-import numpy as np
 import pyarrow as pa
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
@@ -38,7 +37,6 @@ from tensorflow_data_validation.statistics.generators import top_k_uniques_sketc
 from tensorflow_data_validation.statistics.generators import top_k_uniques_stats_generator
 from tensorflow_data_validation.statistics.generators import weighted_feature_stats_generator
 from tensorflow_data_validation.utils import slicing_util
-from tensorflow_data_validation.utils import stats_util
 from tfx_bsl.arrow import table_util
 
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -197,7 +195,7 @@ def get_generators(options: stats_options.StatsOptions,
   Returns:
     A list of stats generator objects.
   """
-  generators = [NumExamplesStatsGenerator(options.weight_feature)]
+  generators = []
   if options.add_default_generators:
     generators.extend(_get_default_generators(options, in_memory))
   if options.generators:
@@ -404,7 +402,11 @@ def _merge_dataset_feature_stats_protos(
   result = statistics_pb2.DatasetFeatureStatistics()
   # Iterate over each DatasetFeatureStatistics proto and merge the
   # FeatureNameStatistics protos per feature and add the cross feature stats.
+  num_examples = None
   for stats_proto in stats_protos:
+    # Not every stat proto has a num examples set.
+    if num_examples is None and stats_proto.num_examples > 0:
+      num_examples = stats_proto.num_examples
     if stats_proto.cross_features:
       result.cross_features.extend(stats_proto.cross_features)
     for feature_stats_proto in stats_proto.features:
@@ -421,77 +423,16 @@ def _merge_dataset_feature_stats_protos(
         del stats_for_feature.path.step[:]
         stats_for_feature.MergeFrom(feature_stats_proto)
 
-  num_examples = None
   for feature_stats_proto in stats_per_feature.values():
     # Add the merged FeatureNameStatistics proto for the feature
     # into the DatasetFeatureStatistics proto.
     new_feature_stats_proto = result.features.add()
     new_feature_stats_proto.CopyFrom(feature_stats_proto)
 
-    # Get the number of examples from one of the features that
-    # has common stats.
-    if num_examples is None:
-      stats_type = feature_stats_proto.WhichOneof('stats')
-      stats_proto = None
-      if stats_type == 'num_stats':
-        stats_proto = feature_stats_proto.num_stats
-      else:
-        stats_proto = feature_stats_proto.string_stats
-
-      if stats_proto.HasField('common_stats'):
-        num_examples = (stats_proto.common_stats.num_non_missing +
-                        stats_proto.common_stats.num_missing)
-
   # Set the num_examples field.
   if num_examples is not None:
     result.num_examples = num_examples
   return result
-
-
-def _update_example_and_missing_count(
-    stats: statistics_pb2.DatasetFeatureStatistics) -> None:
-  """Updates example count of the dataset and missing count for all features."""
-  if not stats.features:
-    return
-  dummy_feature = stats_util.get_feature_stats(stats, _DUMMY_FEATURE_PATH)
-  num_examples = stats_util.get_custom_stats(dummy_feature, _NUM_EXAMPLES_KEY)
-  weighted_num_examples = stats_util.get_custom_stats(
-      dummy_feature, _WEIGHTED_NUM_EXAMPLES_KEY)
-  stats.features.remove(dummy_feature)
-  for feature_stats in stats.features:
-    # For features nested under a STRUCT feature, their num_missing is computed
-    # in the basic stats generator (because their num_missing is relative to
-    # their parent's value count).
-    if len(feature_stats.path.step) > 1:
-      continue
-    common_stats = None
-    which_oneof_stats = feature_stats.WhichOneof('stats')
-    if which_oneof_stats is None:
-      # There are not common_stats for this feature (which can be the case when
-      # generating only custom_stats for a sparse or weighted feature). In that
-      # case, simply continue without modifying the common stats.
-      continue
-    common_stats = getattr(feature_stats, which_oneof_stats).common_stats
-    assert num_examples >= common_stats.num_non_missing, (
-        'Total number of examples: {} is less than number of non missing '
-        'examples: {} for feature {}.'.format(
-            num_examples, common_stats.num_non_missing,
-            '.'.join(feature_stats.path.step)))
-    num_missing = int(num_examples - common_stats.num_non_missing)
-    common_stats.num_missing = num_missing
-    if common_stats.presence_and_valency_stats:
-      common_stats.presence_and_valency_stats[0].num_missing = num_missing
-    if weighted_num_examples != 0:
-      weighted_num_missing = (
-          weighted_num_examples -
-          common_stats.weighted_common_stats.num_non_missing)
-      common_stats.weighted_common_stats.num_missing = weighted_num_missing
-      if common_stats.weighted_presence_and_valency_stats:
-        common_stats.weighted_presence_and_valency_stats[0].num_missing = (
-            weighted_num_missing)
-
-  stats.num_examples = int(num_examples)
-  stats.weighted_num_examples = weighted_num_examples
 
 
 def _make_dataset_feature_statistics_list_proto(
@@ -513,61 +454,12 @@ def _make_dataset_feature_statistics_list_proto(
     # Add the input DatasetFeatureStatistics proto.
     new_stats_proto = result.datasets.add()
     new_stats_proto.CopyFrom(stats_proto)
-    # We now update the example count for the dataset and the missing count
-    # for all the features, using the number of examples computed separately
-    # using NumExamplesStatsGenerator. Note that we compute the number of
-    # examples separately to avoid ignoring example counts for features which
-    # may be completely missing in a shard. We set the missing count of a
-    # feature to be num_examples - non_missing_count.
-    _update_example_and_missing_count(new_stats_proto)
   if not stats_protos:
     # Handle the case in which there are no examples. In that case, we want to
     # output a DatasetFeatureStatisticsList proto with a dataset containing
     # num_examples == 0 instead of an empty DatasetFeatureStatisticsList proto.
     result.datasets.add(num_examples=0)
   return result
-
-
-_DUMMY_FEATURE_PATH = types.FeaturePath(['__TFDV_INTERNAL_FEATURE__'])
-_NUM_EXAMPLES_KEY = '__NUM_EXAMPLES__'
-_WEIGHTED_NUM_EXAMPLES_KEY = '__WEIGHTED_NUM_EXAMPLES__'
-
-
-class NumExamplesStatsGenerator(stats_generator.CombinerStatsGenerator):
-  """Computes total number of examples."""
-
-  def __init__(self,
-               weight_feature: Optional[types.FeatureName] = None) -> None:
-    self._weight_feature = weight_feature
-
-  def create_accumulator(self) -> List[float]:
-    return [0, 0]  # [num_examples, weighted_num_examples]
-
-  def add_input(self, accumulator: List[float],
-                examples: pa.RecordBatch) -> List[float]:
-    accumulator[0] += examples.num_rows
-    if self._weight_feature:
-      weights_column = arrow_util.get_column(examples, self._weight_feature)
-      accumulator[1] += np.sum(np.asarray(weights_column.flatten()))
-    return accumulator
-
-  def merge_accumulators(self, accumulators: Iterable[List[float]]
-                        ) -> List[float]:
-    result = self.create_accumulator()
-    for acc in accumulators:
-      result[0] += acc[0]
-      result[1] += acc[1]
-    return result
-
-  def extract_output(self, accumulator: List[float]
-                    ) -> statistics_pb2.DatasetFeatureStatistics:
-    result = statistics_pb2.DatasetFeatureStatistics()
-    dummy_feature = result.features.add()
-    dummy_feature.path.CopyFrom(_DUMMY_FEATURE_PATH.to_proto())
-    dummy_feature.custom_stats.add(name=_NUM_EXAMPLES_KEY, num=accumulator[0])
-    dummy_feature.custom_stats.add(name=_WEIGHTED_NUM_EXAMPLES_KEY,
-                                   num=accumulator[1])
-    return result
 
 
 class _CombinerStatsGeneratorsCombineFnAcc(object):
