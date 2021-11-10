@@ -2922,7 +2922,6 @@ class StatsImplTest(parameterized.TestCase):
     expected_result = text_format.Parse(
         expected_result_proto_text,
         statistics_pb2.DatasetFeatureStatisticsList())
-    print('EXPECTED %s' % expected_result)
     if schema is not None:
       options.schema = schema
     with beam.Pipeline() as p:
