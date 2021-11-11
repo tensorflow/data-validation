@@ -18,12 +18,16 @@ from __future__ import division
 from __future__ import print_function
 
 from absl.testing import absltest
+from absl.testing import parameterized
+import apache_beam as beam
+from apache_beam.testing import util as beam_test_util
 import numpy as np
 import pyarrow as pa
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import mutual_information
 from tensorflow_data_validation.statistics.generators import partitioned_stats_generator
 from tensorflow_data_validation.utils import test_util
+from tfx_bsl.arrow import table_util
 
 from google.protobuf import text_format
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -1315,8 +1319,8 @@ def _get_test_stats_with_mi(feature_paths):
   return result
 
 
-class NonStreamingCustomStatsGeneratorTest(test_util.TransformStatsGeneratorTest
-                                          ):
+class NonStreamingCustomStatsGeneratorTest(
+    test_util.TransformStatsGeneratorTest, parameterized.TestCase):
   """Tests for NonStreamingCustomStatsGenerator."""
 
   def setUp(self):
@@ -1462,7 +1466,10 @@ class NonStreamingCustomStatsGeneratorTest(test_util.TransformStatsGeneratorTest
           }
         }""", schema_pb2.Schema())
 
-  def test_ranklab_mi(self):
+  # The number of column partitions should not affect the result, even when
+  # that number is much larger than the number of columns.
+  @parameterized.parameters([1, 2, 99])
+  def test_ranklab_mi(self, column_partitions):
     expected_result = [
         _get_test_stats_with_mi([
             types.FeaturePath(["fa"]),
@@ -1477,7 +1484,8 @@ class NonStreamingCustomStatsGeneratorTest(test_util.TransformStatsGeneratorTest
             label_feature=types.FeaturePath(["label_key"]),
             schema=self.schema,
             max_encoding_length=TEST_MAX_ENCODING_LENGTH,
-            seed=TEST_SEED),
+            seed=TEST_SEED,
+            column_partitions=column_partitions),
         num_partitions=2,
         min_partitions_stat_presence=2,
         seed=TEST_SEED,
@@ -1562,6 +1570,87 @@ class NonStreamingCustomStatsGeneratorTest(test_util.TransformStatsGeneratorTest
         name="NonStreaming Mutual Information")
     self.assertSlicingAwareTransformOutputEqual(sliced_record_batches,
                                                 generator, expected_result)
+
+  def test_row_and_column_partitions_reassemble(self):
+    # We'd like to test the row/column partitioning behavior in a non-trivial
+    # condition for column partitioning. This test skips the actual MI
+    # calculation, and just verifies that RecordBatches passed to it are as we
+    # expect.
+
+    # Column names chosen so that
+    # banana:     partition 0
+    # grapefruit: partition 0
+    # apple:      partition 1
+    #
+    # Note that partition indices should be deterministic.
+    batch1 = pa.RecordBatch.from_arrays([
+        pa.array([1]),
+        pa.array([2]),
+        pa.array(["a"]),
+    ], ["banana", "grapefruit", "label_key"])
+    batch2 = pa.RecordBatch.from_arrays([
+        pa.array([3]),
+        pa.array(["b"]),
+    ], ["banana", "label_key"])
+    batch3 = pa.RecordBatch.from_arrays([
+        pa.array([4]),
+        pa.array(["c"]),
+    ], ["apple", "label_key"])
+
+    merged = table_util.MergeRecordBatches([batch1, batch2, batch3]).to_pandas()
+
+    mi = mutual_information.MutualInformation(
+        label_feature=types.FeaturePath(["label_key"]),
+        schema=self.schema,
+        max_encoding_length=TEST_MAX_ENCODING_LENGTH,
+        column_partitions=3,
+        seed=TEST_SEED)
+
+    def _make_equal_dataframe_items(expected):
+      """Compare lists of dataframes without considering order or count."""
+
+      def _assert_fn(dataframes):
+        got_expected = [False] * len(expected)
+        got_actual = [False] * len(dataframes)
+        for i, dfi in enumerate(expected):
+          for j, dfj in enumerate(dataframes):
+            # Sort by the label to account for non-deterministic PCollection
+            # order, and reorder columns for consistency.
+            dfi = dfi.sort_values("label_key")
+            dfi = dfi[list(sorted(dfi.columns))].reset_index(drop=True)
+
+            dfj = dfj.sort_values("label_key")
+            dfj = dfj[list(sorted(dfj.columns))].reset_index(drop=True)
+            if dfi.equals(dfj):
+              got_expected[i] = True
+              got_actual[j] = True
+        self.assertTrue(
+            min(got_expected),
+            msg="some expected outputs missing\ngot: %s\nexpected: %s" %
+            (dataframes, expected))
+        self.assertTrue(
+            min(got_actual),
+            msg="some actual outputs not expected\ngot: %s\nexpected: %s" %
+            (dataframes, expected))
+
+      return _assert_fn
+
+    with beam.Pipeline() as p:
+      result = (
+          p | beam.Create([("", batch1), ("", batch2), ("", batch3)])
+          | mi.partitioner(1)
+          | beam.CombinePerKey(
+              partitioned_stats_generator._SampleRecordBatchRows(999))
+          | beam.Map(lambda x: x[1].to_pandas()))
+      # Note that the batches passed to MI compute are column-wise slices of
+      # the merged RecordBatch.
+      beam_test_util.assert_that(
+          result,
+          _make_equal_dataframe_items([
+              merged[["banana", "grapefruit", "label_key"]],
+              merged[["apple", "label_key"]],
+              merged[["label_key"]],
+          ]))
 
 
 if __name__ == "__main__":

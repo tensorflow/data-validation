@@ -43,6 +43,8 @@
 *   Depends on `pyarrow>=1,<6`.
 *   Depends on `tensorflow-metadata>=1.4,<1.5`.
 *   Depends on `tfx-bsl>=1.4,<1.5`.
+*   PartitionedStatsFn can optionally provide their own PTransform to control
+    how inputs are partitioned.
 
 ## Known Issues
 

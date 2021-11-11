@@ -94,7 +94,7 @@ class AssignToPartitionTest(absltest.TestCase):
     result = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
 
     partitioned_record_batches = [
-        partitioned_stats_generator._assign_to_partition(
+        partitioned_stats_generator._default_assign_to_partition(
             record_batch, num_partitions) for record_batch in record_batches
     ]
     for (unused_slice_key,

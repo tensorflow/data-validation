@@ -14,15 +14,17 @@
 """Module that computes Mutual Information using knn estimation."""
 
 import collections
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 from absl import logging
+import apache_beam as beam
 import numpy as np
 import pandas as pd
 import pyarrow as pa
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.statistics.generators import partitioned_stats_generator
+from tensorflow_data_validation.utils import feature_partition_util
 from tensorflow_data_validation.utils import mutual_information_util
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
@@ -330,6 +332,71 @@ def _encode_examples(
   return result
 
 
+class _PartitionFn(beam.DoFn):
+  """Custom partitioner DoFn for MutualInformation."""
+
+  def __init__(self, row_partitions: int, column_partitions: int,
+               label_column: str, seed: int):
+    self._row_partitions = row_partitions
+    self._column_partitions = column_partitions
+    self._label_column = frozenset([label_column])
+    self._rng = np.random.default_rng(seed=seed)
+
+  def setup(self):
+    if self._column_partitions > 1:
+      self._partitioner = feature_partition_util.ColumnHasher(
+          self._column_partitions)
+    else:
+      self._partitioner = None
+
+  def process(
+      self, element: types.SlicedRecordBatch
+  ) -> Iterable[Tuple[Tuple[types.SliceKey, int], pa.RecordBatch]]:
+    """Performs row-wise random key assignment and column-wise slicing.
+
+    Each input RecordBatch is mapped to up to self._column_partitions output
+    RecordBatch, each of which contains a subset of columns. Only the label
+    column is duplicated across RecordBatches, so this is nearly a partitioning
+    of columns. If self._column_partitions == 1, the output RecordBatch is
+    unmodified.
+
+    The total partition key space is _row_partitions * _column_partitions.
+
+    Args:
+      element: An input sliced record batch.
+
+    Yields:
+      A sequence of partitioned RecordBatches.
+
+    """
+
+    row_partition = self._rng.integers(0, self._row_partitions, dtype=int)
+    if self._partitioner is None:
+      slice_key, record_batch = element
+      yield (slice_key, row_partition), record_batch
+    else:
+      for ((slice_key, column_partition),
+           record_batch) in feature_partition_util.generate_feature_partitions(
+               element, self._partitioner, self._label_column):
+        partition = row_partition * self._column_partitions + column_partition
+        yield (slice_key, partition), record_batch
+
+
+@beam.typehints.with_input_types(types.SlicedRecordBatch)
+@beam.typehints.with_output_types(Tuple[Tuple[types.SliceKey, int],
+                                        pa.RecordBatch])
+def _partition_transform(pcol, row_partitions: int, column_partitions: int,
+                         label_feature: types.FeaturePath, seed: int):
+  """Ptransform wrapping _default_assign_to_partition."""
+  # We need to find the column name associated with the label path.
+  steps = label_feature.steps()
+  if not steps:
+    raise ValueError("Empty label feature")
+  label = steps[0]
+  return pcol | "PartitionRowsCols" >> beam.ParDo(
+      _PartitionFn(row_partitions, column_partitions, label, seed))
+
+
 class MutualInformation(partitioned_stats_generator.PartitionedStatsFn):
   """Computes Mutual Information(MI) between each feature and the label.
 
@@ -348,18 +415,18 @@ class MutualInformation(partitioned_stats_generator.PartitionedStatsFn):
   ```
   """
 
-  def __init__(
-      self,
-      label_feature: types.FeaturePath,
-      schema: Optional[schema_pb2.Schema] = None,
-      max_encoding_length: int = 512,
-      seed: int = 12345,
-      multivalent_features: Optional[Set[types.FeaturePath]] = None,
-      categorical_features: Optional[Set[types.FeaturePath]] = None,
-      features_to_ignore: Optional[Set[types.FeaturePath]] = None,
-      normalize_by_max: bool = False,
-      allow_invalid_partitions: bool = False,
-      custom_stats_key: str = _ADJUSTED_MUTUAL_INFORMATION_KEY):
+  def __init__(self,
+               label_feature: types.FeaturePath,
+               schema: Optional[schema_pb2.Schema] = None,
+               max_encoding_length: int = 512,
+               seed: int = 12345,
+               multivalent_features: Optional[Set[types.FeaturePath]] = None,
+               categorical_features: Optional[Set[types.FeaturePath]] = None,
+               features_to_ignore: Optional[Set[types.FeaturePath]] = None,
+               normalize_by_max: bool = False,
+               allow_invalid_partitions: bool = False,
+               custom_stats_key: str = _ADJUSTED_MUTUAL_INFORMATION_KEY,
+               column_partitions: int = 1):
     """Initializes MutualInformation.
 
     Args:
@@ -378,11 +445,16 @@ class MutualInformation(partitioned_stats_generator.PartitionedStatsFn):
         dividing by the maximum possible information AMI(Y, Y).
       allow_invalid_partitions: If True, generator tolerates input partitions
         that are invalid (e.g. size of partion is < the k for the KNN), where
-        invalid partitions return no stats. The min_partitions_stat_presence
-        arg to PartitionedStatisticsAnalyzer controls how many partitions may
-        be invalid while still reporting the metric.
+        invalid partitions return no stats. The min_partitions_stat_presence arg
+        to PartitionedStatisticsAnalyzer controls how many partitions may be
+        invalid while still reporting the metric.
       custom_stats_key: A string that determines the key used in the custom
         statistic. This defaults to `_ADJUSTED_MUTUAL_INFORMATION_KEY`.
+      column_partitions: If > 1, self.partitioner returns a PTransform that
+        partitions input RecordBatches by column (feature), in addition to the
+        normal row partitioning (by batch). The total number of effective
+        partitions is column_partitions * row_partitions, where row_partitions
+        is passed to self.partitioner.
 
     Raises:
       ValueError: If label_feature does not exist in the schema.
@@ -415,6 +487,7 @@ class MutualInformation(partitioned_stats_generator.PartitionedStatsFn):
     self._features_to_ignore = features_to_ignore
     self._allow_invalid_partitions = allow_invalid_partitions
     self._custom_stats_key = custom_stats_key
+    self._column_partitions = column_partitions
 
   def _is_unique_array(self, array: np.ndarray):
     values = np.asarray(array.flatten(), dtype=np.str)
@@ -468,6 +541,12 @@ class MutualInformation(partitioned_stats_generator.PartitionedStatsFn):
     if self._normalize_by_max:
       mi_result = self._normalize_mi_values(mi_result)
     return stats_util.make_dataset_feature_stats_proto(mi_result)
+
+  def partitioner(self, num_partitions: int) -> beam.PTransform:
+    return beam.ptransform_fn(_partition_transform)(num_partitions,
+                                                    self._column_partitions,
+                                                    self._label_feature,
+                                                    self._seed)
 
   def _normalize_mi_values(self, raw_mi: Dict[types.FeaturePath, Dict[str,
                                                                       float]]):

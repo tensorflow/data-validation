@@ -33,14 +33,6 @@ from tfx_bsl.arrow import table_util
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
-def _assign_to_partition(sliced_record_batch: types.SlicedRecordBatch,
-                         num_partitions: int
-                        ) -> Tuple[Tuple[types.SliceKey, int], pa.RecordBatch]:
-  """Assigns an example to a partition key."""
-  slice_key, record_batch = sliced_record_batch
-  return (slice_key, np.random.randint(num_partitions)), record_batch
-
-
 def _get_partitioned_statistics_summary(
     statistics: Dict[types.FeaturePath, Dict[Text, np.ndarray]]
 ) -> Dict[types.FeaturePath, Dict[Text, float]]:
@@ -73,6 +65,23 @@ def get_valid_statistics(
   return valid_statistics
 
 
+def _default_assign_to_partition(
+    sliced_record_batch: types.SlicedRecordBatch,
+    num_partitions: int) -> Tuple[Tuple[types.SliceKey, int], pa.RecordBatch]:
+  """Assigns an example to a partition key."""
+  slice_key, record_batch = sliced_record_batch
+  return (slice_key, np.random.randint(num_partitions)), record_batch
+
+
+@beam.typehints.with_input_types(types.SlicedRecordBatch)
+@beam.typehints.with_output_types(Tuple[Tuple[types.SliceKey, int],
+                                        pa.RecordBatch])
+def _default_partition_transform(pcol, num_partitions):
+  """Ptransform wrapping _default_assign_to_partition."""
+  return pcol | 'DefaultPartition' >> beam.Map(_default_assign_to_partition,
+                                               num_partitions)
+
+
 class PartitionedStatsFn(object):
   """A custom non-streaming statistic.
 
@@ -103,6 +112,22 @@ class PartitionedStatsFn(object):
       make_dataset_feature_stats_proto method.
     """
     raise NotImplementedError()
+
+  def partitioner(self, num_partitions: int) -> beam.PTransform:
+    """Optional PTransform to perform partition assignment.
+
+    This may be overridden by subclasses to return a PTransform matching the
+    signature of _default_partition_transform, which will be used if this method
+    returns None.
+
+    Args:
+      num_partitions: The number of partitions to use. Overriding subclasses are
+        free to use a different number of partitions.
+
+    Returns:
+      A PTransform.
+    """
+    return beam.ptransform_fn(_default_partition_transform)(num_partitions)
 
 
 class _PartitionedStatisticsAnalyzerAccumulator(object):
@@ -224,6 +249,8 @@ class _SampleRecordBatchRows(beam.CombineFn):
     self._combine_num_record_batches = beam.metrics.Metrics.distribution(
         constants.METRICS_NAMESPACE,
         'sample_record_batch_rows_combine_num_record_batches')
+    self._combine_num_columns = beam.metrics.Metrics.distribution(
+        constants.METRICS_NAMESPACE, 'sample_record_batch_num_columns')
     # Post compress byte size.
     self._combine_byte_size = beam.metrics.Metrics.distribution(
         constants.METRICS_NAMESPACE,
@@ -245,7 +272,7 @@ class _SampleRecordBatchRows(beam.CombineFn):
     """Adds the input into the accumulator."""
     num_rows = record_batch.num_rows
     self._num_instances.inc(num_rows)
-
+    self._combine_num_columns.update(len(record_batch.columns))
     accumulator.record_batches.append(record_batch)
     accumulator.curr_byte_size += table_util.TotalByteSize(record_batch)
 
@@ -418,8 +445,8 @@ class _GenerateNonStreamingCustomStats(beam.PTransform):
     """Estimates the user defined statistic."""
 
     return (pcoll
-            | 'AssignBatchToPartition' >> beam.Map(
-                _assign_to_partition, num_partitions=self._num_partitions)
+            | 'AssignBatchToPartition' >> self._stats_fn.partitioner(
+                self._num_partitions)
             | 'GroupPartitionsIntoList' >> beam.CombinePerKey(
                 _SampleRecordBatchRows(self._max_examples_per_partition))
             | 'ProcessPartition' >> beam.Map(
