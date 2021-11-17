@@ -76,7 +76,8 @@ def _default_assign_to_partition(
 @beam.typehints.with_input_types(types.SlicedRecordBatch)
 @beam.typehints.with_output_types(Tuple[Tuple[types.SliceKey, int],
                                         pa.RecordBatch])
-def _default_partition_transform(pcol, num_partitions):
+@beam.ptransform_fn
+def _DefaultPartitionTransform(pcol, num_partitions):  # pylint: disable=invalid-name
   """Ptransform wrapping _default_assign_to_partition."""
   return pcol | 'DefaultPartition' >> beam.Map(_default_assign_to_partition,
                                                num_partitions)
@@ -127,7 +128,7 @@ class PartitionedStatsFn(object):
     Returns:
       A PTransform.
     """
-    return beam.ptransform_fn(_default_partition_transform)(num_partitions)
+    return _DefaultPartitionTransform(num_partitions)  # pylint: disable=no-value-for-parameter
 
 
 class _PartitionedStatisticsAnalyzerAccumulator(object):

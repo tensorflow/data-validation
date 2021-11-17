@@ -382,11 +382,13 @@ class _PartitionFn(beam.DoFn):
         yield (slice_key, partition), record_batch
 
 
+# pylint: disable=invalid-name
 @beam.typehints.with_input_types(types.SlicedRecordBatch)
 @beam.typehints.with_output_types(Tuple[Tuple[types.SliceKey, int],
                                         pa.RecordBatch])
-def _partition_transform(pcol, row_partitions: int, column_partitions: int,
-                         label_feature: types.FeaturePath, seed: int):
+@beam.ptransform_fn
+def _PartitionTransform(pcol, row_partitions: int, column_partitions: int,
+                        label_feature: types.FeaturePath, seed: int):
   """Ptransform wrapping _default_assign_to_partition."""
   # We need to find the column name associated with the label path.
   steps = label_feature.steps()
@@ -395,6 +397,7 @@ def _partition_transform(pcol, row_partitions: int, column_partitions: int,
   label = steps[0]
   return pcol | "PartitionRowsCols" >> beam.ParDo(
       _PartitionFn(row_partitions, column_partitions, label, seed))
+# pylint: enable=invalid-name
 
 
 class MutualInformation(partitioned_stats_generator.PartitionedStatsFn):
@@ -543,10 +546,10 @@ class MutualInformation(partitioned_stats_generator.PartitionedStatsFn):
     return stats_util.make_dataset_feature_stats_proto(mi_result)
 
   def partitioner(self, num_partitions: int) -> beam.PTransform:
-    return beam.ptransform_fn(_partition_transform)(num_partitions,
-                                                    self._column_partitions,
-                                                    self._label_feature,
-                                                    self._seed)
+    # pylint: disable=no-value-for-parameter
+    return _PartitionTransform(num_partitions, self._column_partitions,
+                               self._label_feature, self._seed)
+    # pylint: enable=no-value-for-parameter
 
   def _normalize_mi_values(self, raw_mi: Dict[types.FeaturePath, Dict[str,
                                                                       float]]):
