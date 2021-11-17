@@ -24,7 +24,6 @@ not useful to report the absence of a single component.
 
 from __future__ import absolute_import
 from __future__ import division
-
 from __future__ import print_function
 
 import numpy as np
