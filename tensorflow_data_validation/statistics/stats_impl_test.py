@@ -18,6 +18,7 @@ from __future__ import division
 from __future__ import print_function
 
 import sys
+from typing import Iterable
 import unittest
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -2828,28 +2829,30 @@ _SLICED_STATS_TEST_RESULT = """
             }
 """
 
+_SLICE_TEST_RECORD_BATCHES = [
+    pa.RecordBatch.from_arrays([
+        pa.array([[1.0, 2.0]], type=pa.list_(pa.float32())),
+        pa.array([[b'a']], type=pa.list_(pa.binary())),
+        pa.array([np.linspace(1, 500, 500, dtype=np.int64)]),
+    ], ['a', 'b', 'c']),
+    pa.RecordBatch.from_arrays([
+        pa.array([[3.0, 4.0, np.NaN, 5.0]], type=pa.list_(pa.float32())),
+        pa.array([[b'a', b'b']], type=pa.list_(pa.binary())),
+        pa.array([np.linspace(501, 1250, 750, dtype=np.int64)]),
+    ], ['a', 'b', 'c']),
+    pa.RecordBatch.from_arrays([
+        pa.array([[1.0]], type=pa.list_(pa.float32())),
+        pa.array([[b'b']], type=pa.list_(pa.binary())),
+        pa.array([np.linspace(1251, 3000, 1750, dtype=np.int64)]),
+    ], ['a', 'b', 'c'])
+]
+
 _SLICING_FN_TESTS = [
     {
         'testcase_name':
             'feature_value_slicing_slice_fns',
-        'record_batches': [
-            pa.RecordBatch.from_arrays([
-                pa.array([[1.0, 2.0]], type=pa.list_(pa.float32())),
-                pa.array([[b'a']], type=pa.list_(pa.binary())),
-                pa.array([np.linspace(1, 500, 500, dtype=np.int64)]),
-            ], ['a', 'b', 'c']),
-            pa.RecordBatch.from_arrays([
-                pa.array([[3.0, 4.0, np.NaN, 5.0]], type=pa.list_(
-                    pa.float32())),
-                pa.array([[b'a', b'b']], type=pa.list_(pa.binary())),
-                pa.array([np.linspace(501, 1250, 750, dtype=np.int64)]),
-            ], ['a', 'b', 'c']),
-            pa.RecordBatch.from_arrays([
-                pa.array([[1.0]], type=pa.list_(pa.float32())),
-                pa.array([[b'b']], type=pa.list_(pa.binary())),
-                pa.array([np.linspace(1251, 3000, 1750, dtype=np.int64)]),
-            ], ['a', 'b', 'c'])
-        ],
+        'record_batches':
+            _SLICE_TEST_RECORD_BATCHES,
         'options':
             stats_options.StatsOptions(
                 experimental_slice_functions=[
@@ -2861,9 +2864,35 @@ _SLICING_FN_TESTS = [
                 num_histogram_buckets=2,
                 num_quantiles_histogram_buckets=2,
                 enable_semantic_domain_stats=True),
-        'expected_result_proto_text': _SLICED_STATS_TEST_RESULT
+        'expected_result_proto_text':
+            _SLICED_STATS_TEST_RESULT
     },
 ]
+
+_SLICING_FN_TESTS_SHARDED = [
+    {
+        'testcase_name':
+            'feature_value_slicing_slice_fns_with_shards',
+        'record_batches':
+            _SLICE_TEST_RECORD_BATCHES,
+        'options':
+            stats_options.StatsOptions(
+                experimental_slice_functions=[
+                    slicing_util.get_feature_value_slicer({'b': None})
+                ],
+                num_top_values=2,
+                num_rank_histogram_buckets=2,
+                num_values_histogram_buckets=2,
+                num_histogram_buckets=2,
+                num_quantiles_histogram_buckets=2,
+                enable_semantic_domain_stats=True,
+                experimental_output_type=stats_options.OUTPUT_TYPE_TFRECORDS),
+        'expected_result_proto_text':
+            _SLICED_STATS_TEST_RESULT,
+        'expected_shards': 3,  # Expect one shard per dataset.
+    },
+]
+
 
 _SLICING_SQL_TESTS = [
     {
@@ -2908,6 +2937,19 @@ _SLICING_SQL_TESTS = [
 ]
 
 
+def merge_shards(
+    shards: Iterable[statistics_pb2.DatasetFeatureStatisticsList]
+) -> statistics_pb2.DatasetFeatureStatistics:
+  """Helper to merge shards for test comparison."""
+
+  def _flatten(shards):
+    for statistics_list in shards:
+      for dataset in statistics_list:
+        yield dataset
+
+  return stats_impl._merge_dataset_feature_stats_protos(_flatten(shards))
+
+
 class StatsImplTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
@@ -2917,6 +2959,7 @@ class StatsImplTest(parameterized.TestCase):
                       record_batches,
                       options,
                       expected_result_proto_text,
+                      expected_shards=1,
                       schema=None):
     expected_result = text_format.Parse(
         expected_result_proto_text,
@@ -2927,10 +2970,18 @@ class StatsImplTest(parameterized.TestCase):
       result = (
           p | beam.Create(record_batches, reshuffle=False)
           | stats_impl.GenerateStatisticsImpl(options))
+      if expected_shards > 1:
+        merge_fn = merge_shards
+      else:
+        merge_fn = None
       util.assert_that(
           result,
           test_util.make_dataset_feature_stats_list_proto_equal_fn(
-              self, expected_result))
+              self,
+              expected_result,
+              expected_result_len=expected_shards,
+              expected_result_merge_fn=merge_fn,
+          ))
 
   # The SQL based slicing uses ZetaSQL which cannot be compiled on Windows.
   # b/191377114

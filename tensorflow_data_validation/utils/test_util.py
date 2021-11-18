@@ -18,7 +18,7 @@ from __future__ import division
 from __future__ import print_function
 
 import traceback
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 from absl.testing import absltest
 import apache_beam as beam
@@ -28,7 +28,7 @@ import pyarrow as pa
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
 
-from tensorflow.python.util.protobuf import compare
+from tensorflow.python.util.protobuf import compare  # pylint: disable=g-direct-tensorflow-import
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
@@ -72,13 +72,22 @@ def make_example_dict_equal_fn(
 
 def make_dataset_feature_stats_list_proto_equal_fn(
     test: absltest.TestCase,
-    expected_result: statistics_pb2.DatasetFeatureStatisticsList
+    expected_result: statistics_pb2.DatasetFeatureStatisticsList,
+    expected_result_len: int = 1,
+    expected_result_merge_fn: Optional[
+        Callable[[Iterable[statistics_pb2.DatasetFeatureStatisticsList]],
+                 statistics_pb2.DatasetFeatureStatisticsList]] = None,
 ) -> Callable[[List[statistics_pb2.DatasetFeatureStatisticsList]], None]:
   """Makes a matcher function for comparing DatasetFeatureStatisticsList proto.
 
   Args:
     test: test case object
     expected_result: the expected DatasetFeatureStatisticsList proto.
+    expected_result_len: The expected number of elements. If this is a number
+      greater than 1, expected_result_merge_fn should be provided to merge the
+      inputs into the form expected by expected_result.
+    expected_result_merge_fn: Called on elements to merge multiple inputs into
+      the form expected by expected_result.
 
   Returns:
     A matcher function for comparing DatasetFeatureStatisticsList proto.
@@ -87,11 +96,17 @@ def make_dataset_feature_stats_list_proto_equal_fn(
   def _matcher(actual: List[statistics_pb2.DatasetFeatureStatisticsList]):
     """Matcher function for comparing DatasetFeatureStatisticsList proto."""
     try:
-      test.assertLen(actual, 1,
-                     'Expected exactly one DatasetFeatureStatisticsList')
-      test.assertLen(actual[0].datasets, len(expected_result.datasets))
+      test.assertLen(
+          actual, expected_result_len,
+          'Expected exactly %d DatasetFeatureStatisticsList' %
+          expected_result_len)
+      if len(actual) == 1:
+        actual = actual[0]
+      else:
+        actual = expected_result_merge_fn(actual)
+      test.assertLen(actual.datasets, len(expected_result.datasets))
 
-      sorted_actual_datasets = sorted(actual[0].datasets, key=lambda d: d.name)
+      sorted_actual_datasets = sorted(actual.datasets, key=lambda d: d.name)
       sorted_expected_datasets = sorted(expected_result.datasets,
                                         key=lambda d: d.name)
 

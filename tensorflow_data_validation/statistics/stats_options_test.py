@@ -284,6 +284,7 @@ class StatsOptionsTest(parameterized.TestCase):
     per_feature_weight_override = {types.FeaturePath(['a']): 'w'}
     add_default_generators = True
     use_sketch_based_topk_uniques = True
+    experimental_output_type = 'tfrecords'
 
     options = stats_options.StatsOptions(
         generators=generators,
@@ -308,8 +309,8 @@ class StatsOptionsTest(parameterized.TestCase):
         semantic_domain_stats_sample_rate=semantic_domain_stats_sample_rate,
         per_feature_weight_override=per_feature_weight_override,
         add_default_generators=add_default_generators,
-        experimental_use_sketch_based_topk_uniques=use_sketch_based_topk_uniques
-    )
+        experimental_use_sketch_based_topk_uniques=use_sketch_based_topk_uniques,
+        experimental_output_type=experimental_output_type)
 
     options_json = options.to_json()
     options = stats_options.StatsOptions.from_json(options_json)
@@ -371,7 +372,8 @@ class StatsOptionsTest(parameterized.TestCase):
       "_per_feature_weight_override": null,
       "_add_default_generators": true,
       "_use_sketch_based_topk_uniques": false,
-      "_slice_sqls": null
+      "_slice_sqls": null,
+      "_experimental_output_type": "binary_pb"
     }"""
     actual_options = stats_options.StatsOptions.from_json(options_json)
     expected_options_dict = stats_options.StatsOptions().__dict__

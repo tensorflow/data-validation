@@ -37,6 +37,9 @@ from tensorflow_metadata.proto.v0 import schema_pb2
 _SCHEMA_JSON_KEY = 'schema_json'
 _PER_FEATURE_WEIGHT_OVERRIDE_JSON_KEY = 'per_feature_weight_override_json'
 
+OUTPUT_TYPE_BINARY_PB = 'binary_pb'
+OUTPUT_TYPE_TFRECORDS = 'tfrecords'
+
 # TODO(b/181559345): Currently we use a single epsilon (error tolerance)
 # parameter for all histograms. Set this parameter specific to each
 # histogram based on the number of buckets.
@@ -73,7 +76,8 @@ class StatsOptions(object):
       feature_allowlist: Optional[List[types.FeatureName]] = None,
       experimental_use_sketch_based_topk_uniques: bool = False,
       experimental_slice_functions: Optional[List[types.SliceFunction]] = None,
-      experimental_slice_sqls: Optional[List[Text]] = None):
+      experimental_slice_sqls: Optional[List[Text]] = None,
+      experimental_output_type: str = OUTPUT_TYPE_BINARY_PB):
     """Initializes statistics options.
 
     Args:
@@ -84,7 +88,7 @@ class StatsOptions(object):
         schema to infer categorical and bytes features.
       label_feature: An optional feature name which represents the label.
       weight_feature: An optional feature name whose numeric value represents
-          the weight of an example.
+        the weight of an example.
       slice_functions: DEPRECATED. Use `experimental_slice_functions`.
       sample_rate: An optional sampling rate. If specified, statistics is
         computed over the sample.
@@ -110,18 +114,18 @@ class StatsOptions(object):
         unequal buckets, but could improve performance, and resource
         consumption.
       infer_type_from_schema: A boolean to indicate whether the feature types
-          should be inferred from the schema. If set to True, an input schema
-          must be provided. This flag is used only when invoking TFDV through
-          `tfdv.generate_statistics_from_csv`.
+        should be inferred from the schema. If set to True, an input schema must
+        be provided. This flag is used only when invoking TFDV through
+        `tfdv.generate_statistics_from_csv`.
       desired_batch_size: An optional maximum number of examples to include in
-        each batch that is passed to the statistics generators.
-        When invoking TFDV using its end-to-end APIs (e.g.
-        `generate_statistics_from_tfrecord`), this option also controls
-        the decoder batch size -- if provided, the decoded RecordBatches that
-        are to be fed to TFDV will have the fixed batch size.
-        When invoking TFDV using `tfdv.GenerateStatistics`, this option only
-        controls the maximum size of RecordBatches constructed within
-        StatsGenerators (a generator may combine RecordBatches).
+        each batch that is passed to the statistics generators. When invoking
+        TFDV using its end-to-end APIs (e.g.
+        `generate_statistics_from_tfrecord`), this option also controls the
+        decoder batch size -- if provided, the decoded RecordBatches that are to
+        be fed to TFDV will have the fixed batch size. When invoking TFDV using
+        `tfdv.GenerateStatistics`, this option only controls the maximum size of
+        RecordBatches constructed within StatsGenerators (a generator may
+        combine RecordBatches).
       enable_semantic_domain_stats: If True statistics for semantic domains are
         generated (e.g: image, text domains).
       semantic_domain_stats_sample_rate: An optional sampling rate for semantic
@@ -132,8 +136,8 @@ class StatsOptions(object):
         fall back to `weight_feature`.
       vocab_paths: An optional dictionary mapping vocab names to paths. Used in
         the schema when specifying a NaturalLanguageDomain. The paths can either
-        be to GZIP-compressed TF record files that have a tfrecord.gz suffix
-        or to text files.
+        be to GZIP-compressed TF record files that have a tfrecord.gz suffix or
+        to text files.
       add_default_generators: Whether to invoke the default set of stats
         generators in the run. Generators invoked consists of 1) the default
         generators (controlled by this option); 2) user-provided generators (
@@ -142,40 +146,39 @@ class StatsOptions(object):
         generators that are enabled based on information provided in the schema.
       feature_allowlist: An optional list of names of the features to calculate
         statistics for.
-      experimental_use_sketch_based_topk_uniques: if True, use the sketch
-        based top-k and uniques stats generator.
+      experimental_use_sketch_based_topk_uniques: if True, use the sketch based
+        top-k and uniques stats generator.
       experimental_slice_functions: An optional list of functions that generate
         slice keys for each example. Each slice function should take
-        pyarrow.RecordBatch as input and return an
-        Iterable[Tuple[Text, pyarrow.RecordBatch]]. Each tuple contains the
-        slice key and the corresponding sliced RecordBatch.
-        Only one of experimental_slice_functions or experimental_slice_sqls must
-        be specified.
+        pyarrow.RecordBatch as input and return an Iterable[Tuple[Text,
+        pyarrow.RecordBatch]]. Each tuple contains the slice key and the
+        corresponding sliced RecordBatch. Only one of
+        experimental_slice_functions or experimental_slice_sqls must be
+        specified.
       experimental_slice_sqls: List of slicing SQL queries. The query must have
-        the following pattern:
-            "SELECT STRUCT({feature_name} [AS {slice_key}])
-             [FROM example.feature_name [, example.feature_name, ... ]
-             [WHERE ... ]]"
-        The “example.feature_name” inside the FROM statement is used to flatten
-        the repeated fields. For non-repeated fields, you can directly write the
-        query as follows:
-            “SELECT STRUCT(non_repeated_feature_a, non_repeated_feature_b)”
-        In the query, the “example” is a key word that binds to each input
-        "row". The semantics of this variable will depend on the decoding of
-        the input data to the Arrow representation (e.g., for tf.Example, each
-        key is decoded to a separate column). Thus, structured data can be
-        readily accessed by iterating/unnesting the fields of the "example"
-        variable.
-        Example 1: Slice on each value of a feature
-            "SELECT STRUCT(gender) FROM example.gender"
+        the following pattern: "SELECT STRUCT({feature_name} [AS {slice_key}])
+          [FROM example.feature_name [, example.feature_name, ... ] [WHERE ...
+          ]]" The “example.feature_name” inside the FROM statement is used to
+          flatten the repeated fields. For non-repeated fields, you can directly
+          write the
+        query as follows: “SELECT STRUCT(non_repeated_feature_a,
+          non_repeated_feature_b)” In the query, the “example” is a key word
+          that binds to each input "row". The semantics of this variable will
+          depend on the decoding of the input data to the Arrow representation
+          (e.g., for tf.Example, each key is decoded to a separate column).
+          Thus, structured data can be readily accessed by iterating/unnesting
+          the fields of the "example" variable.
+        Example 1: Slice on each value of a feature "SELECT STRUCT(gender) FROM
+          example.gender"
         Example 2: Slice on each value of one feature and a specified value of
-                   another.
-            "SELECT STRUCT(gender, country)
-             FROM example.gender, example.country
-             WHERE country = 'USA'"
-        Only one of experimental_slice_functions or experimental_slice_sqls must
-        be specified.
-        Note that this option is not supported on Windows.
+          another. "SELECT STRUCT(gender, country) FROM example.gender,
+          example.country WHERE country = 'USA'" Only one of
+          experimental_slice_functions or experimental_slice_sqls must be
+          specified. Note that this option is not supported on Windows.
+      experimental_output_type: One of 'binary_pb' (default), or 'tfrecords'. If
+        this is 'binary_pb' the output will be a single binary proto consisting
+        of all output merged across features, generators, and slices. If this is
+        'tfrecords', the output will be written in sharded form.
     """
     self.generators = generators
     self.feature_allowlist = feature_allowlist
@@ -209,6 +212,7 @@ class StatsOptions(object):
     self.experimental_use_sketch_based_topk_uniques = (
         experimental_use_sketch_based_topk_uniques)
     self.experimental_slice_sqls = experimental_slice_sqls
+    self.experimental_output_type = experimental_output_type
 
   def to_json(self) -> Text:
     """Convert from an object to JSON representation of the __dict__ attribute.
@@ -458,6 +462,19 @@ class StatsOptions(object):
       raise ValueError('Categorical float features set in schema require '
                        'experimental_use_sketch_based_topk_uniques')
     self._use_sketch_based_topk_uniques = use_sketch_based_topk_uniques
+
+  @property
+  def experimental_output_type(self) -> str:
+    return self._experimental_output_type
+
+  @experimental_output_type.setter
+  def experimental_output_type(self, output_type: str) -> None:
+    if output_type in (OUTPUT_TYPE_BINARY_PB, OUTPUT_TYPE_TFRECORDS):
+      self._experimental_output_type = output_type
+    else:
+      raise ValueError(
+          'Unsupported output type %s. Must be one of binary_pb, tfrecords.' %
+          output_type)
 
 
 def _validate_sql(sql_query: Text, schema: schema_pb2.Schema):

@@ -166,20 +166,32 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
                                    )).with_hot_key_fanout(fanout))
 
     # result_protos is a list of PCollections of (slice key,
-    # DatasetFeatureStatistics proto) pairs. We now flatten the list into a
-    # single PCollection, combine the DatasetFeatureStatistics protos by key,
-    # and then merge the DatasetFeatureStatistics protos in the PCollection into
-    # a single DatasetFeatureStatisticsList proto.
-    return (result_protos
-            | 'FlattenFeatureStatistics' >> beam.Flatten()
-            | 'MergeDatasetFeatureStatisticsProtos' >>
-            beam.CombinePerKey(_merge_dataset_feature_stats_protos)
-            | 'AddSliceKeyToStatsProto' >> beam.Map(
-                _add_slice_key,
-                self._is_slicing_enabled)
-            | 'ToList' >> beam.combiners.ToList()
-            | 'MakeDatasetFeatureStatisticsListProto' >>
-            beam.Map(_make_dataset_feature_statistics_list_proto))
+    # DatasetFeatureStatistics proto) pairs.
+    if (self._options.experimental_output_type ==
+        stats_options.OUTPUT_TYPE_BINARY_PB):
+      # We now flatten the list into a single PCollection, combine the
+      # DatasetFeatureStatistics protos by key, and then merge the
+      # DatasetFeatureStatistics protos in the PCollection into a single
+      # DatasetFeatureStatisticsList proto.
+      return (result_protos
+              | 'FlattenFeatureStatistics' >> beam.Flatten()
+              | 'MergeDatasetFeatureStatisticsProtos' >>
+              beam.CombinePerKey(_merge_dataset_feature_stats_protos)
+              | 'AddSliceKeyToStatsProto' >> beam.Map(_add_slice_key,
+                                                      self._is_slicing_enabled)
+              | 'ToList' >> beam.combiners.ToList()
+              | 'MakeDatasetFeatureStatisticsListProto' >>
+              beam.Map(_make_dataset_feature_statistics_list_proto))
+    else:
+      # If we're writing sharded data, we can flatten to a single PCollection,
+      # and wrap each shard into a singleton list.
+      return (result_protos
+              | 'FlattenFeatureStatistics' >> beam.Flatten()
+              | 'AddSliceKeyToStatsProto' >> beam.Map(_add_slice_key,
+                                                      self._is_slicing_enabled)
+              | 'ToList' >> beam.Map(lambda x: [x])
+              | 'MakeDatasetFeatureStatisticsListProto' >>
+              beam.Map(_make_dataset_feature_statistics_list_proto))
 
 
 def get_generators(options: stats_options.StatsOptions,

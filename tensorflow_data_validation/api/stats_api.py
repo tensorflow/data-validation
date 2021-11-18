@@ -120,6 +120,8 @@ class WriteStatisticsToBinaryFile(beam.PTransform):
     """
     self._output_path = output_path
 
+  # TODO(b/202910677): Find a way to check that the PCollection passed here
+  # has only one element.
   def expand(self, stats: beam.PCollection) -> beam.pvalue.PDone:
     return (stats
             | 'WriteStats' >> beam.io.WriteToText(
