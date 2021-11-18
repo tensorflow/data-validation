@@ -275,7 +275,7 @@ class _SampleRecordBatchRows(beam.CombineFn):
     self._num_instances.inc(num_rows)
     self._combine_num_columns.update(len(record_batch.columns))
     accumulator.record_batches.append(record_batch)
-    accumulator.curr_byte_size += table_util.TotalByteSize(record_batch)
+    accumulator.curr_byte_size += record_batch.nbytes
 
     curr_random_ints = np.random.randint(
         0,
@@ -401,7 +401,7 @@ class _SampleRecordBatchRows(beam.CombineFn):
       rbs.append(table_util.RecordBatchTake(rb, pa.array(indices)))
     compressed_rb = table_util.MergeRecordBatches(rbs)
     result.record_batches = [compressed_rb]
-    result.curr_byte_size = table_util.TotalByteSize(compressed_rb)
+    result.curr_byte_size = compressed_rb.nbytes
     result.random_ints = [sample_random_ints]
 
     self._combine_byte_size.update(result.curr_byte_size)

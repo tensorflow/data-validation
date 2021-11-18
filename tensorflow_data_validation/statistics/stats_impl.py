@@ -64,6 +64,7 @@ class GenerateStatisticsImpl(beam.PTransform):
       dataset |= ('FilterFeaturesByAllowList' >> beam.Map(
           _filter_features, feature_allowlist=self._options.feature_allowlist))
 
+    _ = dataset | 'TrackTotalBytes' >> _TrackTotalBytes()  # pylint: disable=no-value-for-parameter
     if self._options.experimental_slice_functions:
       # Add default slicing function.
       slice_functions = [slicing_util.default_slicer]
@@ -87,23 +88,37 @@ class GenerateStatisticsImpl(beam.PTransform):
     return dataset | GenerateSlicedStatisticsImpl(self._options)
 
 
+def _increment_counter(counter_name: Text, element: int):  # pylint: disable=invalid-name
+  counter = beam.metrics.Metrics.counter(
+      constants.METRICS_NAMESPACE, counter_name)
+  counter.inc(element)
+  return element
+
+
+@beam.ptransform_fn
+def _TrackTotalBytes(  # pylint: disable=invalid-name
+    dataset: beam.PCollection[pa.RecordBatch]
+) -> beam.pvalue.PCollection[int]:
+  """Gathers telemetry on input record batch."""
+  return (dataset
+          | 'GetRecordBatchSize' >> beam.Map(lambda rb: rb.nbytes)
+          | 'SumTotalBytes' >> beam.CombineGlobally(sum)
+          | 'IncrementCounter' >> beam.Map(
+              lambda x: _increment_counter('record_batch_input_bytes', x)))
+
+
 @beam.ptransform_fn
 def _TrackDistinctSliceKeys(  # pylint: disable=invalid-name
     slice_keys_and_values: beam.PCollection[types.SlicedRecordBatch]
 ) -> beam.pvalue.PCollection[int]:
   """Gathers slice key telemetry post slicing."""
 
-  def increment_counter(element: int):  # pylint: disable=invalid-name
-    num_distinct_slice_keys = beam.metrics.Metrics.counter(
-        constants.METRICS_NAMESPACE, 'num_distinct_slice_keys')
-    num_distinct_slice_keys.inc(element)
-    return element
-
   return (slice_keys_and_values
           | 'ExtractSliceKeys' >> beam.Keys()
           | 'RemoveDuplicates' >> beam.Distinct()
           | 'Size' >> beam.combiners.Count.Globally()
-          | 'IncrementCounter' >> beam.Map(increment_counter))
+          | 'IncrementCounter' >> beam.Map(
+              lambda x: _increment_counter('num_distinct_slice_keys', x)))
 
 
 # This transform will be used by the example validation API to compute
@@ -542,6 +557,9 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
     else:
       self._desired_batch_size = constants.DEFAULT_DESIRED_INPUT_BATCH_SIZE
 
+    # TODO(pachristopher): Understand the cost of incrementing beam counters
+    # for every input batch. The other option is to update the counters during
+    # teardown.
     # Metrics
     self._combine_batch_size = beam.metrics.Metrics.distribution(
         constants.METRICS_NAMESPACE, 'combine_batch_size')
@@ -629,7 +647,7 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
     accumulator.input_record_batches.append(input_record_batch)
     num_rows = input_record_batch.num_rows
     accumulator.curr_batch_size += num_rows
-    accumulator.curr_byte_size += table_util.TotalByteSize(input_record_batch)
+    accumulator.curr_byte_size += input_record_batch.nbytes
     self._maybe_do_batch(accumulator)
     self._num_instances.inc(num_rows)
     return accumulator
