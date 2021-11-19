@@ -203,12 +203,16 @@ class _SampleRecordBatchRowsAccumulator(object):
   """Accumulator to keep track of the current (top-k) sample of records."""
 
   __slots__ = [
-      'record_batches', 'curr_byte_size', 'random_ints'
+      'record_batches', 'curr_num_rows', 'curr_byte_size', 'random_ints'
   ]
 
   def __init__(self):
     # Record batches to sample.
     self.record_batches = []
+
+    # The total number of rows (examples) in all of `record_batches`.
+    self.curr_num_rows = 0
+
     # Current total byte size of all the pa.RecordBatches accumulated.
     self.curr_byte_size = 0
 
@@ -236,12 +240,7 @@ class _SampleRecordBatchRows(beam.CombineFn):
   probability of being selected.
   """
 
-  # The combiner accumulates record batches to sample from a partition.
-  # The top-k rows of record batches are selected and merged when the
-  # accumulator's record batches exeeds this size. The accumulator keeps tracks
-  # of all record batches seen, in order to reduce the amount of take and merge
-  # operations on record batches.
-  _MERGE_RECORD_BATCH_BYTE_SIZE_THRESHOLD = 20 << 20  # 20MiB
+  _BUFFER_SIZE_SCALAR = 5
 
   def __init__(self, sample_size: int):
     """Initializes the analyzer."""
@@ -263,6 +262,10 @@ class _SampleRecordBatchRows(beam.CombineFn):
     self._num_instances = beam.metrics.Metrics.counter(
         constants.METRICS_NAMESPACE, 'sample_record_batch_rows_num_instances')
 
+    # We allow our accumulators to keep a buffer of _BUFFER_SIZE_SCALAR x sample
+    # size. With this threshold, OOM issues are possible, but unlikely.
+    self._merge_record_batch_threshold = self._BUFFER_SIZE_SCALAR * sample_size
+
   def create_accumulator(self) -> _SampleRecordBatchRowsAccumulator:
     """Creates an accumulator."""
     return _SampleRecordBatchRowsAccumulator()
@@ -275,6 +278,7 @@ class _SampleRecordBatchRows(beam.CombineFn):
     self._num_instances.inc(num_rows)
     self._combine_num_columns.update(len(record_batch.columns))
     accumulator.record_batches.append(record_batch)
+    accumulator.curr_num_rows += num_rows
     accumulator.curr_byte_size += record_batch.nbytes
 
     curr_random_ints = np.random.randint(
@@ -284,8 +288,7 @@ class _SampleRecordBatchRows(beam.CombineFn):
         size=(num_rows,))
     accumulator.random_ints.append(curr_random_ints)
 
-    if (accumulator.curr_byte_size >
-        self._MERGE_RECORD_BATCH_BYTE_SIZE_THRESHOLD):
+    if accumulator.curr_num_rows > self._merge_record_batch_threshold:
       accumulator = self._compact_impl(accumulator)
     return accumulator
 
@@ -297,10 +300,11 @@ class _SampleRecordBatchRows(beam.CombineFn):
 
     for acc in accumulators:
       result.record_batches.extend(acc.record_batches)
+      result.curr_num_rows += acc.curr_num_rows
       result.curr_byte_size += acc.curr_byte_size
       result.random_ints.extend(acc.random_ints)
       # Compact if we are over the threshold.
-      if result.curr_byte_size > self._MERGE_RECORD_BATCH_BYTE_SIZE_THRESHOLD:
+      if result.curr_num_rows > self._merge_record_batch_threshold:
         result = self._compact_impl(result)
 
     result = self._compact_impl(result)
@@ -309,7 +313,6 @@ class _SampleRecordBatchRows(beam.CombineFn):
   def compact(
       self, accumulator: _SampleRecordBatchRowsAccumulator
   ) -> _SampleRecordBatchRowsAccumulator:
-    self._num_compacts.inc(1)
     return self._compact_impl(accumulator)
 
   def extract_output(self,
@@ -343,12 +346,18 @@ class _SampleRecordBatchRows(beam.CombineFn):
       A _SampleRecordBatchRowsAccumulator that contains one or a list of record
       batch.
     """
+    self._num_compacts.inc(1)
     self._combine_num_record_batches.update(len(accumulator.record_batches))
-    total_rows = np.sum([rb.num_rows for rb in accumulator.record_batches])
-    if total_rows < 1:
-      # There is nothing to compact.
+
+    # There is nothing to compact.
+    if accumulator.curr_num_rows <= 1:
       return accumulator
-    k = min(self._sample_size, total_rows)
+
+    # There is no need to compact yet.
+    if (len(accumulator.record_batches) <= 1 and
+        accumulator.curr_num_rows <= self._sample_size):
+      return accumulator
+    k = min(self._sample_size, accumulator.curr_num_rows)
 
     rand_ints = np.concatenate(accumulator.random_ints)
 
@@ -401,6 +410,7 @@ class _SampleRecordBatchRows(beam.CombineFn):
       rbs.append(table_util.RecordBatchTake(rb, pa.array(indices)))
     compressed_rb = table_util.MergeRecordBatches(rbs)
     result.record_batches = [compressed_rb]
+    result.curr_num_rows = compressed_rb.num_rows
     result.curr_byte_size = compressed_rb.nbytes
     result.random_ints = [sample_random_ints]
 

@@ -37,35 +37,106 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 TEST_SEED = 12345
 
 
-def _create_sample_partition_tests():
-  result = []
-
-  def _create_default_generator(sample_size):
-    return partitioned_stats_generator._SampleRecordBatchRows(sample_size)
-
-  testcase = {
-      'testcase_name': 'default_sample_partition',
-      'create_generator_fn': _create_default_generator,
-      'is_default': True
-  }
-  result.append(testcase)
-
-  def _create_small_mem_generator(sample_size):
-    result = partitioned_stats_generator._SampleRecordBatchRows(sample_size)
-    result._MERGE_RECORD_BATCH_BYTE_SIZE_THRESHOLD = 5
-    return result
-
-  testcase = {
-      'testcase_name': 'small_cache_sample_partition',
-      'create_generator_fn': _create_small_mem_generator,
-      'is_default': False
-  }
-
-  result.append(testcase)
-  return result
-
-
-_SAMPLE_PARTITION_TESTS = _create_sample_partition_tests()
+_SAMPLE_PARTITION_TESTS = [{
+    'testcase_name': 'sample_2_from_4',
+    'partitioned_record_batches': [
+        (1,
+         pa.RecordBatch.from_arrays([
+             pa.array([['Green'], ['Red'], ['Blue'], ['Green']]),
+             pa.array([['Label'], ['Label'], ['Label'], ['Label']]),
+         ], ['fa', 'label_key']))
+    ],
+    'expected': [(1,
+                  pa.RecordBatch.from_arrays([
+                      pa.array([['Blue'], ['Green']]),
+                      pa.array([['Label'], ['Label']]),
+                  ], ['fa', 'label_key']))],
+    'sample_size': 2,
+    'num_compacts': 1
+}, {
+    'testcase_name': 'num_records_smaller_than_max',
+    'partitioned_record_batches': [
+        (1,
+         pa.RecordBatch.from_arrays([
+             pa.array([['Green'], ['Blue'], ['Red']]),
+             pa.array([['Label'], ['Label'], ['Label']]),
+         ], ['fa', 'label_key'])),
+        (1,
+         pa.RecordBatch.from_arrays([
+             pa.array([['Green'], ['Blue'], ['Red']]),
+             pa.array([['Label'], ['Label'], ['Label']]),
+         ], ['fa', 'label_key']))
+    ],
+    'expected': [(1,
+                  pa.RecordBatch.from_arrays([
+                      pa.array([['Blue'], ['Red'], ['Green'], ['Green'],
+                                ['Blue'], ['Red']]),
+                      pa.array([['Label'], ['Label'], ['Label'], ['Label'],
+                                ['Label'], ['Label']]),
+                  ], ['fa', 'label_key']))],
+    'sample_size': 10,
+    'num_compacts': 1
+}, {
+    'testcase_name':
+        'combine_many_to_one',
+    'partitioned_record_batches': [(1,
+                                    pa.RecordBatch.from_arrays([
+                                        pa.array([['Green']]),
+                                        pa.array([['Label']]),
+                                    ], ['fa', 'label_key']))] * 11,
+    'expected': [(1,
+                  pa.RecordBatch.from_arrays([
+                      pa.array([['Green']] * 10),
+                      pa.array([['Label']] * 10),
+                  ], ['fa', 'label_key']))],
+    'sample_size':
+        10,
+    'num_compacts': 1
+}, {
+    'testcase_name': 'partition_of_empty_rb',
+    'partitioned_record_batches': [(1,
+                                    pa.RecordBatch.from_arrays([
+                                        pa.array([]),
+                                        pa.array([]),
+                                    ], ['fa', 'label_key'])),
+                                   (1,
+                                    pa.RecordBatch.from_arrays([
+                                        pa.array([['Green']] * 10),
+                                        pa.array([['Label']] * 10),
+                                    ], ['fa', 'label_key'])),
+                                   (1,
+                                    pa.RecordBatch.from_arrays([
+                                        pa.array([]),
+                                        pa.array([]),
+                                    ], ['fa', 'label_key']))],
+    'expected': [(1,
+                  pa.RecordBatch.from_arrays([
+                      pa.array([['Green']] * 10),
+                      pa.array([['Label']] * 10),
+                  ], ['fa', 'label_key']))],
+    'sample_size': 10,
+    'num_compacts': 1
+}, {
+    'testcase_name': 'empty_partition',
+    'partitioned_record_batches': [],
+    'expected': [],
+    'sample_size': 10,
+    'num_compacts': 1
+}, {
+    'testcase_name': 'many_compacts',
+    'partitioned_record_batches': [(1,
+                                    pa.RecordBatch.from_arrays([
+                                        pa.array([['Green']]),
+                                        pa.array([['Label']]),
+                                    ], ['fa', 'label_key']))] * 11,
+    'expected': [(1,
+                  pa.RecordBatch.from_arrays([
+                      pa.array([['Green']] * 2),
+                      pa.array([['Label']] * 2),
+                  ], ['fa', 'label_key']))],
+    'sample_size': 2,
+    'num_compacts': 2
+}]
 
 
 class AssignToPartitionTest(absltest.TestCase):
@@ -253,134 +324,27 @@ class SampleRecordBatchRows(parameterized.TestCase):
     return _matcher
 
   @parameterized.named_parameters(*(_SAMPLE_PARTITION_TESTS))
-  def test_sample_partition_combine(self, create_generator_fn, is_default):
-    # The max_batches_per_sample is smaller than all record batches, so we
-    # randomly select records.
-    del is_default
-    np.random.seed(12345)  # set seed so selection of records is deterministic.
-    record_batch = pa.RecordBatch.from_arrays([
-        pa.array([['Green'], ['Red'], ['Blue'], ['Green']]),
-        pa.array([['Label'], ['Label'], ['Label'], ['Label']]),
-    ], ['fa', 'label_key'])
-    expected = [(1,
-                 pa.RecordBatch.from_arrays([
-                     pa.array([['Blue'], ['Green']]),
-                     pa.array([['Label'], ['Label']]),
-                 ], ['fa', 'label_key']))]
-    partitioned_rbs = [(1, record_batch)]
-    with beam.Pipeline() as p:
-      result = (
-          p | beam.Create(partitioned_rbs, reshuffle=False)
-          | beam.CombinePerKey(create_generator_fn(sample_size=2)))
+  def test_sample_partition_combine(self, partitioned_record_batches, expected,
+                                    sample_size, num_compacts):
+    np.random.seed(TEST_SEED)
+    p = beam.Pipeline()
+    result = (
+        p | beam.Create(partitioned_record_batches, reshuffle=False)
+        | beam.CombinePerKey(
+            partitioned_stats_generator._SampleRecordBatchRows(sample_size)))
 
-      beam_test_util.assert_that(result, self._partition_matcher(expected))
+    beam_test_util.assert_that(result, self._partition_matcher(expected))
 
-  @parameterized.named_parameters(*(_SAMPLE_PARTITION_TESTS))
-  def test_sample_partition_combine_num_records_smaller_than_max(
-      self, create_generator_fn, is_default):
-    # Sample size 10 requested, but we only have 2 rbs of 3 row each.
-    # We expect to get 1 rb with 6 rows.
-    np.random.seed(888)  # set seed so selection of records is deterministic.
-    record_batch = pa.RecordBatch.from_arrays([
-        pa.array([['Green'], ['Blue'], ['Red']]),
-        pa.array([['Label'], ['Label'], ['Label']]),
-    ], ['fa', 'label_key'])
-    if is_default:
-      expected_sample_arr = [['Green'], ['Blue'], ['Blue'], ['Red'], ['Red'],
-                             ['Green']]
-    else:
-      # Due to the small cache, we need to compact early. Thus the order of
-      # elements is different.
-      expected_sample_arr = [['Green'], ['Blue'], ['Red'], ['Green'], ['Blue'],
-                             ['Red']]
-    expected = [(1,
-                 pa.RecordBatch.from_arrays([
-                     pa.array(expected_sample_arr),
-                     pa.array([['Label'], ['Label'], ['Label'], ['Label'],
-                               ['Label'], ['Label']]),
-                 ], ['fa', 'label_key']))]
-    partitioned_rbs = [(1, record_batch), (1, record_batch)]
-    with beam.Pipeline() as p:
-      result = (
-          p | beam.Create(partitioned_rbs, reshuffle=False)
-          | beam.CombinePerKey(create_generator_fn(sample_size=10)))
-
-      beam_test_util.assert_that(result, self._partition_matcher(expected))
-
-  @parameterized.named_parameters(*(_SAMPLE_PARTITION_TESTS))
-  def test_sample_partition_combine_many_to_one(self, create_generator_fn,
-                                                is_default):
-    # Merge 11 record batches of size 1 into a record batch of 10 rows.
-    del is_default
-    record_batch = pa.RecordBatch.from_arrays([
-        pa.array([['Green']]),
-        pa.array([['Label']]),
-    ], ['fa', 'label_key'])
-    expected = [(1,
-                 pa.RecordBatch.from_arrays([
-                     pa.array([['Green']] * 10),
-                     pa.array([['Label']] * 10),
-                 ], ['fa', 'label_key']))]
-    partitioned_rbs = [(1, record_batch)] * 11
-    with beam.Pipeline() as p:
-      result = (
-          p | beam.Create(partitioned_rbs, reshuffle=False)
-          | beam.CombinePerKey(create_generator_fn(sample_size=10)))
-
-      beam_test_util.assert_that(result, self._partition_matcher(expected))
-
-  @parameterized.named_parameters(*(_SAMPLE_PARTITION_TESTS))
-  def test_sample_partition_combine_empty(self, create_generator_fn,
-                                          is_default):
-    # Merge empty record batches.
-    del is_default
-    record_batch = pa.RecordBatch.from_arrays([
-        pa.array([['Green']] * 10),
-        pa.array([['Label']] * 10),
-    ], ['fa', 'label_key'])
-    empty_record_batch = pa.RecordBatch.from_arrays([
-        pa.array([]),
-        pa.array([]),
-    ], ['fa', 'label_key'])
-    expected = [(1, record_batch)]
-    partitioned_rbs = [(1, empty_record_batch), (1, record_batch),
-                       (1, empty_record_batch)]
-    with beam.Pipeline() as p:
-      result = (
-          p | beam.Create(partitioned_rbs, reshuffle=False)
-          | beam.CombinePerKey(create_generator_fn(sample_size=10)))
-
-      beam_test_util.assert_that(result, self._partition_matcher(expected))
-
-  @parameterized.named_parameters(*(_SAMPLE_PARTITION_TESTS))
-  def test_sample_partition_of_empty_rb(self, create_generator_fn, is_default):
-    # Sampling from a partition containing only an empty rb.
-    del is_default
-    expected = []
-    empty_record_batch = pa.RecordBatch.from_arrays([
-        pa.array([]),
-        pa.array([]),
-    ], ['fa', 'label_key'])
-    partitioned_rbs = [(1, empty_record_batch)]
-    with beam.Pipeline() as p:
-      result = (
-          p | beam.Create(partitioned_rbs, reshuffle=False)
-          | beam.CombinePerKey(create_generator_fn(sample_size=10)))
-
-      beam_test_util.assert_that(result, self._partition_matcher(expected))
-
-  @parameterized.named_parameters(*(_SAMPLE_PARTITION_TESTS))
-  def test_sample_empty_partition(self, create_generator_fn, is_default):
-    # Sampling from an empty partition.
-    del is_default
-    expected = []
-    partitioned_rbs = []
-    with beam.Pipeline() as p:
-      result = (
-          p | beam.Create(partitioned_rbs, reshuffle=False)
-          | beam.CombinePerKey(create_generator_fn(sample_size=10)))
-
-      beam_test_util.assert_that(result, self._partition_matcher(expected))
+    # Validate metrics.
+    np.random.seed(TEST_SEED)
+    pipeline_result = p.run()
+    pipeline_result.wait_until_finish()
+    metrics = pipeline_result.metrics()
+    num_compacts_metric = metrics.query(
+        beam.metrics.metric.MetricsFilter().with_name(
+            'sample_record_batch_rows_num_compacts'))['counters']
+    if num_compacts_metric:
+      self.assertEqual(num_compacts_metric[0].committed, num_compacts)
 
   def test_sample_metrics(self):
     record_batch = pa.RecordBatch.from_arrays([
