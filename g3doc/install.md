@@ -145,9 +145,9 @@ pip install dist/*.whl
 
 TFDV is tested on the following 64-bit operating systems:
 
-  * macOS 10.12.6 (Sierra) or later.
-  * Ubuntu 16.04 or later.
-  * Windows 7 or later.
+*   macOS 10.14.6 (Mojave) or later.
+*   Ubuntu 16.04 or later.
+*   Windows 7 or later.
 
 ## Notable Dependencies
 
@@ -171,7 +171,8 @@ other *untested* combinations may also work.
 
 tensorflow-data-validation                                                            | apache-beam[gcp] | pyarrow | tensorflow        | tensorflow-metadata | tensorflow-transform | tfx-bsl
 ------------------------------------------------------------------------------------- | ---------------- | ------- | ----------------- | ------------------- | -------------------- | -------
-[GitHub master](https://github.com/tensorflow/data-validation/blob/master/RELEASE.md) | 2.32.0           | 2.0.0   | nightly (1.x/2.x) | 1.4.0               | n/a                  | 1.4.0
+[GitHub master](https://github.com/tensorflow/data-validation/blob/master/RELEASE.md) | 2.34.0           | 2.0.0   | nightly (1.x/2.x) | 1.5.0               | n/a                  | 1.5.0
+[1.5.0](https://github.com/tensorflow/data-validation/blob/v1.5.0/RELEASE.md)         | 2.34.0           | 2.0.0   | 1.15 / 2.7        | 1.5.0               | n/a                  | 1.5.0
 [1.4.0](https://github.com/tensorflow/data-validation/blob/v1.4.0/RELEASE.md)         | 2.32.0           | 2.0.0   | 1.15 / 2.6        | 1.4.0               | n/a                  | 1.4.0
 [1.3.0](https://github.com/tensorflow/data-validation/blob/v1.3.0/RELEASE.md)         | 2.32.0           | 2.0.0   | 1.15 / 2.6        | 1.2.0               | n/a                  | 1.3.0
 [1.2.0](https://github.com/tensorflow/data-validation/blob/v1.2.0/RELEASE.md)         | 2.31.0           | 2.0.0   | 1.15 / 2.5        | 1.2.0               | n/a                  | 1.2.0
