@@ -1,7 +1,7 @@
 # TensorFlow Data Validation Anomalies Reference
 
 <!--*
-freshness: { owner: 'caveness' reviewed: '2021-05-20' }
+freshness: { owner: 'caveness' reviewed: '2021-12-03' }
 *-->
 
 TFDV checks for anomalies by comparing a schema and statistics proto(s). The
@@ -389,15 +389,6 @@ condition(s) under which each anomaly type is detected.
             all image types is less than
             `feature.image_domain.minimum_supported_image_fraction`.
 
--   `MAX_IMAGE_BYTE_SIZE_EXCEEDED`
-
-    -   Schema Fields:
-        -   `feature.image_domain.max_image_byte_size`
-    -   Statistics Fields:
-        -   `feature.bytes_stats.max_num_bytes_int`
-    -   Detection Condition:
-        -   `max_num_bytes_int` > `max_image_byte_size`
-
 -   `SCHEMA_MISSING_COLUMN`
 
     -   Schema Fields:
@@ -583,6 +574,24 @@ condition(s) under which each anomaly type is detected.
     -   Detection Condition:
         -   `num_examples` > `dataset_constraints.max_examples_count`
 
+-   `WEIGHTED_FEATURE_NAME_COLLISION`
+
+    -   Schema Fields:
+        -   `weighted_feature.name`
+        -   `weighted_feature.lifecycle_stage`
+        -   `sparse_feature.name`
+        -   `sparse_feature.lifecycle_stage`
+        -   `feature.name`
+        -   `feature.lifecycle_stage`
+    -   Detection Condition:
+        -   `weighted_feature.lifecycle_stage` != `PLANNED`, `ALPHA`, `DEBUG`,
+            or`DEPRECATED` and either:
+            -   `feature.lifecycle_stage` != `PLANNED`, `ALPHA`, `DEBUG`, or
+                `DEPRECATED` and `weighted_feature.name` == `feature.name`
+            -   `sparse_feature.lifecycle_stage` != `PLANNED`, `ALPHA`, `DEBUG`,
+                or`DEPRECATED` and `weighted_feature.name` ==
+                `sparse_feature.name`
+
 -   `WEIGHTED_FEATURE_MISSING_VALUE`
 
     -   Schema Fields:
@@ -613,24 +622,6 @@ condition(s) under which each anomaly type is detected.
         -   `min_weight_length_diff` or `max_weight_length_diff` custom stat !=
             0
 
--   `WEIGHTED_FEATURE_NAME_COLLISION`
-
-    -   Schema Fields:
-        -   `weighted_feature.name`
-        -   `weighted_feature.lifecycle_stage`
-        -   `sparse_feature.name`
-        -   `sparse_feature.lifecycle_stage`
-        -   `feature.name`
-        -   `feature.lifecycle_stage`
-    -   Detection Condition:
-        -   `weighted_feature.lifecycle_stage` != `PLANNED`, `ALPHA`, `DEBUG`,
-            or`DEPRECATED` and either:
-            -   `feature.lifecycle_stage` != `PLANNED`, `ALPHA`, `DEBUG`, or
-                `DEPRECATED` and `weighted_feature.name` == `feature.name`
-            -   `sparse_feature.lifecycle_stage` != `PLANNED`, `ALPHA`, `DEBUG`,
-                or`DEPRECATED` and `weighted_feature.name` ==
-                `sparse_feature.name`
-
 -   `VALUE_NESTEDNESS_MISMATCH`
 
     -   Schema Fields:
@@ -646,29 +637,6 @@ condition(s) under which each anomaly type is detected.
             `presence_and_valency` stats for the feature is repeated does not
             match the number of times `value_count` is repeated within
             `feature.value_counts`
-
--   `INVALID_FEATURE_SHAPE`
-
-    -   Schema Fields:
-        -   `feature.shape`
-    -   Statistics Fields:
-        -   `feature.common_stats.num_missing`
-        -   `feature.common_stats.min_num_values`
-        -   `feature.common_stats.max_num_values`
-        -   `feature.common_stats.presence_and_valency_stats.num_missing`
-        -   `feature.common_stats.presence_and_valency_stats.min_num_values`
-        -   `feature.common_stats.presence_and_valency_stats.max_num_values`
-        -   `feature.common_stats.weighted_presence_and_valency_stats`
-    -   Detection Condition:
-        -   `feature.shape` is specified, and one of the following:
-            -   the feature may be missing (`num_missing != 0`) at some nest
-                level.
-            -   the feature may have variable number of values ( `min_num_values
-                != max_num_values`) at some nest level
-            -   the specified shape is not compatible with the feature's value
-                count stats. For example, shape `[16]` is compatible with
-                (`min_num_values == max_num_values == [2, 2, 4]` (for a 3-nested
-                feature)).
 
 -   `DOMAIN_INVALID_FOR_TYPE`
 
@@ -687,15 +655,6 @@ condition(s) under which each anomaly type is detected.
             `int_domain` is specified, but feature's `type` is float)
         -   feature is of type `BYTES` in statistics but `feature.domain_info`
             is of an incompatible type
-
--   `UNEXPECTED_DATA_TYPE`
-
-    -   Schema Fields:
-        -   `feature.type`
-    -   Statistics Fields:
-        -   `type` for each feature
-    -   Detection Condition:
-        -   feature's `type` is not of type specified in `feature.type`
 
 -   `FEATURE_MISSING_NAME`
 
@@ -752,20 +711,115 @@ condition(s) under which each anomaly type is detected.
         -   repeated values in `feature.string_domain`
         -   `feature.string_domain` exceeds the maximum size
 
--   `STATS_NOT_AVAILBLE`
+-   `UNEXPECTED_DATA_TYPE`
 
-    -   Anomaly occurs when stats needed to validate constraints are not
-        present.
+    -   Schema Fields:
+        -   `feature.type`
+    -   Statistics Fields:
+        -   `type` for each feature
+    -   Detection Condition:
+        -   feature's `type` is not of type specified in `feature.type`
+
+-   `SEQUENCE_VALUE_TOO_FEW_OCCURRENCES`
+
+    -   Schema Fields:
+        -   `feature.natural_language_domain.token_constraints.min_per_sequence`
+    -   Statistics Fields:
+        -   `feature.custom_stats.nl_statistics.token_statistics.per_sequence_min_frequency`
+    -   Detection Condition:
+        -   `min_per_sequence` > `per_sequence_min_frequency`
+
+-   `SEQUENCE_VALUE_TOO_MANY_OCCURRENCES`
+
+    -   Schema Fields:
+        -   `feature.natural_language_domain.token_constraints.max_per_sequence`
+    -   Statistics Fields:
+        -   `feature.custom_stats.nl_statistics.token_statistics.per_sequence_max_frequency`
+    -   Detection Condition:
+        -   `max_per_sequence` < `per_sequence_max_frequency`
+
+-   `SEQUENCE_VALUE_TOO_SMALL_FRACTION`
+
+    -   Schema Fields:
+        -   `feature.natural_language_domain.token_constraints.min_fraction_of_sequences`
+    -   Statistics Fields:
+        -   `feature.custom_stats.nl_statistics.token_statistics.fraction_of_sequences`
+    -   Detection Condition:
+        -   `min_fraction_of_sequences` > `fraction_of_sequences`
+
+-   `SEQUENCE_VALUE_TOO_LARGE_FRACTION`
+
+    -   Schema Fields:
+        -   `feature.natural_language_domain.token_constraints.max_fraction_of_sequences`
+    -   Statistics Fields:
+        -   `feature.custom_stats.nl_statistics.token_statistics.fraction_of_sequences`
+    -   Detection Condition:
+        -   `max_fraction_of_sequences` < `fraction_of_sequences`
 
 -   `FEATURE_COVERAGE_TOO_LOW`
 
     -   Schema Fields:
         -   `feature.natural_language_domain.coverage.min_coverage`
     -   Statistics Fields:
-        -   `NaturalLanguageStatistics.feature_coverage`
+        -   `feature.custom_stats.nl_statistics.feature_coverage`
     -   Detection Condition:
-        -   `NaturalLanguageStatistics.feature_coverage` <
-            `feature.natural_language_domain.coverage.min_coverage` --------------------------------------------------------------------------------
+        -   `feature_coverage` < `coverage.min_coverage`
+
+-   `FEATURE_COVERAGE_TOO_SHORT_AVG_TOKEN_LENGTH`
+
+    -   Schema Fields:
+        -   `feature.natural_language_domain.coverage.min_avg_token_length`
+    -   Statistics Fields:
+        -   `feature.custom_stats.nl_statistics.avg_token_length`
+    -   Detection Condition:
+        -   `avg_token_length` < `min_avg_token_length`
+
+-   `NLP_WRONG_LOCATION`
+
+    -   Anomaly type not detected in TFDV
+
+-   `EMBEDDING_SHAPE_INVALID`
+
+    -   Anomaly type not detected in TFDV
+
+-   `MAX_IMAGE_BYTE_SIZE_EXCEEDED`
+
+    -   Schema Fields:
+        -   `feature.image_domain.max_image_byte_size`
+    -   Statistics Fields:
+        -   `feature.bytes_stats.max_num_bytes_int`
+    -   Detection Condition:
+        -   `max_num_bytes_int` > `max_image_byte_size`
+
+-   `INVALID_FEATURE_SHAPE`
+
+    -   Schema Fields:
+        -   `feature.shape`
+    -   Statistics Fields:
+        -   `feature.common_stats.num_missing`
+        -   `feature.common_stats.min_num_values`
+        -   `feature.common_stats.max_num_values`
+        -   `feature.common_stats.presence_and_valency_stats.num_missing`
+        -   `feature.common_stats.presence_and_valency_stats.min_num_values`
+        -   `feature.common_stats.presence_and_valency_stats.max_num_values`
+        -   `feature.common_stats.weighted_presence_and_valency_stats`
+    -   Detection Condition:
+        -   `feature.shape` is specified, and one of the following:
+            -   the feature may be missing (`num_missing != 0`) at some nest
+                level.
+            -   the feature may have variable number of values ( `min_num_values
+                != max_num_values`) at some nest level
+            -   the specified shape is not compatible with the feature's value
+                count stats. For example, shape `[16]` is compatible with
+                (`min_num_values == max_num_values == [2, 2, 4]` (for a 3-nested
+                feature)).
+
+-   `STATS_NOT_AVAILBLE`
+
+    -   Anomaly occurs when stats needed to validate constraints are not
+        present.
+
+ --------------------------------------------------------------------------------
 
 \* If a weighted statistic is available for this field, it will be used instead
 of the non-weighted statistic.
