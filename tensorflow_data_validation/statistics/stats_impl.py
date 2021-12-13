@@ -38,6 +38,7 @@ from tensorflow_data_validation.statistics.generators import top_k_uniques_stats
 from tensorflow_data_validation.statistics.generators import weighted_feature_stats_generator
 from tensorflow_data_validation.utils import slicing_util
 from tfx_bsl.arrow import table_util
+from tfx_bsl.statistics import merge_util
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -172,13 +173,12 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
       # TODO(b/162543416): Obviate the need for explicit fanout.
       fanout = max(
           32, 5 * int(math.ceil(math.sqrt(len(combiner_stats_generators)))))
-      result_protos.append(dataset
-                           | 'RunCombinerStatsGenerators'
-                           >> beam.CombinePerKey(
-                               _CombinerStatsGeneratorsCombineFn(
-                                   combiner_stats_generators,
-                                   self._options.desired_batch_size
-                                   )).with_hot_key_fanout(fanout))
+      result_protos.append(
+          dataset
+          | 'RunCombinerStatsGenerators' >> beam.CombinePerKey(
+              _CombinerStatsGeneratorsCombineFn(
+                  combiner_stats_generators, self._options.desired_batch_size)
+          ).with_hot_key_fanout(fanout))
 
     # result_protos is a list of PCollections of (slice key,
     # DatasetFeatureStatistics proto) pairs.
@@ -190,13 +190,11 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
       # DatasetFeatureStatisticsList proto.
       return (result_protos
               | 'FlattenFeatureStatistics' >> beam.Flatten()
-              | 'MergeDatasetFeatureStatisticsProtos' >>
-              beam.CombinePerKey(_merge_dataset_feature_stats_protos)
               | 'AddSliceKeyToStatsProto' >> beam.Map(_add_slice_key,
                                                       self._is_slicing_enabled)
               | 'ToList' >> beam.combiners.ToList()
-              | 'MakeDatasetFeatureStatisticsListProto' >>
-              beam.Map(_make_dataset_feature_statistics_list_proto))
+              | 'MergeDatasetFeatureStatisticsProtos' >> beam.Map(
+                  merge_util.merge_dataset_feature_statistics))
     else:
       # If we're writing sharded data, we can flatten to a single PCollection,
       # and wrap each shard into a singleton list.
@@ -204,9 +202,8 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
               | 'FlattenFeatureStatistics' >> beam.Flatten()
               | 'AddSliceKeyToStatsProto' >> beam.Map(_add_slice_key,
                                                       self._is_slicing_enabled)
-              | 'ToList' >> beam.Map(lambda x: [x])
               | 'MakeDatasetFeatureStatisticsListProto' >>
-              beam.Map(_make_dataset_feature_statistics_list_proto))
+              beam.Map(_make_singleton_dataset_feature_statistics_list_proto))
 
 
 def get_generators(options: stats_options.StatsOptions,
@@ -413,79 +410,13 @@ def _add_slice_key(
   return result
 
 
-def _merge_dataset_feature_stats_protos(
-    stats_protos: Iterable[statistics_pb2.DatasetFeatureStatistics]
-) -> statistics_pb2.DatasetFeatureStatistics:
-  """Merges together a list of DatasetFeatureStatistics protos.
-
-  Args:
-    stats_protos: A list of DatasetFeatureStatistics protos to merge.
-
-  Returns:
-    The merged DatasetFeatureStatistics proto.
-  """
-  stats_per_feature = {}
-  # Create a new DatasetFeatureStatistics proto.
-  result = statistics_pb2.DatasetFeatureStatistics()
-  # Iterate over each DatasetFeatureStatistics proto and merge the
-  # FeatureNameStatistics protos per feature and add the cross feature stats.
-  num_examples = None
-  for stats_proto in stats_protos:
-    # Not every stat proto has a num examples set.
-    if num_examples is None and stats_proto.num_examples > 0:
-      num_examples = stats_proto.num_examples
-    if stats_proto.cross_features:
-      result.cross_features.extend(stats_proto.cross_features)
-    for feature_stats_proto in stats_proto.features:
-      feature_path = types.FeaturePath.from_proto(feature_stats_proto.path)
-      if feature_path not in stats_per_feature:
-        # Make a copy for the "cache" since we are modifying it in 'else' below.
-        new_feature_stats_proto = statistics_pb2.FeatureNameStatistics()
-        new_feature_stats_proto.CopyFrom(feature_stats_proto)
-        stats_per_feature[feature_path] = new_feature_stats_proto
-      else:
-        stats_for_feature = stats_per_feature[feature_path]
-        # MergeFrom would concatenate repeated fields which is not what we want
-        # for path.step.
-        del stats_for_feature.path.step[:]
-        stats_for_feature.MergeFrom(feature_stats_proto)
-
-  for feature_stats_proto in stats_per_feature.values():
-    # Add the merged FeatureNameStatistics proto for the feature
-    # into the DatasetFeatureStatistics proto.
-    new_feature_stats_proto = result.features.add()
-    new_feature_stats_proto.CopyFrom(feature_stats_proto)
-
-  # Set the num_examples field.
-  if num_examples is not None:
-    result.num_examples = num_examples
-  return result
-
-
-def _make_dataset_feature_statistics_list_proto(
-    stats_protos: List[statistics_pb2.DatasetFeatureStatistics]
+def _make_singleton_dataset_feature_statistics_list_proto(
+    statistics: statistics_pb2.DatasetFeatureStatistics
 ) -> statistics_pb2.DatasetFeatureStatisticsList:
-  """Constructs a DatasetFeatureStatisticsList proto.
-
-  Args:
-    stats_protos: List of DatasetFeatureStatistics protos.
-
-  Returns:
-    The DatasetFeatureStatisticsList proto containing the input stats protos.
-  """
-  # Create a new DatasetFeatureStatisticsList proto.
+  """Wrap statistics in a DatasetFeatureStatisticsList proto."""
   result = statistics_pb2.DatasetFeatureStatisticsList()
-
-  for stats_proto in stats_protos:
-
-    # Add the input DatasetFeatureStatistics proto.
-    new_stats_proto = result.datasets.add()
-    new_stats_proto.CopyFrom(stats_proto)
-  if not stats_protos:
-    # Handle the case in which there are no examples. In that case, we want to
-    # output a DatasetFeatureStatisticsList proto with a dataset containing
-    # num_examples == 0 instead of an empty DatasetFeatureStatisticsList proto.
-    result.datasets.add(num_examples=0)
+  new_stats_proto = result.datasets.add()
+  new_stats_proto.CopyFrom(statistics)
   return result
 
 
@@ -680,14 +611,21 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
     return accumulator
 
   def extract_output(
-      self,
-      accumulator: _CombinerStatsGeneratorsCombineFnAcc
-  ) -> statistics_pb2.DatasetFeatureStatistics:  # pytype: disable=invalid-annotation
+      self, accumulator: _CombinerStatsGeneratorsCombineFnAcc
+  ) -> statistics_pb2.DatasetFeatureStatistics:
     # Make sure we have processed all the examples.
     self._maybe_do_batch(accumulator, force=True)
-    return _merge_dataset_feature_stats_protos(
-        self._for_each_generator(lambda gen, acc: gen.extract_output(acc),
-                                 accumulator.partial_accumulators))
+    generator_outputs = self._for_each_generator(
+        lambda gen, acc: gen.extract_output(acc),
+        accumulator.partial_accumulators)
+    # TODO(b/202910677): We should consider returning a list directly and not
+    # merging at all.
+    merged = merge_util.merge_dataset_feature_statistics(generator_outputs)
+    if len(merged.datasets) != 1:
+      raise ValueError(
+          'Expected a single slice key in _CombinerStatsGeneratorsCombineFn, '
+          'got %d' % len(merged.datasets))
+    return merged.datasets[0]
 
 
 def generate_partial_statistics_in_memory(
@@ -751,8 +689,7 @@ def extract_statistics_output(
       gen.extract_output(gen.compact(stats))
       for (gen, stats) in zip(stats_generators, partial_stats)  # pytype: disable=attribute-error
   ]
-  return _make_dataset_feature_statistics_list_proto(
-      [_merge_dataset_feature_stats_protos(outputs)])
+  return merge_util.merge_dataset_feature_statistics(outputs)
 
 
 # Type for the wrapper_accumulator of a CombinerFeatureStatsWrapperGenerator.

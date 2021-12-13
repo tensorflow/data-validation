@@ -35,6 +35,7 @@ from tensorflow_data_validation.utils import slicing_util
 from tensorflow_data_validation.utils import test_util
 from tfx_bsl.arrow import array_util
 from tfx_bsl.arrow import table_util
+from tfx_bsl.statistics import merge_util
 
 from google.protobuf import text_format
 from tensorflow.python.util.protobuf import compare
@@ -2889,7 +2890,8 @@ _SLICING_FN_TESTS_SHARDED = [
                 experimental_output_type=stats_options.OUTPUT_TYPE_TFRECORDS),
         'expected_result_proto_text':
             _SLICED_STATS_TEST_RESULT,
-        'expected_shards': 3,  # Expect one shard per dataset.
+        'expected_shards':
+            9,  # 3 slices * 3 shards / slice.
     },
 ]
 
@@ -2937,24 +2939,33 @@ _SLICING_SQL_TESTS = [
 ]
 
 
-def merge_shards(
-    shards: Iterable[statistics_pb2.DatasetFeatureStatisticsList]
+def _get_singleton_dataset(
+    statistics: statistics_pb2.DatasetFeatureStatisticsList
 ) -> statistics_pb2.DatasetFeatureStatistics:
+  """Get singleton shard from a dataset list or raise an exception."""
+  if len(statistics.datasets) != 1:
+    raise ValueError('Expected 1 dataset, got %d' % len(statistics.datasets))
+  return statistics.datasets[0]
+
+
+def _merge_shards(
+    shards: Iterable[statistics_pb2.DatasetFeatureStatisticsList]
+) -> statistics_pb2.DatasetFeatureStatisticsList:
   """Helper to merge shards for test comparison."""
 
   def _flatten(shards):
     for statistics_list in shards:
-      for dataset in statistics_list:
+      for dataset in statistics_list.datasets:
         yield dataset
 
-  return stats_impl._merge_dataset_feature_stats_protos(_flatten(shards))
+  return merge_util.merge_dataset_feature_statistics(_flatten(shards))
 
 
 class StatsImplTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       *(_GENERATE_STATS_TESTS + _GENERATE_STATS_NO_IN_MEMORY_TESTS +
-        _SLICING_FN_TESTS))
+        _SLICING_FN_TESTS + _SLICING_FN_TESTS_SHARDED))
   def test_stats_impl(self,
                       record_batches,
                       options,
@@ -2971,7 +2982,7 @@ class StatsImplTest(parameterized.TestCase):
           p | beam.Create(record_batches, reshuffle=False)
           | stats_impl.GenerateStatisticsImpl(options))
       if expected_shards > 1:
-        merge_fn = merge_shards
+        merge_fn = _merge_shards
       else:
         merge_fn = None
       util.assert_that(
@@ -3456,6 +3467,7 @@ class StatsImplTest(parameterized.TestCase):
         'TransformStatsGenerator.'):
       stats_impl.generate_statistics_in_memory(record_batch, options)
 
+  # Note: these tests partially duplicate tfx_bsl merge tests.
   def test_merge_dataset_feature_stats_protos(self):
     proto1 = text_format.Parse(
         """
@@ -3509,7 +3521,8 @@ class StatsImplTest(parameterized.TestCase):
         }
         """, statistics_pb2.DatasetFeatureStatistics())
 
-    actual = stats_impl._merge_dataset_feature_stats_protos([proto1, proto2])
+    actual = _get_singleton_dataset(
+        merge_util.merge_dataset_feature_statistics([proto1, proto2]))
     self.assertEqual(actual, expected)
 
   def test_merge_dataset_feature_stats_protos_single_proto(self):
@@ -3551,12 +3564,14 @@ class StatsImplTest(parameterized.TestCase):
         }
         """, statistics_pb2.DatasetFeatureStatistics())
 
-    actual = stats_impl._merge_dataset_feature_stats_protos([proto1])
+    actual = _get_singleton_dataset(
+        merge_util.merge_dataset_feature_statistics([proto1]))
     self.assertEqual(actual, expected)
 
   def test_merge_dataset_feature_stats_protos_empty(self):
-    self.assertEqual(stats_impl._merge_dataset_feature_stats_protos([]),
-                     statistics_pb2.DatasetFeatureStatistics())
+    self.assertEqual(
+        _get_singleton_dataset(merge_util.merge_dataset_feature_statistics([])),
+        statistics_pb2.DatasetFeatureStatistics())
 
   def test_tfdv_telemetry(self):
     record_batches = [
