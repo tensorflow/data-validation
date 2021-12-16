@@ -6,6 +6,8 @@
 
 ## Bug Fixes and Other Changes
 
+*   Depends on `numpy>=1.16,<2`.
+
 ## Known Issues
 
 ## Breaking Changes

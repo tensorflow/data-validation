@@ -51,7 +51,7 @@ function setup_environment() {
 }
 
 function install_numpy() {
-  ${PIP_BIN} install "numpy>=1.16,<1.20"
+  ${PIP_BIN} install "numpy>=1.16,<2"
 }
 
 function build_wheel() {
