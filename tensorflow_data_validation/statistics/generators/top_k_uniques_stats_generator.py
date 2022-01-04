@@ -89,12 +89,11 @@ def _to_topk_tuples(
     categorical_numeric_types: Mapping[types.FeaturePath,
                                        'schema_pb2.FeatureType'],
     example_weight_map: ExampleWeightMap,
-) -> Iterable[Tuple[Tuple[types.SliceKey, types.FeaturePathTuple, Any], Union[
-    int, Tuple[int, Union[int, float]]]]]:
+) -> Iterable[Tuple[Tuple[types.SliceKey, types.FeaturePathTuple, Any], Tuple[
+    int, Union[int, float]]]]:
   """Generates tuples for computing top-k and uniques from the input."""
   slice_key, record_batch = sliced_record_batch
 
-  has_any_weight = bool(example_weight_map.all_weight_features())
   for feature_path, feature_array, weights in arrow_util.enumerate_arrays(
       record_batch,
       example_weight_map=example_weight_map,
@@ -119,12 +118,8 @@ def _to_topk_tuples(
       value_counts = flattened_values.value_counts()
       values = value_counts.field('values').to_pylist()
       counts = value_counts.field('counts').to_pylist()
-      if has_any_weight:
-        for value, count in zip(values, counts):
-          yield ((slice_key, feature_path.steps(), value), (count, 1))
-      else:
-        for value, count in zip(values, counts):
-          yield ((slice_key, feature_path.steps(), value), count)
+      for value, count in zip(values, counts):
+        yield ((slice_key, feature_path.steps(), value), (count, 1))
 
 
 class _ComputeTopKUniquesStats(beam.PTransform):
@@ -163,7 +158,7 @@ class _ComputeTopKUniquesStats(beam.PTransform):
   def expand(self, pcoll: beam.pvalue.PCollection) -> beam.pvalue.PCollection:
 
     def _sum_pairwise(
-        iter_of_pairs: Iterator[Tuple[Union[int, float], Union[int, float]]]
+        iter_of_pairs: Iterable[Tuple[Union[int, float], Union[int, float]]]
     ) -> Tuple[Union[int, float], Union[int, float]]:
       """Computes sum of counts and weights."""
       # We take advantage of the fact that constructing a np array from a list
@@ -174,15 +169,22 @@ class _ComputeTopKUniquesStats(beam.PTransform):
       else:
         arr = np.fromiter(
             iter_of_pairs, dtype=[('c', np.int64), ('w', np.float)])
-      return arr['c'].sum(), arr['w'].sum()
+      return int(arr['c'].sum()), float(arr['w'].sum())
 
     has_any_weight = bool(self._example_weight_map.all_weight_features())
-    if has_any_weight:
-      sum_fn = _sum_pairwise
-    else:
-      # For non-weighted case, use sum combine fn over integers to allow Beam
-      # to use Cython combiner.
-      sum_fn = sum
+
+    class CombineCountsAndWeights(beam.PTransform):
+
+      def expand(self, pcoll):
+        if has_any_weight:
+          return pcoll | beam.CombinePerKey(_sum_pairwise)
+        else:
+          # For non-weighted case, use sum combine fn over integers to allow
+          # Beam to use Cython combiner.
+          return (pcoll
+                  | 'RemoveWeights' >> beam.MapTuple(lambda k, v: (k, v[0]))
+                  | beam.CombinePerKey(sum))
+
     top_k_tuples_combined = (
         pcoll
         | 'ToTopKTuples' >> beam.FlatMap(
@@ -190,7 +192,7 @@ class _ComputeTopKUniquesStats(beam.PTransform):
             bytes_features=self._bytes_features,
             categorical_numeric_types=self._categorical_numeric_types,
             example_weight_map=self._example_weight_map)
-        | 'CombineCountsAndWeights' >> beam.CombinePerKey(sum_fn)
+        | 'CombineCountsAndWeights' >> CombineCountsAndWeights()
         | 'Rearrange' >> beam.MapTuple(lambda k, v: ((k[0], k[1]), (v, k[2]))))
     # (slice_key, feature_path_steps), (count_and_maybe_weight, value)
 
