@@ -112,6 +112,9 @@ class FeaturePath(object):
   def __str__(self) -> Text:
     return ".".join(self._steps)
 
+  def __repr__(self) -> str:
+    return self._steps.__repr__()
+
   def __eq__(self, other) -> bool:
     return self._steps == other._steps  # pylint: disable=protected-access
 

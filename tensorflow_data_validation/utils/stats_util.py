@@ -18,14 +18,16 @@ from __future__ import division
 from __future__ import print_function
 
 import logging
-from typing import Dict, Optional, Text, Union
+from typing import Dict, Iterable, Optional, Text, Tuple, Union
 
 import numpy as np
 import pyarrow as pa
 import tensorflow as tf
+from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.utils import io_util
+from tfx_bsl import statistics
 from google.protobuf import text_format
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
@@ -310,13 +312,13 @@ def get_custom_stats(
                    custom_stats_name)
 
 
-def get_slice_stats(statistics: statistics_pb2.DatasetFeatureStatisticsList,
-                    slice_key: Text
-                   ) -> statistics_pb2.DatasetFeatureStatisticsList:
+def get_slice_stats(
+    stats: statistics_pb2.DatasetFeatureStatisticsList,
+    slice_key: Text) -> statistics_pb2.DatasetFeatureStatisticsList:
   """Get statistics associated with a specific slice.
 
   Args:
-    statistics: A DatasetFeatureStatisticsList protocol buffer.
+    stats: A DatasetFeatureStatisticsList protocol buffer.
     slice_key: Slice key of the slice.
 
   Returns:
@@ -326,7 +328,7 @@ def get_slice_stats(statistics: statistics_pb2.DatasetFeatureStatisticsList,
     ValueError: If the input statistics proto does not have the specified slice
       statistics.
   """
-  for slice_stats in statistics.datasets:
+  for slice_stats in stats.datasets:
     if slice_stats.name == slice_key:
       result = statistics_pb2.DatasetFeatureStatisticsList()
       result.datasets.add().CopyFrom(slice_stats)
@@ -357,3 +359,238 @@ def load_statistics(
     logging.info('File %s did not look like a TFRecord. Try reading as a plain '
                  'file.', input_path)
     return load_stats_text(input_path)
+
+
+class DatasetListView(object):
+  """View of statistics for multiple datasets (slices)."""
+
+  def __init__(self, stats_proto: statistics_pb2.DatasetFeatureStatisticsList):
+    self._statistics = stats_proto
+    self._slice_map = {}  # type: Dict[str, DatasetView]
+    self._initialized = False
+
+  def _init_index(self):
+    """Initializes internal mappings."""
+    # Lazily initialize in case we don't need an index.
+    if self._initialized:
+      return
+    for dataset in self._statistics.datasets:
+      if dataset.name in self._slice_map:
+        raise ValueError('Duplicate slice name %s' % dataset.name)
+      self._slice_map[dataset.name] = DatasetView(dataset)
+    self._initialized = True
+
+  def proto(self) -> statistics_pb2.DatasetFeatureStatisticsList:
+    """Retrieve the underlying proto."""
+    return self._statistics
+
+  def get_slice(self, slice_key: str) -> Optional['DatasetView']:
+    self._init_index()
+    return self._slice_map.get(slice_key, None)
+
+  def get_default_slice(self) -> Optional['DatasetView']:
+    self._init_index()
+    if len(self._slice_map) == 1:
+      for _, v in self._slice_map.items():
+        return v
+    return self._slice_map.get(constants.DEFAULT_SLICE_KEY, None)
+
+  def list_slices(self) -> Iterable[str]:
+    self._init_index()
+    return self._slice_map.keys()
+
+
+class DatasetView(object):
+  """View of statistics for a dataset (slice)."""
+
+  def __init__(self, stats_proto: statistics_pb2.DatasetFeatureStatistics):
+    self._feature_map = {}  # type: Dict[types.FeaturePath, int]
+    self._cross_feature_map = {
+    }  # type: Dict[Tuple[types.FeaturePath, types.FeaturePath], int]
+    self._statistics = stats_proto
+    self._initialized = False
+
+  def _init_index(self):
+    """Initializes internal indices. Noop if already initialized."""
+    if self._initialized:
+      return
+    field_identifier = None
+    for j, feature in enumerate(self._statistics.features):
+      if field_identifier is None:
+        field_identifier = feature.WhichOneof('field_id')
+      elif feature.WhichOneof('field_id') != field_identifier:
+        raise ValueError(
+            'Features must be specified with either path or name within a'
+            ' Dataset.')
+
+      if field_identifier == 'name':
+        feature_id = types.FeaturePath([feature.name])
+      else:
+        feature_id = types.FeaturePath.from_proto(feature.path)
+
+      if feature_id in self._feature_map:
+        raise ValueError('Duplicate feature %s' % feature_id)
+      self._feature_map[feature_id] = j
+    for j, cross_feature in enumerate(self._statistics.cross_features):
+      feature_id = (types.FeaturePath.from_proto(cross_feature.path_x),
+                    types.FeaturePath.from_proto(cross_feature.path_y))
+      if feature_id in self._cross_feature_map:
+        raise ValueError('Duplicate feature %s' % feature_id)
+      self._cross_feature_map[feature_id] = j
+    self._initialized = True
+
+  def proto(self) -> statistics_pb2.DatasetFeatureStatistics:
+    """Retrieve the underlying proto."""
+    return self._statistics
+
+  def get_feature(self,
+                  feature_id: types.FeaturePath) -> Optional['FeatureView']:
+    """Retrieve a feature if it exists.
+
+    Features specified within the underlying proto by name (instead of path) are
+    normalized to a length 1 path and should be referred to as such.
+
+    Args:
+      feature_id: A feature path.
+
+    Returns:
+      A FeatureView, or None if feature_id is not present.
+    """
+    self._init_index()
+    index = self._feature_map.get(feature_id, None)
+    if index is None:
+      return None
+    return FeatureView(self._statistics.features[index])
+
+  def get_cross_feature(
+      self, x_path: types.FeaturePath,
+      y_path: types.FeaturePath) -> Optional['CrossFeatureView']:
+    """Retrieve a cross-feature if it exists, or None."""
+    self._init_index()
+    feature_id = (x_path, y_path)
+    index = self._cross_feature_map.get(feature_id, None)
+    if index is None:
+      return None
+    return CrossFeatureView(self._statistics.cross_features[index])
+
+  def list_features(self) -> Iterable[types.FeaturePath]:
+    """Lists feature identifiers."""
+    self._init_index()
+    return self._feature_map.keys()
+
+  def list_cross_features(
+      self) -> Iterable[Tuple[types.FeaturePath, types.FeaturePath]]:
+    """Lists cross-feature identifiers."""
+    self._init_index()
+    return self._cross_feature_map.keys()
+
+
+class FeatureView(object):
+  """View of a single feature.
+
+  This class provides accessor methods, as well as access to the underlying
+  proto. Where possible, accessors should be used in place of proto access (for
+  example, x.numeric_statistics() instead of x.proto().num_stats) in order to
+  support future extension of the proto.
+  """
+
+  def __init__(self, stats_proto: statistics_pb2.FeatureNameStatistics):
+    self._statistics = stats_proto
+
+  def proto(self) -> statistics_pb2.FeatureNameStatistics:
+    """Retrieve the underlying proto."""
+    return self._statistics
+
+  def custom_statistic(self,
+                       name: str) -> Optional[statistics_pb2.CustomStatistic]:
+    """Retrieve a custom_statistic by name."""
+    result = None
+    for stat in self._statistics.custom_stats:
+      if stat.name == name:
+        if result is None:
+          result = stat
+        else:
+          raise ValueError('Duplicate custom_stats for name %s' % name)
+    return result
+
+  # TODO(b/202910677): Add convenience methods for retrieving first-party custom
+  # statistics (e.g., MI, NLP).
+
+  def numeric_statistics(self) -> Optional[statistics_pb2.NumericStatistics]:
+    """Retrieve numeric statistics if available."""
+    if self._statistics.WhichOneof('stats') == 'num_stats':
+      return self._statistics.num_stats
+    return None
+
+  def string_statistics(self) -> Optional[statistics_pb2.StringStatistics]:
+    """Retrieve string statistics if available."""
+    if self._statistics.WhichOneof('stats') == 'string_stats':
+      return self._statistics.string_stats
+    return None
+
+  def bytes_statistics(self) -> Optional[statistics_pb2.BytesStatistics]:
+    """Retrieve byte statistics if available."""
+    if self._statistics.WhichOneof('stats') == 'bytes_stats':
+      return self._statistics.bytes_stats
+    return None
+
+  def struct_statistics(self) -> Optional[statistics_pb2.StructStatistics]:
+    """Retrieve struct statistics if available."""
+    if self._statistics.WhichOneof('stats') == 'struct_stats':
+      return self._statistics.struct_stats
+    return None
+
+  def common_statistics(self) -> Optional[statistics_pb2.CommonStatistics]:
+    """Retrieve common statistics if available."""
+    which = self._statistics.WhichOneof('stats')
+    if which == 'num_stats':
+      return self._statistics.num_stats.common_stats
+    if which == 'string_stats':
+      return self._statistics.string_stats.common_stats
+    if which == 'bytes_stats':
+      return self._statistics.bytes_stats.common_stats
+    if which == 'struct_stats':
+      return self._statistics.struct_stats.common_stats
+    return None
+
+
+class CrossFeatureView(object):
+  """View of a single cross feature."""
+
+  def __init__(self, stats_proto: statistics_pb2.CrossFeatureStatistics):
+    self._statistics = stats_proto
+
+  def proto(self) -> statistics_pb2.CrossFeatureStatistics:
+    """Retrieve the underlying proto."""
+    return self._statistics
+
+
+def load_sharded_statistics(
+    input_pattern: Optional[str] = None,
+    input_paths: Optional[Iterable[str]] = None) -> DatasetListView:
+  """Read a sharded DatasetFeatureStatisticsList from disk as a DatasetListView.
+
+  Args:
+    input_pattern: A file pattern matching TFRecord files containing sharded
+      DatasetFeatureStatisticsList protos.
+    input_paths: A list of file paths of TFRecord files containing sharded
+      DatasetFeatureStatisticsList protos.
+
+  Returns:
+    A DatasetListView containing the merged proto.
+  """
+  if input_pattern is None == input_paths is None:
+    raise ValueError('Must provide one of input_pattern, input_paths.')
+  if input_pattern is not None:
+    input_paths = tf.io.gfile.glob(input_pattern)
+
+  acc = statistics.DatasetListAccumulator()
+  for path in input_paths:
+    for record_bytes in tf.compat.v1.io.tf_record_iterator(path):
+      record = statistics_pb2.DatasetFeatureStatisticsList()
+      record.ParseFromString(record_bytes)
+      for dataset in record.datasets:
+        acc.MergeDatasetFeatureStatistics(dataset.SerializeToString())
+  stats = statistics_pb2.DatasetFeatureStatisticsList()
+  stats.ParseFromString(acc.Get())
+  return DatasetListView(stats)

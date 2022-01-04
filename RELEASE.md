@@ -4,6 +4,9 @@
 
 ## Major Features and Improvements
 
+*   Introduces a convenience wrapper for handling indexed access to statistics
+    protos.
+
 ## Bug Fixes and Other Changes
 
 *   Depends on `numpy>=1.16,<2`.
