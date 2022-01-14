@@ -425,6 +425,10 @@ condition(s) under which each anomaly type is detected.
 
     -   Anomaly type not detected in TFDV
 
+-   `STRING_TYPE_NON_UTF8`
+
+    -   Anomaly type not detected in TFDV
+
 -   `COMPARATOR_CONTROL_DATA_MISSING`
 
     -   Schema Fields:
@@ -819,7 +823,7 @@ condition(s) under which each anomaly type is detected.
     -   Anomaly occurs when stats needed to validate constraints are not
         present.
 
- --------------------------------------------------------------------------------
+    ----------------------------------------------------------------------------
 
 \* If a weighted statistic is available for this field, it will be used instead
 of the non-weighted statistic.
