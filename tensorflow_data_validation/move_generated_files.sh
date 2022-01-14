@@ -32,6 +32,8 @@ function tfdv::move_generated_files() {
     cp -f "${BUILD_WORKSPACE_DIRECTORY}/bazel-out/x64_windows-opt/bin/${PYWRAP_TFDV}" \
       "${BUILD_WORKSPACE_DIRECTORY}/${PYWRAP_TFDV}"
 
+    cp -f ${BUILD_WORKSPACE_DIRECTORY}/${GENFILES}/tensorflow_data_validation/skew/protos/feature_skew_results_pb2.py \
+      ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/skew/protos
     cp -f ${BUILD_WORKSPACE_DIRECTORY}/${GENFILES}/tensorflow_data_validation/anomalies/proto/validation_config_pb2.py \
       ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/anomalies/proto
     cp -f ${BUILD_WORKSPACE_DIRECTORY}/${GENFILES}/tensorflow_data_validation/anomalies/proto/validation_metadata_pb2.py \
@@ -44,6 +46,8 @@ function tfdv::move_generated_files() {
     # If run by "bazel run", $(pwd) is the .runfiles dir that contains all the
     # data dependencies.
     RUNFILES_DIR=$(pwd)
+    cp -f ${RUNFILES_DIR}/tensorflow_data_validation/skew/protos/feature_skew_results_pb2.py \
+      ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/skew/protos
     cp -f ${RUNFILES_DIR}/tensorflow_data_validation/anomalies/proto/validation_config_pb2.py \
       ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/anomalies/proto
     cp -f ${RUNFILES_DIR}/tensorflow_data_validation/anomalies/proto/validation_metadata_pb2.py \

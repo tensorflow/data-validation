@@ -107,6 +107,10 @@ class _BinaryDistribution(Distribution):
     return True
 
 
+def _make_feature_skew_requirements():
+  return ['pyfarmhash>=0.2,<0.4']
+
+
 def _make_mutual_information_requirements():
   return ['scikit-learn>=0.23,<0.24', 'scipy>=1.5,<2']
 
@@ -118,7 +122,8 @@ def _make_visualization_requirements():
 
 
 def _make_all_extra_requirements():
-  return (_make_mutual_information_requirements() +
+  return (_make_feature_skew_requirements() +
+          _make_mutual_information_requirements() +
           _make_visualization_requirements())
 
 
@@ -198,6 +203,7 @@ setup(
     ],
     extras_require={
         'mutual-information': _make_mutual_information_requirements(),
+        'feature-skew': _make_feature_skew_requirements(),
         'visualization': _make_visualization_requirements(),
         'all': _make_all_extra_requirements(),
     },
