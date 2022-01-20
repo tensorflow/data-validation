@@ -52,6 +52,7 @@ array contained in some struct column):
 We compute the following statistics for each string column (or leaf numeric
 array contained in some struct column):
   - Average length of the values for this feature.
+  - Number of non-UTF8 values (only for string or binary typed columns)
 """
 
 import collections
@@ -355,15 +356,18 @@ class _PartialNumericStats(object):
 class _PartialStringStats(object):
   """Holds partial string statistics for a single feature."""
 
-  __slots__ = ['total_bytes_length']
+  __slots__ = ['total_bytes_length', 'invalid_utf8_count']
 
   def __init__(self):
     # The total length of all the values for this feature.
     self.total_bytes_length = 0
+    # The count of invalid utf-8 strings (in flattened arrays).
+    self.invalid_utf8_count = 0
 
   def __iadd__(self, other: '_PartialStringStats') -> '_PartialStringStats':
     """Merge two partial string statistics and return the merged statistics."""
     self.total_bytes_length += other.total_bytes_length
+    self.invalid_utf8_count += other.invalid_utf8_count
     return self
 
   def update(self, feature_array: pa.Array) -> None:
@@ -378,6 +382,8 @@ class _PartialStringStats(object):
       # Python2, we first convert it to int.
       self.total_bytes_length += int(array_util.GetBinaryArrayTotalByteSize(
           flattened_values_array))
+      self.invalid_utf8_count += array_util.CountInvalidUTF8(
+          flattened_values_array)
     elif flattened_values_array:
       # We can only do flattened_values_array.to_numpy() when it's not empty.
       # This could be computed faster by taking log10 of the integer.
@@ -702,6 +708,7 @@ def _make_string_stats_proto(string_stats: _PartialStringStats,
   result = statistics_pb2.StringStatistics()
   if total_num_values > 0:
     result.avg_length = string_stats.total_bytes_length / total_num_values
+  result.invalid_utf8_count = string_stats.invalid_utf8_count
   return result
 
 

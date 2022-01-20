@@ -2118,6 +2118,62 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         TypeError, 'Cannot determine the type'):
       self.assertCombinerOutputEqual(batches, generator, None)
 
+  def test_with_invalid_utf8(self):
+    b1 = pa.RecordBatch.from_arrays(
+        [pa.array([[b'a'], [b'\xfc\xa1\xa1\xa1\xa1\xa1'], None])], ['a'])
+    b2 = pa.RecordBatch.from_arrays([pa.array([[b'\xfc\xa1\xa1\xa1\xa1\xa1']])],
+                                    ['a'])
+    batches = [b1, b2]
+    expected_result = {
+        types.FeaturePath(['a']):
+            text_format.Parse("""
+            type: STRING
+            string_stats {
+              common_stats {
+                num_non_missing: 3
+                num_missing: 1
+                min_num_values: 1
+                max_num_values: 1
+                avg_num_values: 1.0
+                num_values_histogram {
+                  buckets {
+                    low_value: 1.0
+                    high_value: 1.0
+                    sample_count: 0.75
+                  }
+                  buckets {
+                    low_value: 1.0
+                    high_value: 1.0
+                    sample_count: 0.75
+                  }
+                  buckets {
+                    low_value: 1.0
+                    high_value: 1.0
+                    sample_count: 0.75
+                  }
+                  buckets {
+                    low_value: 1.0
+                    high_value: 1.0
+                    sample_count: 0.75
+                  }
+                  type: QUANTILES
+                }
+                tot_num_values: 3
+              }
+              avg_length: 4.333333
+              invalid_utf8_count: 2
+            }
+            path {
+              step: "a"
+            }
+            """, statistics_pb2.FeatureNameStatistics())
+    }
+    generator = basic_stats_generator.BasicStatsGenerator(
+        num_values_histogram_buckets=4,
+        num_histogram_buckets=3,
+        num_quantiles_histogram_buckets=4)
+    self.assertCombinerOutputEqual(batches, generator, expected_result)
+
 
 _STRUCT_TEST_CASES = [
     dict(
@@ -3024,15 +3080,15 @@ _NESTED_TEST_CASES = [
             pa.RecordBatch.from_arrays([
                 pa.array([
                     [[None, None], None, []],
-                ], type=pa.list_(
-                    pa.list_(pa.null()))),
+                ],
+                         type=pa.list_(pa.list_(pa.null()))),
                 pa.array([[1.0]])
             ], ['a', 'w'])
         ],
         weight_column='w',
         expected_result={
             types.FeaturePath(['a']):
-            """
+                """
             type: STRING
             string_stats {
               common_stats {
@@ -3135,7 +3191,8 @@ _NESTED_TEST_CASES = [
             }
             path {
               step: "a"
-            }"""}),
+            }"""
+        }),
     dict(
         testcase_name='nested_null',
         batches=[
@@ -3144,7 +3201,9 @@ _NESTED_TEST_CASES = [
                          type=pa.large_list(pa.null()))
             ], ['a']),
         ],
-        expected_result={types.FeaturePath(['a']): """
+        expected_result={
+            types.FeaturePath(['a']):
+                """
             type: STRING
             string_stats {
               common_stats {
@@ -3178,8 +3237,100 @@ _NESTED_TEST_CASES = [
             }
             path {
             step: "a"
-            }"""}),
-
+            }"""
+        }),
+    dict(
+        testcase_name='nested_with_non_utf8',
+        batches=[
+            pa.RecordBatch.from_arrays([
+                pa.array([
+                    [[[b'a', b'a'], [b'a'], None], None, []],
+                    [[[b'a', b'\xfc\xa1\xa1\xa1\xa1\xa1']], [[b'a']]],
+                ])
+            ], ['a']),
+        ],
+        expected_result={
+            types.FeaturePath(['a']):
+                """
+            type: STRING
+            string_stats {
+              common_stats {
+                num_non_missing: 2
+                min_num_values: 2
+                max_num_values: 3
+                avg_num_values: 2.5
+                num_values_histogram {
+                  buckets {
+                    low_value: 2.0
+                    high_value: 3.0
+                    sample_count: 1.0
+                  }
+                  buckets {
+                    low_value: 3.0
+                    high_value: 3.0
+                    sample_count: 1.0
+                  }
+                  type: QUANTILES
+                }
+                tot_num_values: 5
+                presence_and_valency_stats {
+                  num_non_missing: 2
+                  min_num_values: 2
+                  max_num_values: 3
+                  tot_num_values: 5
+                }
+                presence_and_valency_stats {
+                  num_non_missing: 4
+                  num_missing: 1
+                  max_num_values: 3
+                  tot_num_values: 5
+                }
+                presence_and_valency_stats {
+                  num_non_missing: 4
+                  num_missing: 1
+                  min_num_values: 1
+                  max_num_values: 2
+                  tot_num_values: 6
+                }
+              }
+              avg_length: 1.833333
+              invalid_utf8_count: 1
+            }
+            custom_stats {
+              name: "level_2_value_list_length"
+              histogram {
+                buckets {
+                  high_value: 1.0
+                  sample_count: 1.0
+                }
+                buckets {
+                  low_value: 1.0
+                  high_value: 3.0
+                  sample_count: 1.0
+                }
+                type: QUANTILES
+              }
+            }
+            custom_stats {
+              name: "level_3_value_list_length"
+              histogram {
+                buckets {
+                  low_value: 1.0
+                  high_value: 2.0
+                  sample_count: 2.0
+                }
+                buckets {
+                  low_value: 2.0
+                  high_value: 2.0
+                  sample_count: 2.0
+                }
+                type: QUANTILES
+              }
+            }
+            path {
+              step: "a"
+            }"""
+        }),
 ]
 
 

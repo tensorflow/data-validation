@@ -7,6 +7,9 @@
 *   Introduces a convenience wrapper for handling indexed access to statistics
     protos.
 
+*   String features are checked for UTF-8 validity, and the number of invalid
+    strings is reported as invalid_utf8_count.
+
 ## Bug Fixes and Other Changes
 
 *   Depends on `numpy>=1.16,<2`.
@@ -23,8 +26,6 @@
 # Version 1.5.0
 
 ## Major Features and Improvements
-
-*   N/A
 
 ## Bug Fixes and Other Changes
 

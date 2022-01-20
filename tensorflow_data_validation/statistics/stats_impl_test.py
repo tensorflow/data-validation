@@ -1170,6 +1170,7 @@ _GENERATE_STATS_TESTS = [
                     frequency: 10.0
                   }
                   avg_length: 8.80000019073
+                  invalid_utf8_count: 90
                   rank_histogram {
                     buckets {
                       label: "__BYTES_VALUE__"
@@ -1332,6 +1333,7 @@ _GENERATE_STATS_TESTS = [
                     frequency: 10.0
                   }
                   avg_length: 8.80000019073
+                  invalid_utf8_count: 90
                   rank_histogram {
                     buckets {
                       label: "__BYTES_VALUE__"
