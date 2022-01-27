@@ -45,10 +45,12 @@ from __future__ import print_function
 
 import random
 from typing import Generator, Text
+
 import apache_beam as beam
 import pyarrow as pa
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options
+from tfx_bsl.statistics import merge_util
 
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
@@ -137,18 +139,56 @@ class WriteStatisticsToBinaryFile(beam.PTransform):
 class WriteStatisticsToTFRecord(beam.PTransform):
   """API for writing serialized data statistics to TFRecord file."""
 
-  def __init__(self, output_path: Text) -> None:
+  def __init__(self, output_path: Text, sharded_output=False) -> None:
     """Initializes the transform.
 
     Args:
-      output_path: Output path for writing data statistics.
+      output_path: The output path or path prefix (if sharded_output=True).
+      sharded_output: If true, writes sharded TFRecords files in the form
+        output_path-SSSSS-of-NNNNN.
     """
     self._output_path = output_path
+    self._sharded_output = sharded_output
 
   def expand(self, stats: beam.PCollection) -> beam.pvalue.PDone:
     return (stats
             | 'WriteStats' >> beam.io.WriteToTFRecord(
                 self._output_path,
-                shard_name_template='',
+                shard_name_template='' if not self._sharded_output else None,
                 coder=beam.coders.ProtoCoder(
                     statistics_pb2.DatasetFeatureStatisticsList)))
+
+
+@beam.typehints.with_input_types(statistics_pb2.DatasetFeatureStatisticsList)
+@beam.typehints.with_output_types(beam.pvalue.PDone)
+class WriteStatisticsToTFRecordAndBinaryFile(beam.PTransform):
+  """API for writing statistics to both sharded TFRecord files and binary pb.
+
+  This PTransform assumes that input represents sharded statistics, which are
+  written directly. These statistics are also merged and written to a binary
+  proto.
+
+  TODO(b/202910677): After full migration to sharded stats, clean this up.
+  """
+
+  def __init__(self, binary_proto_path: str,
+               tfrecords_path_prefix: str) -> None:
+    """Initializes the transform.
+
+    Args:
+      binary_proto_path: Output path for writing statistics as a binary proto.
+      tfrecords_path_prefix: File pattern for writing statistics as TFRecords.
+    """
+    self._binary_proto_path = binary_proto_path
+    self._tfrecords_path_prefix = tfrecords_path_prefix
+
+  def expand(self, stats: beam.PCollection) -> beam.pvalue.PDone:
+    # Write sharded outputs, ignoring PDone.
+    _ = (
+        stats | 'WriteShardedStats' >> WriteStatisticsToTFRecord(
+            self._tfrecords_path_prefix, True))
+    return (stats
+            | 'MergeDatasetFeatureStatisticsProtos' >> beam.CombineGlobally(
+                merge_util.merge_dataset_feature_statistics_list)
+            | 'WriteBinaryStats' >> WriteStatisticsToBinaryFile(
+                self._binary_proto_path))
