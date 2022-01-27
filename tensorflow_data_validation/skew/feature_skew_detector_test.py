@@ -356,6 +356,18 @@ class FeatureSkewDetectorTest(absltest.TestCase):
           skew_result,
           make_skew_result_equal_fn(self, expected_with_float_and_option))
 
+  def test_no_identifier_features(self):
+    training_examples, serving_examples, _ = get_test_input(
+        include_skewed_features=False, include_close_floats=False)
+    with self.assertRaisesRegex(ValueError,
+                                'At least one feature name must be specified'):
+      with beam.Pipeline() as p:
+        training_examples = p | 'Create Training' >> beam.Create(
+            training_examples)
+        serving_examples = p | 'Create Serving' >> beam.Create(serving_examples)
+        _ = ((training_examples, serving_examples)
+             | feature_skew_detector.DetectFeatureSkewImpl([]))
+
   def test_telemetry(self):
     base_example = tf.train.Example()
     base_example.features.feature[_IDENTIFIER1].int64_list.value.append(1)

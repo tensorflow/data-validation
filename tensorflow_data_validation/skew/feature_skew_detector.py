@@ -355,6 +355,9 @@ class DetectFeatureSkewImpl(beam.PTransform):
       float_round_ndigits: Number of digits of precision after the decimal point
         to which to round float values before detecting skew.
     """
+    if not identifier_features:
+      raise ValueError("At least one feature name must be specified in "
+                       "identifier_features.")
     self._identifier_features = identifier_features
     self._sample_size = sample_size
     self._float_round_ndigits = float_round_ndigits
