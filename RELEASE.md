@@ -4,6 +4,8 @@
 
 ## Major Features and Improvements
 
+*   Use sketch based top-k/uniques in TFDV inmemory mode.
+
 ## Bug Fixes and Other Changes
 
 ## Known Issues
