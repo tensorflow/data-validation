@@ -719,5 +719,60 @@ class StatsAPITest(absltest.TestCase):
     test_util.assert_dataset_feature_stats_proto_equal(
         self, stats_from_shards.datasets[0], stats_combined.datasets[0])
 
+
+class MergeDatasetFeatureStatisticsListTest(absltest.TestCase):
+
+  def test_merges_two_shards(self):
+    stats1 = text_format.Parse(
+        """
+      datasets {
+        name: 'x'
+        num_examples: 100
+        features: {
+           path: {
+              step: "f1"
+           }
+        }
+      }
+      """, statistics_pb2.DatasetFeatureStatisticsList())
+    stats2 = text_format.Parse(
+        """
+        datasets {
+          name: 'x'
+          num_examples: 100
+          features: {
+             path: {
+                step: "f2"
+             }
+          }
+        }
+        """, statistics_pb2.DatasetFeatureStatisticsList())
+
+    stats_combined = text_format.Parse(
+        """
+        datasets {
+          name: 'x'
+          num_examples: 100
+          features: {
+             path: {
+                step: "f1"
+             }
+          }
+          features: {
+             path: {
+                step: "f2"
+             }
+          }
+        }
+        """, statistics_pb2.DatasetFeatureStatisticsList())
+    with beam.Pipeline() as p:
+      result = (
+          p | beam.Create([stats1, stats2])
+          | stats_api.MergeDatasetFeatureStatisticsList())
+      util.assert_that(
+          result,
+          test_util.make_dataset_feature_stats_list_proto_equal_fn(
+              self, stats_combined))
+
 if __name__ == '__main__':
   absltest.main()

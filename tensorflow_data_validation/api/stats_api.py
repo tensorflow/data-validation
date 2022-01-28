@@ -160,6 +160,17 @@ class WriteStatisticsToTFRecord(beam.PTransform):
 
 
 @beam.typehints.with_input_types(statistics_pb2.DatasetFeatureStatisticsList)
+@beam.typehints.with_output_types(statistics_pb2.DatasetFeatureStatisticsList)
+class MergeDatasetFeatureStatisticsList(beam.PTransform):
+  """API for merging sharded DatasetFeatureStatisticsList."""
+  # TODO(b/202910677): Replace this with a more efficient CombineFn.
+
+  def expand(self, stats: beam.PCollection):
+    return stats | 'MergeDatasetFeatureStatisticsProtos' >> beam.CombineGlobally(
+                merge_util.merge_dataset_feature_statistics_list)
+
+
+@beam.typehints.with_input_types(statistics_pb2.DatasetFeatureStatisticsList)
 @beam.typehints.with_output_types(beam.pvalue.PDone)
 class WriteStatisticsToTFRecordAndBinaryFile(beam.PTransform):
   """API for writing statistics to both sharded TFRecord files and binary pb.
@@ -192,3 +203,4 @@ class WriteStatisticsToTFRecordAndBinaryFile(beam.PTransform):
                 merge_util.merge_dataset_feature_statistics_list)
             | 'WriteBinaryStats' >> WriteStatisticsToBinaryFile(
                 self._binary_proto_path))
+
