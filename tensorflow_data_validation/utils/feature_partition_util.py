@@ -16,8 +16,12 @@
 import collections
 import hashlib
 from typing import Any, Iterable, Tuple, Union, FrozenSet, Mapping
+
+import apache_beam as beam
 import pyarrow as pa
+
 from tensorflow_data_validation import types
+from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
 class ColumnHasher(object):
@@ -42,6 +46,14 @@ class ColumnHasher(object):
     partition = int(md5_hash[0:8], 16) % self.num_partitions
     partition = (partition + int(md5_hash[8:], 16)) % self.num_partitions
     self._cache[feature_name] = partition
+    return partition
+
+  def assign_sequence(self, *parts: Union[bytes, str]) -> int:
+    """Assigns a feature partition based on a sequence of bytes or strings."""
+    partition = 0
+    for part in parts:
+      partition += self.assign(part)
+      partition = partition % self.num_partitions
     return partition
 
   def __eq__(self, o):
@@ -95,3 +107,71 @@ def generate_feature_partitions(
     key = (slice_key, partition)
     column_names, columns = features
     yield (key, pa.RecordBatch.from_arrays(columns, column_names))
+
+
+def _copy_with_no_features(
+    statistics: statistics_pb2.DatasetFeatureStatistics
+) -> statistics_pb2.DatasetFeatureStatistics:
+  """Return a copy of 'statistics' with no features or cross-features."""
+  return statistics_pb2.DatasetFeatureStatistics(
+      name=statistics.name,
+      num_examples=statistics.num_examples,
+      weighted_num_examples=statistics.weighted_num_examples)
+
+
+@beam.typehints.with_input_types(statistics_pb2.DatasetFeatureStatisticsList)
+@beam.typehints.with_output_types(
+    beam.typehints.KV[int, statistics_pb2.DatasetFeatureStatisticsList])
+class KeyAndSplitByFeatureFn(beam.DoFn):
+  """Breaks a DatasetFeatureStatisticsList into shards keyed by partition index.
+
+  Each partition index contains a random (but deterministic across workers)
+  subset of features and cross features.
+  """
+
+  def __init__(self, num_partitions: int):
+    """Initializes KeyAndSplitByFeatureFn.
+
+    Args:
+      num_partitions: The number of partitions to divide features/cross-features
+        into. Must be >= 1.
+    """
+    if num_partitions < 1:
+      raise ValueError('num_partitions must be >= 1.')
+    if num_partitions != 1:
+      self._hasher = ColumnHasher(num_partitions)
+    else:
+      self._hasher = None
+
+  def process(self, statistics: statistics_pb2.DatasetFeatureStatisticsList):
+    # If the number of partitions is one, or there are no datasets, yield the
+    # full statistics proto with a placeholder key.
+    if self._hasher is None or not statistics.datasets:
+      yield (0, statistics)
+      return
+    for dataset in statistics.datasets:
+      for feature in dataset.features:
+        if feature.name:
+          partition = self._hasher.assign_sequence(dataset.name, feature.name)
+        else:
+          partition = self._hasher.assign_sequence(dataset.name,
+                                                   *feature.path.step)
+        dataset_copy = _copy_with_no_features(dataset)
+        dataset_copy.features.append(feature)
+        yield (partition,
+               statistics_pb2.DatasetFeatureStatisticsList(
+                   datasets=[dataset_copy]))
+      for cross_feature in dataset.cross_features:
+        partition = self._hasher.assign_sequence(dataset.name,
+                                                 *cross_feature.path_x.step,
+                                                 *cross_feature.path_y.step)
+        dataset_copy = _copy_with_no_features(dataset)
+        dataset_copy.cross_features.append(cross_feature)
+        yield (partition,
+               statistics_pb2.DatasetFeatureStatisticsList(
+                   datasets=[dataset_copy]))
+      # If there were no features or cross-features, yield the dataset itself
+      # into shard 0 to ensure it's not dropped entirely.
+      if not dataset.features and not dataset.cross_features:
+        yield (0,
+               statistics_pb2.DatasetFeatureStatisticsList(datasets=[dataset]))

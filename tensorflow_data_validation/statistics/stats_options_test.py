@@ -284,7 +284,7 @@ class StatsOptionsTest(parameterized.TestCase):
     per_feature_weight_override = {types.FeaturePath(['a']): 'w'}
     add_default_generators = True
     use_sketch_based_topk_uniques = True
-    experimental_output_type = 'tfrecords'
+    experimental_result_partitions = 3
 
     options = stats_options.StatsOptions(
         generators=generators,
@@ -310,7 +310,7 @@ class StatsOptionsTest(parameterized.TestCase):
         per_feature_weight_override=per_feature_weight_override,
         add_default_generators=add_default_generators,
         experimental_use_sketch_based_topk_uniques=use_sketch_based_topk_uniques,
-        experimental_output_type=experimental_output_type)
+        experimental_result_partitions=experimental_result_partitions)
 
     options_json = options.to_json()
     options = stats_options.StatsOptions.from_json(options_json)
@@ -346,6 +346,8 @@ class StatsOptionsTest(parameterized.TestCase):
     self.assertEqual(add_default_generators, options.add_default_generators)
     self.assertEqual(use_sketch_based_topk_uniques,
                      options.experimental_use_sketch_based_topk_uniques)
+    self.assertEqual(experimental_result_partitions,
+                     options.experimental_result_partitions)
 
   def test_stats_options_from_json(self):
     options_json = """{
@@ -373,7 +375,7 @@ class StatsOptionsTest(parameterized.TestCase):
       "_add_default_generators": true,
       "_use_sketch_based_topk_uniques": false,
       "_slice_sqls": null,
-      "_experimental_output_type": "binary_pb"
+      "_experimental_result_partitions": 1
     }"""
     actual_options = stats_options.StatsOptions.from_json(options_json)
     expected_options_dict = stats_options.StatsOptions().__dict__

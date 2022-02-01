@@ -35,6 +35,7 @@ from tensorflow_data_validation.statistics.generators import time_stats_generato
 from tensorflow_data_validation.statistics.generators import top_k_uniques_sketch_stats_generator
 from tensorflow_data_validation.statistics.generators import top_k_uniques_stats_generator
 from tensorflow_data_validation.statistics.generators import weighted_feature_stats_generator
+from tensorflow_data_validation.utils import feature_partition_util
 from tensorflow_data_validation.utils import slicing_util
 from tfx_bsl.arrow import table_util
 from tfx_bsl.statistics import merge_util
@@ -121,6 +122,24 @@ def _TrackDistinctSliceKeys(  # pylint: disable=invalid-name
               lambda x: _increment_counter('num_distinct_slice_keys', x)))
 
 
+class _YieldPlaceholderFn(beam.DoFn):
+  """Yields a single empty proto if input (count) is zero."""
+
+  def process(self, count: int):
+    if count == 0:
+      yield (None, statistics_pb2.DatasetFeatureStatistics())
+
+
+@beam.ptransform_fn
+def _AddPlaceholderStatistics(  # pylint: disable=invalid-name
+    statistics: beam.PCollection[Tuple[
+        types.SliceKey, statistics_pb2.DatasetFeatureStatistics]]):
+  """Adds a placeholder empty dataset for empty input, otherwise noop."""
+  count = statistics | beam.combiners.Count.Globally()
+  maybe_placeholder = count | beam.ParDo(_YieldPlaceholderFn())
+  return (statistics, maybe_placeholder) | beam.Flatten()
+
+
 # This transform will be used by the example validation API to compute
 # statistics over anomalous examples. Specifically, it is used to compute
 # statistics over examples found for each anomaly (i.e., the anomaly type
@@ -178,31 +197,22 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
               _CombinerStatsGeneratorsCombineFn(
                   combiner_stats_generators, self._options.desired_batch_size)
           ).with_hot_key_fanout(fanout))
-
-    # result_protos is a list of PCollections of (slice key,
-    # DatasetFeatureStatistics proto) pairs.
-    if (self._options.experimental_output_type ==
-        stats_options.OUTPUT_TYPE_BINARY_PB):
-      # We now flatten the list into a single PCollection, combine the
-      # DatasetFeatureStatistics protos by key, and then merge the
-      # DatasetFeatureStatistics protos in the PCollection into a single
-      # DatasetFeatureStatisticsList proto.
-      return (result_protos
-              | 'FlattenFeatureStatistics' >> beam.Flatten()
-              | 'AddSliceKeyToStatsProto' >> beam.Map(_add_slice_key,
-                                                      self._is_slicing_enabled)
-              | 'ToList' >> beam.combiners.ToList()
-              | 'MergeDatasetFeatureStatisticsProtos' >> beam.Map(
-                  merge_util.merge_dataset_feature_statistics))
-    else:
-      # If we're writing sharded data, we can flatten to a single PCollection,
-      # and wrap each shard into a singleton list.
-      return (result_protos
-              | 'FlattenFeatureStatistics' >> beam.Flatten()
-              | 'AddSliceKeyToStatsProto' >> beam.Map(_add_slice_key,
-                                                      self._is_slicing_enabled)
-              | 'MakeDatasetFeatureStatisticsListProto' >>
-              beam.Map(_make_singleton_dataset_feature_statistics_list_proto))
+    result_protos = result_protos | 'FlattenFeatureStatistics' >> beam.Flatten()
+    result_protos = (
+        result_protos
+        | 'AddPlaceholderStatistics' >> _AddPlaceholderStatistics())  # pylint: disable=no-value-for-parameter
+    # Combine result_protos into a configured number of partitions.
+    return (result_protos
+            | 'AddSliceKeyToStatsProto' >> beam.Map(_add_slice_key,
+                                                    self._is_slicing_enabled)
+            | 'MakeDatasetFeatureStatisticsListProto' >>
+            beam.Map(_make_singleton_dataset_feature_statistics_list_proto)
+            | 'SplitIntoFeaturePartitions' >> beam.ParDo(
+                feature_partition_util.KeyAndSplitByFeatureFn(
+                    self._options.experimental_result_partitions))
+            | 'MergeStatsProtos' >> beam.CombinePerKey(
+                merge_util.merge_dataset_feature_statistics_list)
+            | 'Values' >> beam.Values())
 
 
 def get_generators(options: stats_options.StatsOptions,

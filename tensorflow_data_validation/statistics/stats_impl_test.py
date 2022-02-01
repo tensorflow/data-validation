@@ -2889,7 +2889,7 @@ _SLICING_FN_TESTS_SHARDED = [
                 num_histogram_buckets=2,
                 num_quantiles_histogram_buckets=2,
                 enable_semantic_domain_stats=True,
-                experimental_output_type=stats_options.OUTPUT_TYPE_TFRECORDS),
+                experimental_result_partitions=999),  # 999 >> #features.
         'expected_result_proto_text':
             _SLICED_STATS_TEST_RESULT,
         'expected_shards':

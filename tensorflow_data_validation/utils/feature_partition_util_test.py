@@ -13,12 +13,19 @@
 # limitations under the License.
 """Tests for feature_partition_util."""
 
+from typing import List, Tuple
 from unittest import mock
 
 from absl.testing import absltest
+from absl.testing import parameterized
+import apache_beam as beam
+from apache_beam.testing import util
 import pyarrow as pa
 from tensorflow_data_validation.utils import feature_partition_util
 from tensorflow_data_validation.utils import test_util
+
+from google.protobuf import text_format
+from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
 class FeaturePartitionUtilTest(absltest.TestCase):
@@ -102,6 +109,256 @@ class ColumnHasherTest(absltest.TestCase):
     for i, column_name in enumerate(column_names):
       self.assertEqual(expected[i], hasher.assign(column_name))
 
+
+_BASE_PROTO_KEY_AND_SPLIT = """
+          datasets: {
+            name: 'abc'
+            num_examples: 10
+            weighted_num_examples: 3.4
+            features: {
+              path: {
+                step: 'f1'
+              }
+            }
+            features: {
+              path: {
+                step: 'f2'
+              }
+            }
+            features: {
+              path: {
+                step: 'f3'
+              }
+            }
+            cross_features: {
+              path_x: {
+                step: 'c1'
+              }
+              path_y: {
+                step: 'c2'
+              }
+            }
+          }
+        """
+
+_KEY_AND_SPLIT_TEST_CASES = [{
+    'testcase_name': 'one_partition',
+    'num_partitions': 1,
+    'statistics': [_BASE_PROTO_KEY_AND_SPLIT],
+    'expected': [(
+        0,
+        _BASE_PROTO_KEY_AND_SPLIT,
+    )]
+}, {
+    'testcase_name':
+        'two_partitions',
+    'num_partitions':
+        2,
+    'statistics': [_BASE_PROTO_KEY_AND_SPLIT],
+    'expected': [(0, """datasets {
+  name: "abc"
+  num_examples: 10
+  features {
+    path {
+      step: "f1"
+    }
+  }
+  weighted_num_examples: 3.4
+}"""),
+                 (0, """datasets {
+  name: "abc"
+  num_examples: 10
+  features {
+    path {
+      step: "f2"
+    }
+  }
+  weighted_num_examples: 3.4
+}"""),
+                 (0, """datasets {
+  name: "abc"
+  num_examples: 10
+  features {
+    path {
+      step: "f3"
+    }
+  }
+  weighted_num_examples: 3.4
+}"""),
+                 (1, """datasets {
+  name: "abc"
+  num_examples: 10
+  weighted_num_examples: 3.4
+  cross_features {
+    path_x {
+      step: "c1"
+    }
+    path_y {
+      step: "c2"
+    }
+  }
+}""")]
+}, {
+    'testcase_name':
+        'many_partitions',
+    'num_partitions':
+        9999,
+    'statistics': [_BASE_PROTO_KEY_AND_SPLIT],
+    'expected': [(1756, """datasets {
+  name: "abc"
+  num_examples: 10
+  features {
+    path {
+      step: "f1"
+    }
+  }
+  weighted_num_examples: 3.4
+}"""),
+                 (1266, """datasets {
+  name: "abc"
+  num_examples: 10
+  features {
+    path {
+      step: "f2"
+    }
+  }
+  weighted_num_examples: 3.4
+}"""),
+                 (431, """datasets {
+  name: "abc"
+  num_examples: 10
+  features {
+    path {
+      step: "f3"
+    }
+  }
+  weighted_num_examples: 3.4
+}"""),
+                 (5599, """datasets {
+  name: "abc"
+  num_examples: 10
+  weighted_num_examples: 3.4
+  cross_features {
+    path_x {
+      step: "c1"
+    }
+    path_y {
+      step: "c2"
+    }
+  }
+}""")]
+}, {
+    'testcase_name':
+        'two_datasets_same_name_same_feature',
+    'num_partitions':
+        9999,
+    'statistics': [
+        """
+        datasets: {
+            name: 'abc'
+            features: {
+              path: {
+                step: 'f1'
+              }
+            }
+        }
+        """, """
+        datasets: {
+            name: 'abc'
+            features: {
+              path: {
+                step: 'f1'
+              }
+              type: STRING
+            }
+        }
+        """
+    ],
+    'expected': [(1756, """datasets {
+  name: "abc"
+  features {
+    path {
+      step: "f1"
+    }
+  }
+}"""),
+                 (1756, """datasets {
+  name: "abc"
+  features {
+    path {
+      step: "f1"
+    }
+    type: STRING
+  }
+}""")]
+}, {
+    'testcase_name':
+        'two_datasets_different_name_same_feature',
+    'num_partitions':
+        9999,
+    'statistics': [
+        """
+        datasets: {
+            name: 'abc'
+            features: {
+              path: {
+                step: 'f1'
+              }
+            }
+        }
+        """, """
+        datasets: {
+            name: 'xyz'
+            features: {
+              path: {
+                step: 'f1'
+              }
+            }
+        }
+        """
+    ],
+    'expected': [(1756, """datasets {
+  name: "abc"
+  features {
+    path {
+      step: "f1"
+    }
+  }
+}"""),
+                 (2971, """datasets {
+  name: "xyz"
+  features {
+    path {
+      step: "f1"
+    }
+  }
+}""")]
+}]
+
+
+class KeyAndSplitByFeatureFnTest(parameterized.TestCase):
+
+  @parameterized.named_parameters(_KEY_AND_SPLIT_TEST_CASES)
+  def test_splits_statistics(
+      self, num_partitions: int,
+      statistics: List[statistics_pb2.DatasetFeatureStatisticsList],
+      expected: List[Tuple[int, statistics_pb2.DatasetFeatureStatisticsList]]):
+    statistics = list(
+        text_format.Parse(s, statistics_pb2.DatasetFeatureStatisticsList())
+        for s in statistics)
+    expected = list(
+        (x, text_format.Parse(s, statistics_pb2.DatasetFeatureStatisticsList()))
+        for x, s in expected)
+
+    def matcher(got: List[Tuple[int,
+                                statistics_pb2.DatasetFeatureStatisticsList]]):
+      self.assertCountEqual(got, expected)
+
+    with beam.Pipeline() as p:
+      result = (
+          p | beam.Create(statistics) | 'KeyAndSplit' >> beam.ParDo(
+              feature_partition_util.KeyAndSplitByFeatureFn(num_partitions)))
+      util.assert_that(result, matcher)
 
 if __name__ == '__main__':
   absltest.main()

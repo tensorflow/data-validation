@@ -37,8 +37,6 @@ from tensorflow_metadata.proto.v0 import schema_pb2
 _SCHEMA_JSON_KEY = 'schema_json'
 _PER_FEATURE_WEIGHT_OVERRIDE_JSON_KEY = 'per_feature_weight_override_json'
 
-OUTPUT_TYPE_BINARY_PB = 'binary_pb'
-OUTPUT_TYPE_TFRECORDS = 'tfrecords'
 
 # TODO(b/181559345): Currently we use a single epsilon (error tolerance)
 # parameter for all histograms. Set this parameter specific to each
@@ -77,7 +75,7 @@ class StatsOptions(object):
       experimental_use_sketch_based_topk_uniques: bool = False,
       experimental_slice_functions: Optional[List[types.SliceFunction]] = None,
       experimental_slice_sqls: Optional[List[Text]] = None,
-      experimental_output_type: str = OUTPUT_TYPE_BINARY_PB):
+      experimental_result_partitions: int = 1):
     """Initializes statistics options.
 
     Args:
@@ -175,10 +173,10 @@ class StatsOptions(object):
           example.country WHERE country = 'USA'" Only one of
           experimental_slice_functions or experimental_slice_sqls must be
           specified. Note that this option is not supported on Windows.
-      experimental_output_type: One of 'binary_pb' (default), or 'tfrecords'. If
-        this is 'binary_pb' the output will be a single binary proto consisting
-        of all output merged across features, generators, and slices. If this is
-        'tfrecords', the output will be written in sharded form.
+      experimental_result_partitions: The number of feature partitions to
+        combine output DatasetFeatureStatisticsLists into. If set to 1 (default)
+        output is globally combined. If set to value greater than one, up to
+        that many shards are returned, each containing a subset of features.
     """
     self.generators = generators
     self.feature_allowlist = feature_allowlist
@@ -212,7 +210,7 @@ class StatsOptions(object):
     self.experimental_use_sketch_based_topk_uniques = (
         experimental_use_sketch_based_topk_uniques)
     self.experimental_slice_sqls = experimental_slice_sqls
-    self.experimental_output_type = experimental_output_type
+    self.experimental_result_partitions = experimental_result_partitions
 
   def to_json(self) -> Text:
     """Convert from an object to JSON representation of the __dict__ attribute.
@@ -464,17 +462,17 @@ class StatsOptions(object):
     self._use_sketch_based_topk_uniques = use_sketch_based_topk_uniques
 
   @property
-  def experimental_output_type(self) -> str:
-    return self._experimental_output_type
+  def experimental_result_partitions(self) -> int:
+    return self._experimental_result_partitions
 
-  @experimental_output_type.setter
-  def experimental_output_type(self, output_type: str) -> None:
-    if output_type in (OUTPUT_TYPE_BINARY_PB, OUTPUT_TYPE_TFRECORDS):
-      self._experimental_output_type = output_type
+  @experimental_result_partitions.setter
+  def experimental_result_partitions(self, num_partitions: int) -> None:
+    if num_partitions > 0:
+      self._experimental_result_partitions = num_partitions
     else:
       raise ValueError(
-          'Unsupported output type %s. Must be one of binary_pb, tfrecords.' %
-          output_type)
+          'Unsupported experimental_result_partitions <= 0: %d' %
+          num_partitions)
 
 
 def _validate_sql(sql_query: Text, schema: schema_pb2.Schema):
