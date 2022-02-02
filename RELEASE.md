@@ -4,6 +4,8 @@
 
 ## Major Features and Improvements
 
+*   Adds the `DetectFeatureSkew` PTransform to the public API, which can be used
+    to detect feature skew between training and serving examples.
 *   Use sketch based top-k/uniques in TFDV inmemory mode.
 
 ## Bug Fixes and Other Changes

@@ -22,6 +22,7 @@ from tensorflow_data_validation.api.stats_api import WriteStatisticsToTFRecord
 from tensorflow_data_validation.api.stats_api import WriteStatisticsToTFRecordAndBinaryFile
 
 # Import validation API.
+from tensorflow_data_validation.api.validation_api import DetectFeatureSkew
 from tensorflow_data_validation.api.validation_api import infer_schema
 from tensorflow_data_validation.api.validation_api import update_schema
 from tensorflow_data_validation.api.validation_api import validate_statistics

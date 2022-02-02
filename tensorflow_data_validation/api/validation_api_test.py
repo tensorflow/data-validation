@@ -19,21 +19,28 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import os
+import tempfile
+
 from absl.testing import absltest
 from absl.testing import parameterized
 import apache_beam as beam
 from apache_beam.testing import util
 import numpy as np
 import pyarrow as pa
+import tensorflow as tf
 from tensorflow_data_validation import types
 from tensorflow_data_validation.api import validation_api
 from tensorflow_data_validation.api import validation_options
+from tensorflow_data_validation.skew.protos import feature_skew_results_pb2
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.types import FeaturePath
 from tensorflow_data_validation.utils import schema_util
+from tensorflow_data_validation.utils import test_util
 
 from google.protobuf import text_format
 
+from tensorflow.python.util.protobuf import compare  # pylint: disable=g-direct-tensorflow-import
 from tensorflow_metadata.proto.v0 import anomalies_pb2
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -2943,6 +2950,216 @@ class IdentifyAnomalousExamplesTest(parameterized.TestCase):
         _ = (
             p | beam.Create(examples)
             | validation_api.IdentifyAnomalousExamples(options))
+
+
+class DetectFeatureSkewTest(absltest.TestCase):
+
+  def _assert_feature_skew_results_protos_equal(self, actual, expected) -> None:
+    self.assertLen(actual, len(expected))
+    sorted_actual = sorted(actual, key=lambda t: t.feature_name)
+    sorted_expected = sorted(expected, key=lambda e: e.feature_name)
+    for i in range(len(sorted_actual)):
+      compare.assertProtoEqual(self, sorted_actual[i], sorted_expected[i])
+
+  def _assert_skew_pairs_equal(self, actual, expected) -> None:
+    self.assertLen(actual, len(expected))
+    for each in actual:
+      self.assertIn(each, expected)
+
+  def test_detect_feature_skew(self):
+    training_data = [
+        text_format.Parse("""
+            features {
+              feature {
+                key: 'id'
+                value { bytes_list { value: [ 'first_feature' ] } }
+              }
+            feature {
+                key: 'feature_a'
+                value { int64_list { value: [ 12, 24 ] } }
+              }
+            feature {
+                key: 'feature_b'
+                value { float_list { value: [ 10.0 ] } }
+              }
+           }
+       """, tf.train.Example()),
+        text_format.Parse("""
+            features {
+              feature {
+                key: 'id'
+                value { bytes_list { value: [ 'second_feature' ] } }
+              }
+            feature {
+                key: 'feature_a'
+                value { int64_list { value: [ 5 ] } }
+              }
+            feature {
+                key: 'feature_b'
+                value { float_list { value: [ 15.0 ] } }
+              }
+           }
+       """, tf.train.Example())
+    ]
+    serving_data = [
+        text_format.Parse("""
+            features {
+              feature {
+                key: 'id'
+                value { bytes_list { value: [ 'first_feature' ] } }
+              }
+            feature {
+                key: 'feature_b'
+                value { float_list { value: [ 10.0 ] } }
+              }
+           }
+       """, tf.train.Example()),
+        text_format.Parse("""
+            features {
+              feature {
+                key: 'id'
+                value { bytes_list { value: [ 'second_feature' ] } }
+              }
+            feature {
+                key: 'feature_a'
+                value { int64_list { value: [ 5 ] } }
+              }
+            feature {
+                key: 'feature_b'
+                value { float_list { value: [ 20.0 ] } }
+              }
+           }
+       """, tf.train.Example())
+    ]
+
+    expected_feature_skew_result = [
+        text_format.Parse(
+            """
+        feature_name: 'feature_a'
+        training_count: 2
+        serving_count: 1
+        match_count: 1
+        training_only: 1
+        diff_count: 1""", feature_skew_results_pb2.FeatureSkew()),
+        text_format.Parse(
+            """
+        feature_name: 'feature_b'
+        training_count: 2
+        serving_count: 2
+        match_count: 1
+        mismatch_count: 1
+        diff_count: 1""", feature_skew_results_pb2.FeatureSkew())
+    ]
+
+    with beam.Pipeline() as p:
+      training_data = p | 'CreateTraining' >> beam.Create(training_data)
+      serving_data = p | 'CreateServing' >> beam.Create(serving_data)
+      feature_skew, skew_sample = (
+          (training_data, serving_data)
+          | 'DetectSkew' >> validation_api.DetectFeatureSkew(
+              identifier_features=['id'], sample_size=1))
+      util.assert_that(
+          feature_skew,
+          test_util.make_skew_result_equal_fn(self,
+                                              expected_feature_skew_result),
+          'CheckFeatureSkew')
+      util.assert_that(skew_sample, util.is_not_empty(), 'CheckSkewSample')
+
+  def test_write_feature_skew_results_to_tf_record(self):
+    feature_skew_results = [
+        text_format.Parse(
+            """
+        feature_name: 'skewed'
+        training_count: 2
+        serving_count: 2
+        mismatch_count: 2
+        diff_count: 2""", feature_skew_results_pb2.FeatureSkew()),
+        text_format.Parse(
+            """
+        feature_name: 'no_skew'
+        training_count: 2
+        serving_count: 2
+        match_count: 2""", feature_skew_results_pb2.FeatureSkew())
+    ]
+    output_path = os.path.join(tempfile.mkdtemp(), 'feature_skew')
+    with beam.Pipeline() as p:
+      _ = (
+          p | beam.Create(feature_skew_results)
+          | validation_api.WriteFeatureSkewResultsToTFRecord(output_path))
+
+    skew_results_from_file = []
+    for record in tf.compat.v1.io.tf_record_iterator(output_path):
+      skew_results_from_file.append(
+          feature_skew_results_pb2.FeatureSkew.FromString(record))
+    self._assert_feature_skew_results_protos_equal(skew_results_from_file,
+                                                   feature_skew_results)
+
+  def test_write_skew_pairs_to_tf_record(self):
+    skew_pairs = [
+        text_format.Parse(
+            """
+            training {
+              features {
+                feature {
+                  key: 'id'
+                  value { bytes_list { value: [ 'id_feature' ] } }
+                }
+              feature {
+                  key: 'feature_a'
+                  value { float_list { value: [ 10.0 ] } }
+              }
+             }
+            }
+            serving {
+              features {
+                feature {
+                  key: 'id'
+                  value { bytes_list { value: [ 'id_feature' ] } }
+                }
+              feature {
+                  key: 'feature_a'
+                  value { float_list { value: [ 11.0 ] } }
+                }
+             }
+           }
+            mismatched_features : [ 'feature_a' ]
+            """, feature_skew_results_pb2.SkewPair()),
+        text_format.Parse(
+            """
+            training {
+              features {
+                feature {
+                  key: 'id'
+                  value { bytes_list { value: [ 'id_feature' ] } }
+                  }
+                feature {
+                    key: 'feature_a'
+                    value { int64_list { value: [ 5 ] } }
+                  }
+               }
+           }
+           serving {
+             features {
+                feature {
+                  key: 'id'
+                  value { bytes_list { value: [ 'id_feature' ] } }
+                }
+             }
+           }
+           training_only_features: [ 'feature_a' ]
+               """, feature_skew_results_pb2.SkewPair())
+    ]
+    output_path = os.path.join(tempfile.mkdtemp(), 'skew_pairs')
+    with beam.Pipeline() as p:
+      _ = (
+          p | beam.Create(skew_pairs)
+          | validation_api.WriteSkewPairsToTFRecord(output_path))
+
+    skew_pairs_from_file = []
+    for record in tf.compat.v1.io.tf_record_iterator(output_path):
+      skew_pairs_from_file.append(
+          feature_skew_results_pb2.SkewPair.FromString(record))
+    self._assert_skew_pairs_equal(skew_pairs_from_file, skew_pairs)
 
 
 if __name__ == '__main__':

@@ -29,6 +29,8 @@ from tensorflow_data_validation.anomalies.proto import validation_config_pb2
 from tensorflow_data_validation.anomalies.proto import validation_metadata_pb2
 from tensorflow_data_validation.api import validation_options as vo
 from tensorflow_data_validation.pywrap.tensorflow_data_validation_extension import validation as pywrap_tensorflow_data_validation
+from tensorflow_data_validation.skew import feature_skew_detector
+from tensorflow_data_validation.skew.protos import feature_skew_results_pb2
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.utils import anomalies_util
@@ -615,3 +617,103 @@ class IdentifyAnomalousExamples(beam.PTransform):
             _detect_anomalies_in_example, options=self.options)
         | 'GenerateAnomalyReasonKeys' >> beam.ParDo(
             _GenerateAnomalyReasonSliceKeys()))
+
+
+class DetectFeatureSkew(beam.PTransform):
+  """API for detecting feature skew between training and serving examples.
+
+  Example:
+
+  ```python
+    with beam.Pipeline(runner=...) as p:
+       training_examples = p | 'ReadTrainingData' >>
+         beam.io.ReadFromTFRecord(
+            training_filepaths, coder=beam.coders.ProtoCoder(tf.train.Example))
+       serving_examples = p | 'ReadServingData' >>
+         beam.io.ReadFromTFRecord(
+            serving_filepaths, coder=beam.coders.ProtoCoder(tf.train.Example))
+       _ = ((training_examples, serving_examples) | 'DetectFeatureSkew' >>
+         DetectFeatureSkew(identifier_features=['id1'], sample_size=5)
+       | 'WriteFeatureSkewResultsOutput' >>
+         tfdv.WriteFeatureSkewResultsToTFRecord(output_path)
+       | 'WriteFeatureSkwePairsOutput' >>
+       tfdv.WriteFeatureSkewPairsToTFRecord(output_path))
+  ```
+
+  See the documentation for DetectFeatureSkewImpl for more detail about feature
+  skew detection.
+  """
+
+  def __init__(
+      self,
+      identifier_features: List[types.FeatureName],
+      features_to_ignore: Optional[List[types.FeatureName]] = None,
+      sample_size: int = 0,
+      float_round_ndigits: Optional[int] = None) -> None:
+    """Initializes the feature skew detection PTransform.
+
+    Args:
+      identifier_features: Names of features to use as identifiers.
+      features_to_ignore: Names of features for which no feature skew detection
+        is done.
+      sample_size: Size of the sample of training-serving example pairs that
+        exhibit skew to include in the skew results.
+      float_round_ndigits: Number of digits precision after the decimal point to
+        which to round float values before comparing them.
+    """
+    self._identifier_features = identifier_features
+    self._features_to_ignore = features_to_ignore
+    self._sample_size = sample_size
+    self._float_round_ndigits = float_round_ndigits
+
+  def expand(
+      self, datasets: Tuple[beam.pvalue.PCollection, beam.pvalue.PCollection]
+  ) -> Tuple[beam.pvalue.PCollection, beam.pvalue.PCollection]:
+    return (datasets |
+            'DetectFeatureSkew' >> feature_skew_detector.DetectFeatureSkewImpl(
+                self._identifier_features, self._features_to_ignore,
+                self._sample_size, self._float_round_ndigits))
+
+
+@beam.typehints.with_input_types(feature_skew_results_pb2.FeatureSkew)
+@beam.typehints.with_output_types(beam.pvalue.PDone)
+class WriteFeatureSkewResultsToTFRecord(beam.PTransform):
+  """API for writing serialized feature skew results to a TFRecord file."""
+
+  def __init__(self, output_path: str) -> None:
+    """Initializes the transform.
+
+    Args:
+      output_path: Output path for writing feature skew results.
+    """
+    self._output_path = output_path
+
+  def expand(self, feature_skew_results: beam.PCollection) -> beam.pvalue.PDone:
+    return (feature_skew_results
+            | 'WriteFeatureSkewResults' >> beam.io.WriteToTFRecord(
+                self._output_path,
+                shard_name_template='',
+                coder=beam.coders.ProtoCoder(
+                    feature_skew_results_pb2.FeatureSkew)))
+
+
+@beam.typehints.with_input_types(feature_skew_results_pb2.SkewPair)
+@beam.typehints.with_output_types(beam.pvalue.PDone)
+class WriteSkewPairsToTFRecord(beam.PTransform):
+  """API for writing serialized skew pairs to a TFRecord file."""
+
+  def __init__(self, output_path: str) -> None:
+    """Initializes the transform.
+
+    Args:
+      output_path: Output path for writing skew pairs.
+    """
+    self._output_path = output_path
+
+  def expand(self, skew_pairs: beam.PCollection) -> beam.pvalue.PDone:
+    return (skew_pairs
+            | 'WriteSkewPairs' >> beam.io.WriteToTFRecord(
+                self._output_path,
+                shard_name_template='',
+                coder=beam.coders.ProtoCoder(
+                    feature_skew_results_pb2.SkewPair)))

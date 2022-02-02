@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Utilities for writing statistics generator tests."""
+"""Utilities for writing statistics generator and validation tests."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -181,6 +181,22 @@ def assert_dataset_feature_stats_proto_equal(
           'Feature path %s found in actual but not found in expected.' %
           feature_path)
     assert_feature_proto_equal(test, feature, expected_features[feature_path])
+
+
+def make_skew_result_equal_fn(test, expected):
+  """Makes a matcher function for comparing FeatureSkew result protos."""
+
+  def _matcher(actual):
+    try:
+      test.assertLen(actual, len(expected))
+      sorted_actual = sorted(actual, key=lambda a: a.feature_name)
+      sorted_expected = sorted(expected, key=lambda e: e.feature_name)
+      for i in range(len(sorted_actual)):
+        test.assertEqual(sorted_actual[i], sorted_expected[i])
+    except AssertionError as e:
+      raise util.BeamAssertException(traceback.format_exc()) from e
+
+  return _matcher
 
 
 class CombinerStatsGeneratorTest(absltest.TestCase):

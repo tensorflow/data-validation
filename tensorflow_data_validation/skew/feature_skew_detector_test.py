@@ -21,6 +21,7 @@ from apache_beam.testing import util
 import tensorflow as tf
 from tensorflow_data_validation.skew import feature_skew_detector
 from tensorflow_data_validation.skew.protos import feature_skew_results_pb2
+from tensorflow_data_validation.utils import test_util
 
 from google.protobuf import text_format
 
@@ -42,22 +43,6 @@ _IGNORE_FEATURE = 'ignore'
 # Name of float feature that has values that are close in training and serving
 # data.
 _CLOSE_FLOAT_FEATURE = 'close_float'
-
-
-def make_skew_result_equal_fn(test, expected):
-  """Makes a matcher function for comparing FeatureSkew result protos."""
-
-  def _matcher(actual):
-    try:
-      test.assertLen(actual, len(expected))
-      sorted_actual = sorted(actual, key=lambda a: a.feature_name)
-      sorted_expected = sorted(expected, key=lambda e: e.feature_name)
-      for i in range(len(sorted_actual)):
-        test.assertEqual(sorted_actual[i], sorted_expected[i])
-    except AssertionError:
-      raise util.BeamAssertException(traceback.format_exc())
-
-  return _matcher
 
 
 def make_sample_equal_fn(test, expected_size, potential_samples):
@@ -175,8 +160,9 @@ class FeatureSkewDetectorTest(absltest.TestCase):
       skew_result, _ = ((training_examples, serving_examples)
                         | feature_skew_detector.DetectFeatureSkewImpl(
                             [_IDENTIFIER1, _IDENTIFIER2], [_IGNORE_FEATURE]))
-      util.assert_that(skew_result,
-                       make_skew_result_equal_fn(self, expected_result))
+      util.assert_that(
+          skew_result,
+          test_util.make_skew_result_equal_fn(self, expected_result))
 
   def test_detect_no_skew(self):
     training_examples, serving_examples, _ = get_test_input(
@@ -200,9 +186,10 @@ class FeatureSkewDetectorTest(absltest.TestCase):
           (training_examples, serving_examples)
           | feature_skew_detector.DetectFeatureSkewImpl(
               [_IDENTIFIER1, _IDENTIFIER2], [_IGNORE_FEATURE], sample_size=2))
-      util.assert_that(skew_result,
-                       make_skew_result_equal_fn(self, expected_result),
-                       'CheckSkewResult')
+      util.assert_that(
+          skew_result,
+          test_util.make_skew_result_equal_fn(self, expected_result),
+          'CheckSkewResult')
       util.assert_that(skew_sample, make_sample_equal_fn(self, 0, []),
                        'CheckSkewSample')
 
@@ -216,10 +203,10 @@ class FeatureSkewDetectorTest(absltest.TestCase):
       training_examples = p | 'Create Training' >> beam.Create(
           training_examples)
       serving_examples = p | 'Create Serving' >> beam.Create(serving_examples)
-      _, skew_sample = ((training_examples, serving_examples)
-                        | feature_skew_detector.DetectFeatureSkewImpl(
-                            [_IDENTIFIER1, _IDENTIFIER2], [_IGNORE_FEATURE],
-                            sample_size))
+      _, skew_sample = (
+          (training_examples, serving_examples)
+          | feature_skew_detector.DetectFeatureSkewImpl(
+              [_IDENTIFIER1, _IDENTIFIER2], [_IGNORE_FEATURE], sample_size))
       util.assert_that(
           skew_sample, make_sample_equal_fn(self, sample_size,
                                             potential_samples))
@@ -239,9 +226,10 @@ class FeatureSkewDetectorTest(absltest.TestCase):
           (training_examples_1, serving_examples_1)
           | feature_skew_detector.DetectFeatureSkewImpl(
               [_IDENTIFIER1, _IDENTIFIER2], [_IGNORE_FEATURE], sample_size=1))
-      util.assert_that(skew_result_1,
-                       make_skew_result_equal_fn(self, expected_result),
-                       'CheckSkewResult')
+      util.assert_that(
+          skew_result_1,
+          test_util.make_skew_result_equal_fn(self, expected_result),
+          'CheckSkewResult')
       util.assert_that(skew_sample_1,
                        make_sample_equal_fn(self, 0, expected_result),
                        'CheckSkewSample')
@@ -255,9 +243,10 @@ class FeatureSkewDetectorTest(absltest.TestCase):
           (training_examples_2, serving_examples_2)
           | feature_skew_detector.DetectFeatureSkewImpl(
               [_IDENTIFIER1, _IDENTIFIER2], [_IGNORE_FEATURE], sample_size=1))
-      util.assert_that(skew_result_2,
-                       make_skew_result_equal_fn(self, expected_result),
-                       'CheckSkewResult')
+      util.assert_that(
+          skew_result_2,
+          test_util.make_skew_result_equal_fn(self, expected_result),
+          'CheckSkewResult')
       util.assert_that(skew_sample_2,
                        make_sample_equal_fn(self, 0, expected_result),
                        'CheckSkewSample')
@@ -270,9 +259,10 @@ class FeatureSkewDetectorTest(absltest.TestCase):
           (training_examples_3, serving_examples_3)
           | feature_skew_detector.DetectFeatureSkewImpl(
               [_IDENTIFIER1, _IDENTIFIER2], [_IGNORE_FEATURE], sample_size=1))
-      util.assert_that(skew_result_3,
-                       make_skew_result_equal_fn(self, expected_result),
-                       'CheckSkewResult')
+      util.assert_that(
+          skew_result_3,
+          test_util.make_skew_result_equal_fn(self, expected_result),
+          'CheckSkewResult')
       util.assert_that(skew_sample_3,
                        make_sample_equal_fn(self, 0, expected_result),
                        'CheckSkewSample')
@@ -324,12 +314,13 @@ class FeatureSkewDetectorTest(absltest.TestCase):
       training_examples_1 = p | 'Create Training' >> beam.Create(
           training_examples)
       serving_examples_1 = p | 'Create Serving' >> beam.Create(serving_examples)
-      skew_result, _ = (
-          (training_examples_1, serving_examples_1)
-          | feature_skew_detector.DetectFeatureSkewImpl(
-              [_IDENTIFIER1, _IDENTIFIER2], [_IGNORE_FEATURE], sample_size=1))
-      util.assert_that(skew_result,
-                       make_skew_result_equal_fn(self, expected_with_float))
+      skew_result, _ = ((training_examples_1, serving_examples_1)
+                        | feature_skew_detector.DetectFeatureSkewImpl(
+                            [_IDENTIFIER1, _IDENTIFIER2], [_IGNORE_FEATURE],
+                            sample_size=1))
+      util.assert_that(
+          skew_result,
+          test_util.make_skew_result_equal_fn(self, expected_with_float))
 
     expected_with_float_and_option = expected_result + [
         text_format.Parse(
@@ -346,15 +337,15 @@ class FeatureSkewDetectorTest(absltest.TestCase):
       training_examples_2 = p | 'Create Training' >> beam.Create(
           training_examples)
       serving_examples_2 = p | 'Create Serving' >> beam.Create(serving_examples)
-      skew_result, _ = (
-          (training_examples_2, serving_examples_2)
-          | feature_skew_detector.DetectFeatureSkewImpl(
-              [_IDENTIFIER1, _IDENTIFIER2], [_IGNORE_FEATURE],
-              sample_size=1,
-              float_round_ndigits=2))
+      skew_result, _ = ((training_examples_2, serving_examples_2)
+                        | feature_skew_detector.DetectFeatureSkewImpl(
+                            [_IDENTIFIER1, _IDENTIFIER2], [_IGNORE_FEATURE],
+                            sample_size=1,
+                            float_round_ndigits=2))
       util.assert_that(
           skew_result,
-          make_skew_result_equal_fn(self, expected_with_float_and_option))
+          test_util.make_skew_result_equal_fn(self,
+                                              expected_with_float_and_option))
 
   def test_no_identifier_features(self):
     training_examples, serving_examples, _ = get_test_input(
