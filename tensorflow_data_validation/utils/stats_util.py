@@ -354,7 +354,7 @@ def load_statistics(
   if not tf.io.gfile.exists(input_path):
     raise IOError('Invalid input path {}.'.format(input_path))
   try:
-    return load_sharded_statistics(input_paths=[input_path]).proto()
+    return load_stats_tfrecord(input_path)
   except Exception:  # pylint: disable=broad-except
     logging.info('File %s did not look like a TFRecord. Try reading as a plain '
                  'file.', input_path)

@@ -8,6 +8,9 @@
 
 ## Bug Fixes and Other Changes
 
+*   Fixes a bug in load_statistics that would cause failure when reading binary
+    protos.
+
 ## Known Issues
 
 ## Breaking Changes
