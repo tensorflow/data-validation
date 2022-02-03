@@ -13,7 +13,7 @@
 # limitations under the License
 """Util functions regarding to Arrow objects."""
 
-from typing import Dict, Iterable, Optional, Text, Tuple, Union
+from typing import Callable, Dict, Iterable, Optional, Text, Tuple, Union
 
 import numpy as np
 import pyarrow as pa
@@ -257,6 +257,7 @@ def enumerate_arrays(
     example_weight_map: Optional[ExampleWeightMap],
     enumerate_leaves_only: bool,
     wrap_flat_struct_in_list: bool = True,
+    column_select_fn: Optional[Callable[[types.FeatureName], bool]] = None
 ) -> Iterable[Tuple[types.FeaturePath, pa.Array, Optional[np.ndarray]]]:
   """Enumerates arrays in a RecordBatch.
 
@@ -302,6 +303,8 @@ def enumerate_arrays(
       list<struct<[Ts]>>, in which each sub-list contains one element.
       A caller can make use of this option to assume all the arrays enumerated
       here are list<inner_type>.
+    column_select_fn: If provided, only enumerates leaf arrays of columns with
+      names for which this function evaluates to True.
   Yields:
     A tuple. The first term is the path of the feature; the second term is
     the feature array and the third term is the weight array for the feature
@@ -357,6 +360,8 @@ def enumerate_arrays(
 
   for column_name, column in zip(record_batch.schema.names,
                                  record_batch.columns):
+    if column_select_fn and not column_select_fn(column_name):
+      continue
     yield from _recursion_helper(
         types.FeaturePath([column_name]), column, all_weights)
 

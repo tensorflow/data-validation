@@ -375,7 +375,8 @@ class StatsOptionsTest(parameterized.TestCase):
       "_add_default_generators": true,
       "_use_sketch_based_topk_uniques": false,
       "_slice_sqls": null,
-      "_experimental_result_partitions": 1
+      "_experimental_result_partitions": 1,
+      "_experimental_num_feature_partitions": 1
     }"""
     actual_options = stats_options.StatsOptions.from_json(options_json)
     expected_options_dict = stats_options.StatsOptions().__dict__

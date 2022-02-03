@@ -497,6 +497,38 @@ class ArrowUtilTest(parameterized.TestCase):
                     actual))
         np.testing.assert_array_equal(actual[1], v[1])
 
+  @parameterized.named_parameters(
+      {
+          "testcase_name": "select_column_f1",
+          "col_fn": lambda x: x == "f1",
+          "expected_features": [types.FeaturePath(["f1"])],
+      }, {
+          "testcase_name":
+              "select_column_f2",
+          "col_fn":
+              lambda x: x == "f2",
+          "expected_features": [
+              types.FeaturePath(["f2", "sf1"]),
+              types.FeaturePath(["f2", "sf2", "ssf1"])
+          ],
+      })
+  def testEnumerateArraysWithColumnSelectFn(self, col_fn, expected_features):
+    actual = list(
+        arrow_util.enumerate_arrays(
+            _INPUT_RECORD_BATCH,
+            _EXAMPLE_WEIGHT_MAP,
+            True,
+            column_select_fn=col_fn))
+    expected = list(
+        (f, _FEATURES_TO_ARRAYS[f].array, _FEATURES_TO_ARRAYS[f].weights)
+        for f in expected_features)
+    for (actual_path, actual_col,
+         actual_w), (expected_path, expected_col,
+                     expected_w) in zip(actual, expected):
+      self.assertEqual(expected_path, actual_path)
+      self.assertEqual(expected_col, actual_col)
+      self.assertEqual(pa.array(expected_w), pa.array(actual_w))
+
   @parameterized.named_parameters(itertools.chain(
       _MakeEnumerateDataWithMissingDataAtLeaves(),
       _MakeEnumerateTestDataWithNullValuesAndSlicedBatches(),

@@ -17,6 +17,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import copy
 import sys
 from typing import Iterable
 import unittest
@@ -2044,6 +2045,14 @@ _GENERATE_STATS_TESTS = [
     },
 ]
 
+# Feature partitioning should be a noop for output statistics.
+_GENERATE_STATS_WITH_FEATURE_PARTITIONS_TESTS = copy.deepcopy(
+    _GENERATE_STATS_TESTS)
+for tc in _GENERATE_STATS_WITH_FEATURE_PARTITIONS_TESTS:
+  tc['options'].experimental_num_feature_partitions = 10
+  tc['testcase_name'] += '_partitioned'
+
+
 _GENERATE_STATS_NO_IN_MEMORY_TESTS = [
     {
         'testcase_name':
@@ -2967,7 +2976,8 @@ class StatsImplTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       *(_GENERATE_STATS_TESTS + _GENERATE_STATS_NO_IN_MEMORY_TESTS +
-        _SLICING_FN_TESTS + _SLICING_FN_TESTS_SHARDED))
+        _SLICING_FN_TESTS + _SLICING_FN_TESTS_SHARDED +
+        _GENERATE_STATS_WITH_FEATURE_PARTITIONS_TESTS))
   def test_stats_impl(self,
                       record_batches,
                       options,

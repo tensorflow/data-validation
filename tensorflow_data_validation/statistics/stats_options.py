@@ -75,7 +75,8 @@ class StatsOptions(object):
       experimental_use_sketch_based_topk_uniques: bool = False,
       experimental_slice_functions: Optional[List[types.SliceFunction]] = None,
       experimental_slice_sqls: Optional[List[Text]] = None,
-      experimental_result_partitions: int = 1):
+      experimental_result_partitions: int = 1,
+      experimental_num_feature_partitions: int = 1):
     """Initializes statistics options.
 
     Args:
@@ -177,6 +178,11 @@ class StatsOptions(object):
         combine output DatasetFeatureStatisticsLists into. If set to 1 (default)
         output is globally combined. If set to value greater than one, up to
         that many shards are returned, each containing a subset of features.
+      experimental_num_feature_partitions: If > 1, partitions computations by
+        supported generators to act on this many bundles of features. For best
+        results this should be set to at least several times less than the
+        number of features in a dataset, and never more than the available
+        beam parallelism.
     """
     self.generators = generators
     self.feature_allowlist = feature_allowlist
@@ -210,6 +216,7 @@ class StatsOptions(object):
     self.experimental_use_sketch_based_topk_uniques = (
         experimental_use_sketch_based_topk_uniques)
     self.experimental_slice_sqls = experimental_slice_sqls
+    self.experimental_num_feature_partitions = experimental_num_feature_partitions
     self.experimental_result_partitions = experimental_result_partitions
 
   def to_json(self) -> Text:
@@ -473,6 +480,17 @@ class StatsOptions(object):
       raise ValueError(
           'Unsupported experimental_result_partitions <= 0: %d' %
           num_partitions)
+
+  @property
+  def experimental_num_feature_partitions(self) -> int:
+    return self._experimental_num_feature_partitions
+
+  @experimental_num_feature_partitions.setter
+  def experimental_num_feature_partitions(self,
+                                          feature_partitions: int) -> None:
+    if feature_partitions <= 0:
+      raise ValueError('experimental_num_feature_partitions must be > 0.')
+    self._experimental_num_feature_partitions = feature_partitions
 
 
 def _validate_sql(sql_query: Text, schema: schema_pb2.Schema):

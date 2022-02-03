@@ -68,6 +68,7 @@ from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.statistics.generators import stats_generator
+from tensorflow_data_validation.utils import feature_partition_util
 from tensorflow_data_validation.utils import quantiles_util
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
@@ -975,9 +976,9 @@ class _BasicAcctype(collections.abc.MutableMapping):
     return len(self._dict)
 
 
-# TODO(b/79685042): Currently the stats generator operates on the
-# Dict representation of input (mapping from feature name to a batch of
-# values). But we process each feature independently. We should
+# TODO(b/79685042): Currently the stats generator operates on all features as
+# a batch (or a subset of features with optional partitioning enabled).
+# Because each feature is actually processed independently, we should
 # consider making the stats generator to operate per feature.
 class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
   """A combiner statistics generator that computes basic statistics.
@@ -1025,11 +1026,36 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
     self._num_values_histogram_buckets = num_values_histogram_buckets
     self._num_histogram_buckets = num_histogram_buckets
     self._num_quantiles_histogram_buckets = num_quantiles_histogram_buckets
-
+    self._epsilon = epsilon
     self._make_quantiles_sketch_fn = lambda: sketches.QuantilesSketch(  # pylint: disable=g-long-lambda
         eps=epsilon,
         max_num_elements=1 << 32,
         num_streams=1)
+
+    # Local state to support feature partitioning.
+    self._partition_index = -1
+    self._column_hasher = None
+
+  def _copy_for_partition_index(
+      self, index: int, num_partitions: int) -> stats_generator.StatsGenerator:
+    if index < 0 or num_partitions <= 1 or index >= num_partitions:
+      raise ValueError('Index or num_partitions out of range: %d, %d' %
+                       (index, num_partitions))
+    copy = BasicStatsGenerator(
+        name=self.name,
+        schema=self.schema,
+        example_weight_map=self._example_weight_map,
+        num_values_histogram_buckets=self._num_values_histogram_buckets,
+        num_histogram_buckets=self._num_histogram_buckets,
+        num_quantiles_histogram_buckets=self._num_quantiles_histogram_buckets)
+    copy._partition_index = index  # pylint: disable=protected-access
+    copy._column_hasher = feature_partition_util.ColumnHasher(num_partitions)  # pylint: disable=protected-access
+    return copy
+
+  def _column_select_fn(self) -> Optional[Callable[[types.FeatureName], bool]]:
+    if self._column_hasher is None:
+      return None
+    return lambda f: self._column_hasher.assign(f) == self._partition_index
 
   # Create an accumulator, which maps feature name to the partial stats
   # associated with the feature.
@@ -1052,7 +1078,8 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
     for feature_path, feature_array, weights in arrow_util.enumerate_arrays(
         examples,
         example_weight_map=self._example_weight_map,
-        enumerate_leaves_only=False):
+        enumerate_leaves_only=False,
+        column_select_fn=self._column_select_fn()):
       stats_for_feature = accumulator.get(feature_path)
       if stats_for_feature is None:
         stats_for_feature = _PartialBasicStats(

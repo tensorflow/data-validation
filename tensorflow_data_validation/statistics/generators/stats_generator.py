@@ -51,6 +51,28 @@ class StatsGenerator(object):
   def schema(self):
     return self._schema
 
+  def _copy_for_partition_index(self, index: int,
+                                num_partitions: int) -> 'StatsGenerator':
+    """(Experimental) Return a copy set to a specific partition index.
+
+    If supported, a partitioned StatsGenerator should completely process a
+    subset of features or cross features matching its partition index. Each
+    partitioned copy will receive the same RecordBatch inputs.
+
+    Args:
+      index: The feature partition index of the copy.
+      num_partitions: The overall number of feature partitions.
+
+    Returns:
+      A StatsGenerator of the same type as self.
+
+    Raises:
+      NotImplementedError.
+    """
+    raise NotImplementedError(
+        '_copy_for_partition_index not implemented for %s' % self.name)
+
+
 # Have a type variable to represent the type of the accumulator
 # in a combiner stats generator.
 ACCTYPE = TypeVar('ACCTYPE')

@@ -15,6 +15,7 @@
 
 import collections
 import hashlib
+import logging
 from typing import Any, Iterable, Tuple, Union, FrozenSet, Mapping
 
 import apache_beam as beam
@@ -27,8 +28,10 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 class ColumnHasher(object):
   """Assigns column names to feature partitions."""
 
-  def __init__(self, partitions: int):
+  def __init__(self, partitions: int, max_cache_len: int = int(1e8)):
     self.num_partitions = partitions
+    self._cache_len = 0
+    self._max_cache_len = max_cache_len
 
     # md5 is pretty slow compared to hash(), but we need stability, so we use
     # md5 and cache the result.
@@ -46,6 +49,14 @@ class ColumnHasher(object):
     partition = int(md5_hash[0:8], 16) % self.num_partitions
     partition = (partition + int(md5_hash[8:], 16)) % self.num_partitions
     self._cache[feature_name] = partition
+    self._cache_len += len(feature_name)
+    if self._cache_len > self._max_cache_len:
+      # Reset to avoid storing too many cached column names. Really this should
+      # never happen.
+      logging.warning('partition hash cache flushed with %d entries',
+                      self._cache_len)
+      self._cache_len = 0
+      self._cache = {}
     return partition
 
   def assign_sequence(self, *parts: Union[bytes, str]) -> int:

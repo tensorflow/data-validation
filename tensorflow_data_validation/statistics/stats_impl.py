@@ -140,6 +140,48 @@ def _AddPlaceholderStatistics(  # pylint: disable=invalid-name
   return (statistics, maybe_placeholder) | beam.Flatten()
 
 
+def _split_generator_types(
+    generators: List[stats_generator.StatsGenerator], num_partitions: int
+) -> Tuple[List[stats_generator.TransformStatsGenerator],
+           List[stats_generator.CombinerStatsGenerator],
+           List[stats_generator.CombinerStatsGenerator]]:
+  """Split generators by type.
+
+  Args:
+    generators: A list of generators.
+    num_partitions: The number of feature partitions to split by.
+
+  Returns:
+    A three tuple consisting of 1) TransformStatsGenerators 2)
+    CombinerStatsGenerators that should not be feature-partitioned 3)
+    CombinerStatsGenerators that should be feature-partitioned
+
+  Raises:
+    TypeError: If provided generators are not instances of
+      TransformStatsGenerators or CombinerStatsGenerator.
+  """
+  transform_generators = []
+  unpartitioned_combiners = []
+  partitioned_combiners = []
+  for generator in generators:
+    if isinstance(generator, stats_generator.TransformStatsGenerator):
+      transform_generators.append(generator)
+    elif isinstance(generator, stats_generator.CombinerStatsGenerator):
+      if num_partitions > 1:
+        try:
+          _ = generator._copy_for_partition_index(0, num_partitions)  # pylint: disable=protected-access
+          partitioned_combiners.append(generator)
+        except NotImplementedError:
+          unpartitioned_combiners.append(generator)
+      else:
+        unpartitioned_combiners.append(generator)
+    else:
+      raise TypeError('Statistics generator must extend one of '
+                      'CombinerStatsGenerator or TransformStatsGenerator, '
+                      'found object of type %s' % generator.__class__.__name__)
+  return transform_generators, unpartitioned_combiners, partitioned_combiners
+
+
 # This transform will be used by the example validation API to compute
 # statistics over anomalous examples. Specifically, it is used to compute
 # statistics over examples found for each anomaly (i.e., the anomaly type
@@ -166,6 +208,24 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
         is_slicing_enabled or bool(self._options.experimental_slice_functions)
         or bool(self._options.experimental_slice_sqls))
 
+  def _to_partitioned_combiner_stats_generator_combine_fn(
+      self, generators: List[stats_generator.CombinerStatsGenerator]
+  ) -> List['_CombinerStatsGeneratorsCombineFn']:
+    """Produce one CombineFn per partition wrapping partitioned generators."""
+    if not generators:
+      return []
+    result = []
+    for idx in range(self._options.experimental_num_feature_partitions):
+      index_generators = [
+          g._copy_for_partition_index(  # pylint: disable=protected-access
+              idx, self._options.experimental_num_feature_partitions)
+          for g in generators
+      ]
+      result.append(
+          _CombinerStatsGeneratorsCombineFn(index_generators,
+                                            self._options.desired_batch_size))
+    return result
+
   def expand(
       self, dataset: beam.PCollection[types.SlicedRecordBatch]
   ) -> beam.PCollection[statistics_pb2.DatasetFeatureStatisticsList]:
@@ -173,30 +233,35 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
     #   - CombinerStatsGenerators will be wrapped in a single CombinePerKey by
     #     _CombinerStatsGeneratorsCombineFn.
     #   - TransformStatsGenerator will be invoked separately with `dataset`.
-    combiner_stats_generators = []
     result_protos = []
-    for generator in get_generators(self._options):
-      if isinstance(generator, stats_generator.CombinerStatsGenerator):
-        combiner_stats_generators.append(generator)
-      elif isinstance(generator, stats_generator.TransformStatsGenerator):
-        result_protos.append(
-            dataset
-            | generator.name >> generator.ptransform)
-      else:
-        raise TypeError('Statistics generator must extend one of '
-                        'CombinerStatsGenerator or TransformStatsGenerator, '
-                        'found object of type %s' %
-                        generator.__class__.__name__)
-    if combiner_stats_generators:
-      # TODO(b/162543416): Obviate the need for explicit fanout.
-      fanout = max(
-          32, 5 * int(math.ceil(math.sqrt(len(combiner_stats_generators)))))
+    (transform_generators, unpartitioned_combiners,
+     partitioned_combiners) = _split_generator_types(
+         get_generators(self._options),
+         self._options.experimental_num_feature_partitions)
+    # Set up combineFns.
+    combine_fns = []
+    if unpartitioned_combiners:
+      combine_fns.append(
+          _CombinerStatsGeneratorsCombineFn(unpartitioned_combiners,
+                                            self._options.desired_batch_size))
+    if partitioned_combiners:
+      combine_fns.extend(
+          self._to_partitioned_combiner_stats_generator_combine_fn(
+              partitioned_combiners))
+
+    # Apply transform generators.
+    for generator in transform_generators:
+      result_protos.append(dataset | generator.name >> generator.ptransform)
+
+    # Apply combiner stats generators.
+    # TODO(b/162543416): Obviate the need for explicit fanout.
+    fanout = max(32,
+                 5 * int(math.ceil(math.sqrt(len(combine_fns)))))
+    for i, combine_fn in enumerate(combine_fns):
       result_protos.append(
           dataset
-          | 'RunCombinerStatsGenerators' >> beam.CombinePerKey(
-              _CombinerStatsGeneratorsCombineFn(
-                  combiner_stats_generators, self._options.desired_batch_size)
-          ).with_hot_key_fanout(fanout))
+          | 'RunCombinerStatsGenerators[%d]' %
+          i >> beam.CombinePerKey(combine_fn).with_hot_key_fanout(fanout))
     result_protos = result_protos | 'FlattenFeatureStatistics' >> beam.Flatten()
     result_protos = (
         result_protos
