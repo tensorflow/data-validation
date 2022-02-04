@@ -107,10 +107,6 @@ class _BinaryDistribution(Distribution):
     return True
 
 
-def _make_feature_skew_requirements():
-  return ['pyfarmhash>=0.2,<0.4']
-
-
 def _make_mutual_information_requirements():
   return ['scikit-learn>=0.23,<0.24', 'scipy>=1.5,<2']
 
@@ -122,8 +118,7 @@ def _make_visualization_requirements():
 
 
 def _make_all_extra_requirements():
-  return (_make_feature_skew_requirements() +
-          _make_mutual_information_requirements() +
+  return (_make_mutual_information_requirements() +
           _make_visualization_requirements())
 
 
@@ -190,6 +185,7 @@ setup(
         'pandas>=1.0,<2',
         'protobuf>=3.13,<4',
         'pyarrow>=1,<6',
+        'pyfarmhash>=0.2,<0.4',
         'six>=1.12,<2',
         'tensorflow>=1.15.5,!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,<3',
         'tensorflow-metadata' + select_constraint(
@@ -203,7 +199,6 @@ setup(
     ],
     extras_require={
         'mutual-information': _make_mutual_information_requirements(),
-        'feature-skew': _make_feature_skew_requirements(),
         'visualization': _make_visualization_requirements(),
         'all': _make_all_extra_requirements(),
     },

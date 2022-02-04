@@ -12,6 +12,7 @@
 
 *   Fixes a bug in load_statistics that would cause failure when reading binary
     protos.
+*   Depends on `pyfarmhash>=0.2,<0.4`.
 
 ## Known Issues
 
