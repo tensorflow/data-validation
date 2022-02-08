@@ -98,6 +98,11 @@ class FeaturePath(object):
         raise TypeError("Invalid FeaturePath json: %s" % path_json)
     return FeaturePath(steps)
 
+  @staticmethod
+  def from_string(path_string: str):
+    steps = path_string.split(".")
+    return FeaturePath(steps)
+
   def steps(self) -> FeaturePathTuple:
     return self._steps
 
