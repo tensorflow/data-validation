@@ -66,14 +66,20 @@ The following feature skew will be detected:
   diff_count: 1
 """
 
+import logging
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import apache_beam as beam
-import farmhash
 import tensorflow as tf
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.skew.protos import feature_skew_results_pb2
+
+try:
+  import farmhash  # pylint: disable=g-import-not-at-top
+except Exception as e:  # pylint: disable=broad-except
+  # TODO(b/217756011): Clean this up.
+  logging.exception("failed to import farmhash")
 
 _TRAINING_KEY = "training"
 _SERVING_KEY = "serving"

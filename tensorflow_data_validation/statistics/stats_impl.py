@@ -226,9 +226,7 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
                                             self._options.desired_batch_size))
     return result
 
-  def expand(
-      self, dataset: beam.PCollection[types.SlicedRecordBatch]
-  ) -> beam.PCollection[statistics_pb2.DatasetFeatureStatisticsList]:
+  def expand(self, dataset: beam.PCollection[types.SlicedRecordBatch]):
     # Handles generators by their type:
     #   - CombinerStatsGenerators will be wrapped in a single CombinePerKey by
     #     _CombinerStatsGeneratorsCombineFn.
@@ -262,6 +260,17 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
           dataset
           | 'RunCombinerStatsGenerators[%d]' %
           i >> beam.CombinePerKey(combine_fn).with_hot_key_fanout(fanout))
+    # TODO(b/154367505): Restore use of _AddPlaceholderStatistics.
+    # TODO(b/217756011): Restore use of merge_dataset_feature_statistics_list.
+    if self._options.experimental_result_partitions == 1:
+      return (result_protos
+              | 'FlattenFeatureStatistics' >> beam.Flatten()
+              | 'AddSliceKeyToStatsProto' >> beam.Map(_add_slice_key,
+                                                      self._is_slicing_enabled)
+              | 'ToList' >> beam.combiners.ToList()
+              | 'MergeDatasetFeatureStatisticsProtos' >> beam.Map(
+                  merge_util.merge_dataset_feature_statistics))
+
     result_protos = result_protos | 'FlattenFeatureStatistics' >> beam.Flatten()
     result_protos = (
         result_protos
