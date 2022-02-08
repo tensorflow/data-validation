@@ -26,6 +26,7 @@ import tensorflow as tf
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
+from tensorflow_data_validation.utils import statistics_io_impl
 from tensorflow_data_validation.utils import io_util
 from tfx_bsl import statistics
 from google.protobuf import text_format
@@ -245,10 +246,16 @@ def load_stats_tfrecord(
   Returns:
     A DatasetFeatureStatisticsList proto.
   """
-  serialized_stats = next(tf.compat.v1.io.tf_record_iterator(input_path))
-  result = statistics_pb2.DatasetFeatureStatisticsList()
-  result.ParseFromString(serialized_stats)
-  return result
+  it = statistics_io_impl.get_io_provider('tfrecords').record_iterator_impl(
+      [input_path])
+  result = next(it)
+  try:
+    next(it)
+    raise ValueError('load_stats_tfrecord expects a single record.')
+  except StopIteration:
+    return result
+  except Exception as e:
+    raise e
 
 
 def get_feature_stats(stats: statistics_pb2.DatasetFeatureStatistics,
@@ -566,31 +573,35 @@ class CrossFeatureView(object):
 
 
 def load_sharded_statistics(
-    input_pattern: Optional[str] = None,
-    input_paths: Optional[Iterable[str]] = None) -> DatasetListView:
+    input_path_prefix: Optional[str] = None,
+    input_paths: Optional[Iterable[str]] = None,
+    io_provider: Optional[statistics_io_impl.StatisticsIOProvider] = None
+) -> DatasetListView:
   """Read a sharded DatasetFeatureStatisticsList from disk as a DatasetListView.
 
   Args:
-    input_pattern: A file pattern matching TFRecord files containing sharded
+    input_path_prefix: If passed, loads files starting with this prefix and
+      ending with a pattern corresponding to the output of the provided
+        io_provider.
+    input_paths: A list of file paths of files containing sharded
       DatasetFeatureStatisticsList protos.
-    input_paths: A list of file paths of TFRecord files containing sharded
-      DatasetFeatureStatisticsList protos.
+    io_provider: Optional StatisticsIOProvider. If unset, a default will be
+      constructed.
 
   Returns:
     A DatasetListView containing the merged proto.
   """
-  if input_pattern is None == input_paths is None:
-    raise ValueError('Must provide one of input_pattern, input_paths.')
-  if input_pattern is not None:
-    input_paths = tf.io.gfile.glob(input_pattern)
-
+  if input_path_prefix is None == input_paths is None:
+    raise ValueError('Must provide one of input_paths_prefix, input_paths.')
+  if io_provider is None:
+    io_provider = statistics_io_impl.get_io_provider()
+  if input_path_prefix is not None:
+    input_paths = io_provider.glob(input_path_prefix)
   acc = statistics.DatasetListAccumulator()
-  for path in input_paths:
-    for record_bytes in tf.compat.v1.io.tf_record_iterator(path):
-      record = statistics_pb2.DatasetFeatureStatisticsList()
-      record.ParseFromString(record_bytes)
-      for dataset in record.datasets:
-        acc.MergeDatasetFeatureStatistics(dataset.SerializeToString())
+  stats_iter = io_provider.record_iterator_impl(input_paths)
+  for stats_list in stats_iter:
+    for dataset in stats_list.datasets:
+      acc.MergeDatasetFeatureStatistics(dataset.SerializeToString())
   stats = statistics_pb2.DatasetFeatureStatisticsList()
   stats.ParseFromString(acc.Get())
   return DatasetListView(stats)

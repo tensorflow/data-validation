@@ -19,12 +19,12 @@ from __future__ import division
 from __future__ import print_function
 
 import os
-import tempfile
 from absl import flags
 from absl.testing import absltest
 import numpy as np
 import tensorflow as tf
 from tensorflow_data_validation import types
+from tensorflow_data_validation.utils import statistics_io_impl
 from tensorflow_data_validation.utils import stats_util
 
 from google.protobuf import text_format
@@ -363,17 +363,36 @@ class DatasetListViewTest(absltest.TestCase):
 
 class LoadShardedStatisticsTest(absltest.TestCase):
 
-  def test_load_sharded(self):
+  def test_load_sharded_paths(self):
     full_stats_proto = statistics_pb2.DatasetFeatureStatisticsList()
     text_format.Parse(_STATS_PROTO, full_stats_proto)
-    tmp_path = tempfile.mktemp()
+    tmp_dir = self.create_tempdir()
+    tmp_path = os.path.join(tmp_dir, 'statistics-0-of-1')
     writer = tf.compat.v1.io.TFRecordWriter(tmp_path)
     for dataset in full_stats_proto.datasets:
       shard = statistics_pb2.DatasetFeatureStatisticsList()
       shard.datasets.append(dataset)
       writer.write(shard.SerializeToString())
     writer.close()
-    view = stats_util.load_sharded_statistics(input_paths=[tmp_path])
+    view = stats_util.load_sharded_statistics(
+        input_paths=[tmp_path],
+        io_provider=statistics_io_impl.get_io_provider('tfrecords'))
+    self.assertEqual(view.proto(), full_stats_proto)
+
+  def test_load_sharded_pattern(self):
+    full_stats_proto = statistics_pb2.DatasetFeatureStatisticsList()
+    text_format.Parse(_STATS_PROTO, full_stats_proto)
+    tmp_dir = self.create_tempdir()
+    tmp_path = os.path.join(tmp_dir, 'statistics-0-of-1')
+    writer = tf.compat.v1.io.TFRecordWriter(tmp_path)
+    for dataset in full_stats_proto.datasets:
+      shard = statistics_pb2.DatasetFeatureStatisticsList()
+      shard.datasets.append(dataset)
+      writer.write(shard.SerializeToString())
+    writer.close()
+    view = stats_util.load_sharded_statistics(
+        input_path_prefix=tmp_path.rstrip('-0-of-1'),
+        io_provider=statistics_io_impl.get_io_provider('tfrecords'))
     self.assertEqual(view.proto(), full_stats_proto)
 
 

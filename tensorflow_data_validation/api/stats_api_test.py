@@ -25,7 +25,9 @@ import apache_beam as beam
 from apache_beam.testing import util
 import numpy as np
 import pyarrow as pa
+
 from tensorflow_data_validation.api import stats_api
+from tensorflow_data_validation.utils import statistics_io_impl
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.utils import io_util
 from tensorflow_data_validation.utils import stats_util
@@ -651,7 +653,7 @@ class StatsAPITest(absltest.TestCase):
     test_util.assert_dataset_feature_stats_proto_equal(
         self, stats_from_file.datasets[0], stats.datasets[0])
 
-  def test_write_stats_to_tfrecrod_and_binary(self):
+  def test_write_stats_to_tfrecord_and_binary(self):
     stats1 = text_format.Parse(
         """
         datasets {
@@ -696,14 +698,12 @@ class StatsAPITest(absltest.TestCase):
         """, statistics_pb2.DatasetFeatureStatisticsList())
 
     output_path_binary = os.path.join(self._get_temp_dir(), 'stats.pb')
-    output_path_prefix_tfrecords = os.path.join(self._get_temp_dir(),
-                                                'stats_shards')
-
-    with beam.Pipeline() as p:
+    output_path_prefix = os.path.join(self._get_temp_dir(), 'stats_shards')
+    with beam.Pipeline(runner=statistics_io_impl.test_runner_impl()) as p:
       _ = (
           p | beam.Create([stats1, stats2])
-          | stats_api.WriteStatisticsToTFRecordAndBinaryFile(
-              output_path_binary, output_path_prefix_tfrecords))
+          | stats_api.WriteStatisticsToRecordsAndBinaryFile(
+              output_path_binary, output_path_prefix))
 
     stats_from_pb = statistics_pb2.DatasetFeatureStatisticsList()
     serialized_stats = io_util.read_file_to_string(
@@ -713,8 +713,8 @@ class StatsAPITest(absltest.TestCase):
     test_util.assert_dataset_feature_stats_proto_equal(
         self, stats_from_pb.datasets[0], stats_combined.datasets[0])
 
-    stats_from_shards = stats_util.load_sharded_statistics(
-        output_path_prefix_tfrecords + '*').proto()
+    stats_from_shards = stats_util.load_sharded_statistics(output_path_prefix +
+                                                           '*').proto()
     self.assertLen(stats_from_shards.datasets, 1)
     test_util.assert_dataset_feature_stats_proto_equal(
         self, stats_from_shards.datasets[0], stats_combined.datasets[0])

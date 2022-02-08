@@ -18,8 +18,8 @@
 from tensorflow_data_validation.api.stats_api import GenerateStatistics
 from tensorflow_data_validation.api.stats_api import MergeDatasetFeatureStatisticsList
 from tensorflow_data_validation.api.stats_api import WriteStatisticsToBinaryFile
+from tensorflow_data_validation.api.stats_api import WriteStatisticsToRecordsAndBinaryFile
 from tensorflow_data_validation.api.stats_api import WriteStatisticsToTFRecord
-from tensorflow_data_validation.api.stats_api import WriteStatisticsToTFRecordAndBinaryFile
 
 # Import validation API.
 from tensorflow_data_validation.api.validation_api import DetectFeatureSkew
