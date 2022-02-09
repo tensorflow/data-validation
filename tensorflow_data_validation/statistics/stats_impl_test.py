@@ -2841,6 +2841,8 @@ _SLICED_STATS_TEST_RESULT = """
             }
 """
 
+_EMPTY_RECORD_BATCHES = []
+
 _SLICE_TEST_RECORD_BATCHES = [
     pa.RecordBatch.from_arrays([
         pa.array([[1.0, 2.0]], type=pa.list_(pa.float32())),
@@ -2903,6 +2905,35 @@ _SLICING_FN_TESTS_SHARDED = [
             _SLICED_STATS_TEST_RESULT,
         'expected_shards':
             9,  # 3 slices * 3 shards / slice.
+    },
+]
+
+_SLICING_FN_TESTS_SHARDED_EMPTY_INPUTS = [
+    {
+        'testcase_name':
+            'feature_value_slicing_slice_fns_with_shards_empty_inputs',
+        'record_batches':
+            _EMPTY_RECORD_BATCHES,
+        'options':
+            stats_options.StatsOptions(
+                experimental_slice_functions=[
+                    slicing_util.get_feature_value_slicer({'b': None})
+                ],
+                num_top_values=2,
+                num_rank_histogram_buckets=2,
+                num_values_histogram_buckets=2,
+                num_histogram_buckets=2,
+                num_quantiles_histogram_buckets=2,
+                enable_semantic_domain_stats=True,
+                experimental_result_partitions=999),  # 999 >> #features.
+        'expected_result_proto_text':
+            """
+            datasets {
+              num_examples: 0
+            }
+            """,
+        'expected_shards':
+            1
     },
 ]
 
@@ -2977,7 +3008,8 @@ class StatsImplTest(parameterized.TestCase):
   @parameterized.named_parameters(
       *(_GENERATE_STATS_TESTS + _GENERATE_STATS_NO_IN_MEMORY_TESTS +
         _SLICING_FN_TESTS + _SLICING_FN_TESTS_SHARDED +
-        _GENERATE_STATS_WITH_FEATURE_PARTITIONS_TESTS))
+        _GENERATE_STATS_WITH_FEATURE_PARTITIONS_TESTS +
+        _SLICING_FN_TESTS_SHARDED_EMPTY_INPUTS))
   def test_stats_impl(self,
                       record_batches,
                       options,

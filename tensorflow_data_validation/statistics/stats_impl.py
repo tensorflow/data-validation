@@ -127,7 +127,7 @@ class _YieldPlaceholderFn(beam.DoFn):
 
   def process(self, count: int):
     if count == 0:
-      yield (None, statistics_pb2.DatasetFeatureStatistics())
+      yield ('', statistics_pb2.DatasetFeatureStatistics())
 
 
 @beam.ptransform_fn
