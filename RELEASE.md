@@ -13,6 +13,8 @@
 *   Fixes a bug in load_statistics that would cause failure when reading binary
     protos.
 *   Depends on `pyfarmhash>=0.2,<0.4`.
+*   Depends on
+    `tensorflow>=1.15.5,!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,<3`.
 
 ## Known Issues
 
