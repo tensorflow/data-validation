@@ -291,16 +291,25 @@ class _ComputeSkew(beam.DoFn):
   """DoFn that computes skew for each pair of examples."""
 
   def __init__(self, features_to_ignore: List[tf.train.Feature],
-               float_round_ndigits: Optional[int]) -> None:
+               float_round_ndigits: Optional[int],
+               allow_duplicate_identifiers: bool) -> None:
     """Initializes _ComputeSkew.
 
     Args:
       features_to_ignore: Names of features that are ignored in skew detection.
       float_round_ndigits: Number of digits precision after the decimal point to
         which to round float values before detecting skew.
+      allow_duplicate_identifiers: If set, skew detection will be done on
+        examples for which there are duplicate identifier feature values. In
+        this case, the counts in the FeatureSkew result are based on each
+        training-serving example pair analyzed. Examples with given identifier
+        feature values must all fit in memory.
     """
     self._features_to_ignore = features_to_ignore
     self._float_round_ndigits = float_round_ndigits
+    self._allow_duplicate_identifiers = allow_duplicate_identifiers
+    self._skipped_duplicate_identifiers = beam.metrics.Metrics.counter(
+        constants.METRICS_NAMESPACE, "skipped_duplicate_identifier")
 
   def process(
       self, element: Tuple[str,
@@ -309,25 +318,22 @@ class _ComputeSkew(beam.DoFn):
     (_, examples) = element
     training_examples = examples.get(_TRAINING_KEY)
     serving_examples = examples.get(_SERVING_KEY)
-    if len(training_examples) > 1:
-      raise ValueError("Identifier features do not uniquely identify"
-                       " an example within the training data.")
-    if len(serving_examples) > 1:
-      raise ValueError("Identifier features do not uniquely identify"
-                       " an example within the serving data.")
+    if not self._allow_duplicate_identifiers:
+      if len(training_examples) > 1 or len(serving_examples) > 1:
+        self._skipped_duplicate_identifiers.inc(1)
+        return
     if training_examples and serving_examples:
-      training_example = training_examples[0]
-      serving_example = serving_examples[0]
-      result, is_skewed = _compute_skew_for_examples(training_example,
-                                                     serving_example,
-                                                     self._features_to_ignore,
-                                                     self._float_round_ndigits)
-      if is_skewed:
-        skew_pair = _construct_skew_pair(result, training_example,
-                                         serving_example)
-        yield beam.pvalue.TaggedOutput("skew_pairs", skew_pair)
-      for each in result:
-        yield beam.pvalue.TaggedOutput("skew_results", each)
+      for training_example in training_examples:
+        for serving_example in serving_examples:
+          result, is_skewed = _compute_skew_for_examples(
+              training_example, serving_example, self._features_to_ignore,
+              self._float_round_ndigits)
+          if is_skewed:
+            skew_pair = _construct_skew_pair(result, training_example,
+                                             serving_example)
+            yield beam.pvalue.TaggedOutput("skew_pairs", skew_pair)
+          for each in result:
+            yield beam.pvalue.TaggedOutput("skew_results", each)
 
 
 class DetectFeatureSkewImpl(beam.PTransform):
@@ -343,7 +349,8 @@ class DetectFeatureSkewImpl(beam.PTransform):
                identifier_features: List[types.FeatureName],
                features_to_ignore: Optional[List[types.FeatureName]] = None,
                sample_size: int = 0,
-               float_round_ndigits: Optional[int] = None) -> None:
+               float_round_ndigits: Optional[int] = None,
+               allow_duplicate_identifiers: bool = False) -> None:
     """Initializes DetectFeatureSkewImpl.
 
     Args:
@@ -355,6 +362,11 @@ class DetectFeatureSkewImpl(beam.PTransform):
         exhibit skew to include in the skew results.
       float_round_ndigits: Number of digits of precision after the decimal point
         to which to round float values before detecting skew.
+      allow_duplicate_identifiers: If set, skew detection will be done on
+        examples for which there are duplicate identifier feature values. In
+        this case, the counts in the FeatureSkew result are based on each
+        training-serving example pair analyzed. Examples with given identifier
+        feature values must all fit in memory.
     """
     if not identifier_features:
       raise ValueError("At least one feature name must be specified in "
@@ -366,6 +378,7 @@ class DetectFeatureSkewImpl(beam.PTransform):
       self._features_to_ignore = features_to_ignore + identifier_features
     else:
       self._features_to_ignore = identifier_features
+    self._allow_duplicate_identifiers = allow_duplicate_identifiers
 
   def expand(
       self, pcollections: Tuple[beam.pvalue.PCollection,
@@ -380,14 +393,15 @@ class DetectFeatureSkewImpl(beam.PTransform):
         serving_examples | "ExtractServingIdentifiers" >> beam.ParDo(
             _ExtractIdentifiers(self._identifier_features,
                                 self._float_round_ndigits)))
-    results = ({
-        "training": keyed_training_examples,
-        "serving": keyed_serving_examples
-    } | "JoinExamples" >> beam.CoGroupByKey()
-               | "ComputeSkew" >> beam.ParDo(
-                   _ComputeSkew(self._features_to_ignore,
-                                self._float_round_ndigits)).with_outputs(
-                                    "skew_results", "skew_pairs"))
+    results = (
+        {
+            "training": keyed_training_examples,
+            "serving": keyed_serving_examples
+        } | "JoinExamples" >> beam.CoGroupByKey()
+        | "ComputeSkew" >> beam.ParDo(
+            _ComputeSkew(self._features_to_ignore, self._float_round_ndigits,
+                         self._allow_duplicate_identifiers)).with_outputs(
+                             "skew_results", "skew_pairs"))
     skew_results = (
         results.skew_results | "MergeSkewResultsPerFeature" >>
         beam.CombinePerKey(_merge_feature_skew_results)

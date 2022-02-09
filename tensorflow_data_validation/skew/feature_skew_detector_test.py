@@ -359,6 +359,141 @@ class FeatureSkewDetectorTest(absltest.TestCase):
         _ = ((training_examples, serving_examples)
              | feature_skew_detector.DetectFeatureSkewImpl([]))
 
+  def test_duplicate_identifiers_allowed_with_duplicates(self):
+    training_example_1 = text_format.Parse(
+        """
+        features {
+          feature {
+            key: "id"
+            value { int64_list { value: 1 } }
+          }
+          feature {
+            key: "val"
+            value { int64_list { value: 100 } }
+          }
+        }
+        """, tf.train.Example())
+    training_example_2 = text_format.Parse(
+        """
+        features {
+          feature {
+            key: "id"
+            value { int64_list { value: 1 } }
+          }
+          feature {
+            key: "val"
+            value { int64_list { value: 50 } }
+          }
+        }
+        """, tf.train.Example())
+    serving_example = text_format.Parse(
+        """
+        features {
+          feature {
+            key: "id"
+            value { int64_list { value: 1 } }
+          }
+          feature {
+            key: "val"
+            value { int64_list { value: 100 } }
+          }
+          feature {
+            key: "val2"
+            value { int64_list { value: 100 } }
+          }
+        }
+        """, tf.train.Example())
+    expected_result = [
+        text_format.Parse(
+            """
+        feature_name: 'val'
+        training_count: 2
+        serving_count: 2
+        match_count: 1
+        mismatch_count: 1
+        diff_count: 1""", feature_skew_results_pb2.FeatureSkew()),
+        text_format.Parse(
+            """
+        feature_name: 'val2'
+        training_count: 0
+        serving_count: 2
+        serving_only: 2
+        diff_count: 2""", feature_skew_results_pb2.FeatureSkew()),]
+    with beam.Pipeline() as p:
+      training_examples = p | 'Create Training' >> beam.Create(
+          [training_example_1, training_example_2])
+      serving_examples = p | 'Create Serving' >> beam.Create([serving_example])
+      skew_result, _ = ((training_examples, serving_examples)
+                        | feature_skew_detector.DetectFeatureSkewImpl(
+                            ['id'], [], allow_duplicate_identifiers=True))
+      util.assert_that(
+          skew_result,
+          test_util.make_skew_result_equal_fn(self, expected_result))
+
+  def test_duplicate_identifiers_not_allowed_with_duplicates(self):
+    training_example_1 = text_format.Parse(
+        """
+        features {
+          feature {
+            key: "id"
+            value { int64_list { value: 1 } }
+          }
+          feature {
+            key: "val"
+            value { int64_list { value: 100 } }
+          }
+        }
+        """, tf.train.Example())
+    training_example_2 = text_format.Parse(
+        """
+        features {
+          feature {
+            key: "id"
+            value { int64_list { value: 1 } }
+          }
+          feature {
+            key: "val"
+            value { int64_list { value: 50 } }
+          }
+        }
+        """, tf.train.Example())
+    serving_example = text_format.Parse(
+        """
+        features {
+          feature {
+            key: "id"
+            value { int64_list { value: 1 } }
+          }
+          feature {
+            key: "val"
+            value { int64_list { value: 100 } }
+          }
+          feature {
+            key: "val2"
+            value { int64_list { value: 100 } }
+          }
+        }
+        """, tf.train.Example())
+    with beam.Pipeline() as p:
+      training_examples = p | 'Create Training' >> beam.Create(
+          [training_example_1, training_example_2])
+      serving_examples = p | 'Create Serving' >> beam.Create([serving_example])
+      skew_result, _ = ((training_examples, serving_examples)
+                        | feature_skew_detector.DetectFeatureSkewImpl(
+                            ['id'], [], allow_duplicate_identifiers=False))
+      util.assert_that(
+          skew_result,
+          test_util.make_skew_result_equal_fn(self, []))
+
+    runner = p.run()
+    runner.wait_until_finish()
+    result_metrics = runner.metrics()
+    actual_counter = result_metrics.query(
+        beam.metrics.metric.MetricsFilter().with_name(
+            'skipped_duplicate_identifier'))['counters']
+    self.assertLen(actual_counter, 1)
+    self.assertEqual(actual_counter[0].committed, 1)
+
   def test_telemetry(self):
     base_example = tf.train.Example()
     base_example.features.feature[_IDENTIFIER1].int64_list.value.append(1)

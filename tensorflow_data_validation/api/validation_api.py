@@ -649,7 +649,8 @@ class DetectFeatureSkew(beam.PTransform):
       identifier_features: List[types.FeatureName],
       features_to_ignore: Optional[List[types.FeatureName]] = None,
       sample_size: int = 0,
-      float_round_ndigits: Optional[int] = None) -> None:
+      float_round_ndigits: Optional[int] = None,
+      allow_duplicate_identifiers: bool = False) -> None:
     """Initializes the feature skew detection PTransform.
 
     Args:
@@ -660,11 +661,17 @@ class DetectFeatureSkew(beam.PTransform):
         exhibit skew to include in the skew results.
       float_round_ndigits: Number of digits precision after the decimal point to
         which to round float values before comparing them.
+      allow_duplicate_identifiers: If set, skew detection will be done on
+        examples for which there are duplicate identifier feature values. In
+        this case, the counts in the FeatureSkew result are based on each
+        training-serving example pair analyzed. Examples with given identifier
+        feature values must all fit in memory.
     """
     self._identifier_features = identifier_features
     self._features_to_ignore = features_to_ignore
     self._sample_size = sample_size
     self._float_round_ndigits = float_round_ndigits
+    self._allow_duplicate_identifiers = allow_duplicate_identifiers
 
   def expand(
       self, datasets: Tuple[beam.pvalue.PCollection, beam.pvalue.PCollection]
@@ -672,7 +679,8 @@ class DetectFeatureSkew(beam.PTransform):
     return (datasets |
             'DetectFeatureSkew' >> feature_skew_detector.DetectFeatureSkewImpl(
                 self._identifier_features, self._features_to_ignore,
-                self._sample_size, self._float_round_ndigits))
+                self._sample_size, self._float_round_ndigits,
+                self._allow_duplicate_identifiers))
 
 
 @beam.typehints.with_input_types(feature_skew_results_pb2.FeatureSkew)
