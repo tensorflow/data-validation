@@ -39,6 +39,7 @@ from tensorflow_data_validation.utils import feature_partition_util
 from tensorflow_data_validation.utils import slicing_util
 from tfx_bsl.arrow import table_util
 from tfx_bsl.statistics import merge_util
+from tfx_bsl.telemetry import collection
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -65,7 +66,8 @@ class GenerateStatisticsImpl(beam.PTransform):
       dataset |= ('FilterFeaturesByAllowList' >> beam.Map(
           _filter_features, feature_allowlist=self._options.feature_allowlist))
 
-    _ = dataset | 'TrackTotalBytes' >> _TrackTotalBytes()  # pylint: disable=no-value-for-parameter
+    _ = dataset | 'TrackTotalBytes' >> collection.TrackRecordBatchBytes(
+        constants.METRICS_NAMESPACE, 'record_batch_input_bytes')
     if self._options.experimental_slice_functions:
       # Add default slicing function.
       slice_functions = [slicing_util.default_slicer]
@@ -94,18 +96,6 @@ def _increment_counter(counter_name: Text, element: int):  # pylint: disable=inv
       constants.METRICS_NAMESPACE, counter_name)
   counter.inc(element)
   return element
-
-
-@beam.ptransform_fn
-def _TrackTotalBytes(  # pylint: disable=invalid-name
-    dataset: beam.PCollection[pa.RecordBatch]
-) -> beam.pvalue.PCollection[int]:
-  """Gathers telemetry on input record batch."""
-  return (dataset
-          | 'GetRecordBatchSize' >> beam.Map(lambda rb: rb.nbytes)
-          | 'SumTotalBytes' >> beam.CombineGlobally(sum)
-          | 'IncrementCounter' >> beam.Map(
-              lambda x: _increment_counter('record_batch_input_bytes', x)))
 
 
 @beam.ptransform_fn

@@ -29,7 +29,6 @@ import numpy as np
 import pyarrow as pa
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options
-from tensorflow_data_validation.statistics.generators import basic_stats_generator
 from tensorflow_data_validation.statistics.generators import cross_feature_stats_generator
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import slicing_util
@@ -3641,14 +3640,13 @@ class StatsImplTest(parameterized.TestCase):
         ], ['a', 'b', 'c'])
     ]
 
+    expected_num_bytes = sum(rb.nbytes for rb in record_batches)
+
     p = beam.Pipeline()
     _ = (
         p
         | 'CreateBatches' >> beam.Create(record_batches, reshuffle=False)
-        | 'BasicStatsCombiner' >> beam.CombineGlobally(
-            stats_impl._CombinerStatsGeneratorsCombineFn([
-                basic_stats_generator.BasicStatsGenerator(),
-            ])))
+        | 'GenerateStatsImpl' >> stats_impl.GenerateStatisticsImpl())
 
     runner = p.run()
     runner.wait_until_finish()
@@ -3669,6 +3667,7 @@ class StatsImplTest(parameterized.TestCase):
         'string_feature_values_min_count': 3,
         'string_feature_values_max_count': 4,
         'string_feature_values_mean_count': 3,
+        'record_batch_input_bytes': expected_num_bytes,
     }
 
     # Check each counter.
