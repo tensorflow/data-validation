@@ -14,49 +14,27 @@
 """Utility for partitioning RecordBatches by features."""
 
 import collections
-import hashlib
-import logging
-from typing import Any, Iterable, Tuple, Union, FrozenSet, Mapping
+from typing import Any, FrozenSet, Iterable, Mapping, Tuple, Union
 
 import apache_beam as beam
+import farmhash
 import pyarrow as pa
-
 from tensorflow_data_validation import types
+
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
 class ColumnHasher(object):
   """Assigns column names to feature partitions."""
 
-  def __init__(self, partitions: int, max_cache_len: int = int(1e8)):
+  def __init__(self, partitions: int):
     self.num_partitions = partitions
-    self._cache_len = 0
-    self._max_cache_len = max_cache_len
-
-    # md5 is pretty slow compared to hash(), but we need stability, so we use
-    # md5 and cache the result.
-    # TODO(b/187961534): See if there's a faster stable hash available.
-    self._cache = {}
 
   def assign(self, feature_name: Union[bytes, str]) -> int:
     """Assigns a feature partition based on the name of a feature."""
-    if feature_name in self._cache:
-      return self._cache[feature_name]
-    if isinstance(feature_name, str):
-      md5_hash = hashlib.md5(feature_name.encode('utf-8')).hexdigest()
-    else:
-      md5_hash = hashlib.md5(bytes(feature_name)).hexdigest()
-    partition = int(md5_hash[0:8], 16) % self.num_partitions
-    partition = (partition + int(md5_hash[8:], 16)) % self.num_partitions
-    self._cache[feature_name] = partition
-    self._cache_len += len(feature_name)
-    if self._cache_len > self._max_cache_len:
-      # Reset to avoid storing too many cached column names. Really this should
-      # never happen.
-      logging.warning('partition hash cache flushed with %d entries',
-                      self._cache_len)
-      self._cache_len = 0
-      self._cache = {}
+    if isinstance(feature_name, bytes):
+      feature_name = feature_name.decode('utf8')
+    partition = farmhash.fingerprint32(feature_name) % self.num_partitions
     return partition
 
   def assign_sequence(self, *parts: Union[bytes, str]) -> int:

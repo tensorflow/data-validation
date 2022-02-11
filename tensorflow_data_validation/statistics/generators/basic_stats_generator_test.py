@@ -130,7 +130,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
   def test_two_feature_partitions(self):
-    # Note: default partitioner assigns a->0, b->1
+    # Note: default partitioner assigns a->1, b->0
     b1 = pa.RecordBatch.from_arrays(
         [pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]]),
          pa.array([['abc'], ['xyz']])], ['a', 'b'])
@@ -182,11 +182,12 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         num_values_histogram_buckets=4,
         num_histogram_buckets=3,
         num_quantiles_histogram_buckets=4)
-    generator = generator._copy_for_partition_index(1, 2)
+    # Note: partition 0 contains feature "b"
+    generator = generator._copy_for_partition_index(0, 2)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
   def test_two_feature_partitions_with_weights(self):
-    # Note: default partitioner assigns a->0, b->1
+    # Note: default partitioner assigns a->1, b->0
     b1 = pa.RecordBatch.from_arrays(
         [pa.array([[1.0], [10.0]]),
          pa.array([['a'], ['xyz']])], ['a', 'b'])
@@ -245,7 +246,8 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         num_quantiles_histogram_buckets=4,
         example_weight_map=ExampleWeightMap(weight_feature='a'),
         )
-    generator = generator._copy_for_partition_index(1, 2)
+    # Note: partition 0 contains feature "b"
+    generator = generator._copy_for_partition_index(0, 2)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
   def test_no_feature_falls_in_partition(self):

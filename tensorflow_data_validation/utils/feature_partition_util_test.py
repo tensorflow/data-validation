@@ -101,13 +101,21 @@ class FeaturePartitionUtilTest(absltest.TestCase):
 
 class ColumnHasherTest(absltest.TestCase):
 
-  def test_partitions_stable(self):
+  def test_partitions_stable_strings(self):
     column_names = ['rats', 'live', 'on', 'no', 'evil', 'star']
     # These values can be updated if the hasher changes.
-    expected = [34, 16, 41, 14, 17, 40]
+    expected = [14, 9, 28, 42, 3, 18]
     hasher = feature_partition_util.ColumnHasher(44)
-    for i, column_name in enumerate(column_names):
-      self.assertEqual(expected[i], hasher.assign(column_name))
+    got = [hasher.assign(column_name) for column_name in column_names]
+    self.assertEqual(expected, got)
+
+  def test_partitions_stable_bytes(self):
+    column_names = [b'rats', b'live', b'on', b'no', b'evil', b'star']
+    # These values can be updated if the hasher changes.
+    expected = [14, 9, 28, 42, 3, 18]
+    hasher = feature_partition_util.ColumnHasher(44)
+    got = [hasher.assign(column_name) for column_name in column_names]
+    self.assertEqual(expected, got)
 
 
 _BASE_PROTO_KEY_AND_SPLIT = """
@@ -204,7 +212,7 @@ _KEY_AND_SPLIT_TEST_CASES = [{
     'num_partitions':
         9999,
     'statistics': [_BASE_PROTO_KEY_AND_SPLIT],
-    'expected': [(1756, """datasets {
+    'expected': [(43, """datasets {
   name: "abc"
   num_examples: 10
   features {
@@ -214,7 +222,7 @@ _KEY_AND_SPLIT_TEST_CASES = [{
   }
   weighted_num_examples: 3.4
 }"""),
-                 (1266, """datasets {
+                 (8454, """datasets {
   name: "abc"
   num_examples: 10
   features {
@@ -224,7 +232,7 @@ _KEY_AND_SPLIT_TEST_CASES = [{
   }
   weighted_num_examples: 3.4
 }"""),
-                 (431, """datasets {
+                 (316, """datasets {
   name: "abc"
   num_examples: 10
   features {
@@ -234,7 +242,7 @@ _KEY_AND_SPLIT_TEST_CASES = [{
   }
   weighted_num_examples: 3.4
 }"""),
-                 (5599, """datasets {
+                 (2701, """datasets {
   name: "abc"
   num_examples: 10
   weighted_num_examples: 3.4
@@ -274,7 +282,7 @@ _KEY_AND_SPLIT_TEST_CASES = [{
         }
         """
     ],
-    'expected': [(1756, """datasets {
+    'expected': [(43, """datasets {
   name: "abc"
   features {
     path {
@@ -282,7 +290,7 @@ _KEY_AND_SPLIT_TEST_CASES = [{
     }
   }
 }"""),
-                 (1756, """datasets {
+                 (43, """datasets {
   name: "abc"
   features {
     path {
@@ -317,7 +325,7 @@ _KEY_AND_SPLIT_TEST_CASES = [{
         }
         """
     ],
-    'expected': [(1756, """datasets {
+    'expected': [(43, """datasets {
   name: "abc"
   features {
     path {
@@ -325,7 +333,7 @@ _KEY_AND_SPLIT_TEST_CASES = [{
     }
   }
 }"""),
-                 (2971, """datasets {
+                 (6259, """datasets {
   name: "xyz"
   features {
     path {

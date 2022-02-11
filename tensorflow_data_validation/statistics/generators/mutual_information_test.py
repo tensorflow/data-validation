@@ -1578,20 +1578,20 @@ class NonStreamingCustomStatsGeneratorTest(
     # expect.
 
     # Column names chosen so that
-    # banana:     partition 0
-    # grapefruit: partition 0
-    # apple:      partition 1
+    # yams:     partition 0
+    # arugula:  partition 0
+    # apple:    partition 1
     #
     # Note that partition indices should be deterministic.
     batch1 = pa.RecordBatch.from_arrays([
         pa.array([1]),
         pa.array([2]),
         pa.array(["a"]),
-    ], ["banana", "grapefruit", "label_key"])
+    ], ["yams", "arugula", "label_key"])
     batch2 = pa.RecordBatch.from_arrays([
         pa.array([3]),
         pa.array(["b"]),
-    ], ["banana", "label_key"])
+    ], ["yams", "label_key"])
     batch3 = pa.RecordBatch.from_arrays([
         pa.array([4]),
         pa.array(["c"]),
@@ -1647,7 +1647,7 @@ class NonStreamingCustomStatsGeneratorTest(
       beam_test_util.assert_that(
           result,
           _make_equal_dataframe_items([
-              merged[["banana", "grapefruit", "label_key"]],
+              merged[["yams", "arugula", "label_key"]],
               merged[["apple", "label_key"]],
               merged[["label_key"]],
           ]))
