@@ -27,7 +27,7 @@ import numpy as np
 import pyarrow as pa
 
 from tensorflow_data_validation.api import stats_api
-from tensorflow_data_validation.utils import statistics_io_impl
+from tensorflow_data_validation.utils import statistics_io_test_util
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.utils import io_util
 from tensorflow_data_validation.utils import stats_util
@@ -699,7 +699,7 @@ class StatsAPITest(absltest.TestCase):
 
     output_path_binary = os.path.join(self._get_temp_dir(), 'stats.pb')
     output_path_prefix = os.path.join(self._get_temp_dir(), 'stats_shards')
-    with beam.Pipeline(runner=statistics_io_impl.test_runner_impl()) as p:
+    with beam.Pipeline(runner=statistics_io_test_util.test_runner_impl()) as p:
       _ = (
           p | beam.Create([stats1, stats2])
           | stats_api.WriteStatisticsToRecordsAndBinaryFile(

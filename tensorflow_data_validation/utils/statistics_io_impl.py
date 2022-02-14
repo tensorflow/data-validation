@@ -101,19 +101,3 @@ class _ProviderImpl(StatisticsIOProvider):
         stats_shard = statistics_pb2.DatasetFeatureStatisticsList()
         stats_shard.ParseFromString(record)
         yield stats_shard
-
-
-def test_runner_impl():
-  """Beam runner for testing record_sink_impl.
-
-  Usage:
-
-  with beam.Pipeline(runner=test_runner_impl()):
-     ...
-
-  Defined only for tests.
-
-  Returns:
-    A beam runner.
-  """
-  return None  # default runner.
