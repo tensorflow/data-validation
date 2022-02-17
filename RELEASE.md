@@ -15,6 +15,8 @@
 *   Depends on `pyfarmhash>=0.2,<0.4`.
 *   Depends on
     `tensorflow>=1.15.5,!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,!=2.4.*,!=2.5.*,!=2.6.*,!=2.7.*,<3`.
+*   Updated the documentation for CombinerStatsGenerator to clarify that the
+    first accumulator passed to merge_accumulators may be modified.
 
 ## Known Issues
 

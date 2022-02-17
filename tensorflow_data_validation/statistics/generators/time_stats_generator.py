@@ -346,7 +346,11 @@ class TimeStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     Returns:
       The merged accumulator.
     """
-    return sum(accumulators, _PartialTimeStats())
+    it = iter(accumulators)
+    result = next(it)
+    for acc in it:
+      result += acc
+    return result
 
   def extract_output(self, accumulator: _PartialTimeStats
                     ) -> statistics_pb2.FeatureNameStatistics:

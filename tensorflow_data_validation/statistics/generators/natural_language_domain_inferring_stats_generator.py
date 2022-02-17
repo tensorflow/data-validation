@@ -223,8 +223,9 @@ class NLDomainInferringStatsGenerator(
     Returns:
       The merged accumulator.
     """
-    result = _PartialNLStats()
-    for accumulator in accumulators:
+    it = iter(accumulators)
+    result = next(it)
+    for accumulator in it:
       result += accumulator
     return result
 

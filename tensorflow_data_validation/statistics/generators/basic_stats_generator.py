@@ -1116,8 +1116,9 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
   # Merge together a list of basic common statistics.
   def merge_accumulators(
       self, accumulators: Iterable[_BasicAcctype]) -> _BasicAcctype:
-    result = _BasicAcctype()
-    for accumulator in accumulators:
+    it = iter(accumulators)
+    result = next(it)
+    for accumulator in it:
       result.num_examples += accumulator.num_examples
       result.weighted_num_examples += accumulator.weighted_num_examples
       for feature_path, basic_stats in accumulator.items():

@@ -130,7 +130,8 @@ class CombinerStatsGenerator(Generic[ACCTYPE], StatsGenerator):
     """Returns result of folding a batch of inputs into accumulator.
 
     Args:
-      accumulator: The current accumulator.
+      accumulator: The current accumulator, which may be modified and returned
+        for efficiency.
       input_record_batch: An Arrow RecordBatch whose columns are features and
         rows are examples. The columns are of type List<primitive> or Null (If a
         feature's value is None across all the examples in the batch, its
@@ -144,8 +145,8 @@ class CombinerStatsGenerator(Generic[ACCTYPE], StatsGenerator):
   def merge_accumulators(self, accumulators: Iterable[ACCTYPE]) -> ACCTYPE:
     """Merges several accumulators to a single accumulator value.
 
-    Note: mutating any element in `accumulators` is not allowed and will result
-    in undefined behavior.
+    Note: mutating any element in `accumulators` except for the first is not
+    allowed. The first element may be modified and returned for efficiency.
 
     Args:
       accumulators: The accumulators to merge.

@@ -165,8 +165,9 @@ class TopKUniquesCombinerStatsGenerator(
   def merge_accumulators(
       self, accumulators: Iterable[Dict[types.FeaturePath, _ValueCounts]]
   ) -> Dict[types.FeaturePath, _ValueCounts]:
-    result = {}
-    for accumulator in accumulators:
+    it = iter(accumulators)
+    result = next(it)
+    for accumulator in it:
       for feature_path, value_counts in accumulator.items():
         if feature_path not in result:
           result[feature_path] = value_counts

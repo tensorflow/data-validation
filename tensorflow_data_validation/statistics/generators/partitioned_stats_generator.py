@@ -180,9 +180,9 @@ class PartitionedStatisticsAnalyzer(beam.CombineFn):
       self, accumulators: Iterable[_PartitionedStatisticsAnalyzerAccumulator]
   ) -> _PartitionedStatisticsAnalyzerAccumulator:
     """Merges together a list of PartitionedStatisticsAnalyzerAccumulators."""
-
-    result = _PartitionedStatisticsAnalyzerAccumulator()
-    for accumulator in accumulators:
+    it = iter(accumulators)
+    result = next(it)
+    for accumulator in it:
       for feature_path, feature_statistics in accumulator.statistics.items():
         for stat_name, stat_values in feature_statistics.items():
           result.statistics[feature_path][stat_name].extend(stat_values)

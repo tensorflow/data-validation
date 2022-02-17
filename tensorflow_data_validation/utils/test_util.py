@@ -423,6 +423,8 @@ class CombinerFeatureStatsGeneratorTest(absltest.TestCase):
         generator.add_input(generator.create_accumulator(), feature_path,
                             input_batch) for input_batch in input_batches
     ]
+    # Assume that generators will never be called with empty inputs.
+    accumulators = accumulators or [generator.create_accumulator()]
     result = generator.extract_output(
         generator.merge_accumulators(accumulators))
     compare.assertProtoEqual(
@@ -434,6 +436,8 @@ class CombinerFeatureStatsGeneratorTest(absltest.TestCase):
         generator.add_input(generator.create_accumulator(), feature_path,
                             input_batch) for input_batch in input_batches
     ]
+    # Assume that generators will never be called with empty inputs.
+    accumulators = accumulators or [generator.create_accumulator()]
     result = generator.extract_output(
         generator.compact(generator.merge_accumulators(accumulators)))
     compare.assertProtoEqual(

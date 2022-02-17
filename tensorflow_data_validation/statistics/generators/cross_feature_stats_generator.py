@@ -189,8 +189,9 @@ class CrossFeatureStatsGenerator(stats_generator.CombinerStatsGenerator):
   def merge_accumulators(
       self, accumulators: Iterable[CrossFeatureStatsGeneratorAccumulator]
   ) -> CrossFeatureStatsGeneratorAccumulator:
-    result = {}
-    for accumulator in accumulators:
+    it = iter(accumulators)
+    result = next(it)
+    for accumulator in it:
       for feat_cross, cross_feat_stats in accumulator.items():
         if feat_cross not in result:
           result[feat_cross] = cross_feat_stats

@@ -224,8 +224,9 @@ class TopKUniquesSketchStatsGenerator(stats_generator.CombinerStatsGenerator):
       self,
       accumulators: Iterable[Dict[tfdv_types.FeaturePath, _CombinedSketch]]
       ) -> Dict[tfdv_types.FeaturePath, _CombinedSketch]:
-    result = {}
-    for accumulator in accumulators:
+    it = iter(accumulators)
+    result = next(it)
+    for accumulator in it:
       for feature_name, combined_sketch in accumulator.items():
         existing_sketch = result.get(feature_name, None)
         if existing_sketch is None:

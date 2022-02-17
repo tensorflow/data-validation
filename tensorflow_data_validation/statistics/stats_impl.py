@@ -650,8 +650,9 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
       self,
       accumulators: Iterable[_CombinerStatsGeneratorsCombineFnAcc]
       ) -> _CombinerStatsGeneratorsCombineFnAcc:
-    result = self.create_accumulator()
-    for accumulator in accumulators:
+    it = iter(accumulators)
+    result = next(it)
+    for accumulator in it:
       result.input_record_batches.extend(accumulator.input_record_batches)
       result.curr_batch_size += accumulator.curr_batch_size
       result.curr_byte_size += accumulator.curr_byte_size
