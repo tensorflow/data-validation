@@ -63,6 +63,10 @@ from tensorflow_data_validation.utils.stats_gen_lib import generate_statistics_f
 from tensorflow_data_validation.utils.stats_gen_lib import generate_statistics_from_tfrecord
 
 # Import stats utilities.
+from tensorflow_data_validation.utils.stats_util import CrossFeatureView
+from tensorflow_data_validation.utils.stats_util import DatasetListView
+from tensorflow_data_validation.utils.stats_util import DatasetView
+from tensorflow_data_validation.utils.stats_util import FeatureView
 from tensorflow_data_validation.utils.stats_util import get_feature_stats
 from tensorflow_data_validation.utils.stats_util import get_slice_stats
 from tensorflow_data_validation.utils.stats_util import load_sharded_statistics
