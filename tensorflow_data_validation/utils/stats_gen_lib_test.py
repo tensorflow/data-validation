@@ -690,6 +690,34 @@ class StatsGenTest(parameterized.TestCase):
     with self.assertRaisesRegexp(ValueError, 'Files have different headers.'):
       _ = stats_gen_lib.get_csv_header(data_location, delimiter)
 
+  def test_get_csv_header_gzip(self):
+    temp_directory = self._get_temp_dir()
+    delimiter = ','
+    records = ['feature1,feature2', '1.0,aa']
+    expected_header = ['feature1', 'feature2']
+    self._write_records_to_csv(
+        records, temp_directory, 'input_data_1.csv.gz', compression_type='gzip')
+    self._write_records_to_csv(
+        records, temp_directory, 'input_data_2.csv.gz', compression_type='gzip')
+
+    data_location = os.path.join(temp_directory, 'input_data_*.csv.gz')
+    header = stats_gen_lib.get_csv_header(data_location, delimiter)
+    self.assertEqual(header, expected_header)
+
+  def test_get_csv_header_new_line(self):
+    temp_directory = self._get_temp_dir()
+    delimiter = ','
+    records = ['"\n","feature2"', '1.0,aa']
+    expected_header = ['\n', 'feature2']
+    self._write_records_to_csv(
+        records, temp_directory, 'input_data_1.csv.gz', compression_type='gzip')
+    self._write_records_to_csv(
+        records, temp_directory, 'input_data_2.csv.gz', compression_type='gzip')
+
+    data_location = os.path.join(temp_directory, 'input_data_*.csv.gz')
+    header = stats_gen_lib.get_csv_header(data_location, delimiter)
+    self.assertEqual(header, expected_header)
+
 
 if __name__ == '__main__':
   absltest.main()

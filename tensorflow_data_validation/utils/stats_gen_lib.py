@@ -19,10 +19,12 @@ from __future__ import print_function
 
 import copy
 import csv
+import gzip
+import io
 import multiprocessing
 import os
 import tempfile
-from typing import Any, cast, List, Optional, Text
+from typing import Any, List, Optional, Text, cast
 
 import apache_beam as beam
 from apache_beam.io.filesystem import CompressionTypes
@@ -166,7 +168,7 @@ def generate_statistics_from_csv(
     # to be the header.
     skip_header_lines = 1 if column_names is None else 0
     if column_names is None:
-      column_names = get_csv_header(data_location, delimiter)
+      column_names = get_csv_header(data_location, delimiter, compression_type)
     _ = (
         p
         | 'ReadData' >> beam.io.textio.ReadFromText(
@@ -273,8 +275,10 @@ def _generate_partial_statistics_from_df(
       record_batch_with_list_arrays, stats_options_modified, stats_generators)
 
 
-def get_csv_header(data_location: Text,
-                   delimiter: Text) -> List[types.FeatureName]:
+def get_csv_header(
+    data_location: Text,
+    delimiter: Text,
+    compression_type: Text = CompressionTypes.AUTO) -> List[types.FeatureName]:
   """Gets the CSV header from the input files.
 
   This function assumes that the header is present as the first line in all
@@ -284,6 +288,9 @@ def get_csv_header(data_location: Text,
     data_location: Glob pattern(s) specifying the location of the input data
       files.
     delimiter: A one-character string used to separate fields in a CSV file.
+    compression_type: Used to handle compressed input files. Default value is
+      CompressionTypes.AUTO, in which case the file_path's extension will be
+      used to detect the compression.
 
   Returns:
     The list of column names.
@@ -297,22 +304,43 @@ def get_csv_header(data_location: Text,
     raise ValueError(
         'No file found in the input data location: %s' % data_location)
 
-  # Read the header line in the first file.
-  with tf.io.gfile.GFile(matched_files[0], 'r') as reader:
-    try:
-      result = next(csv.reader(reader, delimiter=delimiter))
-    except StopIteration:
-      raise ValueError('Found empty file when reading the header line: %s' %
-                       matched_files[0])
+  # detect compression base on file extension if it is `AUTO`.
+  if compression_type == CompressionTypes.AUTO:
+    compression_type = CompressionTypes.detect_compression_type(
+        matched_files[0])
+
+  if compression_type == CompressionTypes.UNCOMPRESSED:
+    read_csv_fn = _read_csv_uncompressed
+  elif compression_type == CompressionTypes.GZIP:
+    read_csv_fn = _read_csv_gzip
+  else:
+    raise ValueError('Compression Type: `%s` is not supported for csv files.' %
+                     compression_type)
+
+  result = read_csv_fn(matched_files[0], delimiter)
 
   # Make sure that all files have the same header.
   for filename in matched_files[1:]:
-    with tf.io.gfile.GFile(filename, 'r') as reader:
-      try:
-        if next(csv.reader(reader, delimiter=delimiter)) != result:
-          raise ValueError('Files have different headers.')
-      except StopIteration:
-        raise ValueError(
-            'Found empty file when reading the header line: %s' % filename)
+    if read_csv_fn(filename, delimiter) != result:
+      raise ValueError('Files have different headers.')
 
   return result
+
+
+def _read_csv_gzip(file, delimiter):
+  with tf.io.gfile.GFile(file, 'rb') as f:
+    with io.TextIOWrapper(gzip.GzipFile(fileobj=f), newline='') as t:  # type: ignore
+      try:
+        return next(csv.reader(t, delimiter=delimiter))
+      except StopIteration as e:
+        raise ValueError('Found empty file when reading the header line: %s' %
+                         file) from e
+
+
+def _read_csv_uncompressed(file, delimiter):
+  with tf.io.gfile.GFile(file, 'r') as reader:
+    try:
+      return next(csv.reader(reader, delimiter=delimiter))
+    except StopIteration as e:
+      raise ValueError('Found empty file when reading the header line: %s' %
+                       file) from e
