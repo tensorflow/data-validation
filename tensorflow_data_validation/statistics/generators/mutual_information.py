@@ -529,8 +529,6 @@ class MutualInformation(partitioned_stats_generator.PartitionedStatsFn):
           result[feature_path] = {self._custom_stats_key: 0.0}
       return stats_util.make_dataset_feature_stats_proto(result)
 
-    # TODO(pachristopher): Currently encoded examples operate on lists. Consider
-    # using ndarrays and vectorizing the operations.
     encoded_examples = _encode_examples(examples_record_batch,
                                         self._multivalent_features,
                                         self._categorical_features,

@@ -104,8 +104,6 @@ class GenerateStatistics(beam.PTransform):
 def _sample_at_rate(example: pa.RecordBatch, sample_rate: float
                    ) -> Generator[pa.RecordBatch, None, None]:
   """Sample examples at input sampling rate."""
-  # TODO(pachristopher): Revisit this to decide if we need to fix a seed
-  # or add an optional seed argument.
   if random.random() <= sample_rate:
     yield example
 

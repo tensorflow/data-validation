@@ -28,7 +28,7 @@ from tensorflow_data_validation.arrow import decoded_examples_to_arrow
 from tfx_bsl.coders import batch_util
 
 
-# TODO(pachristopher): Deprecate this.
+# TODO(b/221152546): Deprecate this.
 @beam.ptransform_fn
 def BatchExamplesToArrowRecordBatches(
     examples: beam.PCollection[types.Example],

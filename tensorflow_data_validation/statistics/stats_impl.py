@@ -83,8 +83,6 @@ class GenerateStatisticsImpl(beam.PTransform):
               slicing_util.GenerateSlicesSqlDoFn(
                   slice_sqls=self._options.experimental_slice_sqls)))
     else:
-      # TODO(pachristopher): Remove this special case if this doesn't give any
-      # performance improvement.
       dataset = (dataset
                  | 'KeyWithVoid' >> beam.Map(lambda v: (None, v)))
     _ = dataset | 'TrackDistinctSliceKeys' >> _TrackDistinctSliceKeys()  # pylint: disable=no-value-for-parameter
@@ -551,9 +549,6 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
     else:
       self._desired_batch_size = constants.DEFAULT_DESIRED_INPUT_BATCH_SIZE
 
-    # TODO(pachristopher): Understand the cost of incrementing beam counters
-    # for every input batch. The other option is to update the counters during
-    # teardown.
     # Metrics
     self._combine_batch_size = beam.metrics.Metrics.distribution(
         constants.METRICS_NAMESPACE, 'combine_batch_size')

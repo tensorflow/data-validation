@@ -225,8 +225,7 @@ def generate_statistics_from_dataframe(
     merged_partial_stats = _generate_partial_statistics_from_df(
         dataframe, stats_options, stats_generators)
   else:
-    # TODO(pachristopher): Investigate why we don't observe linear speedup after
-    # a certain number of processes.
+    # TODO(b/144580609): Consider using Beam for inmemory mode as well.
     splits = np.array_split(dataframe, n_jobs)
     partial_stats = Parallel(n_jobs=n_jobs)(
         delayed(_generate_partial_statistics_from_df)(

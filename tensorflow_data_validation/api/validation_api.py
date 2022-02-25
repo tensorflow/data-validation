@@ -129,7 +129,6 @@ def _may_be_set_legacy_flag(schema: schema_pb2.Schema):
     schema.generate_legacy_feature_spec = False
 
 
-# TODO(pachristopher): Add support for updating only a subset of features.
 def update_schema(schema: schema_pb2.Schema,
                   statistics: statistics_pb2.DatasetFeatureStatisticsList,
                   infer_feature_shape: Optional[bool] = True,
