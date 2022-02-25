@@ -550,8 +550,9 @@ TEST(FeatureStatsView, HasInvalidUTF8Strings) {
         string_stats: {
           common_stats: { num_missing: 3 max_num_values: 2 }
           unique: 3
+          invalid_utf8_count: 1
           rank_histogram: {
-            buckets: { label: "__BYTES_VALUE__" sample_count: 1.5 }
+            buckets: { label: "foo" sample_count: 1.5 }
             buckets: { label: "bar" sample_count: 2 }
             buckets: { label: "baz" sample_count: 3 }
           }

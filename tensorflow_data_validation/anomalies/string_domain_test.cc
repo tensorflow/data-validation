@@ -101,6 +101,7 @@ TEST(EnumType, IsValid) {
             max_num_values: 2
           }
           unique: 3
+          invalid_utf8_count: 1
           rank_histogram: {
             buckets: {
               label: "__BYTES_VALUE__"
@@ -313,6 +314,7 @@ TEST(EnumType, Update) {
             max_num_values: 2
           }
           unique: 3
+          invalid_utf8_count: 1
           rank_histogram: {
             buckets: {
               label: "__BYTES_VALUE__"

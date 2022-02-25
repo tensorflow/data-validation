@@ -18,6 +18,8 @@
 *   Updated the documentation for CombinerStatsGenerator to clarify that the
     first accumulator passed to merge_accumulators may be modified.
 *   Added compression type detection when reading csv header.
+*   Detection of invalid utf8 strings now works regardless of relative frequency.
+
 
 ## Known Issues
 
