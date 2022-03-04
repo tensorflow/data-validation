@@ -46,6 +46,7 @@ namespace tensorflow {
 namespace data_validation {
 
 namespace {
+using ::tensorflow::protobuf::TextFormat;
 using ::tensorflow::Status;
 
 // LINT.IfChange
@@ -154,11 +155,13 @@ tensorflow::metadata::v0::AnomalyInfo SchemaAnomalyBase::GetAnomalyInfo(
   tensorflow::metadata::v0::AnomalyInfo anomaly_info;
   if (enable_diff_regions) {
     // Find diff regions.
-    const string baseline_text = baseline.DebugString();
+    string baseline_text;
+    TextFormat::PrintToString(baseline, &baseline_text);
     const std::vector<absl::string_view> existing_schema_lines =
         absl::StrSplit(baseline_text, '\n');
 
-    const string new_schema_text = new_schema.DebugString();
+    string new_schema_text;
+    TextFormat::PrintToString(new_schema, &new_schema_text);
     const std::vector<absl::string_view> new_schema_lines =
         absl::StrSplit(new_schema_text, '\n');
 
