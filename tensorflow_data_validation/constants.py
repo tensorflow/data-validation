@@ -34,8 +34,6 @@ METRICS_NAMESPACE = util.MakeTfxNamespace(['DataValidation'])
 DEFAULT_DESIRED_INPUT_BATCH_SIZE = 1000
 
 # Placeholder for non-utf8 sequences in top-k results.
-# LINT.IfChange(invalid_utf8_placeholder)
 NON_UTF8_PLACEHOLDER = '__BYTES_VALUE__'
-# LINT.ThenChange(anomalies/statistics_view.cc:invalid_utf8_placeholder)
 # Placeholder for large sequences in top-k results.
 LARGE_BYTES_PLACEHOLDER = '__LARGE_BYTES__'
