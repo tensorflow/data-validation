@@ -56,7 +56,6 @@ from tfx_bsl.statistics import merge_util
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
-# TODO(b/112146483): Test the Stats API with unicode input.
 class GenerateStatistics(beam.PTransform):
   """API for generating data statistics.
 

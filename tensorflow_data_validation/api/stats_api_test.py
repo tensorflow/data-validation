@@ -46,17 +46,17 @@ class StatsAPITest(absltest.TestCase):
     record_batches = [
         pa.RecordBatch.from_arrays([
             pa.array([[1.0, 2.0]]),
-            pa.array([['a', 'b', 'c', 'e']]),
+            pa.array([['a', 'b', 'c', 'd']]),
             pa.array([np.linspace(1, 500, 500, dtype=np.int32)]),
         ], ['a', 'b', 'c']),
         pa.RecordBatch.from_arrays([
             pa.array([[3.0, 4.0, np.NaN, 5.0]]),
-            pa.array([['a', 'c', 'd', 'a']]),
+            pa.array([['a', 'c', '∞', 'a']]),
             pa.array([np.linspace(501, 1250, 750, dtype=np.int32)]),
         ], ['a', 'b', 'c']),
         pa.RecordBatch.from_arrays([
             pa.array([[1.0]]),
-            pa.array([['a', 'b', 'c', 'd']]),
+            pa.array([['a', 'b', 'c', '∞']]),
             pa.array([np.linspace(1251, 3000, 1750, dtype=np.int32)]),
         ], ['a', 'b', 'c'])
     ]
@@ -267,7 +267,7 @@ class StatsAPITest(absltest.TestCase):
             value: "c"
             frequency: 3.0
           }
-          avg_length: 1.0
+          avg_length: 1.333333
           rank_histogram {
             buckets {
               low_rank: 0
@@ -284,7 +284,7 @@ class StatsAPITest(absltest.TestCase):
             buckets {
               low_rank: 2
               high_rank: 2
-              label: "d"
+              label: "∞"
               sample_count: 2.0
             }
           }
