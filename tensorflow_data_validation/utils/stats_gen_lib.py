@@ -194,8 +194,11 @@ def generate_statistics_from_dataframe(
 ) -> statistics_pb2.DatasetFeatureStatisticsList:
   """Compute data statistics for the input pandas DataFrame.
 
-  This is a utility method for users with in-memory data represented
+  This is a utility function for users with in-memory data represented
   as a pandas DataFrame.
+
+  This function supports only DataFrames with columns of primitive types.
+  DataFrames with multivalent features are not supported.
 
   Args:
     dataframe: Input pandas DataFrame.
