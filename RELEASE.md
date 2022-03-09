@@ -6,6 +6,8 @@
 
 ## Bug Fixes and Other Changes
 
+*  Adds `get_statistics_html` to the public API.
+
 ## Known Issues
 
 ## Breaking Changes
