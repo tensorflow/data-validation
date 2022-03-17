@@ -117,9 +117,9 @@ bool IsSimilarStringDomain(const StringDomain& a, const StringDomain& b,
 
 bool IsStringDomainCandidate(const FeatureStatsView& feature_stats,
                              const int enum_threshold) {
-  // HasInvalidUTF8Strings() and GetStringValues() both create a map
-  // of all the tokens in feature_stats to their frequency. Theoretically, we
-  // could do this once, but we sacrifice speed for simplicity.
+  // GetStringValues() creates a map of all the tokens in feature_stats to their
+  // frequency. Theoretically, we could do this once, but we sacrifice speed for
+  // simplicity.
   if (feature_stats.HasInvalidUTF8Strings()) {
     return false;
   }
@@ -161,9 +161,7 @@ UpdateSummary UpdateStringDomain(const Schema::Updater& updater,
     summary.descriptions.push_back(
         {tensorflow::metadata::v0::AnomalyInfo::ENUM_TYPE_INVALID_UTF8,
          "Invalid UTF8 strings",
-         "Found strings that were not valid UTF8 strings."
-         " If this enum previously included __BYTE_VALUES__, it was"
-         " created in error, and this is an alert to fix it."});
+         "Found strings that were not valid UTF8 strings."});
     summary.clear_field = true;
     return summary;
   }
