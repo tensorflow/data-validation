@@ -493,7 +493,7 @@ class MutualInformation(partitioned_stats_generator.PartitionedStatsFn):
     self._column_partitions = column_partitions
 
   def _is_unique_array(self, array: np.ndarray):
-    values = np.asarray(array.flatten(), dtype=np.str)
+    values = np.asarray(array.flatten(), dtype=bytes)
     return len(np.unique(values)) == len(values)
 
   def _label_feature_is_unique(self, record_batch: pa.RecordBatch):

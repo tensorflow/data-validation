@@ -424,6 +424,48 @@ class MutualInformationTest(absltest.TestCase):
     self._assert_ami_output_equal(batch, expected, schema,
                                   types.FeaturePath(["label_key"]))
 
+  def test_mi_with_unicode_labels(self):
+    label_array = pa.array([["•"], ["•"], [b"\xc5\x8cmura"]])
+    null_feat_array = pa.array([[3.1], [2.1], [1.1]])
+    batch = pa.RecordBatch.from_arrays([label_array, null_feat_array],
+                                       ["label_key", "null_feature"])
+
+    schema = text_format.Parse(
+        """
+        feature {
+          name: "null_feature"
+          type: FLOAT
+          shape {
+            dim {
+              size: 1
+            }
+          }
+        }
+        feature {
+          name: "label_key"
+          type: BYTES
+          shape {
+            dim {
+              size: 1
+            }
+          }
+        }
+        """, schema_pb2.Schema())
+
+    expected = text_format.Parse(
+        """
+        features {
+          path {
+            step: "null_feature"
+          }
+          custom_stats {
+            name: "adjusted_mutual_information"
+            num: 0
+          }
+        }""", statistics_pb2.DatasetFeatureStatistics())
+    self._assert_ami_output_equal(batch, expected, schema,
+                                  types.FeaturePath(["label_key"]))
+
   def test_mi_with_univalent_feature_all_null(self):
     label_array = pa.array([[0.1], [0.2], [0.7], [0.7]])
     null_feat_array = pa.array([[np.NaN], [np.NaN], [np.NaN], [np.NaN]])
