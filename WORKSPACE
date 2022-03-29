@@ -11,18 +11,17 @@ workspace(name = "tensorflow_data_validation")
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
-# TF 1.15.2
+# TF 1.15.3
 # LINT.IfChange(tf_commit)
-_TENSORFLOW_GIT_COMMIT = "5d80e1e8e6ee999be7db39461e0e79c90403a2e4"
+_TENSORFLOW_GIT_COMMIT = "v1.15.3"
 # LINT.ThenChange(:io_bazel_rules_clousure)
 http_archive(
     name = "org_tensorflow",
-    sha256 = "7e3c893995c221276e17ddbd3a1ff177593d00fc57805da56dcc30fdc4299632",
+    sha256 = "9ab1d92e58eb813922b040acc7622b32d73c2d8d971fe6491a06f9df4c778151",
     urls = [
-      "https://mirror.bazel.build/github.com/tensorflow/tensorflow/archive/%s.tar.gz" % _TENSORFLOW_GIT_COMMIT,
       "https://github.com/tensorflow/tensorflow/archive/%s.tar.gz" % _TENSORFLOW_GIT_COMMIT,
     ],
-    strip_prefix = "tensorflow-%s" % _TENSORFLOW_GIT_COMMIT,
+    strip_prefix = "tensorflow-1.15.3",
 )
 
 # Needed by tf_py_wrap_cc rule from Tensorflow.
@@ -30,8 +29,11 @@ http_archive(
 # version of this -- keep in sync.
 http_archive(
     name = "bazel_skylib",
-    sha256 = "2ef429f5d7ce7111263289644d233707dba35e39696377ebab8b0bc701f7818e",
-    urls = ["https://github.com/bazelbuild/bazel-skylib/releases/download/0.8.0/bazel-skylib.0.8.0.tar.gz"],
+    sha256 = "97e70364e9249702246c0e9444bccdc4b847bed1eb03c5a3ece4f83dfe6abc44",
+    urls = [
+        "https://mirror.bazel.build/github.com/bazelbuild/bazel-skylib/releases/download/1.0.2/bazel-skylib-1.0.2.tar.gz",
+        "https://github.com/bazelbuild/bazel-skylib/releases/download/1.0.2/bazel-skylib-1.0.2.tar.gz",
+    ],
 )
 
 # TensorFlow depends on "io_bazel_rules_closure" so we need this here.
@@ -51,11 +53,11 @@ http_archive(
 # External proto rules.
 http_archive(
     name = "rules_proto",
-    sha256 = "602e7161d9195e50246177e7c55b2f39950a9cf7366f74ed5f22fd45750cd208",
-    strip_prefix = "rules_proto-97d8af4dc474595af3900dd85cb3a29ad28cc313",
+    sha256 = "66bfdf8782796239d3875d37e7de19b1d94301e8972b3cbd2446b332429b4df1",
+    strip_prefix = "rules_proto-4.0.0",
     urls = [
-        "https://mirror.bazel.build/github.com/bazelbuild/rules_proto/archive/97d8af4dc474595af3900dd85cb3a29ad28cc313.tar.gz",
-        "https://github.com/bazelbuild/rules_proto/archive/97d8af4dc474595af3900dd85cb3a29ad28cc313.tar.gz",
+        "https://mirror.bazel.build/github.com/bazelbuild/rules_proto/archive/refs/tags/4.0.0.tar.gz",
+        "https://github.com/bazelbuild/rules_proto/archive/refs/tags/4.0.0.tar.gz",
     ],
 )
 load("@rules_proto//proto:repositories.bzl", "rules_proto_dependencies", "rules_proto_toolchains")
