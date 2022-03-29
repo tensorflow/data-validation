@@ -98,7 +98,7 @@ class PartitionedStatsFn(object):
   a statistic value for any invalid features.
   """
 
-  def compute(self, examples: types.ExampleBatch
+  def compute(self, examples: pa.RecordBatch
              ) -> statistics_pb2.DatasetFeatureStatistics:
     """Computes custom statistics over the batch of examples.
 

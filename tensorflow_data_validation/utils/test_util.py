@@ -23,51 +23,12 @@ from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 from absl.testing import absltest
 import apache_beam as beam
 from apache_beam.testing import util
-import numpy as np
 import pyarrow as pa
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
 
 from tensorflow.python.util.protobuf import compare  # pylint: disable=g-direct-tensorflow-import
 from tensorflow_metadata.proto.v0 import statistics_pb2
-
-
-def make_example_dict_equal_fn(
-    test: absltest.TestCase,
-    expected: List[types.Example]) -> Callable[[List[types.Example]], None]:
-  """Makes a matcher function for comparing the example dict.
-
-  Args:
-    test: test case object.
-    expected: the expected example dict.
-
-  Returns:
-    A matcher function for comparing the example dicts.
-  """
-  def _matcher(actual):
-    """Matcher function for comparing the example dicts."""
-    try:
-      # Check number of examples.
-      test.assertLen(actual, len(expected))
-      for i in range(len(actual)):
-        for key in actual[i]:
-          # Check each feature value.
-          if isinstance(expected[i][key], np.ndarray):
-            test.assertEqual(
-                expected[i][key].dtype, actual[i][key].dtype,
-                'Expected dtype {}, found {} in actual[{}][{}]: {}'.format(
-                    expected[i][key].dtype, actual[i][key].dtype, i, key,
-                    actual[i][key]))
-            np.testing.assert_equal(actual[i][key], expected[i][key])
-          else:
-            test.assertEqual(
-                expected[i][key], actual[i][key],
-                'Unexpected value of actual[{}][{}]'.format(i, key))
-
-    except AssertionError:
-      raise util.BeamAssertException(traceback.format_exc())
-
-  return _matcher
 
 
 def make_dataset_feature_stats_list_proto_equal_fn(
@@ -77,7 +38,7 @@ def make_dataset_feature_stats_list_proto_equal_fn(
     expected_result_merge_fn: Optional[
         Callable[[Iterable[statistics_pb2.DatasetFeatureStatisticsList]],
                  statistics_pb2.DatasetFeatureStatisticsList]] = None,
-) -> Callable[[List[statistics_pb2.DatasetFeatureStatisticsList]], None]:
+) -> Callable[[Iterable[statistics_pb2.DatasetFeatureStatisticsList]], None]:
   """Makes a matcher function for comparing DatasetFeatureStatisticsList proto.
 
   Args:
@@ -93,8 +54,9 @@ def make_dataset_feature_stats_list_proto_equal_fn(
     A matcher function for comparing DatasetFeatureStatisticsList proto.
   """
 
-  def _matcher(actual: List[statistics_pb2.DatasetFeatureStatisticsList]):
+  def _matcher(actual: Iterable[statistics_pb2.DatasetFeatureStatisticsList]):
     """Matcher function for comparing DatasetFeatureStatisticsList proto."""
+    actual = list(actual)
     try:
       test.assertLen(
           actual, expected_result_len,
@@ -114,8 +76,8 @@ def make_dataset_feature_stats_list_proto_equal_fn(
         assert_dataset_feature_stats_proto_equal(test,
                                                  sorted_actual_datasets[i],
                                                  sorted_expected_datasets[i])
-    except AssertionError:
-      raise util.BeamAssertException(traceback.format_exc())
+    except AssertionError as e:
+      raise util.BeamAssertException from e
 
   return _matcher
 
@@ -205,7 +167,7 @@ class CombinerStatsGeneratorTest(absltest.TestCase):
   # Runs the provided combiner statistics generator and tests if the output
   # matches the expected result.
   def assertCombinerOutputEqual(
-      self, batches: List[types.ExampleBatch],
+      self, batches: List[pa.RecordBatch],
       generator: stats_generator.CombinerStatsGenerator,
       expected_feature_stats: Dict[types.FeaturePath,
                                    statistics_pb2.FeatureNameStatistics],
@@ -331,7 +293,7 @@ class TransformStatsGeneratorTest(absltest.TestCase):
   # if the output matches the expected result.
   def assertSlicingAwareTransformOutputEqual(
       self,
-      examples: List[Union[types.SlicedExample, types.Example]],
+      examples: List[Union[types.SlicedRecordBatch, pa.RecordBatch]],
       generator: stats_generator.TransformStatsGenerator,
       expected_results: List[Union[
           statistics_pb2.DatasetFeatureStatistics,
@@ -361,9 +323,10 @@ class TransformStatsGeneratorTest(absltest.TestCase):
             Tuple[types.SliceKey, statistics_pb2.DatasetFeatureStatistics]]):
       """Makes matcher for a list of DatasetFeatureStatistics protos."""
 
-      def _equal(actual_results: List[
+      def _equal(actual_results: Iterable[
           Tuple[types.SliceKey, statistics_pb2.DatasetFeatureStatistics]]):
         """Matcher for comparing a list of DatasetFeatureStatistics protos."""
+        actual_results = list(actual_results)
         if len(actual_results) == 1 and len(expected_results) == 1:
           # If appropriate use proto matcher for better errors
           test.assertEqual(expected_results[0][0], actual_results[0][0])
@@ -400,7 +363,7 @@ class CombinerFeatureStatsGeneratorTest(absltest.TestCase):
   # output matches the expected result.
   def assertCombinerOutputEqual(
       self,
-      input_batches: List[types.ValueBatch],
+      input_batches: List[pa.RecordBatch],
       generator: stats_generator.CombinerFeatureStatsGenerator,
       expected_result: statistics_pb2.FeatureNameStatistics,
       feature_path: types.FeaturePath = types.FeaturePath([''])) -> None:
@@ -459,8 +422,9 @@ def make_arrow_record_batches_equal_fn(
     test: absltest.TestCase, expected_record_batches: List[pa.RecordBatch]):
   """Makes a matcher function for comparing arrow record batches."""
 
-  def _matcher(actual_record_batches):
+  def _matcher(actual_record_batches: Iterable[pa.RecordBatch]):
     """Arrow record batches matcher fn."""
+    actual_record_batches = list(actual_record_batches)
     test.assertLen(actual_record_batches, len(expected_record_batches))
     for i in range(len(expected_record_batches)):
       actual_record_batch = actual_record_batches[i]

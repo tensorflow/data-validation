@@ -36,23 +36,11 @@ VocabName = Text
 # Vocab path.
 VocabPath = Text
 
-# Type of the input example.
-Example = Dict[FeatureName, Optional[np.ndarray]]
-
-# Type of batched values.
-ValueBatch = List[Optional[np.ndarray]]
-
-# Type of the input batch.
-ExampleBatch = Dict[FeatureName, ValueBatch]
-
 # Type of slice keys.
 SliceKey = Optional[Text]
 
 # Type of list of slice keys.
 SliceKeysList = List[SliceKey]
-
-# Type of the tuple containing an input example along with the slice key.
-SlicedExample = Tuple[SliceKey, Example]
 
 # Type of the tuple containing an input arrow record batch along with the slice
 # key.
@@ -64,6 +52,9 @@ SliceFunction = Callable[[pa.RecordBatch], Iterable[SlicedRecordBatch]]
 # tuples directly where pickling happens frequently. Ellipsis due to
 # b/152929669.
 FeaturePathTuple = Tuple[FeatureName, ...]
+
+# TODO(b/221152546): Deprecate this.
+LegacyExample = Dict[FeatureName, Optional[np.ndarray]]
 
 
 class FeaturePath(object):

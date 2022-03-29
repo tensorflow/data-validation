@@ -31,7 +31,7 @@ from tfx_bsl.coders import batch_util
 # TODO(b/221152546): Deprecate this.
 @beam.ptransform_fn
 def BatchExamplesToArrowRecordBatches(
-    examples: beam.PCollection[types.Example],
+    examples: beam.PCollection[types.LegacyExample],
     desired_batch_size: Optional[int] = constants
     .DEFAULT_DESIRED_INPUT_BATCH_SIZE
 ) -> beam.PCollection[pa.RecordBatch]:

@@ -18,18 +18,18 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from typing import List
+
 import pyarrow as pa
 import six
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
-from typing import List
 
 
 def DecodedExamplesToRecordBatch(
-    decoded_examples: List[types.Example]) -> pa.RecordBatch:
-  """Converts a list of types.Example to an Arrow RecordBatch.
+    decoded_examples: List[types.LegacyExample]) -> pa.RecordBatch:
+  """Converts a list of legacy examples in dict form to an Arrow RecordBatch.
 
-  where types.Example is Dict[Union[bytes, unicode], Union[None, np.ndarray]]
   The result record batch has M rows and N columns where M is the number of
   examples in the list and N is the number of unique features in the examples.
   Each column is either a ListArray<primitive|string|binary> or a NullArray.
@@ -44,7 +44,7 @@ def DecodedExamplesToRecordBatch(
       position.
 
   Args:
-    decoded_examples: a Dict[Union[bytes, unicode], Union[None, np.ndarray]]
+    decoded_examples: a list of LegacyExamples.
 
   Returns:
     a pa.RecordBatch.
@@ -89,4 +89,3 @@ def _GetEmptyRecordBatch(num_rows: int) -> pa.RecordBatch:
   batches = t.remove_column(0).to_batches()
   assert len(batches) == 1
   return batches[0]
-

@@ -6,7 +6,8 @@
 
 ## Bug Fixes and Other Changes
 
-*  Adds `get_statistics_html` to the public API.
+*   Adds `get_statistics_html` to the public API.
+*   Fixes several incorrect type annotations.
 
 ## Known Issues
 

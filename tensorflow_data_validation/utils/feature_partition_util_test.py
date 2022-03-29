@@ -13,7 +13,7 @@
 # limitations under the License.
 """Tests for feature_partition_util."""
 
-from typing import List, Tuple
+from typing import Iterable, List, Tuple
 from unittest import mock
 
 from absl.testing import absltest
@@ -358,8 +358,8 @@ class KeyAndSplitByFeatureFnTest(parameterized.TestCase):
         (x, text_format.Parse(s, statistics_pb2.DatasetFeatureStatisticsList()))
         for x, s in expected)
 
-    def matcher(got: List[Tuple[int,
-                                statistics_pb2.DatasetFeatureStatisticsList]]):
+    def matcher(
+        got: Iterable[Tuple[int, statistics_pb2.DatasetFeatureStatisticsList]]):
       self.assertCountEqual(got, expected)
 
     with beam.Pipeline() as p:
