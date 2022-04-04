@@ -11,17 +11,17 @@ workspace(name = "tensorflow_data_validation")
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
-# TF 1.15.3
+# TF 1.15.2
 # LINT.IfChange(tf_commit)
-_TENSORFLOW_GIT_COMMIT = "v1.15.3"
+_TENSORFLOW_GIT_COMMIT = "5d80e1e8e6ee999be7db39461e0e79c90403a2e4"
 # LINT.ThenChange(:io_bazel_rules_clousure)
 http_archive(
     name = "org_tensorflow",
-    sha256 = "9ab1d92e58eb813922b040acc7622b32d73c2d8d971fe6491a06f9df4c778151",
+    sha256 = "7e3c893995c221276e17ddbd3a1ff177593d00fc57805da56dcc30fdc4299632",
     urls = [
       "https://github.com/tensorflow/tensorflow/archive/%s.tar.gz" % _TENSORFLOW_GIT_COMMIT,
     ],
-    strip_prefix = "tensorflow-1.15.3",
+    strip_prefix = "tensorflow-%s" % _TENSORFLOW_GIT_COMMIT,
 )
 
 # Needed by tf_py_wrap_cc rule from Tensorflow.
