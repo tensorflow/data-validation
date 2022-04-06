@@ -159,7 +159,7 @@ class StatsUtilTest(absltest.TestCase):
     self.assertEqual(stats, stats_util.load_stats_binary(input_path=stats_path))
 
   def test_write_stats_text_invalid_stats_input(self):
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         TypeError, '.*should be a DatasetFeatureStatisticsList proto.'):
       _ = stats_util.write_stats_text({}, 'stats.pbtxt')
 
@@ -194,7 +194,7 @@ class StatsUtilTest(absltest.TestCase):
               num: 100.0
             }
         """, statistics_pb2.FeatureNameStatistics())
-    with self.assertRaisesRegexp(ValueError, 'Custom statistics.*not found'):
+    with self.assertRaisesRegex(ValueError, 'Custom statistics.*not found'):
       stats_util.get_custom_stats(stats, 'xyz')
 
   def test_get_slice_stats(self):
@@ -212,7 +212,7 @@ class StatsUtilTest(absltest.TestCase):
       actual_stats = stats_util.get_slice_stats(statistics, slice_key)
       self.assertLen(actual_stats.datasets, 1)
       self.assertEqual(actual_stats.datasets[0].name, slice_key)
-    with self.assertRaisesRegexp(ValueError, 'Invalid slice key'):
+    with self.assertRaisesRegex(ValueError, 'Invalid slice key'):
       stats_util.get_slice_stats(statistics, 'slice3')
 
 
@@ -288,9 +288,21 @@ class DatasetListViewTest(absltest.TestCase):
     slice99 = view.get_slice('slice99')
     self.assertIsNone(slice99)
 
+  def test_get_feature_by_name(self):
+    view = stats_util.DatasetListView(self._stats_proto).get_default_slice()
+    feature1 = view.get_feature('f1')
+    self.assertEqual(self._stats_proto.datasets[2].features[1],
+                     feature1.proto())
+
   def test_get_feature_by_path(self):
     view = stats_util.DatasetListView(self._stats_proto).get_default_slice()
     feature1 = view.get_feature(types.FeaturePath(['f0_step1', 'f0_step2']))
+    self.assertEqual(self._stats_proto.datasets[2].features[0],
+                     feature1.proto())
+
+  def test_get_feature_by_path_steps(self):
+    view = stats_util.DatasetListView(self._stats_proto).get_default_slice()
+    feature1 = view.get_feature(['f0_step1', 'f0_step2'])
     self.assertEqual(self._stats_proto.datasets[2].features[0],
                      feature1.proto())
 
@@ -319,7 +331,7 @@ class DatasetListViewTest(absltest.TestCase):
         [(types.FeaturePath(['f1x']), types.FeaturePath(['f1y'])),
          (types.FeaturePath(['f2x']), types.FeaturePath(['f2y']))])
 
-  def test_get_feature_by_name(self):
+  def test_get_feature_defined_by_name(self):
     stats = statistics_pb2.DatasetFeatureStatisticsList()
     text_format.Parse(
         """

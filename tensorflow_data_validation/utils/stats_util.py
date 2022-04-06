@@ -368,6 +368,16 @@ def load_statistics(
     return load_stats_text(input_path)
 
 
+def _normalize_feature_id(
+    name_or_path_or_steps: Union[str, types.FeaturePath, Iterable[str]]
+) -> types.FeaturePath:
+  if isinstance(name_or_path_or_steps, str):
+    return types.FeaturePath([name_or_path_or_steps])
+  if isinstance(name_or_path_or_steps, types.FeaturePath):
+    return name_or_path_or_steps
+  return types.FeaturePath(name_or_path_or_steps)
+
+
 class DatasetListView(object):
   """View of statistics for multiple datasets (slices)."""
 
@@ -450,19 +460,22 @@ class DatasetView(object):
     """Retrieve the underlying proto."""
     return self._statistics
 
-  def get_feature(self,
-                  feature_id: types.FeaturePath) -> Optional['FeatureView']:
+  def get_feature(
+      self, feature_id: Union[str, types.FeaturePath, Iterable[str]]
+  ) -> Optional['FeatureView']:
     """Retrieve a feature if it exists.
 
     Features specified within the underlying proto by name (instead of path) are
-    normalized to a length 1 path and should be referred to as such.
+    normalized to a length 1 path, and can be referred to as such.
 
     Args:
-      feature_id: A feature path.
+      feature_id: A types.FeaturePath, Iterable[str] consisting of path steps,
+        or a str, which is converted to a length one path.
 
     Returns:
       A FeatureView, or None if feature_id is not present.
     """
+    feature_id = _normalize_feature_id(feature_id)
     self._init_index()
     index = self._feature_map.get(feature_id, None)
     if index is None:
@@ -470,9 +483,14 @@ class DatasetView(object):
     return FeatureView(self._statistics.features[index])
 
   def get_cross_feature(
-      self, x_path: types.FeaturePath,
-      y_path: types.FeaturePath) -> Optional['CrossFeatureView']:
+      self, x_path: Union[str, types.FeaturePath,
+                          Iterable[str]], y_path: Union[str, types.FeaturePath,
+                                                        Iterable[str]]
+  ) -> Optional['CrossFeatureView']:
     """Retrieve a cross-feature if it exists, or None."""
+
+    x_path = _normalize_feature_id(x_path)
+    y_path = _normalize_feature_id(y_path)
     self._init_index()
     feature_id = (x_path, y_path)
     index = self._cross_feature_map.get(feature_id, None)
