@@ -236,6 +236,21 @@ datasets: {
       step: "f1"
     }
   }
+  features: {
+    path: {
+      step: "f3_derived"
+    }
+    derived_source: {
+       deriver_name: "my_deriver_name",
+       source_path: {
+           step: "f0_step1"
+           step: "f0_step2"
+       }
+       source_path: {
+           step: "f1"
+       }
+    }
+  }
   cross_features: {
     path_x: {
       step: "f1x"
@@ -306,16 +321,53 @@ class DatasetListViewTest(absltest.TestCase):
     self.assertEqual(self._stats_proto.datasets[2].features[0],
                      feature1.proto())
 
+  def test_get_derived_feature(self):
+    view = stats_util.DatasetListView(self._stats_proto).get_default_slice()
+    feature1 = view.get_derived_feature('my_deriver_name', [
+        types.FeaturePath(['f0_step1', 'f0_step2']),
+        types.FeaturePath(['f1'])
+    ])
+    self.assertEqual(self._stats_proto.datasets[2].features[2],
+                     feature1.proto())
+
+  def test_get_derived_feature_ambiguous(self):
+    stats_proto = statistics_pb2.DatasetFeatureStatisticsList.FromString(
+        self._stats_proto.SerializeToString())
+    # Duplicate the derived feature.
+    stats_proto.datasets[2].features.append(stats_proto.datasets[2].features[2])
+    view = stats_util.DatasetListView(stats_proto).get_default_slice()
+    with self.assertRaisesRegex(ValueError,
+                                'Ambiguous result, 2 features matched'):
+      view.get_derived_feature('my_deriver_name', [
+          types.FeaturePath(['f0_step1', 'f0_step2']),
+          types.FeaturePath(['f1'])
+      ])
+
+  def test_get_derived_feature_missing(self):
+    view = stats_util.DatasetListView(self._stats_proto).get_default_slice()
+    self.assertIsNone(
+        view.get_derived_feature('mismatched_name', [
+            types.FeaturePath(['f0_step1', 'f0_step2']),
+            types.FeaturePath(['f1'])
+        ]))
+    self.assertIsNone(
+        view.get_derived_feature('my_deriver_name', [
+            types.FeaturePath(['f0_step1', 'f0_step2', 'mismatched_step']),
+            types.FeaturePath(['f1'])
+        ]))
+    self.assertIsNone(view.get_derived_feature('my_deriver_name', []))
+
   def test_get_missing_feature(self):
     view = stats_util.DatasetListView(self._stats_proto).get_default_slice()
     self.assertIsNone(view.get_feature(types.FeaturePath(['not', 'a', 'path'])))
 
   def test_list_features(self):
     view = stats_util.DatasetListView(self._stats_proto).get_default_slice()
-    self.assertCountEqual(
-        view.list_features(),
-        [types.FeaturePath(['f0_step1', 'f0_step2']),
-         types.FeaturePath(['f1'])])
+    self.assertCountEqual(view.list_features(), [
+        types.FeaturePath(['f0_step1', 'f0_step2']),
+        types.FeaturePath(['f1']),
+        types.FeaturePath(['f3_derived'])
+    ])
 
   def test_get_cross_feature(self):
     view = stats_util.DatasetListView(self._stats_proto).get_default_slice()
@@ -389,7 +441,7 @@ class LoadShardedStatisticsTest(absltest.TestCase):
     view = stats_util.load_sharded_statistics(
         input_paths=[tmp_path],
         io_provider=statistics_io_impl.get_io_provider('tfrecords'))
-    self.assertEqual(view.proto(), full_stats_proto)
+    compare.assertProtoEqual(self, view.proto(), full_stats_proto)
 
   def test_load_sharded_pattern(self):
     full_stats_proto = statistics_pb2.DatasetFeatureStatisticsList()
@@ -405,7 +457,7 @@ class LoadShardedStatisticsTest(absltest.TestCase):
     view = stats_util.load_sharded_statistics(
         input_path_prefix=tmp_path.rstrip('-0-of-1'),
         io_provider=statistics_io_impl.get_io_provider('tfrecords'))
-    self.assertEqual(view.proto(), full_stats_proto)
+    compare.assertProtoEqual(self, view.proto(), full_stats_proto)
 
 
 class FeatureViewTest(absltest.TestCase):

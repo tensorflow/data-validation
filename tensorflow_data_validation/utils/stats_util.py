@@ -18,7 +18,7 @@ from __future__ import division
 from __future__ import print_function
 
 import logging
-from typing import Dict, Iterable, Optional, Text, Tuple, Union
+from typing import Dict, Iterable, Optional, Sequence, Text, Tuple, Union
 
 import numpy as np
 import pyarrow as pa
@@ -508,6 +508,45 @@ class DatasetView(object):
     """Lists cross-feature identifiers."""
     self._init_index()
     return self._cross_feature_map.keys()
+
+  def get_derived_feature(
+      self, deriver_name: str,
+      source_paths: Sequence[types.FeaturePath]) -> Optional['FeatureView']:
+    """Retrieve a derived feature based on a deriver name and its inputs.
+
+    Args:
+      deriver_name: The name of a deriver. Matches derived_source.deriver_name.
+      source_paths: Source paths for derived features. Matches
+        derived_source.source_path.
+
+    Returns:
+      FeatureView of derived feature.
+
+    Raises:
+      ValueError if multiple derived features match.
+    """
+    # TODO(b/221453427): Consider indexing if performance becomes an issue.
+    results = []
+    for feature in self.proto().features:
+      if feature.derived_source is None:
+        continue
+      if feature.derived_source.deriver_name != deriver_name:
+        continue
+      if len(source_paths) != len(feature.derived_source.source_path):
+        continue
+      all_match = True
+      for i in range(len(source_paths)):
+        if (source_paths[i] != types.FeaturePath.from_proto(
+            feature.derived_source.source_path[i])):
+          all_match = False
+          break
+      if all_match:
+        results.append(FeatureView(feature))
+      if len(results) > 1:
+        raise ValueError('Ambiguous result, %d features matched' % len(results))
+    if len(results) == 1:
+      return results.pop()
+    return None
 
 
 class FeatureView(object):
