@@ -69,7 +69,7 @@ class _ValueCounter(_BaseCounter):
   def add_input(self, accumulator, feature_path, feature_array):
     num_values = array_util.ListLengthsFromListArray(feature_array).to_numpy()
     none_mask = array_util.GetArrayNullBitmapAsByteArray(
-        feature_array).to_numpy().view(np.bool)
+        feature_array).to_numpy().view(bool)
     accumulator += np.sum(num_values[~none_mask])
     return accumulator
 

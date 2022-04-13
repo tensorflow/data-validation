@@ -202,8 +202,8 @@ class NLDomainInferringStatsGenerator(
       return (isinstance(value, bytes) and
               stats_util.maybe_get_utf8(value) is None)
 
-    is_non_utf_vec = np.vectorize(_is_non_utf8, otypes=[np.bool])
-    classify_vec = np.vectorize(self._classifier.classify, otypes=[np.bool])
+    is_non_utf_vec = np.vectorize(_is_non_utf8, otypes=[bool])
+    classify_vec = np.vectorize(self._classifier.classify, otypes=[bool])
     values = np.asarray(arrow_util.flatten_nested(feature_array)[0]
                         .slice(0, _CROP_AT_VALUES))
     if np.any(is_non_utf_vec(values)):

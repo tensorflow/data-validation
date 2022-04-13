@@ -226,7 +226,7 @@ class _PartialCommonStats(object):
     level = 0
     while arrow_util.is_list_like(feature_array.type):
       presence_mask = ~np.asarray(
-          array_util.GetArrayNullBitmapAsByteArray(feature_array)).view(np.bool)
+          array_util.GetArrayNullBitmapAsByteArray(feature_array)).view(bool)
       num_values = np.asarray(
           array_util.ListLengthsFromListArray(feature_array))
       num_values_not_none = num_values[presence_mask]
