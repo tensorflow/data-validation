@@ -4,6 +4,8 @@
 
 ## Major Features and Improvements
 
+*   From this version we will be releasing python 3.9 wheels.
+
 ## Bug Fixes and Other Changes
 
 *   Adds `get_statistics_html` to the public API.
