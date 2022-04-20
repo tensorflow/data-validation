@@ -819,7 +819,21 @@ condition(s) under which each anomaly type is detected.
     -   Anomaly occurs when stats needed to validate constraints are not
         present.
 
- --------------------------------------------------------------------------------
+-   `DERIVED_FEATURE_BAD_LIFECYCLE`
+
+    -   Schema Fields:
+        -   `feature.lifecycle_stage`
+    -   Statistics Fields:
+
+        -   `feature.derived_source`
+
+    -   Detection Condition:
+
+        -   `feature.lifecycle_stage` is not one of DERIVED or DISABLED, and
+            `feature.derived_source` is present, indicating that this is a
+            derived feature.
+
+    ----------------------------------------------------------------------------
 
 \* If a weighted statistic is available for this field, it will be used instead
 of the non-weighted statistic.
