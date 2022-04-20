@@ -403,11 +403,11 @@ class DetectFeatureSkewImpl(beam.PTransform):
                          self._allow_duplicate_identifiers)).with_outputs(
                              "skew_results", "skew_pairs"))
     skew_results = (
-        results.skew_results | "MergeSkewResultsPerFeature" >>
+        results.skew_results | "MergeSkewResultsPerFeature" >>  # pytype: disable=attribute-error
         beam.CombinePerKey(_merge_feature_skew_results)
         | "DropKeys" >> beam.Values())
     skew_pairs = (
-        results.skew_pairs | "SampleSkewPairs" >>
+        results.skew_pairs | "SampleSkewPairs" >>  # pytype: disable=attribute-error
         beam.combiners.Sample.FixedSizeGlobally(self._sample_size)
         # Sampling results in a pcollection with a single element consisting of
         # a list of the samples. Convert this to a pcollection of samples.
