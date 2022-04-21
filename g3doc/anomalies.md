@@ -833,6 +833,19 @@ condition(s) under which each anomaly type is detected.
             `feature.derived_source` is present, indicating that this is a
             derived feature.
 
+-   `DERIVED_FEATURE_INVALID_SOURCE`
+
+    -   Schema Fields:
+        -   `feature.derived_source`
+    -   Statistics Fields:
+
+        -   `feature.derived_source`
+
+    -   Detection Condition:
+
+        -   `statistics.feature.derived_source` is present for a feature, but
+            the corresponding `schema.feature.derived_source` is not.
+
     ----------------------------------------------------------------------------
 
 \* If a weighted statistic is available for this field, it will be used instead
