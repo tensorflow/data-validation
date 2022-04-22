@@ -3551,6 +3551,105 @@ TEST(SchemaTest, UpdateUniqueConstraints) {
                 })"));
 }
 
+TEST(SchemaTest, AddsDerivedFeature) {
+  Schema schema;
+  TF_ASSERT_OK(
+      schema.Init(ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>("")));
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        features: {
+          name: "categorical_feature"
+          type: STRING
+          string_stats {}
+          derived_source: {
+            deriver_name: 'deriver_name'
+          }
+        })");
+  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, /*by_weight=*/false),
+                             FeatureStatisticsToProtoConfig()));
+  const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
+  EXPECT_THAT(actual, EqualsProto(R"(
+                feature {
+                  name: "categorical_feature"
+                  type: BYTES
+                  presence {
+                    min_count: 0
+                  }
+                  lifecycle_stage: DERIVED
+                  derived_source: {
+                    deriver_name: 'deriver_name'
+                  }
+                })"));
+}
+
+TEST(SchemaTest, UpdatesDerivedFeatureWithoutSource) {
+  Schema schema;
+  TF_ASSERT_OK(
+      schema.Init(ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
+                feature {
+                  name: "categorical_feature"
+                  type: BYTES
+                })")));
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        features: {
+          name: "categorical_feature"
+          type: STRING
+          string_stats {common_stats: {num_non_missing: 10}}
+          derived_source: {
+            deriver_name: 'deriver_name'
+          }
+        })");
+  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, /*by_weight=*/false),
+                             FeatureStatisticsToProtoConfig()));
+  const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
+  EXPECT_THAT(actual, EqualsProto(R"(
+                feature {
+                  name: "categorical_feature"
+                  type: BYTES
+                  lifecycle_stage: DERIVED
+                  derived_source: {
+                    deriver_name: "deriver_name"
+                  }
+                })"));
+}
+
+TEST(SchemaTest, UpdatesDerivedFeatureWithBadLifecycle) {
+  Schema schema;
+  TF_ASSERT_OK(
+      schema.Init(ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
+                feature {
+                  name: "categorical_feature"
+                  type: BYTES
+                  lifecycle_stage: PRODUCTION
+                  derived_source: {
+                    deriver_name: "deriver_name"
+                  }
+                })")));
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        features: {
+          name: "categorical_feature"
+          type: STRING
+          string_stats {common_stats: {num_non_missing: 10}}
+          derived_source: {
+            deriver_name: 'deriver_name'
+          }
+        })");
+  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, /*by_weight=*/false),
+                             FeatureStatisticsToProtoConfig()));
+  const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
+  EXPECT_THAT(actual, EqualsProto(R"(
+                feature {
+                  name: "categorical_feature"
+                  type: BYTES
+                  lifecycle_stage: DERIVED
+                  derived_source: {
+                    deriver_name: "deriver_name"
+                  }
+                })"));
+}
+
 }  // namespace
 }  // namespace data_validation
 }  // namespace tensorflow

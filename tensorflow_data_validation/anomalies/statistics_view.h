@@ -25,6 +25,7 @@ limitations under the License.
 #include "absl/types/optional.h"
 #include "tensorflow_data_validation/anomalies/path.h"
 #include "tensorflow/core/platform/types.h"
+#include "tensorflow_metadata/proto/v0/derived_feature.pb.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
 
@@ -131,6 +132,13 @@ class FeatureStatsView {
 
   tensorflow::metadata::v0::FeatureNameStatistics::Type type() const {
     return data().type();
+  }
+
+  bool HasDerivedSource() const { return data().has_derived_source(); }
+
+  const tensorflow::metadata::v0::DerivedFeatureSource& GetDerivedSource()
+      const {
+    return data().derived_source();
   }
 
   // Gets the FeatureType representing the physical type represented in

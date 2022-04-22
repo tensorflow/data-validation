@@ -23,6 +23,7 @@ limitations under the License.
 #include "tensorflow_data_validation/anomalies/statistics_view_test_util.h"
 #include "tensorflow_data_validation/anomalies/test_util.h"
 #include "tensorflow/core/platform/types.h"
+#include "tensorflow_metadata/proto/v0/derived_feature.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
 
 namespace tensorflow {
@@ -192,6 +193,33 @@ TEST(FeatureStatsView, Type) {
     })"));
   EXPECT_EQ(dataset.feature_stats_view().type(),
             tensorflow::metadata::v0::FeatureNameStatistics::FLOAT);
+}
+
+TEST(FeatureStatsView, DerivedSource) {
+  const DatasetFeatureStatistics current =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"pb(
+        features {
+          name: 'foo'
+          type: FLOAT
+          num_stats: {}
+        }
+        features {
+          name: 'bar'
+          type: FLOAT
+          derived_source: { deriver_name: 'bar_source' }
+          num_stats: {}
+        }
+      )pb");
+
+  DatasetStatsView view(
+      current, false, "environment_name", std::shared_ptr<DatasetStatsView>(),
+      std::shared_ptr<DatasetStatsView>(), std::shared_ptr<DatasetStatsView>());
+  EXPECT_FALSE(view.GetByPath(Path({"foo"}))->HasDerivedSource());
+  EXPECT_THAT(view.GetByPath(Path({"bar"}))->GetDerivedSource(),
+              testing::EqualsProto(
+                  ParseTextProtoOrDie<metadata::v0::DerivedFeatureSource>(
+                      "deriver_name: 'bar_source'")));
+  EXPECT_TRUE(view.GetByPath(Path({"bar"}))->HasDerivedSource());
 }
 
 TEST(FeatureStatsView, GetNumPresent) {

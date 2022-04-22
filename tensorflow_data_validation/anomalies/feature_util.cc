@@ -247,6 +247,7 @@ bool LifecycleStageIsDeprecated(const metadata::v0::LifecycleStage stage) {
     case tensorflow::metadata::v0::UNKNOWN_STAGE:
     case tensorflow::metadata::v0::BETA:
     case tensorflow::metadata::v0::PRODUCTION:
+    case tensorflow::metadata::v0::DERIVED:
     default:
       return false;
   }
@@ -461,6 +462,14 @@ double GetMaxOffDomain(const tensorflow::metadata::v0::DistributionConstraints&
 
 void ClearDomain(Feature* feature) {
   feature->clear_domain_info();
+}
+
+void MarkFeatureDerived(
+    const tensorflow::metadata::v0::DerivedFeatureSource& derived_source,
+    tensorflow::metadata::v0::Feature* feature) {
+  DCHECK_NE(feature, nullptr);
+  feature->set_lifecycle_stage(tensorflow::metadata::v0::DERIVED);
+  *feature->mutable_derived_source() = derived_source;
 }
 
 void InitPresenceAndShape(const FeatureStatsView& feature_stats_view,

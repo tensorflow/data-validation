@@ -22,8 +22,9 @@ limitations under the License.
 
 #include "tensorflow_data_validation/anomalies/internal_types.h"
 #include "tensorflow_data_validation/anomalies/statistics_view.h"
-#include "tensorflow_metadata/proto/v0/schema.pb.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
+#include "tensorflow_metadata/proto/v0/derived_feature.pb.h"
+#include "tensorflow_metadata/proto/v0/schema.pb.h"
 
 namespace tensorflow {
 namespace data_validation {
@@ -125,6 +126,12 @@ void ClearDomain(tensorflow::metadata::v0::Feature* feature);
 // Updates the UniqueConstraints specified for the feature.
 std::vector<Description> UpdateUniqueConstraints(
     const FeatureStatsView& feature_stats_view,
+    tensorflow::metadata::v0::Feature* feature);
+
+// Mark a feature as derived by setting its lifecycle to DERIVED and copying
+// a derived source.
+void MarkFeatureDerived(
+    const tensorflow::metadata::v0::DerivedFeatureSource& derived_source,
     tensorflow::metadata::v0::Feature* feature);
 
 }  // namespace data_validation
