@@ -323,7 +323,7 @@ class TimeStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
         return stats_util.maybe_get_utf8(val) if isinstance(val, bytes) else val
 
       values = np.asarray(arrow_util.flatten_nested(feature_array)[0])
-      maybe_utf8 = np.vectorize(_maybe_get_utf8, otypes=[np.object])(values)
+      maybe_utf8 = np.vectorize(_maybe_get_utf8, otypes=[object])(values)
       if not maybe_utf8.all():
         accumulator.invalidated = True
         return accumulator

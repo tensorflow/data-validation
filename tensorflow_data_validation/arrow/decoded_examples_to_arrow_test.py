@@ -68,16 +68,16 @@ _CONVERSION_TEST_CASES = [
                 "uint32_feature": np.array([1, 2, 3], dtype=np.uint32),
                 "float_feature": np.array([1.], dtype=np.float32),
                 "double_feature": np.array([1.], dtype=np.float64),
-                "bytes_feature": np.array([b"abc", b"def"], dtype=np.object),
-                "unicode_feature": np.array([u"abc", u"def"], dtype=np.object),
+                "bytes_feature": np.array([b"abc", b"def"], dtype=object),
+                "unicode_feature": np.array([u"abc", u"def"], dtype=object),
             },
             {
                 "int64_feature": np.array([4], dtype=np.int64),
                 "int32_feature": np.array([4], dtype=np.int32),
                 "float_feature": np.array([2., 3., 4.], dtype=np.float32),
                 "double_feature": np.array([2., 3., 4.], dtype=np.float64),
-                "bytes_feature": np.array([b"ghi"], dtype=np.object),
-                "unicode_feature": np.array([u"ghi"], dtype=np.object),
+                "bytes_feature": np.array([b"ghi"], dtype=object),
+                "unicode_feature": np.array([u"ghi"], dtype=object),
             },
         ],
         expected_output={
@@ -104,10 +104,10 @@ _CONVERSION_TEST_CASES = [
         testcase_name="mixed_unicode_and_bytes",
         input_examples=[
             {
-                "a": np.array([b"abc"], dtype=np.object),
+                "a": np.array([b"abc"], dtype=object),
             },
             {
-                "a": np.array([u"def"], dtype=np.object),
+                "a": np.array([u"def"], dtype=object),
             },
         ],
         expected_output={
@@ -145,7 +145,7 @@ _CONVERSION_TEST_CASES = [
         }, {
             "f2": np.array([1., 2., 3.], dtype=np.float32),
         }, {
-            "f3": np.array([b"abc", b"def"], dtype=np.object),
+            "f3": np.array([b"abc", b"def"], dtype=object),
         }, {
             "f1": np.array([4, 5, 6], dtype=np.int64),
             "f4": np.array([8], dtype=np.int64),

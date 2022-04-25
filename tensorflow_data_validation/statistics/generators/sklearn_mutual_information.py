@@ -95,7 +95,7 @@ def _flatten_and_impute(examples: pa.RecordBatch,
       is_categorical_feature = feature_path in categorical_features
       result_dtype = non_missing_values.dtype
       if non_missing_parent_indices.size < num_rows and is_categorical_feature:
-        result_dtype = np.object
+        result_dtype = object
       flattened_array = np.ndarray(shape=num_rows, dtype=result_dtype)
       num_values = np.asarray(
           array_util.ListLengthsFromListArray(feature_array))

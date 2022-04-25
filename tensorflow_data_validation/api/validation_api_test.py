@@ -2933,7 +2933,7 @@ class IdentifyAnomalousExamplesTest(parameterized.TestCase):
       util.assert_that(result, _assert_fn)
 
   def test_identify_anomalous_examples_options_of_wrong_type(self):
-    examples = [{'annotated_enum': np.array(['D'], dtype=np.object)}]
+    examples = [{'annotated_enum': np.array(['D'], dtype=object)}]
     options = 1
     with self.assertRaisesRegexp(ValueError, 'options must be a `StatsOptions` '
                                  'object.'):
@@ -2943,7 +2943,7 @@ class IdentifyAnomalousExamplesTest(parameterized.TestCase):
             | validation_api.IdentifyAnomalousExamples(options))
 
   def test_identify_anomalous_examples_options_without_schema(self):
-    examples = [{'annotated_enum': np.array(['D'], dtype=np.object)}]
+    examples = [{'annotated_enum': np.array(['D'], dtype=object)}]
     options = stats_options.StatsOptions()
     with self.assertRaisesRegexp(ValueError, 'options must include a schema'):
       with beam.Pipeline() as p:

@@ -46,7 +46,7 @@ class FakeImageDecoder(image_stats_generator.ImageDecoderInterface):
 
   def get_formats(self, value_list):
     return np.array([json.loads(value)['format'] for value in value_list],
-                    dtype=np.object)
+                    dtype=object)
 
   def get_sizes(self, value_list):
     loaded_metadata = [json.loads(value) for value in value_list]
