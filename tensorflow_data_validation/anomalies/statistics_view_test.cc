@@ -206,7 +206,7 @@ TEST(FeatureStatsView, DerivedSource) {
         features {
           name: 'bar'
           type: FLOAT
-          derived_source: { deriver_name: 'bar_source' }
+          validation_derived_source: { deriver_name: 'bar_source' }
           num_stats: {}
         }
       )pb");
@@ -214,12 +214,12 @@ TEST(FeatureStatsView, DerivedSource) {
   DatasetStatsView view(
       current, false, "environment_name", std::shared_ptr<DatasetStatsView>(),
       std::shared_ptr<DatasetStatsView>(), std::shared_ptr<DatasetStatsView>());
-  EXPECT_FALSE(view.GetByPath(Path({"foo"}))->HasDerivedSource());
-  EXPECT_THAT(view.GetByPath(Path({"bar"}))->GetDerivedSource(),
+  EXPECT_FALSE(view.GetByPath(Path({"foo"}))->HasValidationDerivedSource());
+  EXPECT_THAT(view.GetByPath(Path({"bar"}))->GetValidationDerivedSource(),
               testing::EqualsProto(
                   ParseTextProtoOrDie<metadata::v0::DerivedFeatureSource>(
                       "deriver_name: 'bar_source'")));
-  EXPECT_TRUE(view.GetByPath(Path({"bar"}))->HasDerivedSource());
+  EXPECT_TRUE(view.GetByPath(Path({"bar"}))->HasValidationDerivedSource());
 }
 
 TEST(FeatureStatsView, GetNumPresent) {

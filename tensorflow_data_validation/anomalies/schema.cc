@@ -391,10 +391,10 @@ Status Schema::Updater::CreateColumn(
     ::tensorflow::data_validation::DeprecateFeature(feature);
     return Status::OK();
   }
-  if (feature_stats_view.HasDerivedSource()) {
+  if (feature_stats_view.HasValidationDerivedSource()) {
     // TODO(b/227478330): Consider setting a lower severity.
     ::tensorflow::data_validation::MarkFeatureDerived(
-        feature_stats_view.GetDerivedSource(), feature);
+        feature_stats_view.GetValidationDerivedSource(), feature);
   }
 
   if (BestEffortUpdateCustomDomain(feature_stats_view.custom_stats(),
@@ -1169,9 +1169,10 @@ void Schema::UpdateFeatureInternal(
   // Handle derived features for existing features.
   // If a feature has no derived source in the schema, but is derived in stats
   // then it should be marked derived in the schema.
-  if (view.HasDerivedSource() && !feature->has_derived_source()) {
-    ::tensorflow::data_validation::MarkFeatureDerived(view.GetDerivedSource(),
-                                                      feature);
+  if (view.HasValidationDerivedSource() &&
+      !feature->has_validation_derived_source()) {
+    ::tensorflow::data_validation::MarkFeatureDerived(
+        view.GetValidationDerivedSource(), feature);
     descriptions->push_back(
         {tensorflow::metadata::v0::AnomalyInfo::DERIVED_FEATURE_INVALID_SOURCE,
          "Derived source not set in schema.",
@@ -1179,10 +1180,11 @@ void Schema::UpdateFeatureInternal(
   }
   // If a feature has a derived source in the schema but has an incorrectly
   // set lifecycle stage, set the stage.
-  if (feature->has_derived_source() &&
-      (feature->lifecycle_stage() != tensorflow::metadata::v0::DERIVED ||
+  if (feature->has_validation_derived_source() &&
+      (feature->lifecycle_stage() !=
+           tensorflow::metadata::v0::VALIDATION_DERIVED ||
        feature->lifecycle_stage() != tensorflow::metadata::v0::DISABLED)) {
-    feature->set_lifecycle_stage(tensorflow::metadata::v0::DERIVED);
+    feature->set_lifecycle_stage(tensorflow::metadata::v0::VALIDATION_DERIVED);
     descriptions->push_back(
         {tensorflow::metadata::v0::AnomalyInfo::DERIVED_FEATURE_BAD_LIFECYCLE,
          "Derived feature has wrong lifecycle.",

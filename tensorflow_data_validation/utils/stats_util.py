@@ -515,9 +515,10 @@ class DatasetView(object):
     """Retrieve a derived feature based on a deriver name and its inputs.
 
     Args:
-      deriver_name: The name of a deriver. Matches derived_source.deriver_name.
+      deriver_name: The name of a deriver. Matches validation_derived_source
+        deriver_name.
       source_paths: Source paths for derived features. Matches
-        derived_source.source_path.
+        validation_derived_source.source_path.
 
     Returns:
       FeatureView of derived feature.
@@ -528,16 +529,17 @@ class DatasetView(object):
     # TODO(b/221453427): Consider indexing if performance becomes an issue.
     results = []
     for feature in self.proto().features:
-      if feature.derived_source is None:
+      if feature.validation_derived_source is None:
         continue
-      if feature.derived_source.deriver_name != deriver_name:
+      if feature.validation_derived_source.deriver_name != deriver_name:
         continue
-      if len(source_paths) != len(feature.derived_source.source_path):
+      if (len(source_paths) != len(
+          feature.validation_derived_source.source_path)):
         continue
       all_match = True
       for i in range(len(source_paths)):
         if (source_paths[i] != types.FeaturePath.from_proto(
-            feature.derived_source.source_path[i])):
+            feature.validation_derived_source.source_path[i])):
           all_match = False
           break
       if all_match:

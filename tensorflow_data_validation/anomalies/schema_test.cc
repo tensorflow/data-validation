@@ -3561,7 +3561,7 @@ TEST(SchemaTest, AddsDerivedFeature) {
           name: "categorical_feature"
           type: STRING
           string_stats {}
-          derived_source: {
+          validation_derived_source: {
             deriver_name: 'deriver_name'
           }
         })");
@@ -3575,8 +3575,8 @@ TEST(SchemaTest, AddsDerivedFeature) {
                   presence {
                     min_count: 0
                   }
-                  lifecycle_stage: DERIVED
-                  derived_source: {
+                  lifecycle_stage: VALIDATION_DERIVED
+                  validation_derived_source: {
                     deriver_name: 'deriver_name'
                   }
                 })"));
@@ -3596,7 +3596,7 @@ TEST(SchemaTest, UpdatesDerivedFeatureWithoutSource) {
           name: "categorical_feature"
           type: STRING
           string_stats {common_stats: {num_non_missing: 10}}
-          derived_source: {
+          validation_derived_source: {
             deriver_name: 'deriver_name'
           }
         })");
@@ -3607,8 +3607,8 @@ TEST(SchemaTest, UpdatesDerivedFeatureWithoutSource) {
                 feature {
                   name: "categorical_feature"
                   type: BYTES
-                  lifecycle_stage: DERIVED
-                  derived_source: {
+                  lifecycle_stage: VALIDATION_DERIVED
+                  validation_derived_source: {
                     deriver_name: "deriver_name"
                   }
                 })"));
@@ -3622,7 +3622,7 @@ TEST(SchemaTest, UpdatesDerivedFeatureWithBadLifecycle) {
                   name: "categorical_feature"
                   type: BYTES
                   lifecycle_stage: PRODUCTION
-                  derived_source: {
+                  validation_derived_source: {
                     deriver_name: "deriver_name"
                   }
                 })")));
@@ -3632,7 +3632,7 @@ TEST(SchemaTest, UpdatesDerivedFeatureWithBadLifecycle) {
           name: "categorical_feature"
           type: STRING
           string_stats {common_stats: {num_non_missing: 10}}
-          derived_source: {
+          validation_derived_source: {
             deriver_name: 'deriver_name'
           }
         })");
@@ -3643,8 +3643,8 @@ TEST(SchemaTest, UpdatesDerivedFeatureWithBadLifecycle) {
                 feature {
                   name: "categorical_feature"
                   type: BYTES
-                  lifecycle_stage: DERIVED
-                  derived_source: {
+                  lifecycle_stage: VALIDATION_DERIVED
+                  validation_derived_source: {
                     deriver_name: "deriver_name"
                   }
                 })"));

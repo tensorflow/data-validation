@@ -134,11 +134,13 @@ class FeatureStatsView {
     return data().type();
   }
 
-  bool HasDerivedSource() const { return data().has_derived_source(); }
+  bool HasValidationDerivedSource() const {
+    return data().has_validation_derived_source();
+  }
 
-  const tensorflow::metadata::v0::DerivedFeatureSource& GetDerivedSource()
-      const {
-    return data().derived_source();
+  const tensorflow::metadata::v0::DerivedFeatureSource&
+  GetValidationDerivedSource() const {
+    return data().validation_derived_source();
   }
 
   // Gets the FeatureType representing the physical type represented in

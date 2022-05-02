@@ -240,7 +240,7 @@ datasets: {
     path: {
       step: "f3_derived"
     }
-    derived_source: {
+    validation_derived_source: {
        deriver_name: "my_deriver_name",
        source_path: {
            step: "f0_step1"
