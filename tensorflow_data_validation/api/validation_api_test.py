@@ -27,8 +27,10 @@ from absl.testing import parameterized
 import apache_beam as beam
 from apache_beam.testing import util
 import numpy as np
+import pandas as pd
 import pyarrow as pa
 import tensorflow as tf
+import tensorflow_data_validation as tfdv
 from tensorflow_data_validation import types
 from tensorflow_data_validation.api import validation_api
 from tensorflow_data_validation.api import validation_options
@@ -3160,6 +3162,147 @@ class DetectFeatureSkewTest(absltest.TestCase):
       skew_pairs_from_file.append(
           feature_skew_results_pb2.SkewPair.FromString(record))
     self._assert_skew_pairs_equal(skew_pairs_from_file, skew_pairs)
+
+
+def _construct_sliced_statistics(
+    values_slice1,
+    values_slice2) -> statistics_pb2.DatasetFeatureStatisticsList:
+  values_overall = values_slice1 + values_slice2
+  datasets = []
+
+  stats_slice1 = tfdv.generate_statistics_from_dataframe(
+      pd.DataFrame.from_dict({'foo': values_slice1}))
+  stats_slice1.datasets[0].name = 'slice1'
+  datasets.append(stats_slice1.datasets[0])
+
+  if values_slice2:
+    stats_slice2 = tfdv.generate_statistics_from_dataframe(
+        pd.DataFrame.from_dict({'foo': values_slice2}))
+    stats_slice2.datasets[0].name = 'slice2'
+    datasets.append(stats_slice2.datasets[0])
+
+  stats_overall = tfdv.generate_statistics_from_dataframe(
+      pd.DataFrame.from_dict({'foo': values_overall}))
+  stats_overall.datasets[0].name = tfdv.constants.DEFAULT_SLICE_KEY
+  datasets.append(stats_overall.datasets[0])
+
+  statistics = statistics_pb2.DatasetFeatureStatisticsList(datasets=datasets)
+  return statistics
+
+
+def _test_schema():
+  return text_format.Parse(
+      """
+    feature {
+      name: "foo"
+      type: BYTES
+      string_domain {
+        name: "feature_foo"
+        value: "1"
+        value: "2"
+        value: "3"
+        value: "4"
+      }
+      distribution_constraints: {min_domain_mass: 0.5}
+      presence: {min_fraction: 1.0}
+    }
+    """, schema_pb2.Schema())
+
+
+class ValidateCorrespondingSlicesTest(ValidationTestCase):
+
+  def test_no_anomalies(self):
+    sliced_stats = _construct_sliced_statistics(['1', '2', '3', '4'],
+                                                ['2', '2', '3'])
+    schema = _test_schema()
+    anomalies = validation_api.validate_corresponding_slices(
+        sliced_stats, schema)
+    self._assert_equal_anomalies(anomalies, {})
+
+  def test_missing_slice_in_previous_stats_is_not_error(self):
+    sliced_stats1 = _construct_sliced_statistics(['1', '2'], ['3', '4'])
+    sliced_stats2 = _construct_sliced_statistics(['1', '2', '3', '4'], [])
+
+    schema = _test_schema()
+    anomalies = validation_api.validate_corresponding_slices(
+        sliced_stats1, schema, previous_statistics=sliced_stats2)
+    self._assert_equal_anomalies(anomalies, {})
+
+  def test_missing_slice_in_current_stats_is_error(self):
+    sliced_stats1 = _construct_sliced_statistics(['1', '2', '3', '4'], [])
+    sliced_stats2 = _construct_sliced_statistics(['1', '2'], ['3', '4'])
+
+    schema = _test_schema()
+    anomalies = validation_api.validate_corresponding_slices(
+        sliced_stats1, schema, previous_statistics=sliced_stats2)
+    self._assert_equal_anomalies(
+        anomalies, {
+            "\'slice(slice2)::foo\'":
+                text_format.Parse("""
+        description: "Column is completely missing"
+        severity: ERROR
+        short_description: "Column dropped"
+        reason {
+          type: SCHEMA_MISSING_COLUMN
+          short_description: "Column dropped"
+          description: "Column is completely missing"
+        }
+        path {
+          step: "slice(slice2)::foo"
+        }
+        """, anomalies_pb2.AnomalyInfo())
+        })
+
+  def test_anomaly_in_one_slice(self):
+    sliced_stats = _construct_sliced_statistics(['1', '2', '3', '4'], ['5'])
+    schema = _test_schema()
+    anomalies = validation_api.validate_corresponding_slices(
+        sliced_stats, schema)
+    self._assert_equal_anomalies(
+        anomalies, {
+            "\'slice(slice2)::foo\'":
+                text_format.Parse(
+                    """
+            description: "Examples contain values missing from the schema: 5 (~100%). "
+            severity: ERROR
+            short_description: "Unexpected string values"
+            reason {
+              type: ENUM_TYPE_UNEXPECTED_STRING_VALUES
+              short_description: "Unexpected string values"
+              description: "Examples contain values missing from the schema: 5 (~100%). "
+            }
+            path {
+              step: "slice(slice2)::foo"
+            }
+        """, anomalies_pb2.AnomalyInfo())
+        })
+
+  def test_distributional_anomaly_between_slices(self):
+    sliced_stats1 = _construct_sliced_statistics(['1', '2'], ['3', '4'])
+    sliced_stats2 = _construct_sliced_statistics(['1', '2'], ['1', '2'])
+    schema = _test_schema()
+    schema_util.get_feature(
+        schema, 'foo').drift_comparator.infinity_norm.threshold = 0.3
+    anomalies = validation_api.validate_corresponding_slices(
+        sliced_stats1, schema, previous_statistics=sliced_stats2)
+    self._assert_equal_anomalies(
+        anomalies, {
+            "\'slice(slice2)::foo\'":
+                text_format.Parse(
+                    """
+            description: "The Linfty distance between current and previous is 0.5 (up to six significant digits), above the threshold 0.3. The feature value with maximum difference is: 4"
+            severity: ERROR
+            short_description: "High Linfty distance between current and previous"
+            reason {
+              type: COMPARATOR_L_INFTY_HIGH
+              short_description: "High Linfty distance between current and previous"
+              description: "The Linfty distance between current and previous is 0.5 (up to six significant digits), above the threshold 0.3. The feature value with maximum difference is: 4"
+            }
+            path {
+              step: "slice(slice2)::foo"
+            }
+        """, anomalies_pb2.AnomalyInfo())
+        })
 
 
 if __name__ == '__main__':

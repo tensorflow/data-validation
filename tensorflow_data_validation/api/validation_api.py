@@ -19,7 +19,7 @@ from __future__ import division
 from __future__ import print_function
 
 import logging
-from typing import Callable, Iterable, List, Optional, Text, Tuple
+from typing import Callable, Iterable, List, Optional, Text, Tuple, Set
 import apache_beam as beam
 import pyarrow as pa
 import tensorflow as tf
@@ -35,6 +35,7 @@ from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.utils import anomalies_util
 from tensorflow_data_validation.utils import slicing_util
+from tensorflow_data_validation.utils import stats_util
 
 from tensorflow_metadata.proto.v0 import anomalies_pb2
 from tensorflow_metadata.proto.v0 import schema_pb2
@@ -724,3 +725,126 @@ class WriteSkewPairsToTFRecord(beam.PTransform):
                 shard_name_template='',
                 coder=beam.coders.ProtoCoder(
                     feature_skew_results_pb2.SkewPair)))
+
+
+def _prepend_slice_path(slice_name: str,
+                        path: types.FeaturePath) -> types.FeaturePath:
+  steps = path.steps()
+  return types.FeaturePath(('slice(%s)::' % slice_name + steps[0],) + steps[1:])
+
+
+def _prepend_slice_name(slice_name: str, name: str) -> str:
+  return 'slice(%s)::' % slice_name + name
+
+
+def _flatten_statistics_for_sliced_validation(
+    statistics: statistics_pb2.DatasetFeatureStatisticsList
+) -> Tuple[statistics_pb2.DatasetFeatureStatisticsList, Set[str]]:
+  """Flattens sliced stats into unsliced stats with prepended slice keys."""
+  result = statistics_pb2.DatasetFeatureStatisticsList()
+  dataset_flat = result.datasets.add()
+  # Copy top level metadata from the default (overall) slice.
+  default_slice = stats_util.DatasetListView(statistics).get_default_slice()
+  if default_slice is None:
+    raise ValueError('Missing default slice')
+  dataset_flat.CopyFrom(default_slice.proto())
+  dataset_flat.ClearField('features')
+  dataset_flat.ClearField('cross_features')
+  slice_names = set()
+  for dataset in statistics.datasets:
+    slice_names.add(dataset.name)
+    for feature in dataset.features:
+      copied_feature = dataset_flat.features.add()
+      copied_feature.CopyFrom(feature)
+      copied_feature.path.CopyFrom(
+          _prepend_slice_path(dataset.name,
+                              types.FeaturePath.from_proto(
+                                  copied_feature.path)).to_proto())
+    for cross_feature in dataset.cross_features:
+      copied_cross_feature = dataset_flat.cross_features.add()
+      copied_cross_feature.CopyFrom(cross_feature)
+      copied_cross_feature.path_x.CopyFrom(
+          _prepend_slice_path(
+              dataset.name,
+              types.FeaturePath.from_proto(
+                  copied_cross_feature.path_x)).to_proto())
+      copied_cross_feature.path_y.CopyFrom(
+          _prepend_slice_path(
+              dataset.name,
+              types.FeaturePath.from_proto(
+                  copied_cross_feature.path_y)).to_proto())
+  return result, slice_names
+
+
+def _replicate_schema_for_sliced_validation(
+    schema: schema_pb2.Schema, slice_names: Set[str]) -> schema_pb2.Schema:
+  """Replicates features in a schema with prepended slice names."""
+  if schema.HasField('dataset_constraints') is not None:
+    logging.error('DatasetConstraints will not be validated per-slice.')
+  result = schema_pb2.Schema()
+  result.string_domain.extend(schema.string_domain)
+  result.float_domain.extend(schema.float_domain)
+  result.int_domain.extend(schema.int_domain)
+  for slice_name in slice_names:
+    for feature in schema.feature:
+      new_feature = result.feature.add()
+      new_feature.CopyFrom(feature)
+      new_feature.name = _prepend_slice_name(slice_name, feature.name)
+    for sparse_feature in schema.sparse_feature:
+      new_sparse_feature = result.sparse_feature.add()
+      new_sparse_feature.CopyFrom(sparse_feature)
+      new_sparse_feature.name = _prepend_slice_name(slice_name,
+                                                    sparse_feature.name)
+    for weighted_feature in schema.weighted_feature:
+      new_weighted_feature = result.weighted_feature.add()
+      new_weighted_feature.CopyFrom(weighted_feature)
+      new_weighted_feature.name = _prepend_slice_name(slice_name,
+                                                      weighted_feature.name)
+  return result
+
+
+def validate_corresponding_slices(
+    statistics: statistics_pb2.DatasetFeatureStatisticsList,
+    schema: schema_pb2.Schema,
+    environment: Optional[Text] = None,
+    previous_statistics: Optional[
+        statistics_pb2.DatasetFeatureStatisticsList] = None,
+    serving_statistics: Optional[
+        statistics_pb2.DatasetFeatureStatisticsList] = None,
+) -> anomalies_pb2.Anomalies:
+  """Validates corresponding sliced statistics.
+
+  Sliced statistics are flattened into a single unsliced stats input prior to
+  validation. If multiple statistics are provided, validation is performed on
+  corresponding slices. DatasetConstraints, if present, are applied to the
+  overall slice.
+
+  Note: This API is experimental and subject to change.
+
+  Args:
+    statistics: See validate_statistics.
+    schema: See validate_statistics.
+    environment: See validate_statistics.
+    previous_statistics: See validate_statistics.
+    serving_statistics: See validate_statistics.
+
+  Returns:
+    An Anomalies protocol buffer.
+
+  Raises:
+    TypeError: If any of the input arguments is not of the expected type.
+  """
+  all_slice_keys = set()
+  statistics, keys = _flatten_statistics_for_sliced_validation(statistics)
+  all_slice_keys.update(keys)
+  if previous_statistics:
+    previous_statistics, keys = _flatten_statistics_for_sliced_validation(
+        previous_statistics)
+    all_slice_keys.update(keys)
+  if serving_statistics:
+    serving_statistics, keys = _flatten_statistics_for_sliced_validation(
+        serving_statistics)
+    all_slice_keys.update(keys)
+  schema = _replicate_schema_for_sliced_validation(schema, all_slice_keys)
+  return validate_statistics(statistics, schema, environment,
+                             previous_statistics, serving_statistics)
