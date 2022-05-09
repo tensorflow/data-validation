@@ -11,6 +11,8 @@
 *   Adds `get_statistics_html` to the public API.
 *   Fixes several incorrect type annotations.
 *   Schema inference handles derived features.
+*   `StatsOptions.to_json` now raises an error if it encounters unsupported
+    options.
 
 ## Known Issues
 

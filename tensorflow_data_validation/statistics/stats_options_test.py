@@ -255,19 +255,12 @@ class StatsOptionsTest(parameterized.TestCase):
       stats_options.StatsOptions(
           experimental_slice_sqls=experimental_slice_sqls, schema=schema)
 
-  def test_stats_options_json_round_trip(self):
-    generators = [
-        lift_stats_generator.LiftStatsGenerator(
-            schema=None,
-            y_path=types.FeaturePath(['label']),
-            x_paths=[types.FeaturePath(['feature'])])
-    ]
+  def test_valid_stats_options_json_round_trip(self):
     feature_allowlist = ['a']
     schema = schema_pb2.Schema(feature=[schema_pb2.Feature(name='f')])
     vocab_paths = {'a': '/path/to/a'}
     label_feature = 'label'
     weight_feature = 'weight'
-    slice_functions = [slicing_util.get_feature_value_slicer({'b': None})]
     sample_rate = 0.01
     num_top_values = 21
     frequency_threshold = 2
@@ -287,13 +280,11 @@ class StatsOptionsTest(parameterized.TestCase):
     experimental_result_partitions = 3
 
     options = stats_options.StatsOptions(
-        generators=generators,
         feature_allowlist=feature_allowlist,
         schema=schema,
         vocab_paths=vocab_paths,
         label_feature=label_feature,
         weight_feature=weight_feature,
-        experimental_slice_functions=slice_functions,
         sample_rate=sample_rate,
         num_top_values=num_top_values,
         frequency_threshold=frequency_threshold,
@@ -315,13 +306,11 @@ class StatsOptionsTest(parameterized.TestCase):
     options_json = options.to_json()
     options = stats_options.StatsOptions.from_json(options_json)
 
-    self.assertIsNone(options.generators)
     self.assertEqual(feature_allowlist, options.feature_allowlist)
     compare.assertProtoEqual(self, schema, options.schema)
     self.assertEqual(vocab_paths, options.vocab_paths)
     self.assertEqual(label_feature, options.label_feature)
     self.assertEqual(weight_feature, options.weight_feature)
-    self.assertIsNone(options.experimental_slice_functions)
     self.assertEqual(sample_rate, options.sample_rate)
     self.assertEqual(num_top_values, options.num_top_values)
     self.assertEqual(frequency_threshold, options.frequency_threshold)
@@ -348,6 +337,25 @@ class StatsOptionsTest(parameterized.TestCase):
                      options.experimental_use_sketch_based_topk_uniques)
     self.assertEqual(experimental_result_partitions,
                      options.experimental_result_partitions)
+
+  def test_stats_options_with_generators_to_json(self):
+    generators = [
+        lift_stats_generator.LiftStatsGenerator(
+            schema=None,
+            y_path=types.FeaturePath(['label']),
+            x_paths=[types.FeaturePath(['feature'])])
+    ]
+    options = stats_options.StatsOptions(
+        generators=generators)
+    with self.assertRaisesRegex(ValueError, 'StatsOptions cannot be converted'):
+      options.to_json()
+
+  def test_stats_options_with_slice_fns_to_json(self):
+    slice_functions = [slicing_util.get_feature_value_slicer({'b': None})]
+    options = stats_options.StatsOptions(
+        experimental_slice_functions=slice_functions)
+    with self.assertRaisesRegex(ValueError, 'StatsOptions cannot be converted'):
+      options.to_json()
 
   def test_stats_options_from_json(self):
     options_json = """{

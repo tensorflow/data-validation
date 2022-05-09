@@ -222,17 +222,24 @@ class StatsOptions(object):
   def to_json(self) -> Text:
     """Convert from an object to JSON representation of the __dict__ attribute.
 
-    Custom generators and slice_functions are skipped, meaning that they will
-    not be used when running TFDV in a setting where the stats options have been
-    json-serialized, first. This will happen in the case where TFDV is run as a
-    TFX component. The schema proto will be json_encoded.
+    Custom generators and slice_functions cannot being converted. As a result,
+    a ValueError will be raised when these options are specified and TFDV is
+    running in a setting where the stats options have been json-serialized,
+    first. This will happen in the case where TFDV is run as a TFX component.
+    The schema proto will be json_encoded.
 
     Returns:
       A JSON representation of a filtered version of __dict__.
     """
     options_dict = copy.copy(self.__dict__)
-    options_dict['_slice_functions'] = None
-    options_dict['_generators'] = None
+    if options_dict['_slice_functions'] is not None:
+      raise ValueError(
+          'StatsOptions cannot be converted with experimental_slice_functions.'
+      )
+    if options_dict['_generators'] is not None:
+      raise ValueError(
+          'StatsOptions cannot be converted with generators.'
+      )
     if self.schema is not None:
       del options_dict['_schema']
       options_dict[_SCHEMA_JSON_KEY] = json_format.MessageToJson(self.schema)
