@@ -8,7 +8,7 @@ py_binary(
     name = "build_docs",
     srcs = ["build_docs.py"],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//tensorflow_data_validation",
         "//third_party/py/absl:app",
