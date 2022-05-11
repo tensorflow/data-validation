@@ -346,7 +346,6 @@ class _SampleRecordBatchRows(beam.CombineFn):
       A _SampleRecordBatchRowsAccumulator that contains one or a list of record
       batch.
     """
-    self._num_compacts.inc(1)
     self._combine_num_record_batches.update(len(accumulator.record_batches))
 
     # There is nothing to compact.
@@ -357,6 +356,7 @@ class _SampleRecordBatchRows(beam.CombineFn):
     if (len(accumulator.record_batches) <= 1 and
         accumulator.curr_num_rows <= self._sample_size):
       return accumulator
+    self._num_compacts.inc(1)
     k = min(self._sample_size, accumulator.curr_num_rows)
 
     rand_ints = np.concatenate(accumulator.random_ints)

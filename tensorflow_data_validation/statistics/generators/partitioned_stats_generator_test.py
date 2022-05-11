@@ -128,7 +128,7 @@ _SAMPLE_PARTITION_TESTS = [{
                                     pa.RecordBatch.from_arrays([
                                         pa.array([['Green']]),
                                         pa.array([['Label']]),
-                                    ], ['fa', 'label_key']))] * 11,
+                                    ], ['fa', 'label_key']))] * 18,
     'expected': [(1,
                   pa.RecordBatch.from_arrays([
                       pa.array([['Green']] * 2),
@@ -343,8 +343,11 @@ class SampleRecordBatchRows(parameterized.TestCase):
     num_compacts_metric = metrics.query(
         beam.metrics.metric.MetricsFilter().with_name(
             'sample_record_batch_rows_num_compacts'))['counters']
+    metric_num_compacts = 0
+    for metric in num_compacts_metric:
+      metric_num_compacts += metric.committed
     if num_compacts_metric:
-      self.assertEqual(num_compacts_metric[0].committed, num_compacts)
+      self.assertEqual(metric_num_compacts, num_compacts)
 
   def test_sample_metrics(self):
     record_batch = pa.RecordBatch.from_arrays([
