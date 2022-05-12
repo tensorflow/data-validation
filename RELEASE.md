@@ -13,6 +13,7 @@
 *   Schema inference handles derived features.
 *   `StatsOptions.to_json` now raises an error if it encounters unsupported
     options.
+*   Depends on `apache-beam[gcp]>=2.38,<3`.
 
 ## Known Issues
 
