@@ -17,7 +17,6 @@ import tempfile
 from absl.testing import absltest
 import apache_beam as beam
 from tensorflow_data_validation.utils import statistics_io_impl
-from tensorflow_data_validation.utils import statistics_io_test_util
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
@@ -32,7 +31,7 @@ class RecordSinkAndSourceTest(absltest.TestCase):
     ]
     output_prefix = tempfile.mkdtemp() + '/statistics'
 
-    with beam.Pipeline(runner=statistics_io_test_util.test_runner_impl()) as p:
+    with beam.Pipeline() as p:
       provider = statistics_io_impl.get_io_provider('tfrecords')
       _ = (p | beam.Create(datasets) | provider.record_sink_impl(output_prefix))
 
