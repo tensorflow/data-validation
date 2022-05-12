@@ -542,7 +542,7 @@
     following command:
 
     ```
-    pip install -i https://pypi-nightly.tensorflow.org/simple tensorflow-data-validation
+    pip install --extra-index-url https://pypi-nightly.tensorflow.org/simple tensorflow-data-validation
     ```
 
     Note: These nightly packages are unstable and breakages are likely to
