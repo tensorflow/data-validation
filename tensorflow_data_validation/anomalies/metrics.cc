@@ -245,19 +245,16 @@ std::pair<string, double> LInftyDistance(const FeatureStatsView& a,
   return GetLInftyNorm(GetDifference(prob_a, prob_b));
 }
 
-Status UpdateJensenShannonDivergenceResult(const FeatureStatsView& a,
-                                           const FeatureStatsView& b,
-                                           double& result) {
-  const absl::optional<Histogram> maybe_histogram_1 = a.GetStandardHistogram();
-  const absl::optional<Histogram> maybe_histogram_2 = b.GetStandardHistogram();
-  if (!maybe_histogram_1 || !maybe_histogram_2) {
-    return tensorflow::errors::InvalidArgument(
-        "Both input statistics must have a standard histogram in order to "
-        "calculate the Jensen-Shannon divergence.");
+Status JensenShannonDivergence(Histogram& histogram_1, Histogram& histogram_2,
+                               double& result) {
+  if (histogram_1.type() !=
+          Histogram::HistogramType::Histogram_HistogramType_STANDARD ||
+      histogram_2.type() !=
+          Histogram::HistogramType::Histogram_HistogramType_STANDARD) {
+    return errors::InvalidArgument(
+        "Input histograms must be of STANDARD type.");
   }
   // Generate new histograms with the same bucket boundaries.
-  Histogram histogram_1 = std::move(maybe_histogram_1.value());
-  Histogram histogram_2 = std::move(maybe_histogram_2.value());
   AlignHistograms(histogram_1, histogram_2);
   // If one or more of histograms have NaN values, add a NaN bucket.
   if (histogram_1.num_nan() > 0 || histogram_2.num_nan() > 0) {
@@ -286,6 +283,20 @@ Status UpdateJensenShannonDivergenceResult(const FeatureStatsView& a,
                                   average_distribution_histogram)) /
        2);
   return Status::OK();
+}
+
+Status JensenShannonDivergence(const FeatureStatsView& a,
+                               const FeatureStatsView& b, double& result) {
+  const absl::optional<Histogram> maybe_histogram_1 = a.GetStandardHistogram();
+  const absl::optional<Histogram> maybe_histogram_2 = b.GetStandardHistogram();
+  if (!maybe_histogram_1 || !maybe_histogram_2) {
+    return tensorflow::errors::InvalidArgument(
+        "Both input statistics must have a standard histogram in order to "
+        "calculate the Jensen-Shannon divergence.");
+  }
+  Histogram histogram_1 = std::move(maybe_histogram_1.value());
+  Histogram histogram_2 = std::move(maybe_histogram_2.value());
+  return JensenShannonDivergence(histogram_1, histogram_2, result);
 }
 
 }  // namespace data_validation

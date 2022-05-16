@@ -339,7 +339,7 @@ SingleFeatureComparisonResult UpdateJensenShannonDivergenceComparator(
   const double jensen_shannon_threshold =
       comparator->jensen_shannon_divergence().threshold();
   double jensen_shannon_divergence;
-  if (UpdateJensenShannonDivergenceResult(stats, control_stats,
+  if (JensenShannonDivergence(stats, control_stats,
                                           jensen_shannon_divergence)
           .ok()) {
     result.measurement.emplace();
