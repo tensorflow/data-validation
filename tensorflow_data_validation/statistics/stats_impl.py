@@ -23,6 +23,7 @@ import pyarrow as pa
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
+from tensorflow_data_validation.utils import preprocessing_util
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.statistics.generators import basic_stats_generator
 from tensorflow_data_validation.statistics.generators import image_stats_generator
@@ -37,6 +38,7 @@ from tensorflow_data_validation.statistics.generators import top_k_uniques_stats
 from tensorflow_data_validation.statistics.generators import weighted_feature_stats_generator
 from tensorflow_data_validation.utils import feature_partition_util
 from tensorflow_data_validation.utils import slicing_util
+
 from tfx_bsl.arrow import table_util
 from tfx_bsl.statistics import merge_util
 from tfx_bsl.telemetry import collection
@@ -61,6 +63,16 @@ class GenerateStatisticsImpl(beam.PTransform):
   def expand(
       self, dataset: beam.PCollection[pa.RecordBatch]
   ) -> beam.PCollection[statistics_pb2.DatasetFeatureStatisticsList]:
+    # Generate derived features, if applicable.
+    if (self._options.experimental_add_derived_features_from_schema and
+        self._options.schema is not None):
+      dataset = preprocessing_util.add_derived_features(dataset,
+                                                        self._options.schema)
+      maybe_generator = preprocessing_util.get_metadata_generator()
+      if maybe_generator is not None:
+        self._options.generators = self._options.generators or []
+        self._options.generators.append(maybe_generator)
+
     # If a set of allowed features are provided, keep only those features.
     if self._options.feature_allowlist:
       dataset |= ('FilterFeaturesByAllowList' >> beam.Map(
