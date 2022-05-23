@@ -185,8 +185,7 @@ class StatsOptions(object):
         number of features in a dataset, and never more than the available beam
         parallelism.
       experimental_add_derived_features_from_schema: If True, adds derived
-        features configured by the schema. This option should not be used in
-        combination with an explicit feature derivation PTransform.
+        features configured by the schema.
     """
     self.generators = generators
     self.feature_allowlist = feature_allowlist
