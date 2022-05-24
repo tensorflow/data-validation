@@ -76,8 +76,7 @@ class StatsOptions(object):
       experimental_slice_functions: Optional[List[types.SliceFunction]] = None,
       experimental_slice_sqls: Optional[List[Text]] = None,
       experimental_result_partitions: int = 1,
-      experimental_num_feature_partitions: int = 1,
-      experimental_add_derived_features_from_schema: bool = False):
+      experimental_num_feature_partitions: int = 1):
     """Initializes statistics options.
 
     Args:
@@ -184,8 +183,6 @@ class StatsOptions(object):
         results this should be set to at least several times less than the
         number of features in a dataset, and never more than the available beam
         parallelism.
-      experimental_add_derived_features_from_schema: If True, adds derived
-        features configured by the schema.
     """
     self.generators = generators
     self.feature_allowlist = feature_allowlist
@@ -221,8 +218,6 @@ class StatsOptions(object):
     self.experimental_slice_sqls = experimental_slice_sqls
     self.experimental_num_feature_partitions = experimental_num_feature_partitions
     self.experimental_result_partitions = experimental_result_partitions
-    self.experimental_add_derived_features_from_schema = (
-        experimental_add_derived_features_from_schema)
 
   def to_json(self) -> Text:
     """Convert from an object to JSON representation of the __dict__ attribute.
@@ -503,14 +498,6 @@ class StatsOptions(object):
     if feature_partitions <= 0:
       raise ValueError('experimental_num_feature_partitions must be > 0.')
     self._experimental_num_feature_partitions = feature_partitions
-
-  @property
-  def experimental_add_derived_features_from_schema(self) -> bool:
-    return self._experimental_add_derived_features_from_schema
-
-  @experimental_add_derived_features_from_schema.setter
-  def experimental_add_derived_features_from_schema(self, add_derived: bool):
-    self._experimental_add_derived_features_from_schema = add_derived
 
 
 def _validate_sql(sql_query: Text, schema: schema_pb2.Schema):

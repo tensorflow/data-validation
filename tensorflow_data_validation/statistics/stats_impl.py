@@ -64,14 +64,14 @@ class GenerateStatisticsImpl(beam.PTransform):
       self, dataset: beam.PCollection[pa.RecordBatch]
   ) -> beam.PCollection[statistics_pb2.DatasetFeatureStatisticsList]:
     # Generate derived features, if applicable.
-    if (self._options.experimental_add_derived_features_from_schema and
-        self._options.schema is not None):
-      dataset = preprocessing_util.add_derived_features(dataset,
-                                                        self._options.schema)
-      maybe_generator = preprocessing_util.get_metadata_generator()
-      if maybe_generator is not None:
+    if self._options.schema is not None:
+      dataset, derivers_configured = preprocessing_util.add_derived_features(
+          dataset, self._options.schema)
+      if derivers_configured:
+        metadata_generator = preprocessing_util.get_metadata_generator()
+        assert metadata_generator is not None
         self._options.generators = self._options.generators or []
-        self._options.generators.append(maybe_generator)
+        self._options.generators.append(metadata_generator)
 
     # If a set of allowed features are provided, keep only those features.
     if self._options.feature_allowlist:

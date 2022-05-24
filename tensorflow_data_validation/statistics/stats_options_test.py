@@ -278,7 +278,6 @@ class StatsOptionsTest(parameterized.TestCase):
     add_default_generators = True
     use_sketch_based_topk_uniques = True
     experimental_result_partitions = 3
-    experimental_add_derived_features_from_schema = True
 
     options = stats_options.StatsOptions(
         feature_allowlist=feature_allowlist,
@@ -303,7 +302,6 @@ class StatsOptionsTest(parameterized.TestCase):
         add_default_generators=add_default_generators,
         experimental_use_sketch_based_topk_uniques=use_sketch_based_topk_uniques,
         experimental_result_partitions=experimental_result_partitions,
-        experimental_add_derived_features_from_schema=experimental_add_derived_features_from_schema
     )
 
     options_json = options.to_json()
@@ -340,8 +338,6 @@ class StatsOptionsTest(parameterized.TestCase):
                      options.experimental_use_sketch_based_topk_uniques)
     self.assertEqual(experimental_result_partitions,
                      options.experimental_result_partitions)
-    self.assertEqual(experimental_add_derived_features_from_schema,
-                     options.experimental_add_derived_features_from_schema)
 
   def test_stats_options_with_generators_to_json(self):
     generators = [
@@ -389,8 +385,7 @@ class StatsOptionsTest(parameterized.TestCase):
       "_use_sketch_based_topk_uniques": false,
       "_slice_sqls": null,
       "_experimental_result_partitions": 1,
-      "_experimental_num_feature_partitions": 1,
-      "_experimental_add_derived_features_from_schema": false
+      "_experimental_num_feature_partitions": 1
     }"""
     actual_options = stats_options.StatsOptions.from_json(options_json)
     expected_options_dict = stats_options.StatsOptions().__dict__
