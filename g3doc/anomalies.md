@@ -1,7 +1,7 @@
 # TensorFlow Data Validation Anomalies Reference
 
 <!--*
-freshness: { owner: 'caveness' reviewed: '2021-12-03' }
+freshness: { owner: 'caveness' reviewed: '2022-06-03' }
 *-->
 
 TFDV checks for anomalies by comparing a schema and statistics proto(s). The
@@ -106,9 +106,9 @@ condition(s) under which each anomaly type is detected.
 -   `ENUM_TYPE_INVALID_UTF8`
 
     -   Statistics Fields:
-        -   `feature.string_stats.rank_histogram`*
+        -   `feature.string_stats.invalid_utf8_count`
     -   Detection Condition:
-        -   at least one value in `rank_histogram` cannot be decoded as utf-8
+        -   `invalid_utf8_count` > 0
 
 -   `ENUM_TYPE_UNEXPECTED_STRING_VALUES`
 
