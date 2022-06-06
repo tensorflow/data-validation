@@ -13,6 +13,8 @@
 # limitations under the License.
 """Utilities for calculating numerically stable variance."""
 
+from typing import Optional
+
 import numpy as np
 
 
@@ -131,7 +133,7 @@ class MeanVarAccumulator(object):
   def _combine(self, b_count: int, b_mean: float,
                b_variance: float):
     """Combine unweighted mean and variance parameters, updating accumulator."""
-    # In the case of very inbalanced sizes we prefer ratio ~= 0
+    # In the case of very imbalanced sizes we prefer ratio ~= 0
     a_count, a_mean, a_variance = self.count, self.mean, self.variance
     if b_count > a_count:
       a_count, b_count = b_count, a_count
@@ -148,3 +150,68 @@ class MeanVarAccumulator(object):
     self.count = new_count
     self.mean = new_mean
     self.variance = new_variance
+
+
+class MeanCovAccumulator(object):
+  """Tracks values for numerically stable mean and covariance calculation."""
+  __slots__ = ['count', 'mean', 'covariance']
+
+  def __init__(self):
+    self.count = 0
+    self.mean = None
+    self.covariance = None
+
+  def update(self, array: np.ndarray):
+    """Updates a MeanCovAccumulator with a batch of values.
+
+    Args:
+      array: An ndarray with numeric type.
+    """
+    count = len(array)
+    if count == 0:
+      return
+    elif count == 1:
+      dim = array[0].size
+      covariance = np.zeros((dim, dim), dtype=np.float64)
+    else:
+      covariance = np.cov(array, rowvar=False)
+    mean = np.mean(array, axis=0)
+    self._combine(count, mean, covariance)
+
+  def merge(self, other: 'MeanCovAccumulator'):
+    """Combines two MeanCovAccumulator, updating in place.
+
+    Args:
+      other: A MeanCovAccumulator to merge with self.
+    """
+    self._combine(other.count, other.mean, other.covariance)
+
+  def _combine(self, b_count: int, b_mean: Optional[np.ndarray],
+               b_covariance: Optional[np.ndarray]):
+    """Combine unweighted mean and covariance parameters, updating accumulator."""
+    a_count, a_mean, a_covariance = self.count, self.mean, self.covariance
+    new_count = a_count + b_count
+    if new_count == a_count:
+      return
+    elif new_count == b_count:
+      # Avoid division by zero, which would happen otherwise if b_count=1
+      new_mean = b_mean
+      new_covariance = b_covariance
+    else:
+      if a_mean is None:
+        a_mean = np.zeros((np.shape(b_mean)), dtype=np.float64)
+      if a_covariance is None:
+        a_covariance = np.zeros((np.shape(b_covariance)), dtype=np.float64)
+      ratio = b_count / new_count
+      new_mean = a_mean + ratio * (b_mean - a_mean)
+      new_covariance = (a_covariance * (a_count - 1) +
+                        b_covariance * (b_count - 1) +
+                        (np.outer(
+                            (a_mean - new_mean),
+                            (a_mean - new_mean) * a_count)) +
+                        (np.outer(
+                            (b_mean - new_mean),
+                            (b_mean - new_mean) * b_count))) / (new_count - 1)
+    self.count = new_count
+    self.mean = new_mean
+    self.covariance = new_covariance

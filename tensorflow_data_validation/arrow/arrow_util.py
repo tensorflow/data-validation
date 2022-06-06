@@ -146,7 +146,7 @@ def get_array(
 
   If the provided path refers to a leaf in the `record_batch`, then a
   "nested_list" will be returned. If the provided path does not refer to a leaf,
-  a "struct" with be returned.
+  a "struct" will be returned.
 
   See `enumerate_arrays()` for definition of "nested_list" and "struct".
 
@@ -163,7 +163,7 @@ def get_array(
 
   Returns:
     A tuple. The first term is the feature array and the second term is the
-    example_indeices array for the feature array (i.e. array[i] came from the
+    example_indices array for the feature array (i.e. array[i] came from the
     example at row example_indices[i] in the record_batch.).
 
   Raises:
