@@ -1043,6 +1043,7 @@ void Schema::UpdateFeatureInternal(
             : schema_descriptor->name();
     descriptions->push_back(
         {tensorflow::metadata::v0::AnomalyInfo::UNEXPECTED_DATA_TYPE,
+         "Unexpected data type",
          absl::StrCat("Expected data of type: ", schema_type_name, " but got ",
                       data_type_name)});
   }
@@ -1057,6 +1058,7 @@ void Schema::UpdateFeatureInternal(
     ::tensorflow::data_validation::ClearDomain(feature);
     descriptions->push_back(
         {tensorflow::metadata::v0::AnomalyInfo::DOMAIN_INVALID_FOR_TYPE,
+         "Invalid domain type",
          absl::StrCat("Data is marked as BYTES with incompatible "
                       "domain_info: ",
                       feature->DebugString())});
