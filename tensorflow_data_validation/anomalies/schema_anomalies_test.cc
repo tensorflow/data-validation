@@ -93,7 +93,7 @@ TEST(SchemaAnomalies, FindChangesNoChanges) {
 
 // TODO(b/181962134): Add updated schema info for invalid_value_counts.
 TEST(SchemaAnomalies, SimpleBadSchemaConfigurations) {
-  const Schema initial = ParseTextProtoOrDie<Schema>(R"(
+  const Schema initial = ParseTextProtoOrDie<Schema>(R"pb(
     feature {
       name: "no_type"
       presence: { min_count: 1 min_fraction: 1.0 }
@@ -139,12 +139,40 @@ TEST(SchemaAnomalies, SimpleBadSchemaConfigurations) {
       distribution_constraints: { min_domain_mass: .8 }
       type: FLOAT
     }
-  )");
+    feature {
+      name: "int_domain_bytes"
+      presence: { min_fraction: 1.0 }
+      int_domain: {}
+      type: BYTES
+    }
+  )pb");
 
   const DatasetFeatureStatistics statistics =
-      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"pb(
         features: {
           name: "no_type"
+          type: FLOAT
+          num_stats: {
+            common_stats: {
+              num_missing: 0
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 1
+              avg_num_values: 1
+            }
+            histograms: {
+              num_nan: 5
+              buckets: { high_value: 1 }
+              buckets: { low_value: 0 high_value: 1 sample_count: 100 }
+              type: QUANTILES
+            }
+            mean: .5
+            std_dev: .25
+            max: 1.0
+          }
+        }
+        features: {
+          name: "int_domain_bytes"
           type: FLOAT
           num_stats: {
             common_stats: {
@@ -256,7 +284,7 @@ TEST(SchemaAnomalies, SimpleBadSchemaConfigurations) {
               avg_num_values: 1.5
             }
           }
-        })");
+        })pb");
   for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
     std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
     expected_anomalies["no_type"]
@@ -271,6 +299,17 @@ TEST(SchemaAnomalies, SimpleBadSchemaConfigurations) {
         short_description: "unspecified type: determine the type and set it, rather than deprecating."
         description: ""
       })");
+    expected_anomalies["int_domain_bytes"].expected_info_without_diff =
+        ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"pb(
+          path { step: "int_domain_bytes" }
+          description: "Expected data of type: BYTES but got FLOAT"
+          severity: ERROR
+          short_description: "Unexpected data type"
+          reason {
+            type: UNEXPECTED_DATA_TYPE
+            short_description: "Unexpected data type"
+            description: "Expected data of type: BYTES but got FLOAT"
+          })pb");
     expected_anomalies["invalid_value_count"].expected_info_without_diff =
         ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
           path { step: "invalid_value_count" }
