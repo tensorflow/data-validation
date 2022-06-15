@@ -2625,6 +2625,90 @@ TEST(SchemaAnomalies, FindsMaxImageByteSizeExceeded) {
   }
 }
 
+TEST(SchemaAnomalies, DerivedFeatureBadLifecycle) {
+  const Schema initial =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"pb(
+        feature {
+          name: "categorical_feature"
+          type: BYTES
+          lifecycle_stage: PRODUCTION
+          validation_derived_source: { deriver_name: "deriver_name" }
+        })pb");
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"pb(
+        features: {
+          name: "categorical_feature"
+          type: STRING
+          string_stats { common_stats: { num_non_missing: 10 } }
+          validation_derived_source: { deriver_name: 'deriver_name' }
+        })pb");
+  for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
+    std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
+    expected_anomalies["categorical_feature"].expected_info_without_diff =
+        ParseTextProtoOrDie<tensorflow::metadata::v0::AnomalyInfo>(R"(
+          description: "Derived feature has wrong lifecycle."
+          severity: ERROR
+          short_description: "Derived feature has wrong lifecycle."
+          reason {
+            type: DERIVED_FEATURE_BAD_LIFECYCLE
+            short_description: "Derived feature has wrong lifecycle."
+            description: "Derived feature has wrong lifecycle."
+          }
+          path { step: "categorical_feature" }
+        )");
+    TestFindChanges(initial, DatasetStatsView(statistics, /*by_weight=*/false),
+                    config, expected_anomalies);
+  }
+}
+
+TEST(SchemaAnomalies, DerivedFeatureDisabledLifecycle) {
+  const Schema initial =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"pb(
+        feature {
+          name: "categorical_feature"
+          type: BYTES
+          lifecycle_stage: DISABLED
+          validation_derived_source: { deriver_name: "deriver_name" }
+        })pb");
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"pb(
+        features: {
+          name: "categorical_feature"
+          type: STRING
+          string_stats { common_stats: { num_non_missing: 10 } }
+          validation_derived_source: { deriver_name: 'deriver_name' }
+        })pb");
+  for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
+    std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
+    TestFindChanges(initial, DatasetStatsView(statistics, /*by_weight=*/false),
+                    config, expected_anomalies);
+  }
+}
+
+TEST(SchemaAnomalies, DerivedFeatureDerivedLifecycle) {
+  const Schema initial =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"pb(
+        feature {
+          name: "categorical_feature"
+          type: BYTES
+          lifecycle_stage: VALIDATION_DERIVED
+          validation_derived_source: { deriver_name: "deriver_name" }
+        })pb");
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"pb(
+        features: {
+          name: "categorical_feature"
+          type: STRING
+          string_stats { common_stats: { num_non_missing: 10 } }
+          validation_derived_source: { deriver_name: 'deriver_name' }
+        })pb");
+  for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
+    std::map<string, testing::ExpectedAnomalyInfo> expected_anomalies;
+    TestFindChanges(initial, DatasetStatsView(statistics, /*by_weight=*/false),
+                    config, expected_anomalies);
+  }
+}
+
 }  // namespace
 
 }  // namespace data_validation

@@ -1183,9 +1183,9 @@ void Schema::UpdateFeatureInternal(
   // If a feature has a derived source in the schema but has an incorrectly
   // set lifecycle stage, set the stage.
   if (feature->has_validation_derived_source() &&
-      (feature->lifecycle_stage() !=
-           tensorflow::metadata::v0::VALIDATION_DERIVED ||
-       feature->lifecycle_stage() != tensorflow::metadata::v0::DISABLED)) {
+      feature->lifecycle_stage() !=
+           tensorflow::metadata::v0::VALIDATION_DERIVED &&
+       !::tensorflow::data_validation::FeatureIsDeprecated(*feature)) {
     feature->set_lifecycle_stage(tensorflow::metadata::v0::VALIDATION_DERIVED);
     descriptions->push_back(
         {tensorflow::metadata::v0::AnomalyInfo::DERIVED_FEATURE_BAD_LIFECYCLE,

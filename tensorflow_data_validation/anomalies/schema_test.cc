@@ -3650,6 +3650,34 @@ TEST(SchemaTest, UpdatesDerivedFeatureWithBadLifecycle) {
                 })"));
 }
 
+TEST(SchemaTest, DerivedFeatureWithCorrectLifecycle) {
+  Schema schema;
+  TF_ASSERT_OK(
+      schema.Init(ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
+                feature {
+                  name: "categorical_feature"
+                  type: BYTES
+                  lifecycle_stage: VALIDATION_DERIVED
+                  validation_derived_source: {
+                    deriver_name: "deriver_name"
+                  }
+                })")));
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
+        features: {
+          name: "categorical_feature"
+          type: STRING
+          string_stats {common_stats: {num_non_missing: 10}}
+          validation_derived_source: {
+            deriver_name: 'deriver_name'
+          }
+        })");
+  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, /*by_weight=*/false),
+                             FeatureStatisticsToProtoConfig()));
+  const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
+  EXPECT_THAT(actual, EqualsProto(schema.GetSchema()));
+}
+
 }  // namespace
 }  // namespace data_validation
 }  // namespace tensorflow
