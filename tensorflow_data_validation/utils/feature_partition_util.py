@@ -34,6 +34,10 @@ class ColumnHasher(object):
     """Assigns a feature partition based on the name of a feature."""
     if isinstance(feature_name, bytes):
       feature_name = feature_name.decode('utf8')
+    # TODO(b/236190177): Remove when binding is fixed.
+    if '\x00' in feature_name:
+      feature_name = feature_name.replace('\x00', '?')
+
     partition = farmhash.fingerprint32(feature_name) % self.num_partitions
     return partition
 

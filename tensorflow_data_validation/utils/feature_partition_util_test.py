@@ -341,6 +341,33 @@ _KEY_AND_SPLIT_TEST_CASES = [{
     }
   }
 }""")]
+}, {
+    'testcase_name':
+        'does_not_crash_embedded_null_b236190177',
+    'num_partitions':
+        10,
+    'statistics': [
+        """
+        datasets: {
+            name: 'abc'
+            features: {
+              path: {
+                step: '\x00'
+              }
+            }
+        }
+        """
+    ],
+    'expected': [(6, """
+        datasets: {
+            name: 'abc'
+            features: {
+              path: {
+                step: '\x00'
+              }
+            }
+        }
+        """)]
 }]
 
 
