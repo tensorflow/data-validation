@@ -12,6 +12,8 @@
 
 ## Breaking Changes
 
+*   Some fields in feature skew results proto changed names to be more generic.
+
 ## Deprecations
 
 # Version 1.8.0

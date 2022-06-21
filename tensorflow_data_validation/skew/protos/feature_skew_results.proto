@@ -24,46 +24,46 @@ message FeatureSkew {
   string feature_name = 1;
 
   // All of the counts are with respect to the set of tensorflow examples
-  // which are found in **BOTH** the training and serving data.
-  // Number of examples in training and serving where this feature is present.
-  uint64 training_count = 2;
-  uint64 serving_count = 3;
+  // which are found in **BOTH** the baseline and testing data.
+  // Number of examples in baseline and test where this feature is present.
+  uint64 base_count = 2;
+  uint64 test_count = 3;
 
-  // Number of examples where feature is present in both training and
-  // serving data, and the feature value matches exactly.
+  // Number of examples where feature is present in both baseline and
+  // test data, and the feature value matches exactly.
   uint64 match_count = 4;
 
-  // Number of times feature is present for training or serving only.
-  uint64 training_only = 5;
-  uint64 serving_only = 6;
+  // Number of times feature is present for baseline or test only.
+  uint64 base_only = 5;
+  uint64 test_only = 6;
 
   // Total number of examples where the feature is present in both
-  // training and serving but the feature value does not match.
+  // baseline and test but the feature value does not match.
   uint64 mismatch_count = 7;
 
-  // diff_count == training_only + serving_only + mismatch_count
+  // diff_count == base_only + test_only + mismatch_count
   uint64 diff_count = 8;
 }
 
 // Message to store a pair of tensorflow examples which exhibit some skew.
 message SkewPair {
-  // Training example as it appears in training data.
-  tensorflow.Example training = 1;
+  // Example as it appears in baseline data.
+  tensorflow.Example base = 1;
 
-  // Serving example with the same identifier as that of the training.
-  tensorflow.Example serving = 2;
+  // Example from test data with the same identifier as that of the baseline.
+  tensorflow.Example test = 2;
 
-  // Features that appear in the training example but not in serving.
-  repeated string training_only_features = 3;
+  // Features that appear in the baseline example but not in test.
+  repeated string base_only_features = 3;
 
-  // Features that appear in the serving example but not in training.
-  repeated string serving_only_features = 4;
+  // Features that appear in the test example but not in baseline.
+  repeated string test_only_features = 4;
 
-  // Features that appear in both training and serving example, and their
+  // Features that appear in both baseline and test example, and their
   // feature values are matched.
   repeated string matched_features = 5;
 
-  // Features that appear in both training and serving example, and their
+  // Features that appear in both baseline and test example, and their
   // feature values do not match.
   repeated string mismatched_features = 6;
 }

@@ -3038,16 +3038,16 @@ class DetectFeatureSkewTest(absltest.TestCase):
         text_format.Parse(
             """
         feature_name: 'feature_a'
-        training_count: 2
-        serving_count: 1
+        base_count: 2
+        test_count: 1
         match_count: 1
-        training_only: 1
+        base_only: 1
         diff_count: 1""", feature_skew_results_pb2.FeatureSkew()),
         text_format.Parse(
             """
         feature_name: 'feature_b'
-        training_count: 2
-        serving_count: 2
+        base_count: 2
+        test_count: 2
         match_count: 1
         mismatch_count: 1
         diff_count: 1""", feature_skew_results_pb2.FeatureSkew())
@@ -3072,15 +3072,15 @@ class DetectFeatureSkewTest(absltest.TestCase):
         text_format.Parse(
             """
         feature_name: 'skewed'
-        training_count: 2
-        serving_count: 2
+        base_count: 2
+        test_count: 2
         mismatch_count: 2
         diff_count: 2""", feature_skew_results_pb2.FeatureSkew()),
         text_format.Parse(
             """
         feature_name: 'no_skew'
-        training_count: 2
-        serving_count: 2
+        base_count: 2
+        test_count: 2
         match_count: 2""", feature_skew_results_pb2.FeatureSkew())
     ]
     output_path = os.path.join(tempfile.mkdtemp(), 'feature_skew')
@@ -3100,7 +3100,7 @@ class DetectFeatureSkewTest(absltest.TestCase):
     skew_pairs = [
         text_format.Parse(
             """
-            training {
+            base {
               features {
                 feature {
                   key: 'id'
@@ -3112,7 +3112,7 @@ class DetectFeatureSkewTest(absltest.TestCase):
               }
              }
             }
-            serving {
+            test {
               features {
                 feature {
                   key: 'id'
@@ -3128,7 +3128,7 @@ class DetectFeatureSkewTest(absltest.TestCase):
             """, feature_skew_results_pb2.SkewPair()),
         text_format.Parse(
             """
-            training {
+            base {
               features {
                 feature {
                   key: 'id'
@@ -3140,7 +3140,7 @@ class DetectFeatureSkewTest(absltest.TestCase):
                   }
                }
            }
-           serving {
+           test {
              features {
                 feature {
                   key: 'id'
@@ -3148,7 +3148,7 @@ class DetectFeatureSkewTest(absltest.TestCase):
                 }
              }
            }
-           training_only_features: [ 'feature_a' ]
+           base_only_features: [ 'feature_a' ]
                """, feature_skew_results_pb2.SkewPair())
     ]
     output_path = os.path.join(tempfile.mkdtemp(), 'skew_pairs')

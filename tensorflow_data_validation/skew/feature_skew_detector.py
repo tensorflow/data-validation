@@ -11,20 +11,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Finds feature skew between training and serving examples.
+"""Finds feature skew between baseline and test examples.
 
-Feature skew is detected by joining training and serving examples on a
+Feature skew is detected by joining baseline and test examples on a
 fingerprint computed based on the provided identifier features. For each pair,
-the feature skew detector compares the fingerprint of each training feature
-value to the fingerprint of the corresponding serving feature value.
+the feature skew detector compares the fingerprint of each baseline feature
+value to the fingerprint of the corresponding test feature value.
 
-If there is a mismatch in feature values, if the feature is only in the training
-example, or if the feature is only in the serving example, feature skew is
+If there is a mismatch in feature values, if the feature is only in the baseline
+example, or if the feature is only in the test example, feature skew is
 reported in the skew results and (optionally) a skew sample is output with
-training-serving example pairs that exhibit the feature skew.
+baseline-test example pairs that exhibit the feature skew.
 
 For example, given the following examples with an identifier feature of 'id':
-Training
+Baseline
   features {
     feature {
       key: "id"
@@ -41,7 +41,7 @@ Training
     }
   }
 
-Serving
+Test
   features {
     feature {
       key: "id"
@@ -60,8 +60,8 @@ Serving
 
 The following feature skew will be detected:
   feature_name: "float_values"
-  training_count: 1
-  serving_count: 1
+  baseline_count: 1
+  test_count: 1
   mismatch_count: 1
   diff_count: 1
 """
@@ -76,8 +76,8 @@ from tensorflow_data_validation import types
 from tensorflow_data_validation.skew.protos import feature_skew_results_pb2
 
 
-_TRAINING_KEY = "training"
-_SERVING_KEY = "serving"
+_BASELINE_KEY = "base"
+_TEST_KEY = "test"
 
 _EXAMPLES_WITH_MISSING_IDENTIFIER_COUNTER = beam.metrics.Metrics.counter(
     constants.METRICS_NAMESPACE, "examples_with_missing_identifier_features")
@@ -116,14 +116,14 @@ def _get_serialized_feature(feature: tf.train.Feature,
 
 
 def _compute_skew_for_features(
-    training_feature: tf.train.Feature, serving_feature: tf.train.Feature,
+    base_feature: tf.train.Feature, test_feature: tf.train.Feature,
     float_round_ndigits: Optional[int],
     feature_name: str) -> feature_skew_results_pb2.FeatureSkew:
-  """Computes feature skew for a pair of training and serving features.
+  """Computes feature skew for a pair of baseline and test features.
 
   Args:
-    training_feature: The feature to compare from the training example.
-    serving_feature: The feature to compare from the serving example.
+    base_feature: The feature to compare from the baseline example.
+    test_feature: The feature to compare from the test example.
     float_round_ndigits: Number of digits precision after the decimal point to
       which to round float values before comparison.
     feature_name: The name of the feature for which to compute skew between the
@@ -135,35 +135,35 @@ def _compute_skew_for_features(
   """
   skew_results = feature_skew_results_pb2.FeatureSkew()
   skew_results.feature_name = feature_name
-  if training_feature is not None and serving_feature is not None:
-    skew_results.training_count = 1
-    skew_results.serving_count = 1
+  if base_feature is not None and test_feature is not None:
+    skew_results.base_count = 1
+    skew_results.test_count = 1
     if (farmhash.fingerprint64(
-        _get_serialized_feature(training_feature,
+        _get_serialized_feature(base_feature,
                                 float_round_ndigits)) == farmhash.fingerprint64(
                                     _get_serialized_feature(
-                                        serving_feature, float_round_ndigits))):
+                                        test_feature, float_round_ndigits))):
       skew_results.match_count = 1
     else:
       skew_results.mismatch_count = 1
-  elif training_feature is not None:
-    skew_results.training_count = 1
-    skew_results.training_only = 1
-  elif serving_feature is not None:
-    skew_results.serving_count = 1
-    skew_results.serving_only = 1
+  elif base_feature is not None:
+    skew_results.base_count = 1
+    skew_results.base_only = 1
+  elif test_feature is not None:
+    skew_results.test_count = 1
+    skew_results.test_only = 1
   return skew_results
 
 
 def _compute_skew_for_examples(
-    training_example: tf.train.Example, serving_example: tf.train.Example,
+    base_example: tf.train.Example, test_example: tf.train.Example,
     features_to_ignore: List[tf.train.Feature],
     float_round_ndigits: Optional[int]) -> Tuple[_PerFeatureSkew, bool]:
-  """Computes feature skew for a pair of training and serving examples.
+  """Computes feature skew for a pair of baseline and test examples.
 
   Args:
-    training_example: The training example to compare.
-    serving_example: The serving example to compare.
+    base_example: The baseline example to compare.
+    test_example: The test example to compare.
     features_to_ignore: The features not to compare.
     float_round_ndigits: Number of digits precision after the decimal point to
       which to round float values before comparison.
@@ -174,20 +174,20 @@ def _compute_skew_for_examples(
     case the examples are considered skewed.
   """
   all_feature_names = set()
-  all_feature_names.update(training_example.features.feature.keys())
-  all_feature_names.update(serving_example.features.feature.keys())
+  all_feature_names.update(base_example.features.feature.keys())
+  all_feature_names.update(test_example.features.feature.keys())
   feature_names = all_feature_names.difference(set(features_to_ignore))
 
   result = list()
   is_skewed = False
   for name in feature_names:
-    training_feature = training_example.features.feature.get(name)
-    serving_feature = serving_example.features.feature.get(name)
-    skew = _compute_skew_for_features(training_feature, serving_feature,
+    base_feature = base_example.features.feature.get(name)
+    test_feature = test_example.features.feature.get(name)
+    skew = _compute_skew_for_features(base_feature, test_feature,
                                       float_round_ndigits, name)
     if skew.match_count == 0:
-      # If any features have a mismatch or are found only in the training or
-      # serving example, the examples are considered skewed.
+      # If any features have a mismatch or are found only in the baseline or
+      # test example, the examples are considered skewed.
       is_skewed = True
     result.append((name, skew))
   return result, is_skewed
@@ -210,42 +210,42 @@ def _merge_feature_skew_results(
       result.feature_name = skew_result.feature_name
     elif result.feature_name != skew_result.feature_name:
       raise ValueError("Attempting to merge skew results with different names.")
-    result.training_count += skew_result.training_count
-    result.serving_count += skew_result.serving_count
+    result.base_count += skew_result.base_count
+    result.test_count += skew_result.test_count
     result.match_count += skew_result.match_count
-    result.training_only += skew_result.training_only
-    result.serving_only += skew_result.serving_only
+    result.base_only += skew_result.base_only
+    result.test_only += skew_result.test_only
     result.mismatch_count += skew_result.mismatch_count
   result.diff_count = (
-      result.training_only + result.serving_only + result.mismatch_count)
+      result.base_only + result.test_only + result.mismatch_count)
   return result
 
 
 def _construct_skew_pair(
     per_feature_skew: List[Tuple[str, feature_skew_results_pb2.FeatureSkew]],
-    training_example: tf.train.Example,
-    serving_example: tf.train.Example) -> feature_skew_results_pb2.SkewPair:
-  """Constructs a SkewPair from training and serving examples.
+    base_example: tf.train.Example,
+    test_example: tf.train.Example) -> feature_skew_results_pb2.SkewPair:
+  """Constructs a SkewPair from baseline and test examples.
 
   Args:
     per_feature_skew: Skew results for each feature in the input examples.
-    training_example: The training example to include.
-    serving_example: The serving example to include.
+    base_example: The baseline example to include.
+    test_example: The test example to include.
 
   Returns:
     A SkewPair containing examples that exhibit some skew.
   """
   skew_pair = feature_skew_results_pb2.SkewPair()
-  skew_pair.training.CopyFrom(training_example)
-  skew_pair.serving.CopyFrom(serving_example)
+  skew_pair.base.CopyFrom(base_example)
+  skew_pair.test.CopyFrom(test_example)
 
   for feature_name, skew_result in per_feature_skew:
     if skew_result.match_count == 1:
       skew_pair.matched_features.append(feature_name)
-    elif skew_result.training_only == 1:
-      skew_pair.training_only_features.append(feature_name)
-    elif skew_result.serving_only == 1:
-      skew_pair.serving_only_features.append(feature_name)
+    elif skew_result.base_only == 1:
+      skew_pair.base_only_features.append(feature_name)
+    elif skew_result.test_only == 1:
+      skew_pair.test_only_features.append(feature_name)
     elif skew_result.mismatch_count == 1:
       skew_pair.mismatched_features.append(feature_name)
 
@@ -302,7 +302,7 @@ class _ComputeSkew(beam.DoFn):
       allow_duplicate_identifiers: If set, skew detection will be done on
         examples for which there are duplicate identifier feature values. In
         this case, the counts in the FeatureSkew result are based on each
-        training-serving example pair analyzed. Examples with given identifier
+        baseline-test example pair analyzed. Examples with given identifier
         feature values must all fit in memory.
     """
     self._features_to_ignore = features_to_ignore
@@ -316,32 +316,32 @@ class _ComputeSkew(beam.DoFn):
                            Dict[str,
                                 List[Any]]]) -> Iterable[_PairOrFeatureSkew]:
     (_, examples) = element
-    training_examples = examples.get(_TRAINING_KEY)
-    serving_examples = examples.get(_SERVING_KEY)
+    base_examples = examples.get(_BASELINE_KEY)
+    test_examples = examples.get(_TEST_KEY)
     if not self._allow_duplicate_identifiers:
-      if len(training_examples) > 1 or len(serving_examples) > 1:
+      if len(base_examples) > 1 or len(test_examples) > 1:
         self._skipped_duplicate_identifiers.inc(1)
         return
-    if training_examples and serving_examples:
-      for training_example in training_examples:
-        for serving_example in serving_examples:
+    if base_examples and test_examples:
+      for base_example in base_examples:
+        for test_example in test_examples:
           result, is_skewed = _compute_skew_for_examples(
-              training_example, serving_example, self._features_to_ignore,
+              base_example, test_example, self._features_to_ignore,
               self._float_round_ndigits)
           if is_skewed:
-            skew_pair = _construct_skew_pair(result, training_example,
-                                             serving_example)
+            skew_pair = _construct_skew_pair(result, base_example,
+                                             test_example)
             yield beam.pvalue.TaggedOutput("skew_pairs", skew_pair)
           for each in result:
             yield beam.pvalue.TaggedOutput("skew_results", each)
 
 
 class DetectFeatureSkewImpl(beam.PTransform):
-  """Identifies feature skew in training and serving examples.
+  """Identifies feature skew in baseline and test examples.
 
   This PTransform returns a tuple of PCollections containing:
-    1. Aggregated skew statistics (containing, e.g., mismatch count, training
-       only, serving only) for each feature; and
+    1. Aggregated skew statistics (containing, e.g., mismatch count, baseline
+       only, test only) for each feature; and
     2. A sample of skewed example pairs (if sample_size is > 0).
   """
 
@@ -358,14 +358,14 @@ class DetectFeatureSkewImpl(beam.PTransform):
         example.
       features_to_ignore: The names of the features for which skew detection is
         not done.
-      sample_size: Size of the sample of training-serving example pairs that
+      sample_size: Size of the sample of baseline-test example pairs that
         exhibit skew to include in the skew results.
       float_round_ndigits: Number of digits of precision after the decimal point
         to which to round float values before detecting skew.
       allow_duplicate_identifiers: If set, skew detection will be done on
         examples for which there are duplicate identifier feature values. In
         this case, the counts in the FeatureSkew result are based on each
-        training-serving example pair analyzed. Examples with given identifier
+        baseline-test example pair analyzed. Examples with given identifier
         feature values must all fit in memory.
     """
     if not identifier_features:
@@ -384,19 +384,19 @@ class DetectFeatureSkewImpl(beam.PTransform):
       self, pcollections: Tuple[beam.pvalue.PCollection,
                                 beam.pvalue.PCollection]
   ) -> Tuple[beam.pvalue.PCollection, beam.pvalue.PCollection]:
-    training_examples, serving_examples = pcollections
-    keyed_training_examples = (
-        training_examples | "ExtractTrainingIdentifiers" >> beam.ParDo(
+    base_examples, test_examples = pcollections
+    keyed_base_examples = (
+        base_examples | "ExtractBaseIdentifiers" >> beam.ParDo(
             _ExtractIdentifiers(self._identifier_features,
                                 self._float_round_ndigits)))
-    keyed_serving_examples = (
-        serving_examples | "ExtractServingIdentifiers" >> beam.ParDo(
+    keyed_test_examples = (
+        test_examples | "ExtractTestIdentifiers" >> beam.ParDo(
             _ExtractIdentifiers(self._identifier_features,
                                 self._float_round_ndigits)))
     results = (
         {
-            "training": keyed_training_examples,
-            "serving": keyed_serving_examples
+            "base": keyed_base_examples,
+            "test": keyed_test_examples
         } | "JoinExamples" >> beam.CoGroupByKey()
         | "ComputeSkew" >> beam.ParDo(
             _ComputeSkew(self._features_to_ignore, self._float_round_ndigits,
