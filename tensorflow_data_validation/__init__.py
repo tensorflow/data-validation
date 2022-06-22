@@ -15,6 +15,8 @@
 """Init module for TensorFlow Data Validation."""
 
 # Import stats API.
+from tensorflow_data_validation.api.stats_api import default_sharded_output_suffix
+from tensorflow_data_validation.api.stats_api import default_sharded_output_supported
 from tensorflow_data_validation.api.stats_api import GenerateStatistics
 from tensorflow_data_validation.api.stats_api import MergeDatasetFeatureStatisticsList
 from tensorflow_data_validation.api.stats_api import WriteStatisticsToBinaryFile

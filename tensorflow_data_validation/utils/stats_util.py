@@ -656,6 +656,9 @@ def load_sharded_statistics(
     io_provider = statistics_io_impl.get_io_provider()
   if input_path_prefix is not None:
     input_paths = io_provider.glob(input_path_prefix)
+  if not input_paths:
+    raise ValueError('No input paths found paths=%s, pattern=%s' %
+                     (input_paths, input_path_prefix))
   acc = statistics.DatasetListAccumulator()
   stats_iter = io_provider.record_iterator_impl(input_paths)
   for stats_list in stats_iter:

@@ -215,33 +215,11 @@ class WriteStatisticsToRecordsAndBinaryFile(beam.PTransform):
                 self._binary_proto_path))
 
 
-# TODO(b/450795394): Delete this once it's safe to directly call the above.
-@beam.typehints.with_input_types(statistics_pb2.DatasetFeatureStatisticsList)
-@beam.typehints.with_output_types(beam.pvalue.PDone)
-class WriteStatisticsBinaryAndMaybeRecords(beam.PTransform):
-  """Writes binary stats and sharded stats with default format if supported.
+def default_sharded_output_supported() -> bool:
+  """True if sharded output is supported by default."""
+  return statistics_io_impl.should_write_sharded()
 
-  Currently Experimental.
-  """
 
-  def __init__(
-      self,
-      binary_proto_path: str,
-      records_path_prefix_no_suffix: str,
-  ) -> None:
-    """Initialize WriteStatisticsBinaryAndMaybeRecords.
-
-    Args:
-      binary_proto_path: Output path for writing statistics as a binary proto.
-      records_path_prefix_no_suffix: File pattern for writing statistics to
-        sharded records. An appropriate file type suffix (e.g., .tfrecords) and
-        shard numbers will be added.
-    """
-    if statistics_io_impl.should_write_sharded():
-      io_provider = statistics_io_impl.get_io_provider()
-      records_path_prefix = (
-          records_path_prefix_no_suffix + io_provider.file_suffix())
-      self._output_transform = WriteStatisticsToRecordsAndBinaryFile(
-          binary_proto_path, records_path_prefix, io_provider)
-    else:
-      self._output_transform = WriteStatisticsToBinaryFile(binary_proto_path)
+def default_sharded_output_suffix() -> str:
+  """Returns the default sharded output suffix."""
+  return statistics_io_impl.get_io_provider().file_suffix()
