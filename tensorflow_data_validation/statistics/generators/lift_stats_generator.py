@@ -11,28 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-r"""Computes lifts between one feature and a set of categorical features.
-
-We define the feature value lift(x_i, y_i) for features X and Y as:
-
-  P(Y=y_i|X=x_i) / P(Y=y_i)
-
-This quantitatively captures the notion of probabilistic independence, such that
-when X and Y are independent, the lift will be 1. It also indicates the degree
-to which the presence of x_i increases or decreases the probablity of the
-presence of y_i. When X or Y is multivalent, the expressions `X=x_i` and `Y=y_i`
-are intepreted as the set membership checks, `x_i \in X` and `y_i \in Y`.
-
-When Y is a label and Xs are the set of categorical features, lift can be used
-to assess feature importance. However, in the presence of correlated features,
-because lift is computed independently for each feature, it will not be a
-reliable indicator of the expected impact on model quality from adding or
-removing that feature.
-
-This TransformStatsGenerator computes feature value lift for all pairs of X and
-Y, where Y is a single, user-configured feature and X is either a manually
-specified list of features, or all categorical features in the provided schema.
-"""
+"""Provides LiftStatsGenerator for quantifying feature-label correlations."""
 
 import collections
 import datetime
@@ -819,7 +798,7 @@ class _LiftStatsGenerator(beam.PTransform):
   def __init__(self, y_path: types.FeaturePath,
                schema: Optional[schema_pb2.Schema],
                x_paths: Optional[Iterable[types.FeaturePath]],
-               y_boundaries: Optional[Sequence[float]], min_x_count: int,
+               y_boundaries: Optional[Iterable[float]], min_x_count: int,
                top_k_per_y: Optional[int], bottom_k_per_y: Optional[int],
                example_weight_map: ExampleWeightMap,
                output_custom_stats: bool, name: Text) -> None:
@@ -967,19 +946,83 @@ class _UnweightedAndWeightedLiftStatsGenerator(beam.PTransform):
 
 
 class LiftStatsGenerator(stats_generator.TransformStatsGenerator):
-  """A transform stats generator for computing lift between two features."""
+  r"""A transform stats generator for computing lift between two features.
+
+  We define the feature value lift(x_i, y_i) for features X and Y as:
+
+    P(Y=y_i|X=x_i) / P(Y=y_i)
+
+  This quantitatively captures the notion of probabilistic independence, such
+  that when X and Y are independent, the lift will be 1. It also indicates the
+  degree to which the presence of x_i increases or decreases the probablity of
+  the presence of y_i. When X or Y is multivalent, the expressions `X=x_i` and
+  `Y=y_i` are intepreted as the set membership checks, `x_i \in X` and
+  `y_i \in Y`.
+
+  When Y is a label and Xs are the set of categorical features, lift can be used
+  to assess feature importance. However, in the presence of correlated features,
+  because lift is computed independently for each feature, it will not be a
+  reliable indicator of the expected impact on model quality from adding or
+  removing that feature.
+
+  This generator computes lift for a set of feature pairs (y, x_1), ... (y, x_k)
+  for a collection of x_paths, and a single y_path. The y_path must be either
+  a categorical feature, or numeric feature (in which case binning boundaries
+  are also required). The x_paths can be manually provided or will be
+  automatically inferred as the set of categorical features in the schema
+  (excluding y_path).
+
+  This calculation can also be done using per-example weights. If no
+  ExampleWeightMap is provided, or there is no weight for y_path, only
+  unweighted lift will be computed. In the case where the ExampleWeightMap
+  contains a weight_path or a per-feature override for y_path (y_weight), a
+  weighted version of lift will be computed in which each example is treated as
+  if it occured y_weight times.
+  """
 
   def __init__(self,
                y_path: types.FeaturePath,
                schema: Optional[schema_pb2.Schema] = None,
                x_paths: Optional[Iterable[types.FeaturePath]] = None,
-               y_boundaries: Optional[Sequence[float]] = None,
+               y_boundaries: Optional[Iterable[float]] = None,
                min_x_count: int = 0,
                top_k_per_y: Optional[int] = None,
                bottom_k_per_y: Optional[int] = None,
                example_weight_map: ExampleWeightMap = ExampleWeightMap(),
                output_custom_stats: Optional[bool] = False,
                name: Text = 'LiftStatsGenerator') -> None:
+    """Initializes a LiftStatsGenerator.
+
+    Args:
+      y_path: The path to use as Y in the lift expression: lift = P(Y=y|X=x) /
+        P(Y=y).
+     schema: An optional schema for the dataset. If not provided, x_paths must
+       be specified. If x_paths are not specified, the schema is used to
+       identify all categorical columns for which Lift should be computed.
+      x_paths: An optional list of path to use as X in the lift expression: lift
+        = P(Y=y|X=x) / P(Y=y). If None (default), all categorical features,
+        exluding the feature passed as y_path, will be used.
+      y_boundaries: An optional list of boundaries to be used for binning
+        y_path. If provided with b boundaries, the binned values will be treated
+        as a categorical feature with b+1 different values. For example, the
+        y_boundaries value [0.1, 0.8] would lead to three buckets: [-inf, 0.1),
+          [0.1, 0.8) and [0.8, inf].
+      min_x_count: The minimum number of examples in which a specific x value
+        must appear, in order for its lift to be output.
+      top_k_per_y: Optionally, the number of top x values per y value, ordered
+        by descending lift, for which to output lift. If both top_k_per_y and
+        bottom_k_per_y are unset, all values will be output.
+      bottom_k_per_y: Optionally, the number of bottom x values per y value,
+        ordered by descending lift, for which to output lift. If both
+        top_k_per_y and bottom_k_per_y are unset, all values will be output.
+      example_weight_map: Optionally, an ExampleWeightMap that maps a
+        FeaturePath to its corresponding weight column. If provided and if
+        it's not an empty map (i.e. no feature has a corresponding weight column
+        ), unweighted lift stats will be populated, otherwise both unweighted
+        and weighted lift stats will be populated.
+      output_custom_stats: Whether to output custom stats for use with Facets.
+      name: An optional unique name associated with the statistics generator.
+    """
     super(LiftStatsGenerator, self).__init__(
         name,
         ptransform=_UnweightedAndWeightedLiftStatsGenerator(
