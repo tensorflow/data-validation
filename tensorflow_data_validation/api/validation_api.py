@@ -684,7 +684,6 @@ class DetectFeatureSkew(beam.PTransform):
 
 
 @beam.typehints.with_input_types(feature_skew_results_pb2.FeatureSkew)
-@beam.typehints.with_output_types(beam.pvalue.PDone)
 class WriteFeatureSkewResultsToTFRecord(beam.PTransform):
   """API for writing serialized feature skew results to a TFRecord file."""
 
@@ -706,7 +705,6 @@ class WriteFeatureSkewResultsToTFRecord(beam.PTransform):
 
 
 @beam.typehints.with_input_types(feature_skew_results_pb2.SkewPair)
-@beam.typehints.with_output_types(beam.pvalue.PDone)
 class WriteSkewPairsToTFRecord(beam.PTransform):
   """API for writing serialized skew pairs to a TFRecord file."""
 

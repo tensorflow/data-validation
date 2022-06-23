@@ -108,7 +108,6 @@ def _sample_at_rate(example: pa.RecordBatch, sample_rate: float
 
 
 @beam.typehints.with_input_types(statistics_pb2.DatasetFeatureStatisticsList)
-@beam.typehints.with_output_types(beam.pvalue.PDone)
 class WriteStatisticsToBinaryFile(beam.PTransform):
   """API for writing serialized data statistics to a binary file."""
 
@@ -133,7 +132,6 @@ class WriteStatisticsToBinaryFile(beam.PTransform):
 
 
 @beam.typehints.with_input_types(statistics_pb2.DatasetFeatureStatisticsList)
-@beam.typehints.with_output_types(beam.pvalue.PDone)
 class WriteStatisticsToTFRecord(beam.PTransform):
   """API for writing serialized data statistics to TFRecord file."""
 
@@ -169,7 +167,6 @@ class MergeDatasetFeatureStatisticsList(beam.PTransform):
 
 
 @beam.typehints.with_input_types(statistics_pb2.DatasetFeatureStatisticsList)
-@beam.typehints.with_output_types(beam.pvalue.PDone)
 class WriteStatisticsToRecordsAndBinaryFile(beam.PTransform):
   """API for writing statistics to both sharded records and binary pb.
 
