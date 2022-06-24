@@ -487,6 +487,137 @@ class FeatureSkewDetectorTest(absltest.TestCase):
     self.assertLen(actual_counter, 1)
     self.assertEqual(actual_counter[0].committed, 1)
 
+  def test_skips_missing_identifier_example(self):
+    base_example_1 = text_format.Parse(
+        """
+        features {
+          feature {
+            key: "id"
+            value { }
+          }
+          feature {
+            key: "val"
+            value { int64_list { value: 100 } }
+          }
+        }
+        """, tf.train.Example())
+    test_example = text_format.Parse(
+        """
+        features {
+          feature {
+            key: "id"
+            value { int64_list { value: 1 } }
+          }
+          feature {
+            key: "val"
+            value { int64_list { value: 100 } }
+          }
+        }
+        """, tf.train.Example())
+    with beam.Pipeline() as p:
+      baseline_examples = p | 'Create Base' >> beam.Create([base_example_1])
+      test_examples = p | 'Create Test' >> beam.Create([test_example])
+      skew_result, _ = ((baseline_examples, test_examples)
+                        | feature_skew_detector.DetectFeatureSkewImpl(
+                            ['id'], [], allow_duplicate_identifiers=True))
+      util.assert_that(skew_result,
+                       test_util.make_skew_result_equal_fn(self, []))
+
+    runner = p.run()
+    runner.wait_until_finish()
+
+  def test_empty_features_equivalent(self):
+    base_example_1 = text_format.Parse(
+        """
+        features {
+          feature {
+            key: "id"
+            value { int64_list { value: 1 } }
+          }
+          feature {
+            key: "val"
+            value {}
+          }
+        }
+        """, tf.train.Example())
+    test_example = text_format.Parse(
+        """
+        features {
+          feature {
+            key: "id"
+            value { int64_list { value: 1 } }
+          }
+          feature {
+            key: "val"
+            value {}
+          }
+        }
+        """, tf.train.Example())
+    with beam.Pipeline() as p:
+      baseline_examples = p | 'Create Base' >> beam.Create([base_example_1])
+      test_examples = p | 'Create Test' >> beam.Create([test_example])
+      skew_result, skew_pairs = (
+          (baseline_examples, test_examples)
+          | feature_skew_detector.DetectFeatureSkewImpl(
+              ['id'], [], allow_duplicate_identifiers=True, sample_size=10))
+      expected_result = [
+          text_format.Parse(
+              """
+        feature_name: 'val'
+        match_count: 1
+        """, feature_skew_results_pb2.FeatureSkew()),
+      ]
+      util.assert_that(
+          skew_result,
+          test_util.make_skew_result_equal_fn(self, expected_result))
+      util.assert_that(skew_pairs, self.assertEmpty, label='assert_pairs_empty')
+
+    runner = p.run()
+    runner.wait_until_finish()
+
+  def test_empty_features_not_equivalent_to_missing(self):
+    base_example_1 = text_format.Parse(
+        """
+        features {
+          feature {
+            key: "id"
+            value { int64_list { value: 1 } }
+          }
+          feature {
+            key: "val"
+            value {}
+          }
+        }
+        """, tf.train.Example())
+    test_example = text_format.Parse(
+        """
+        features {
+          feature {
+            key: "id"
+            value { int64_list { value: 1 } }
+          }
+        }
+        """, tf.train.Example())
+    with beam.Pipeline() as p:
+      baseline_examples = p | 'Create Base' >> beam.Create([base_example_1])
+      test_examples = p | 'Create Test' >> beam.Create([test_example])
+      skew_result, _ = (
+          (baseline_examples, test_examples)
+          | feature_skew_detector.DetectFeatureSkewImpl(
+              ['id'], [], allow_duplicate_identifiers=True, sample_size=10))
+      expected_result = [
+          text_format.Parse(
+              """
+        feature_name: 'val'
+        """, feature_skew_results_pb2.FeatureSkew()),
+      ]
+      util.assert_that(
+          skew_result,
+          test_util.make_skew_result_equal_fn(self, expected_result))
+
+    runner = p.run()
+    runner.wait_until_finish()
+
   def test_telemetry(self):
     shared_example = tf.train.Example()
     shared_example.features.feature[_IDENTIFIER1].int64_list.value.append(1)

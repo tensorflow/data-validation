@@ -135,7 +135,7 @@ def _compute_skew_for_features(
   """
   skew_results = feature_skew_results_pb2.FeatureSkew()
   skew_results.feature_name = feature_name
-  if base_feature is not None and test_feature is not None:
+  if not _empty_or_null(base_feature) and not _empty_or_null(test_feature):
     skew_results.base_count = 1
     skew_results.test_count = 1
     if (farmhash.fingerprint64(
@@ -146,12 +146,15 @@ def _compute_skew_for_features(
       skew_results.match_count = 1
     else:
       skew_results.mismatch_count = 1
-  elif base_feature is not None:
+  elif not _empty_or_null(base_feature):
     skew_results.base_count = 1
     skew_results.base_only = 1
-  elif test_feature is not None:
+  elif not _empty_or_null(test_feature):
     skew_results.test_count = 1
     skew_results.test_only = 1
+  elif (test_feature is None) == (base_feature is None):
+    # Both features are None, or present with zero values.
+    skew_results.match_count = 1
   return skew_results
 
 
@@ -252,6 +255,16 @@ def _construct_skew_pair(
   return skew_pair
 
 
+def _empty_or_null(feature: Optional[tf.train.Feature]) -> bool:
+  """True if feature is None or holds no values."""
+  if feature is None:
+    return True
+  if len(feature.bytes_list.value) + len(feature.int64_list.value) + len(
+      feature.float_list.value) == 0:
+    return True
+  return False
+
+
 class _ExtractIdentifiers(beam.DoFn):
   """DoFn that extracts a unique fingerprint for each example.
 
@@ -277,7 +290,7 @@ class _ExtractIdentifiers(beam.DoFn):
     serialized_feature_values = []
     for identifier_feature in self._identifier_features:
       feature = example.features.feature.get(identifier_feature)
-      if feature is None:
+      if _empty_or_null(feature):
         _EXAMPLES_WITH_MISSING_IDENTIFIER_COUNTER.inc()
         return
       else:
