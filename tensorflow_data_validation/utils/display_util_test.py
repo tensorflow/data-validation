@@ -468,6 +468,32 @@ class DisplayUtilTest(absltest.TestCase):
     # of the short description and long description.
     self.assertEqual(actual_output.shape, (2, 2))
 
+  def test_get_drift_skew_dataframe(self):
+    anomalies = text_format.Parse(
+        """
+    drift_skew_info {
+     path: {step: "feature_1"}
+     drift_measurements {
+       type: JENSEN_SHANNON_DIVERGENCE
+       value: 0.4
+       threshold: 0.1
+     }
+    }
+    drift_skew_info {
+     path: {step: "feature_2"}
+     drift_measurements {
+      type: L_INFTY
+      value: 0.5
+      threshold: 0.1
+    }
+    }
+    """, anomalies_pb2.Anomalies())
+    actual_output = display_util.get_drift_skew_dataframe(anomalies)
+    expected = pd.DataFrame([['feature_1', 'JENSEN_SHANNON_DIVERGENCE', 0.4],
+                             ['feature_2', 'L_INFTY', 0.5]],
+                            columns=['path', 'type', 'value'])
+    self.assertTrue(actual_output.equals(expected))
+
   def test_get_anomalies_dataframe_no_anomalies(self):
     anomalies = anomalies_pb2.Anomalies()
     actual_output = display_util.get_anomalies_dataframe(anomalies)

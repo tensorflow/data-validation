@@ -412,6 +412,13 @@ class DatasetListView(object):
         return v
     return self._slice_map.get(constants.DEFAULT_SLICE_KEY, None)
 
+  def get_default_slice_or_die(self) -> 'DatasetView':
+    # TODO(b/221453427): Update uses, or consider changing get_default_slice.
+    default_slice = self.get_default_slice()
+    if default_slice is None:
+      raise ValueError('Missing default slice')
+    return default_slice
+
   def list_slices(self) -> Iterable[str]:
     self._init_index()
     return self._slice_map.keys()

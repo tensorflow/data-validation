@@ -227,6 +227,18 @@ def get_anomalies_dataframe(anomalies: anomalies_pb2.Anomalies) -> pd.DataFrame:
   return anomalies_df
 
 
+def get_drift_skew_dataframe(anomalies):
+  """Get drift_skew_info as a Pandas dataframe."""
+  result = []
+  for info in anomalies.drift_skew_info:
+    for measurement in info.drift_measurements:
+      result.append(
+          (str(types.FeaturePath.from_proto(info.path)),
+           anomalies_pb2.DriftSkewInfo.Measurement.Type.Name(measurement.type),
+           measurement.value))
+  return pd.DataFrame(result, columns=['path', 'type', 'value'])
+
+
 def display_anomalies(anomalies: anomalies_pb2.Anomalies) -> None:
   """Displays the input anomalies (for use in a Jupyter notebook).
 
