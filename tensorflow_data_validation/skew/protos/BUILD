@@ -19,16 +19,3 @@ tfdv_proto_library_py(
     proto_library = "feature_skew_results_proto",
     deps = [":feature_skew_results_proto"],
 )
-
-tfdv_proto_library(
-    name = "skew_config_proto",
-    srcs = ["skew_config.proto"],
-    cc_api_version = 2,
-)
-
-tfdv_proto_library_py(
-    name = "skew_config_proto_py_pb2",
-    srcs = ["skew_config.proto"],
-    proto_library = "skew_config_proto",
-    deps = [":skew_config_proto"],
-)

@@ -13,7 +13,7 @@
 # limitations under the License
 """Record sink support."""
 
-from typing import Iterable, Iterator, Optional
+from typing import Callable, Iterable, Iterator, Optional, TypeVar
 
 import apache_beam as beam
 import tensorflow as tf
@@ -73,7 +73,7 @@ class _TFRecordProviderImpl(StatisticsIOProvider):
 
   def record_sink_impl(self,
                        output_path_prefix: str) -> beam.PTransform:
-    return beam.io.WriteToTFRecord(
+    return default_record_sink(
         output_path_prefix,
         coder=beam.coders.ProtoCoder(
             statistics_pb2.DatasetFeatureStatisticsList))
@@ -100,3 +100,23 @@ class _TFRecordProviderImpl(StatisticsIOProvider):
 
 def should_write_sharded():
   return False
+
+
+def default_record_sink(output_path_prefix: str,
+                        coder: beam.coders.Coder) -> beam.PTransform:
+  """TFRecord based record sink."""
+  return beam.io.WriteToTFRecord(output_path_prefix, coder=coder)
+
+
+_MESSAGE_TYPE = TypeVar('_MESSAGE_TYPE')  # pylint: disable=invalid-name
+
+
+def default_record_reader(
+    input_pattern: str,
+    message_factory: Callable[[], _MESSAGE_TYPE]) -> Iterator[_MESSAGE_TYPE]:
+  """TFRecord based record iterator."""
+  for path in tf.io.gfile.glob(input_pattern):
+    for record in tf.compat.v1.io.tf_record_iterator(path):
+      m = message_factory()
+      m.ParseFromString(record)
+      yield m

@@ -31,6 +31,7 @@
 ## Breaking Changes
 
 *   Some fields in feature skew results proto changed names to be more generic.
+*   Removes the unused skew_config.proto
 
 ## Deprecations
 
