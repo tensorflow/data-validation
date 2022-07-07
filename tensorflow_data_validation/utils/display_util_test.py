@@ -24,6 +24,7 @@ from absl.testing import absltest
 from google.protobuf import text_format
 import pandas as pd
 from tensorflow_data_validation import types
+from tensorflow_data_validation.skew.protos import feature_skew_results_pb2
 from tensorflow_data_validation.utils import display_util
 from tensorflow_data_validation.utils import test_util
 
@@ -840,6 +841,48 @@ class DisplayUtilTest(absltest.TestCase):
     actual = display_util.get_natural_language_statistics_dataframes(statistics)
     self.assertIsNone(actual)
 
+
+class FeatureSkewTest(absltest.TestCase):
+
+  def test_formats_skew_results(self):
+    skew_results = [
+        text_format.Parse(
+            """
+        feature_name: 'foo'
+        base_count: 101
+        test_count: 102
+        match_count: 103
+        base_only: 104
+        test_only: 105
+        mismatch_count: 106
+        diff_count: 107
+        """, feature_skew_results_pb2.FeatureSkew()),
+        text_format.Parse(
+            """
+        feature_name: 'bar'
+        base_count: 201
+        test_count: 202
+        match_count: 203
+        base_only: 204
+        test_only: 205
+        mismatch_count: 206
+        diff_count: 207
+        """, feature_skew_results_pb2.FeatureSkew()),
+        text_format.Parse(
+            """
+        feature_name: 'baz'
+        """, feature_skew_results_pb2.FeatureSkew()),
+    ]
+    df = display_util.get_skew_result_dataframe(skew_results)
+    expected = pd.DataFrame([['bar', 201, 202, 203, 204, 205, 206, 207],
+                             ['baz', 0, 0, 0, 0, 0, 0, 0],
+                             ['foo', 101, 102, 103, 104, 105, 106, 107]],
+                            columns=[
+                                'feature_name', 'base_count', 'test_count',
+                                'match_count', 'base_only', 'test_only',
+                                'mismatch_count', 'diff_count'
+                            ])
+    self.assertTrue(df.equals(expected))
 
 if __name__ == '__main__':
   absltest.main()

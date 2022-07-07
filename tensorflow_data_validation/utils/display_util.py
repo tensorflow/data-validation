@@ -20,13 +20,15 @@ from __future__ import division
 from __future__ import print_function
 
 import base64
+import collections
 import sys
-from typing import Dict, List, Optional, Text, Tuple, Union
+from typing import Dict, Iterable, List, Optional, Text, Tuple, Union
 
 import pandas as pd
 from tensorflow_data_validation import types
-
+from tensorflow_data_validation.skew.protos import feature_skew_results_pb2
 from tensorflow_data_validation.utils import stats_util
+
 from tensorflow_metadata.proto.v0 import anomalies_pb2
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -582,3 +584,26 @@ def _get_histogram_dataframe(
       'low_values': [b.low_value for b in histogram.buckets],
       'sample_counts': [b.sample_count for b in histogram.buckets],
   })
+
+
+def get_skew_result_dataframe(
+    skew_results: Iterable[feature_skew_results_pb2.FeatureSkew]
+) -> pd.DataFrame:
+  """Formats FeatureSkew results as a pandas dataframe."""
+  result = collections.defaultdict(list)
+  for feature_skew in skew_results:
+    result['feature_name'].append(feature_skew.feature_name)
+    result['base_count'].append(feature_skew.base_count)
+    result['test_count'].append(feature_skew.test_count)
+    result['match_count'].append(feature_skew.match_count)
+    result['base_only'].append(feature_skew.base_only)
+    result['test_only'].append(feature_skew.test_only)
+    result['mismatch_count'].append(feature_skew.mismatch_count)
+    result['diff_count'].append(feature_skew.diff_count)
+  # Preserve deterministic order from the proto.
+  col_order = [
+      'feature_name', 'base_count', 'test_count', 'match_count', 'base_only',
+      'test_only', 'mismatch_count', 'diff_count'
+  ]
+  return pd.DataFrame.from_dict(result).sort_values('feature_name').reset_index(
+      drop=True)[col_order]
