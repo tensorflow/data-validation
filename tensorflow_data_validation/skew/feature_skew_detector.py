@@ -66,13 +66,14 @@ The following feature skew will be detected:
   diff_count: 1
 """
 
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple, Union
 
 import apache_beam as beam
 import farmhash
 import tensorflow as tf
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
+from tensorflow_data_validation.utils import statistics_io_impl
 from tensorflow_data_validation.skew.protos import feature_skew_results_pb2
 
 
@@ -427,3 +428,31 @@ class DetectFeatureSkewImpl(beam.PTransform):
         | "Flatten" >> beam.FlatMap(lambda x: x))
 
     return skew_results, skew_pairs
+
+
+def skew_results_sink(output_path_prefix: str) -> beam.PTransform:
+  """Record based PSink for FeatureSkew protos."""
+  return statistics_io_impl.default_record_sink(
+      output_path_prefix,
+      beam.coders.ProtoCoder(feature_skew_results_pb2.FeatureSkew))
+
+
+def skew_pair_sink(output_path_prefix: str) -> beam.PTransform:
+  """Record based PSink for SkewPair protos."""
+  return statistics_io_impl.default_record_sink(
+      output_path_prefix,
+      beam.coders.ProtoCoder(feature_skew_results_pb2.SkewPair))
+
+
+def skew_results_iterator(
+    input_pattern_prefix) -> Iterator[feature_skew_results_pb2.FeatureSkew]:
+  """Reads records written by skew_results_sink."""
+  return statistics_io_impl.default_record_reader(
+      input_pattern_prefix + "*-of-*", feature_skew_results_pb2.FeatureSkew)
+
+
+def skew_pair_iterator(
+    input_pattern_prefix) -> Iterator[feature_skew_results_pb2.SkewPair]:
+  """Reads records written by skew_pair_sink."""
+  return statistics_io_impl.default_record_reader(
+      input_pattern_prefix + "*-of-*", feature_skew_results_pb2.SkewPair)
