@@ -91,6 +91,17 @@ def generate_statistics_from_tfrecord(
   batch_size = stats_options.desired_batch_size
   # PyLint doesn't understand Beam PTransforms.
   # pylint: disable=no-value-for-parameter
+
+  def _convert_dict(legacy_examples: Dict) -> Dict:
+    result = {}
+    
+    for k, v in legacy_examples.items():
+        if np.issubdtype(v.dtype, np.number):
+            result[k] = v
+        else:
+            result[k] = v.astype(str)
+    return result
+
   with beam.Pipeline(options=pipeline_options) as p:
     # Auto detect tfrecord file compression format based on input data
     # path suffix.
@@ -101,6 +112,7 @@ def generate_statistics_from_tfrecord(
             schema=None,
             telemetry_descriptors=['tfdv', 'generate_statistics_from_tfrecord'])
                          .BeamSource(batch_size))
+        | 'format' >> beam.Map(_convert_dict)
         | 'GenerateStatistics' >> stats_api.GenerateStatistics(stats_options)
         | 'WriteStatsOutput' >>
         (stats_api.WriteStatisticsToTFRecord(output_path)))
@@ -163,6 +175,18 @@ def generate_statistics_from_csv(
       constants.DEFAULT_DESIRED_INPUT_BATCH_SIZE)
   # PyLint doesn't understand Beam PTransforms.
   # pylint: disable=no-value-for-parameter
+
+  def _convert_dict(legacy_examples: Dict) -> Dict:
+    result = {}
+    
+    for k, v in legacy_examples.items():
+        if np.issubdtype(v.dtype, np.number):
+            result[k] = v
+        else:
+            result[k] = v.astype(str)
+    return result
+
+
   with beam.Pipeline(options=pipeline_options) as p:
     # If a header is not provided, assume the first line in a file
     # to be the header.
@@ -175,6 +199,7 @@ def generate_statistics_from_csv(
             file_pattern=data_location,
             skip_header_lines=skip_header_lines,
             compression_type=compression_type)
+        | 'format' >> beam.Map(_convert_dict)
         | 'DecodeData' >> csv_decoder.DecodeCSV(
             column_names=column_names,
             delimiter=delimiter,
