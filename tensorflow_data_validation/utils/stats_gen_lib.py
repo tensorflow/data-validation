@@ -254,6 +254,11 @@ def generate_statistics_from_dataframe(
         dataframe, stats_options, stats_generators)
   else:
     # TODO(b/144580609): Consider using Beam for inmemory mode as well.
+    
+    for col in dataframe.columns:
+        if ~ np.issubdtype(dataframe[col].dtype, np.number):
+            dataframe[col] = dataframe[col].astype(str)
+            
     splits = np.array_split(dataframe, n_jobs)
     partial_stats = Parallel(n_jobs=n_jobs)(
         delayed(_generate_partial_statistics_from_df)(
@@ -292,6 +297,10 @@ def _generate_partial_statistics_from_df(
           type=schema_pb2.INT,
           bool_domain=schema_pb2.BoolDomain())
   dataframe = dataframe.drop(columns=drop_columns)
+  for col in dataframe.columns:
+        if ~ np.issubdtype(dataframe[col].dtype, np.number):
+            dataframe[col] = dataframe[col].astype(str)
+            
   if schema.feature:
     stats_options_modified.schema = schema
   record_batch_with_primitive_arrays = table_util.DataFrameToRecordBatch(
