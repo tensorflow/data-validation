@@ -358,8 +358,10 @@ def get_statistics_html(
     lhs_statistics: A DatasetFeatureStatisticsList protocol buffer.
     rhs_statistics: An optional DatasetFeatureStatisticsList protocol buffer to
       compare with lhs_statistics.
-    lhs_name: Name of the lhs_statistics dataset.
-    rhs_name: Name of the rhs_statistics dataset.
+    lhs_name: Name to use for the lhs_statistics dataset if a name is not
+      already provided within the protocol buffer.
+    rhs_name: Name to use for the rhs_statistics dataset if a name is not
+      already provided within the protocol buffer.
     allowlist_features: Set of features to be visualized.
     denylist_features: Set of features to ignore for visualization.
 
@@ -414,8 +416,10 @@ def visualize_statistics(
     lhs_statistics: A DatasetFeatureStatisticsList protocol buffer.
     rhs_statistics: An optional DatasetFeatureStatisticsList protocol buffer to
       compare with lhs_statistics.
-    lhs_name: Name of the lhs_statistics dataset.
-    rhs_name: Name of the rhs_statistics dataset.
+    lhs_name: Name to use for the lhs_statistics dataset if a name is not
+      already provided within the protocol buffer.
+    rhs_name: Name to use for the rhs_statistics dataset if a name is not
+      already provided within the protocol buffer.
     allowlist_features: Set of features to be visualized.
     denylist_features: Set of features to ignore for visualization.
 
