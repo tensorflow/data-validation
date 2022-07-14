@@ -197,8 +197,9 @@ def generate_statistics_from_dataframe(
   This is a utility function for users with in-memory data represented
   as a pandas DataFrame.
 
-  This function supports only DataFrames with columns of primitive types.
-  DataFrames with multivalent features are not supported.
+  This function supports only DataFrames with columns of primitive string or
+  numeric types. DataFrames with multivalent features or holding non-string
+  object types are not supported.
 
   Args:
     dataframe: Input pandas DataFrame.
