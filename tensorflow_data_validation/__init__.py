@@ -27,6 +27,7 @@ from tensorflow_data_validation.api.stats_api import WriteStatisticsToTFRecord
 from tensorflow_data_validation.api.validation_api import DetectFeatureSkew
 from tensorflow_data_validation.api.validation_api import infer_schema
 from tensorflow_data_validation.api.validation_api import update_schema
+from tensorflow_data_validation.api.validation_api import validate_corresponding_slices
 from tensorflow_data_validation.api.validation_api import validate_statistics
 
 # Base classes for stats generators.
