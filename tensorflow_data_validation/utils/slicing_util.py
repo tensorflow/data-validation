@@ -266,7 +266,14 @@ class GenerateSlicesSqlDoFn(beam.DoFn):
              ) -> Iterable[types.SlicedRecordBatch]:
     # Keep track of row indices per slice key.
     per_slice_indices = collections.defaultdict(set)
-    for query in self._get_queries_for_schema(record_batch.schema):
+    if record_batch.schema.metadata is not None:
+      # record_batch may have unhashable schema metadata if derived features are
+      # being used, so we construct a new schema that strips that information.
+      cache_schema = pa.schema(
+          zip(record_batch.schema.names, record_batch.schema.types))
+    else:
+      cache_schema = record_batch.schema
+    for query in self._get_queries_for_schema(cache_schema):
       # Example of result with batch size = 3:
       # result = [[[('feature', 'value_1')]],
       #           [[('feature', 'value_2')]],

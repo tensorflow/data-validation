@@ -251,9 +251,12 @@ class StatsOptionsTest(parameterized.TestCase):
           example.feat1, example.feat2
         """
     ]
-    with self.assertRaisesRegex(ValueError, 'One of the slice SQL query'):
+    with self.assertLogs(level='ERROR') as log_output:
       stats_options.StatsOptions(
           experimental_slice_sqls=experimental_slice_sqls, schema=schema)
+      self.assertLen(log_output.records, 1)
+      self.assertRegex(log_output.records[0].message,
+                       'One of the slice SQL query .*')
 
   def test_valid_stats_options_json_round_trip(self):
     feature_allowlist = ['a']

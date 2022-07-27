@@ -20,8 +20,10 @@ from __future__ import print_function
 
 import copy
 import json
+import logging
 import types as python_types
 from typing import Dict, List, Optional, Text
+
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import example_weight_map
@@ -507,8 +509,10 @@ def _validate_sql(sql_query: Text, schema: schema_pb2.Schema):
   try:
     sql_util.RecordBatchSQLSliceQuery(formatted_query, arrow_schema)
   except Exception as e:  # pylint: disable=broad-except
-    raise ValueError('One of the slice SQL query %s raised an exception: %s.'
-                     % (sql_query, repr(e)))
+    # The schema passed to TFDV initially may be incomplete, so we can't crash
+    # on what may be an error caused by missing features.
+    logging.error('One of the slice SQL query %s raised an exception: %s.',
+                  sql_query, repr(e))
 
 
 def _validate_slicing_options(

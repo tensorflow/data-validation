@@ -194,21 +194,29 @@ class SlicingUtilTest(absltest.TestCase):
             pa.array([[1], [2, 1], [3], [2, 1, 1], [3]]),
             pa.array([['dog'], ['cat'], ['wolf'], ['dog', 'wolf'], ['wolf']]),
         ], ['a', 'b']),
-        pa.RecordBatch.from_arrays([
-            pa.array([[1]]), pa.array([['dog']]), pa.array([[1]])
-        ], ['a', 'b', 'c']),
-        pa.RecordBatch.from_arrays([
-            pa.array([[1]]), pa.array([['cat']]), pa.array([[1]])
-        ], ['a', 'b', 'd']),
-        pa.RecordBatch.from_arrays([
-            pa.array([[1]]), pa.array([['cat']]), pa.array([[1]])
-        ], ['a', 'b', 'e']),
-        pa.RecordBatch.from_arrays([
-            pa.array([[1]]), pa.array([['cat']]), pa.array([[1]])
-        ], ['a', 'b', 'f']),
-        pa.RecordBatch.from_arrays([
-            pa.array([[1]]), pa.array([['cat']])], ['a', 'b']),
+        pa.RecordBatch.from_arrays(
+            [pa.array([[1]]),
+             pa.array([['dog']]),
+             pa.array([[1]])], ['a', 'b', 'c']),
+        pa.RecordBatch.from_arrays(
+            [pa.array([[1]]),
+             pa.array([['cat']]),
+             pa.array([[1]])], ['a', 'b', 'd']),
+        pa.RecordBatch.from_arrays(
+            [pa.array([[1]]),
+             pa.array([['cat']]),
+             pa.array([[1]])], ['a', 'b', 'e']),
+        pa.RecordBatch.from_arrays(
+            [pa.array([[1]]),
+             pa.array([['cat']]),
+             pa.array([[1]])], ['a', 'b', 'f']),
     ]
+    record_batch_with_metadata = pa.RecordBatch.from_arrays(
+        [pa.array([[1]]), pa.array([['cat']])], ['a', 'b'])
+    record_batch_with_metadata = pa.RecordBatch.from_arrays(
+        arrays=record_batch_with_metadata.columns,
+        schema=record_batch_with_metadata.schema.with_metadata({b'foo': 'bar'}))
+    input_record_batches.append(record_batch_with_metadata)
     slice_sql = """
         SELECT
           STRUCT(a, b)
