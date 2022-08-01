@@ -12,17 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Types."""
-import json
 from typing import Callable, Dict, Iterable, List, Optional, Text, Tuple
 
 import apache_beam as beam
 import numpy as np
 import pyarrow as pa
+from tensorflow_data_validation.utils import path
 
-from tensorflow_metadata.proto.v0 import path_pb2
+# TODO(b/239944944): Eliminate these aliases, and move tests.
+FeatureName = path.FeatureName
 
-# Type of the feature name we support in the input batch.
-FeatureName = Text
+FeaturePath = path.FeaturePath
+
+FeaturePathTuple = path.FeaturePathTuple
 
 # Type of the feature cross.
 FeatureCross = Tuple[FeatureName, FeatureName]
@@ -48,85 +50,8 @@ SlicedRecordBatch = Tuple[SliceKey, pa.RecordBatch]
 
 SliceFunction = Callable[[pa.RecordBatch], Iterable[SlicedRecordBatch]]
 
-# Type of FeaturePath.steps(). Pickling types.FeaturePath is slow, so we use
-# tuples directly where pickling happens frequently. Ellipsis due to
-# b/152929669.
-FeaturePathTuple = Tuple[FeatureName, ...]
-
 # TODO(b/221152546): Deprecate this.
 LegacyExample = Dict[FeatureName, Optional[np.ndarray]]
-
-
-class FeaturePath(object):
-  """Represents the path to a feature in an input example.
-
-  An input example might contain nested structure. FeaturePath is to identify
-  a node in such a structure.
-  """
-
-  __slot__ = ["_steps"]
-
-  def __init__(self, steps: Iterable[FeatureName]):
-    self._steps = tuple(steps)
-
-  def to_proto(self) -> path_pb2.Path:
-    return path_pb2.Path(step=self._steps)
-
-  def to_json(self) -> Text:
-    return json.dumps(self._steps)
-
-  @staticmethod
-  def from_proto(path_proto: path_pb2.Path):
-    return FeaturePath(path_proto.step)
-
-  @staticmethod
-  def from_json(path_json: Text):
-    steps = json.loads(path_json)
-    if not isinstance(steps, list):
-      raise TypeError("Invalid FeaturePath json: %s" % path_json)
-    for s in steps:
-      if not isinstance(s, str):
-        raise TypeError("Invalid FeaturePath json: %s" % path_json)
-    return FeaturePath(steps)
-
-  @staticmethod
-  def from_string(path_string: str):
-    steps = path_string.split(".")
-    return FeaturePath(steps)
-
-  def steps(self) -> FeaturePathTuple:
-    return self._steps
-
-  def parent(self) -> "FeaturePath":
-    if not self._steps:
-      raise ValueError("Root does not have parent.")
-    return FeaturePath(self._steps[:-1])
-
-  def child(self, child_step: FeatureName) -> "FeaturePath":
-    return FeaturePath(self._steps + (child_step,))
-
-  def __str__(self) -> Text:
-    return ".".join(self._steps)
-
-  def __repr__(self) -> str:
-    return self._steps.__repr__()
-
-  def __eq__(self, other) -> bool:
-    return self._steps == other._steps  # pylint: disable=protected-access
-
-  def __lt__(self, other) -> bool:
-    # lexicographic order.
-    return self._steps < other._steps  # pylint: disable=protected-access
-
-  def __hash__(self) -> int:
-    return hash(self._steps)
-
-  def __len__(self) -> int:
-    return len(self._steps)
-
-  def __bool__(self) -> bool:
-    return bool(self._steps)
-
 
 # Do not use multiple threads to encode record batches, as parallelism
 # should be managed by beam.
