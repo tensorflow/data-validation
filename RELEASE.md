@@ -6,6 +6,8 @@
 
 ## Bug Fixes and Other Changes
 
+*   Depends on `apache-beam[gcp]>=2.40,<3`.
+
 ## Known Issues
 
 ## Breaking Changes
