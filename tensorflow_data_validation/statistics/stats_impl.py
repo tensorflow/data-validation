@@ -37,6 +37,7 @@ from tensorflow_data_validation.statistics.generators import top_k_uniques_sketc
 from tensorflow_data_validation.statistics.generators import top_k_uniques_stats_generator
 from tensorflow_data_validation.statistics.generators import weighted_feature_stats_generator
 from tensorflow_data_validation.utils import feature_partition_util
+from tensorflow_data_validation.utils import metrics_util
 from tensorflow_data_validation.utils import slicing_util
 
 from tfx_bsl.arrow import table_util
@@ -227,6 +228,12 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
     return result
 
   def expand(self, dataset: beam.PCollection[types.SlicedRecordBatch]):
+    # Collect telemetry on what generators are in use.
+    generators = get_generators(self._options)
+    generator_name_counts = {'generator_%s' % g.name: 1 for g in generators}
+    _ = (
+        dataset | metrics_util.IncrementJobCounters(generator_name_counts))
+
     # Handles generators by their type:
     #   - CombinerStatsGenerators will be wrapped in a single CombinePerKey by
     #     _CombinerStatsGeneratorsCombineFn.
@@ -234,8 +241,7 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
     result_protos = []
     (transform_generators, unpartitioned_combiners,
      partitioned_combiners) = _split_generator_types(
-         get_generators(self._options),
-         self._options.experimental_num_feature_partitions)
+         generators, self._options.experimental_num_feature_partitions)
     # Set up combineFns.
     combine_fns = []
     if unpartitioned_combiners:
