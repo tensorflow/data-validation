@@ -18,6 +18,7 @@ from __future__ import division
 from __future__ import print_function
 
 import sys
+from typing import Optional
 import unittest
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -361,7 +362,25 @@ class StatsOptionsTest(parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, 'StatsOptions cannot be converted'):
       options.to_json()
 
-  def test_stats_options_from_json(self):
+  @parameterized.named_parameters(
+      {'testcase_name': 'no_type_name'},
+      {
+          'testcase_name': 'type_name_correct',
+          'type_name': 'StatsOptions'
+      },
+      {
+          'testcase_name': 'type_name_incorrect',
+          'type_name': 'BorkBorkBork',
+          'want_exception': True
+      },
+  )
+  def test_stats_options_from_json(self,
+                                   type_name: Optional[str] = None,
+                                   want_exception: bool = False):
+    if type_name:
+      type_name_line = f',\n"TYPE_NAME": "{type_name}"\n'
+    else:
+      type_name_line = ''
     options_json = """{
       "_generators": null,
       "_feature_allowlist": null,
@@ -389,10 +408,15 @@ class StatsOptionsTest(parameterized.TestCase):
       "_slice_sqls": null,
       "_experimental_result_partitions": 1,
       "_experimental_num_feature_partitions": 1
-    }"""
-    actual_options = stats_options.StatsOptions.from_json(options_json)
-    expected_options_dict = stats_options.StatsOptions().__dict__
-    self.assertEqual(expected_options_dict, actual_options.__dict__)
+    """
+    options_json += type_name_line + '}'
+    if want_exception:
+      with self.assertRaises(ValueError):
+        _ = stats_options.StatsOptions.from_json(options_json)
+    else:
+      actual_options = stats_options.StatsOptions.from_json(options_json)
+      expected_options_dict = stats_options.StatsOptions().__dict__
+      self.assertEqual(expected_options_dict, actual_options.__dict__)
 
   def test_example_weight_map(self):
     options = stats_options.StatsOptions()

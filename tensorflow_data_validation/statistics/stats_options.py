@@ -38,6 +38,7 @@ from tensorflow_metadata.proto.v0 import schema_pb2
 
 _SCHEMA_JSON_KEY = 'schema_json'
 _PER_FEATURE_WEIGHT_OVERRIDE_JSON_KEY = 'per_feature_weight_override_json'
+_TYPE_NAME_KEY = 'TYPE_NAME'
 
 
 # TODO(b/181559345): Currently we use a single epsilon (error tolerance)
@@ -234,6 +235,7 @@ class StatsOptions(object):
       A JSON representation of a filtered version of __dict__.
     """
     options_dict = copy.copy(self.__dict__)
+    options_dict[_TYPE_NAME_KEY] = 'StatsOptions'
     if options_dict['_slice_functions'] is not None:
       raise ValueError(
           'StatsOptions cannot be converted with experimental_slice_functions.'
@@ -265,6 +267,9 @@ class StatsOptions(object):
       the deserialized value of options_json.
     """
     options_dict = json.loads(options_json)
+    type_name = options_dict.pop(_TYPE_NAME_KEY, None)
+    if type_name is not None and type_name != 'StatsOptions':
+      raise ValueError('JSON does not encode a StatsOptions')
     if _SCHEMA_JSON_KEY in options_dict:
       options_dict['_schema'] = json_format.Parse(
           options_dict[_SCHEMA_JSON_KEY], schema_pb2.Schema())
