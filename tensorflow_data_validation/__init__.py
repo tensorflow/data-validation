@@ -48,6 +48,7 @@ from tensorflow_data_validation.utils.anomalies_util import write_anomalies_text
 from tensorflow_data_validation.utils.display_util import compare_slices
 from tensorflow_data_validation.utils.display_util import display_anomalies
 from tensorflow_data_validation.utils.display_util import display_schema
+from tensorflow_data_validation.utils.display_util import get_skew_result_dataframe
 from tensorflow_data_validation.utils.display_util import get_statistics_html
 from tensorflow_data_validation.utils.display_util import visualize_statistics
 

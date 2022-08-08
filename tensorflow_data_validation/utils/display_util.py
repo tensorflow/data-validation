@@ -20,7 +20,6 @@ from __future__ import division
 from __future__ import print_function
 
 import base64
-import collections
 import sys
 from typing import Dict, Iterable, List, Optional, Text, Tuple, Union
 
@@ -594,20 +593,17 @@ def get_skew_result_dataframe(
     skew_results: Iterable[feature_skew_results_pb2.FeatureSkew]
 ) -> pd.DataFrame:
   """Formats FeatureSkew results as a pandas dataframe."""
-  result = collections.defaultdict(list)
+  result = []
   for feature_skew in skew_results:
-    result['feature_name'].append(feature_skew.feature_name)
-    result['base_count'].append(feature_skew.base_count)
-    result['test_count'].append(feature_skew.test_count)
-    result['match_count'].append(feature_skew.match_count)
-    result['base_only'].append(feature_skew.base_only)
-    result['test_only'].append(feature_skew.test_only)
-    result['mismatch_count'].append(feature_skew.mismatch_count)
-    result['diff_count'].append(feature_skew.diff_count)
+    result.append((feature_skew.feature_name, feature_skew.base_count,
+                   feature_skew.test_count, feature_skew.match_count,
+                   feature_skew.base_only, feature_skew.test_only,
+                   feature_skew.mismatch_count, feature_skew.diff_count))
   # Preserve deterministic order from the proto.
-  col_order = [
+  columns = [
       'feature_name', 'base_count', 'test_count', 'match_count', 'base_only',
       'test_only', 'mismatch_count', 'diff_count'
   ]
-  return pd.DataFrame.from_dict(result).sort_values('feature_name').reset_index(
-      drop=True)[col_order]
+  return pd.DataFrame(
+      result,
+      columns=columns).sort_values('feature_name').reset_index(drop=True)

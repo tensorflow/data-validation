@@ -884,5 +884,16 @@ class FeatureSkewTest(absltest.TestCase):
                             ])
     self.assertTrue(df.equals(expected))
 
+  def test_formats_empty_results(self):
+    skew_results = []
+    df = display_util.get_skew_result_dataframe(skew_results)
+    expected = pd.DataFrame([],
+                            columns=[
+                                'feature_name', 'base_count', 'test_count',
+                                'match_count', 'base_only', 'test_only',
+                                'mismatch_count', 'diff_count'
+                            ])
+    self.assertTrue(df.equals(expected))
+
 if __name__ == '__main__':
   absltest.main()
