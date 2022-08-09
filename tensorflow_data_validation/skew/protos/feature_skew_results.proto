@@ -67,3 +67,15 @@ message SkewPair {
   // feature values do not match.
   repeated string mismatched_features = 6;
 }
+
+// Represents the frequency of a particular baseline and test feature value
+// joined by identifier.
+message ConfusionCount {
+  message Value {
+    bytes bytes_value = 1;
+  }
+  string feature_name = 1;
+  Value base = 2;
+  Value test = 3;
+  uint64 count = 4;
+}

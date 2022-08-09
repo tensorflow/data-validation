@@ -676,11 +676,15 @@ class DetectFeatureSkew(beam.PTransform):
   def expand(
       self, datasets: Tuple[beam.pvalue.PCollection, beam.pvalue.PCollection]
   ) -> Tuple[beam.pvalue.PCollection, beam.pvalue.PCollection]:
-    return (datasets |
-            'DetectFeatureSkew' >> feature_skew_detector.DetectFeatureSkewImpl(
-                self._identifier_features, self._features_to_ignore,
-                self._sample_size, self._float_round_ndigits,
-                self._allow_duplicate_identifiers))
+
+    result = (
+        datasets
+        | 'DetectFeatureSkew' >> feature_skew_detector.DetectFeatureSkewImpl(
+            self._identifier_features, self._features_to_ignore,
+            self._sample_size, self._float_round_ndigits,
+            self._allow_duplicate_identifiers))
+    return result[feature_skew_detector.SKEW_RESULTS_KEY], result[
+        feature_skew_detector.SKEW_PAIRS_KEY]
 
 
 @beam.typehints.with_input_types(feature_skew_results_pb2.FeatureSkew)

@@ -7,6 +7,7 @@
 ## Bug Fixes and Other Changes
 
 *   Depends on `apache-beam[gcp]>=2.40,<3`.
+*   Skew pipeline supports counting pairs of feature values in base/test.
 
 ## Known Issues
 

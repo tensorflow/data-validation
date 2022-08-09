@@ -16,6 +16,7 @@
 import traceback
 
 from absl.testing import absltest
+from absl.testing import parameterized
 import apache_beam as beam
 from apache_beam.testing import util
 import tensorflow as tf
@@ -43,6 +44,12 @@ _IGNORE_FEATURE = 'ignore'
 # Name of float feature that has values that are close in base and test
 # data.
 _CLOSE_FLOAT_FEATURE = 'close_float'
+
+
+def _unpack_results(results_dict):
+  """Unpacks results in the order skew_results, skew_pairs."""
+  return (results_dict[feature_skew_detector.SKEW_RESULTS_KEY],
+          results_dict[feature_skew_detector.SKEW_PAIRS_KEY])
 
 
 def make_sample_equal_fn(test, expected_size, potential_samples):
@@ -109,7 +116,7 @@ def get_test_input(include_skewed_features, include_close_floats):
   return (baseline_examples, test_examples, skew_pairs)
 
 
-class FeatureSkewDetectorTest(absltest.TestCase):
+class FeatureSkewDetectorTest(parameterized.TestCase):
 
   def test_detect_feature_skew(self):
     baseline_examples, test_examples, _ = get_test_input(
@@ -154,9 +161,10 @@ class FeatureSkewDetectorTest(absltest.TestCase):
     with beam.Pipeline() as p:
       baseline_examples = p | 'Create Base' >> beam.Create(baseline_examples)
       test_examples = p | 'Create Test' >> beam.Create(test_examples)
-      skew_result, _ = ((baseline_examples, test_examples)
-                        | feature_skew_detector.DetectFeatureSkewImpl(
-                            [_IDENTIFIER1, _IDENTIFIER2], [_IGNORE_FEATURE]))
+      skew_result, _ = _unpack_results(
+          (baseline_examples, test_examples)
+          | feature_skew_detector.DetectFeatureSkewImpl(
+              [_IDENTIFIER1, _IDENTIFIER2], [_IGNORE_FEATURE]))
       util.assert_that(
           skew_result,
           test_util.make_skew_result_equal_fn(self, expected_result))
@@ -179,7 +187,7 @@ class FeatureSkewDetectorTest(absltest.TestCase):
       baseline_examples = p | 'Create Baseline' >> beam.Create(
           baseline_examples)
       test_examples = p | 'Create Test' >> beam.Create(test_examples)
-      skew_result, skew_sample = (
+      skew_result, skew_sample = _unpack_results(
           (baseline_examples, test_examples)
           | feature_skew_detector.DetectFeatureSkewImpl(
               [_IDENTIFIER1, _IDENTIFIER2], [_IGNORE_FEATURE], sample_size=2))
@@ -199,7 +207,7 @@ class FeatureSkewDetectorTest(absltest.TestCase):
     with beam.Pipeline() as p:
       baseline_examples = p | 'Create Base' >> beam.Create(baseline_examples)
       test_examples = p | 'Create Test' >> beam.Create(test_examples)
-      _, skew_sample = (
+      _, skew_sample = _unpack_results(
           (baseline_examples, test_examples)
           | feature_skew_detector.DetectFeatureSkewImpl(
               [_IDENTIFIER1, _IDENTIFIER2], [_IGNORE_FEATURE], sample_size))
@@ -218,7 +226,7 @@ class FeatureSkewDetectorTest(absltest.TestCase):
     with beam.Pipeline() as p:
       baseline_examples_1 = p | 'Create Base' >> beam.Create([])
       test_examples_1 = p | 'Create Test' >> beam.Create(test_examples)
-      skew_result_1, skew_sample_1 = (
+      skew_result_1, skew_sample_1 = _unpack_results(
           (baseline_examples_1, test_examples_1)
           | feature_skew_detector.DetectFeatureSkewImpl(
               [_IDENTIFIER1, _IDENTIFIER2], [_IGNORE_FEATURE], sample_size=1))
@@ -234,7 +242,7 @@ class FeatureSkewDetectorTest(absltest.TestCase):
     with beam.Pipeline() as p:
       baseline_examples_2 = p | 'Create Base' >> beam.Create(baseline_examples)
       test_examples_2 = p | 'Create Test' >> beam.Create([])
-      skew_result_2, skew_sample_2 = (
+      skew_result_2, skew_sample_2 = _unpack_results(
           (baseline_examples_2, test_examples_2)
           | feature_skew_detector.DetectFeatureSkewImpl(
               [_IDENTIFIER1, _IDENTIFIER2], [_IGNORE_FEATURE], sample_size=1))
@@ -250,7 +258,7 @@ class FeatureSkewDetectorTest(absltest.TestCase):
     with beam.Pipeline() as p:
       baseline_examples_3 = p | 'Create Base' >> beam.Create([])
       test_examples_3 = p | 'Create Test' >> beam.Create([])
-      skew_result_3, skew_sample_3 = (
+      skew_result_3, skew_sample_3 = _unpack_results(
           (baseline_examples_3, test_examples_3)
           | feature_skew_detector.DetectFeatureSkewImpl(
               [_IDENTIFIER1, _IDENTIFIER2], [_IGNORE_FEATURE], sample_size=1))
@@ -308,10 +316,10 @@ class FeatureSkewDetectorTest(absltest.TestCase):
     with beam.Pipeline() as p:
       baseline_examples_1 = p | 'Create Base' >> beam.Create(baseline_examples)
       test_examples_1 = p | 'Create Test' >> beam.Create(test_examples)
-      skew_result, _ = ((baseline_examples_1, test_examples_1)
-                        | feature_skew_detector.DetectFeatureSkewImpl(
-                            [_IDENTIFIER1, _IDENTIFIER2], [_IGNORE_FEATURE],
-                            sample_size=1))
+      skew_result, _ = _unpack_results(
+          (baseline_examples_1, test_examples_1)
+          | feature_skew_detector.DetectFeatureSkewImpl(
+              [_IDENTIFIER1, _IDENTIFIER2], [_IGNORE_FEATURE], sample_size=1))
       util.assert_that(
           skew_result,
           test_util.make_skew_result_equal_fn(self, expected_with_float))
@@ -330,11 +338,12 @@ class FeatureSkewDetectorTest(absltest.TestCase):
     with beam.Pipeline() as p:
       baseline_examples_2 = p | 'Create Base' >> beam.Create(baseline_examples)
       test_examples_2 = p | 'Create Test' >> beam.Create(test_examples)
-      skew_result, _ = ((baseline_examples_2, test_examples_2)
-                        | feature_skew_detector.DetectFeatureSkewImpl(
-                            [_IDENTIFIER1, _IDENTIFIER2], [_IGNORE_FEATURE],
-                            sample_size=1,
-                            float_round_ndigits=2))
+      skew_result, _ = _unpack_results(
+          (baseline_examples_2, test_examples_2)
+          | feature_skew_detector.DetectFeatureSkewImpl(
+              [_IDENTIFIER1, _IDENTIFIER2], [_IGNORE_FEATURE],
+              sample_size=1,
+              float_round_ndigits=2))
       util.assert_that(
           skew_result,
           test_util.make_skew_result_equal_fn(self,
@@ -416,9 +425,10 @@ class FeatureSkewDetectorTest(absltest.TestCase):
       baseline_examples = p | 'Create Base' >> beam.Create(
           [base_example_1, base_example_2])
       test_examples = p | 'Create Test' >> beam.Create([test_example])
-      skew_result, _ = ((baseline_examples, test_examples)
-                        | feature_skew_detector.DetectFeatureSkewImpl(
-                            ['id'], [], allow_duplicate_identifiers=True))
+      skew_result, _ = _unpack_results(
+          (baseline_examples, test_examples)
+          | feature_skew_detector.DetectFeatureSkewImpl(
+              ['id'], [], allow_duplicate_identifiers=True))
       util.assert_that(
           skew_result,
           test_util.make_skew_result_equal_fn(self, expected_result))
@@ -471,9 +481,10 @@ class FeatureSkewDetectorTest(absltest.TestCase):
       baseline_examples = p | 'Create Base' >> beam.Create(
           [base_example_1, base_example_2])
       test_examples = p | 'Create Test' >> beam.Create([test_example])
-      skew_result, _ = ((baseline_examples, test_examples)
-                        | feature_skew_detector.DetectFeatureSkewImpl(
-                            ['id'], [], allow_duplicate_identifiers=False))
+      skew_result, _ = _unpack_results(
+          (baseline_examples, test_examples)
+          | feature_skew_detector.DetectFeatureSkewImpl(
+              ['id'], [], allow_duplicate_identifiers=False))
       util.assert_that(
           skew_result,
           test_util.make_skew_result_equal_fn(self, []))
@@ -517,9 +528,10 @@ class FeatureSkewDetectorTest(absltest.TestCase):
     with beam.Pipeline() as p:
       baseline_examples = p | 'Create Base' >> beam.Create([base_example_1])
       test_examples = p | 'Create Test' >> beam.Create([test_example])
-      skew_result, _ = ((baseline_examples, test_examples)
-                        | feature_skew_detector.DetectFeatureSkewImpl(
-                            ['id'], [], allow_duplicate_identifiers=True))
+      skew_result, _ = _unpack_results(
+          (baseline_examples, test_examples)
+          | feature_skew_detector.DetectFeatureSkewImpl(
+              ['id'], [], allow_duplicate_identifiers=True))
       util.assert_that(skew_result,
                        test_util.make_skew_result_equal_fn(self, []))
 
@@ -556,7 +568,7 @@ class FeatureSkewDetectorTest(absltest.TestCase):
     with beam.Pipeline() as p:
       baseline_examples = p | 'Create Base' >> beam.Create([base_example_1])
       test_examples = p | 'Create Test' >> beam.Create([test_example])
-      skew_result, skew_pairs = (
+      skew_result, skew_pairs = _unpack_results(
           (baseline_examples, test_examples)
           | feature_skew_detector.DetectFeatureSkewImpl(
               ['id'], [], allow_duplicate_identifiers=True, sample_size=10))
@@ -601,7 +613,7 @@ class FeatureSkewDetectorTest(absltest.TestCase):
     with beam.Pipeline() as p:
       baseline_examples = p | 'Create Base' >> beam.Create([base_example_1])
       test_examples = p | 'Create Test' >> beam.Create([test_example])
-      skew_result, _ = (
+      skew_result, _ = _unpack_results(
           (baseline_examples, test_examples)
           | feature_skew_detector.DetectFeatureSkewImpl(
               ['id'], [], allow_duplicate_identifiers=True, sample_size=10))
@@ -646,6 +658,146 @@ class FeatureSkewDetectorTest(absltest.TestCase):
             'examples_with_missing_identifier_features'))['counters']
     self.assertLen(actual_counter, 1)
     self.assertEqual(actual_counter[0].committed, 1)
+
+  def test_confusion_analysis(self):
+
+    def _make_ex(identifier: str, val_skew: str,
+                 val_noskew: str) -> tf.train.Example:
+      ex = tf.train.Example()
+      ex.features.feature['id'].bytes_list.value.append(identifier.encode())
+      ex.features.feature['value_skew'].bytes_list.value.append(
+          val_skew.encode())
+      ex.features.feature['value_noskew'].bytes_list.value.append(
+          val_noskew.encode())
+
+      return ex
+
+    baseline_examples = [
+        _make_ex('id0', 'foo', 'foo'),
+        _make_ex('id1', 'foo', 'foo'),
+        _make_ex('id2', 'foo', 'foo'),
+        _make_ex('id3', 'foo', 'foo'),
+        _make_ex('id4', 'bar', 'bar'),
+        _make_ex('id5', 'bar', 'bar'),
+        _make_ex('id6', 'baz', 'baz'),
+    ]
+    test_examples = [
+        _make_ex('id0', 'foo', 'foo'),
+        _make_ex('id1', 'zim', 'foo'),
+        _make_ex('id2', 'foo', 'foo'),
+        _make_ex('id3', 'bar', 'foo'),
+        _make_ex('id4', 'bar', 'bar'),
+        _make_ex('id5', 'foo', 'bar'),
+        _make_ex('id6', 'baz', 'baz'),
+    ]
+
+    def _confusion_result(
+        base: str, test: str, feature_name: str,
+        count: int) -> feature_skew_results_pb2.ConfusionCount:
+      result = feature_skew_results_pb2.ConfusionCount(
+          feature_name=feature_name, count=count)
+      result.base.bytes_value = base.encode('utf8')
+      result.test.bytes_value = test.encode('utf8')
+      return result
+
+    expected_result = [
+        _confusion_result('foo', 'foo', 'value_noskew', 4),
+        _confusion_result('bar', 'bar', 'value_noskew', 2),
+        _confusion_result('baz', 'baz', 'value_noskew', 1),
+        _confusion_result('foo', 'foo', 'value_skew', 2),
+        _confusion_result('foo', 'zim', 'value_skew', 1),
+        _confusion_result('foo', 'bar', 'value_skew', 1),
+        _confusion_result('bar', 'bar', 'value_skew', 1),
+        _confusion_result('bar', 'foo', 'value_skew', 1),
+        _confusion_result('baz', 'baz', 'value_skew', 1),
+    ]
+
+    with beam.Pipeline() as p:
+      baseline_examples = p | 'Create Base' >> beam.Create(baseline_examples)
+      test_examples = p | 'Create Test' >> beam.Create(test_examples)
+      confusion_counts = (
+          (baseline_examples, test_examples)
+          | feature_skew_detector.DetectFeatureSkewImpl(
+              ['id'],
+              confusion_configs=[
+                  feature_skew_detector.ConfusionConfig(name='value_skew'),
+                  feature_skew_detector.ConfusionConfig(name='value_noskew')
+              ]))[feature_skew_detector.CONFUSION_KEY]
+      util.assert_that(
+          confusion_counts,
+          test_util.make_confusion_count_result_equal_fn(self, expected_result))
+
+  @parameterized.named_parameters(
+      {
+          'testcase_name':
+              'int64_feature',
+          'input_example':
+              text_format.Parse(
+                  """
+        features {
+          feature {
+            key: "id"
+            value { int64_list { value: 1 } }
+          }
+          feature {
+            key: "val"
+            value { int64_list { value: 100 } }
+          }
+        }
+        """, tf.train.Example()),
+          'expected_error_regex':
+              'int64 features unsupported for confusion analysis'
+      }, {
+          'testcase_name':
+              'float_feature',
+          'input_example':
+              text_format.Parse(
+                  """
+        features {
+          feature {
+            key: "id"
+            value { int64_list { value: 1 } }
+          }
+          feature {
+            key: "val"
+            value { float_list { value: 0.5 } }
+          }
+        }
+        """, tf.train.Example()),
+          'expected_error_regex':
+              'float features unsupported for confusion analysis'
+      }, {
+          'testcase_name':
+              'multivalent_feature',
+          'input_example':
+              text_format.Parse(
+                  """
+        features {
+          feature {
+            key: "id"
+            value { int64_list { value: 1 } }
+          }
+          feature {
+            key: "val"
+            value { bytes_list { value: "foo" value: "bar" } }
+          }
+        }
+        """, tf.train.Example()),
+          'expected_error_regex':
+              'multivalent features unsupported for confusion analysis'
+      })
+  def test_confusion_analysis_errors(self, input_example, expected_error_regex):
+    with self.assertRaisesRegex(ValueError, expected_error_regex):
+      with beam.Pipeline() as p:
+        baseline_examples = p | 'Create Base' >> beam.Create([input_example])
+        test_examples = p | 'Create Test' >> beam.Create([input_example])
+        _ = (
+            (baseline_examples, test_examples)
+            | feature_skew_detector.DetectFeatureSkewImpl(
+                ['id'],
+                confusion_configs=[
+                    feature_skew_detector.ConfusionConfig(name='val'),
+                ]))[feature_skew_detector.CONFUSION_KEY]
 
 
 if __name__ == '__main__':

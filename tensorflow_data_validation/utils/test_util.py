@@ -161,6 +161,26 @@ def make_skew_result_equal_fn(test, expected):
   return _matcher
 
 
+def make_confusion_count_result_equal_fn(test, expected):
+  """Makes a matcher function for comparing ConfusionCount result protos."""
+
+  def _matcher(actual):
+    try:
+      test.assertLen(actual, len(expected))
+      # pylint: disable=g-long-lambda
+      sort_key = lambda a: (a.feature_name, a.base.bytes_value, a.test.
+                            bytes_value)
+      # pylint: enable=g-long-lambda
+      sorted_actual = sorted(actual, key=sort_key)
+      sorted_expected = sorted(expected, key=sort_key)
+      for i in range(len(sorted_actual)):
+        test.assertEqual(sorted_actual[i], sorted_expected[i])
+    except AssertionError as e:
+      raise util.BeamAssertException(traceback.format_exc()) from e
+
+  return _matcher
+
+
 class CombinerStatsGeneratorTest(absltest.TestCase):
   """Test class with extra combiner stats generator related functionality."""
 
