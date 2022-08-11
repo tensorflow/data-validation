@@ -8,6 +8,7 @@
 
 *   Depends on `apache-beam[gcp]>=2.40,<3`.
 *   Skew pipeline supports counting pairs of feature values in base/test.
+*   Depends on `pyarrow>=6,<7`.
 
 ## Known Issues
 
