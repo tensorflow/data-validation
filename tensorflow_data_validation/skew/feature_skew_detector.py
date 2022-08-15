@@ -495,28 +495,47 @@ class DetectFeatureSkewImpl(beam.PTransform):
             _ComputeSkew(self._features_to_ignore, self._float_round_ndigits,
                          self._allow_duplicate_identifiers,
                          self._confusion_configs)).with_outputs(*outputs))
-    result = {}
+
+    # Fix output type hints.
+    # TODO(b/211806179): Revert this hack.
+    results_skew_results = (
+        results[SKEW_RESULTS_KEY]
+        | "FixSkewResultsTypeHints" >> beam.Map(lambda x: x).with_output_types(
+            Tuple[str, feature_skew_results_pb2.FeatureSkew]))
+    results_skew_pairs = (
+        results[SKEW_PAIRS_KEY]
+        | "FixSkewPairsTypeHints" >> beam.Map(lambda x: x).with_output_types(
+            feature_skew_results_pb2.SkewPair))
+    if self._confusion_configs:
+      results_confusion_tuples = (
+          results[CONFUSION_KEY]
+          | "FixConfusionTypeHints" >> beam.Map(lambda x: x).with_output_types(
+              Tuple[_ConfusionFeatureValue, _ConfusionFeatureValue, str]))
+    else:
+      results_confusion_tuples = None
+
+    outputs = {}
     skew_results = (
-        results.skew_results | "MergeSkewResultsPerFeature" >>  # pytype: disable=attribute-error
+        results_skew_results
+        | "MergeSkewResultsPerFeature" >>  # pytype: disable=attribute-error
         beam.CombinePerKey(_merge_feature_skew_results)
         | "DropKeys" >> beam.Values())
-    result[SKEW_RESULTS_KEY] = skew_results
+    outputs[SKEW_RESULTS_KEY] = skew_results
 
     skew_pairs = (
-        results.skew_pairs | "SampleSkewPairs" >>  # pytype: disable=attribute-error
+        results_skew_pairs | "SampleSkewPairs" >>  # pytype: disable=attribute-error
         beam.combiners.Sample.FixedSizeGlobally(self._sample_size)
         # Sampling results in a pcollection with a single element consisting of
         # a list of the samples. Convert this to a pcollection of samples.
         | "Flatten" >> beam.FlatMap(lambda x: x))
-    result[SKEW_PAIRS_KEY] = skew_pairs
-    if self._confusion_configs:
-      confusion_tuples = results[CONFUSION_KEY]
+    outputs[SKEW_PAIRS_KEY] = skew_pairs
+    if results_confusion_tuples is not None:
       confusion_counts = (
-          confusion_tuples
+          results_confusion_tuples
           | "CountConfusion" >> beam.combiners.Count.PerElement()
           | "MakeConfusionProto" >> beam.Map(_confusion_count_to_proto))
-      result[CONFUSION_KEY] = confusion_counts
-    return result
+      outputs[CONFUSION_KEY] = confusion_counts
+    return outputs
 
 
 def skew_results_sink(output_path_prefix: str) -> beam.PTransform:

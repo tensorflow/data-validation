@@ -20,6 +20,7 @@ from absl.testing import parameterized
 import apache_beam as beam
 from apache_beam.testing import util
 import tensorflow as tf
+from tensorflow_data_validation.utils import beam_runner_util
 from tensorflow_data_validation.skew import feature_skew_detector
 from tensorflow_data_validation.skew.protos import feature_skew_results_pb2
 from tensorflow_data_validation.utils import test_util
@@ -158,7 +159,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
         diff_count: 0""", feature_skew_results_pb2.FeatureSkew()),
     ]
 
-    with beam.Pipeline() as p:
+    with beam.Pipeline(runner=beam_runner_util.get_test_runner()) as p:
       baseline_examples = p | 'Create Base' >> beam.Create(baseline_examples)
       test_examples = p | 'Create Test' >> beam.Create(test_examples)
       skew_result, _ = _unpack_results(
@@ -183,7 +184,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
         diff_count: 0""", feature_skew_results_pb2.FeatureSkew()),
     ]
 
-    with beam.Pipeline() as p:
+    with beam.Pipeline(runner=beam_runner_util.get_test_runner()) as p:
       baseline_examples = p | 'Create Baseline' >> beam.Create(
           baseline_examples)
       test_examples = p | 'Create Test' >> beam.Create(test_examples)
@@ -204,7 +205,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
 
     sample_size = 1
     potential_samples = skew_pairs
-    with beam.Pipeline() as p:
+    with beam.Pipeline(runner=beam_runner_util.get_test_runner()) as p:
       baseline_examples = p | 'Create Base' >> beam.Create(baseline_examples)
       test_examples = p | 'Create Test' >> beam.Create(test_examples)
       _, skew_sample = _unpack_results(
@@ -223,7 +224,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
     expected_result = list()
 
     # Empty base collection.
-    with beam.Pipeline() as p:
+    with beam.Pipeline(runner=beam_runner_util.get_test_runner()) as p:
       baseline_examples_1 = p | 'Create Base' >> beam.Create([])
       test_examples_1 = p | 'Create Test' >> beam.Create(test_examples)
       skew_result_1, skew_sample_1 = _unpack_results(
@@ -239,7 +240,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
                        'CheckSkewSample')
 
     # Empty test collection.
-    with beam.Pipeline() as p:
+    with beam.Pipeline(runner=beam_runner_util.get_test_runner()) as p:
       baseline_examples_2 = p | 'Create Base' >> beam.Create(baseline_examples)
       test_examples_2 = p | 'Create Test' >> beam.Create([])
       skew_result_2, skew_sample_2 = _unpack_results(
@@ -255,7 +256,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
                        'CheckSkewSample')
 
     # Empty base and test collections.
-    with beam.Pipeline() as p:
+    with beam.Pipeline(runner=beam_runner_util.get_test_runner()) as p:
       baseline_examples_3 = p | 'Create Base' >> beam.Create([])
       test_examples_3 = p | 'Create Test' >> beam.Create([])
       skew_result_3, skew_sample_3 = _unpack_results(
@@ -313,7 +314,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
     ]
 
     # Do not set a float_round_ndigits.
-    with beam.Pipeline() as p:
+    with beam.Pipeline(runner=beam_runner_util.get_test_runner()) as p:
       baseline_examples_1 = p | 'Create Base' >> beam.Create(baseline_examples)
       test_examples_1 = p | 'Create Test' >> beam.Create(test_examples)
       skew_result, _ = _unpack_results(
@@ -335,7 +336,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
     ]
 
     # Set float_round_ndigits
-    with beam.Pipeline() as p:
+    with beam.Pipeline(runner=beam_runner_util.get_test_runner()) as p:
       baseline_examples_2 = p | 'Create Base' >> beam.Create(baseline_examples)
       test_examples_2 = p | 'Create Test' >> beam.Create(test_examples)
       skew_result, _ = _unpack_results(
@@ -354,7 +355,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
         include_skewed_features=False, include_close_floats=False)
     with self.assertRaisesRegex(ValueError,
                                 'At least one feature name must be specified'):
-      with beam.Pipeline() as p:
+      with beam.Pipeline(runner=beam_runner_util.get_test_runner()) as p:
         baseline_examples = p | 'Create Base' >> beam.Create(baseline_examples)
         test_examples = p | 'Create Test' >> beam.Create(test_examples)
         _ = ((baseline_examples, test_examples)
@@ -421,7 +422,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
         test_only: 2
         diff_count: 2""", feature_skew_results_pb2.FeatureSkew()),
     ]
-    with beam.Pipeline() as p:
+    with beam.Pipeline(runner=beam_runner_util.get_test_runner()) as p:
       baseline_examples = p | 'Create Base' >> beam.Create(
           [base_example_1, base_example_2])
       test_examples = p | 'Create Test' >> beam.Create([test_example])
@@ -477,7 +478,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
           }
         }
         """, tf.train.Example())
-    with beam.Pipeline() as p:
+    with beam.Pipeline(runner=beam_runner_util.get_test_runner()) as p:
       baseline_examples = p | 'Create Base' >> beam.Create(
           [base_example_1, base_example_2])
       test_examples = p | 'Create Test' >> beam.Create([test_example])
@@ -525,7 +526,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
           }
         }
         """, tf.train.Example())
-    with beam.Pipeline() as p:
+    with beam.Pipeline(runner=beam_runner_util.get_test_runner()) as p:
       baseline_examples = p | 'Create Base' >> beam.Create([base_example_1])
       test_examples = p | 'Create Test' >> beam.Create([test_example])
       skew_result, _ = _unpack_results(
@@ -565,7 +566,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
           }
         }
         """, tf.train.Example())
-    with beam.Pipeline() as p:
+    with beam.Pipeline(runner=beam_runner_util.get_test_runner()) as p:
       baseline_examples = p | 'Create Base' >> beam.Create([base_example_1])
       test_examples = p | 'Create Test' >> beam.Create([test_example])
       skew_result, skew_pairs = _unpack_results(
@@ -610,7 +611,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
           }
         }
         """, tf.train.Example())
-    with beam.Pipeline() as p:
+    with beam.Pipeline(runner=beam_runner_util.get_test_runner()) as p:
       baseline_examples = p | 'Create Base' >> beam.Create([base_example_1])
       test_examples = p | 'Create Test' >> beam.Create([test_example])
       skew_result, _ = _unpack_results(
@@ -642,7 +643,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
     # Add Identifier 2 to base example only.
     base_example.features.feature[_IDENTIFIER2].int64_list.value.append(2)
 
-    p = beam.Pipeline()
+    p = beam.Pipeline(runner=beam_runner_util.get_test_runner())
     baseline_data = p | 'Create Base' >> beam.Create([base_example])
     test_data = p | 'Create Test' >> beam.Create([test_example])
     _, _ = ((baseline_data, test_data)
@@ -712,7 +713,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
         _confusion_result('baz', 'baz', 'value_skew', 1),
     ]
 
-    with beam.Pipeline() as p:
+    with beam.Pipeline(runner=beam_runner_util.get_test_runner()) as p:
       baseline_examples = p | 'Create Base' >> beam.Create(baseline_examples)
       test_examples = p | 'Create Test' >> beam.Create(test_examples)
       confusion_counts = (
@@ -788,6 +789,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
       })
   def test_confusion_analysis_errors(self, input_example, expected_error_regex):
     with self.assertRaisesRegex(ValueError, expected_error_regex):
+      # Use the direct runner here to get exception propagation.
       with beam.Pipeline() as p:
         baseline_examples = p | 'Create Base' >> beam.Create([input_example])
         test_examples = p | 'Create Test' >> beam.Create([input_example])
