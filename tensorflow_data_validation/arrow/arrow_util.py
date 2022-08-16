@@ -87,8 +87,7 @@ def is_list_like(data_type: pa.DataType) -> bool:
   return pa.types.is_list(data_type) or pa.types.is_large_list(data_type)
 
 
-def _get_field(struct_array: pa.StructArray,
-               field: Union[str, int]) -> pa.Array:
+def get_field(struct_array: pa.StructArray, field: Union[str, int]) -> pa.Array:
   """Returns struct_array.field(field) with null propagation.
 
   This function is equivalent to struct_array.field() but correctly handles
@@ -195,7 +194,7 @@ def get_array(
     step = query_path.steps()[0]
 
     try:
-      child_array = _get_field(flat_struct_array, step)
+      child_array = get_field(flat_struct_array, step)
     except KeyError:
       raise KeyError(f'query_path step "{step}" not in struct.')
 
@@ -344,8 +343,7 @@ def enumerate_arrays(
         field_name = field.name
         yield from _recursion_helper(
             feature_path.child(field_name),
-            _get_field(flat_struct_array, field_name),
-            flat_all_weights)
+            get_field(flat_struct_array, field_name), flat_all_weights)
     else:
       weights = all_weights.get(example_weight_map.get(feature_path))
       yield (feature_path, array, weights)
