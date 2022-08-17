@@ -79,3 +79,15 @@ message ConfusionCount {
   Value test = 3;
   uint64 count = 4;
 }
+
+// Overall statistics on match rates and example counts.
+message MatchStats {
+  uint64 base_with_id_count = 1;
+  uint64 test_with_id_count = 2;
+  uint64 identifiers_count = 3;
+  uint64 ids_missing_in_base_count = 4;
+  uint64 ids_missing_in_test_count = 5;
+  uint64 matching_pairs_count = 6;
+  uint64 base_missing_id_count = 7;
+  uint64 test_missing_id_count = 8;
+}

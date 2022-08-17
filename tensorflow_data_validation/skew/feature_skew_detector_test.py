@@ -117,6 +117,19 @@ def get_test_input(include_skewed_features, include_close_floats):
   return (baseline_examples, test_examples, skew_pairs)
 
 
+def _make_ex(identifier: str,
+             val_skew: str = '',
+             val_noskew: str = '') -> tf.train.Example:
+  """Makes an example with a skewed and unskewed feature."""
+  ex = tf.train.Example()
+  if identifier:
+    ex.features.feature['id'].bytes_list.value.append(identifier.encode())
+  ex.features.feature['value_skew'].bytes_list.value.append(val_skew.encode())
+  ex.features.feature['value_noskew'].bytes_list.value.append(
+      val_noskew.encode())
+  return ex
+
+
 class FeatureSkewDetectorTest(parameterized.TestCase):
 
   def test_detect_feature_skew(self):
@@ -646,9 +659,9 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
     p = beam.Pipeline(runner=beam_runner_util.get_test_runner())
     baseline_data = p | 'Create Base' >> beam.Create([base_example])
     test_data = p | 'Create Test' >> beam.Create([test_example])
-    _, _ = ((baseline_data, test_data)
-            | feature_skew_detector.DetectFeatureSkewImpl(
-                [_IDENTIFIER1, _IDENTIFIER2]))
+    _ = ((baseline_data, test_data)
+         | feature_skew_detector.DetectFeatureSkewImpl(
+             [_IDENTIFIER1, _IDENTIFIER2]))
     runner = p.run()
     runner.wait_until_finish()
     result_metrics = runner.metrics()
@@ -661,17 +674,6 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
     self.assertEqual(actual_counter[0].committed, 1)
 
   def test_confusion_analysis(self):
-
-    def _make_ex(identifier: str, val_skew: str,
-                 val_noskew: str) -> tf.train.Example:
-      ex = tf.train.Example()
-      ex.features.feature['id'].bytes_list.value.append(identifier.encode())
-      ex.features.feature['value_skew'].bytes_list.value.append(
-          val_skew.encode())
-      ex.features.feature['value_noskew'].bytes_list.value.append(
-          val_noskew.encode())
-
-      return ex
 
     baseline_examples = [
         _make_ex('id0', 'foo', 'foo'),
@@ -801,6 +803,46 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
                     feature_skew_detector.ConfusionConfig(name='val'),
                 ]))[feature_skew_detector.CONFUSION_KEY]
 
+  def test_match_stats(self):
+    baseline_examples = [
+        _make_ex('id0'),
+        _make_ex('id0'),
+        _make_ex('id1'),
+        _make_ex('id4'),
+        _make_ex(''),
+    ]
+    test_examples = [
+        _make_ex('id0'),
+        _make_ex('id0'),
+        _make_ex('id2'),
+        _make_ex('id3'),
+        _make_ex('id4'),
+        _make_ex(''),
+        _make_ex(''),
+    ]
+
+    with beam.Pipeline(runner=beam_runner_util.get_test_runner()) as p:
+      baseline_examples = p | 'Create Base' >> beam.Create(baseline_examples)
+      test_examples = p | 'Create Test' >> beam.Create(test_examples)
+      match_stats = ((baseline_examples, test_examples)
+                     | feature_skew_detector.DetectFeatureSkewImpl(
+                         ['id'], []))[feature_skew_detector.MATCH_STATS_KEY]
+
+      def _assert_fn(got_match_stats):
+        expected_match_stats = text_format.Parse(
+            """
+        base_with_id_count: 4
+        test_with_id_count: 5
+        identifiers_count: 5
+        matching_pairs_count: 5
+        ids_missing_in_base_count: 2
+        ids_missing_in_test_count: 1
+        base_missing_id_count: 1
+        test_missing_id_count: 2
+        """, feature_skew_results_pb2.MatchStats())
+        self.assertEqual([expected_match_stats], got_match_stats)
+
+      util.assert_that(match_stats, _assert_fn)
 
 if __name__ == '__main__':
   absltest.main()
