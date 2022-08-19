@@ -330,17 +330,24 @@ class ConfusionConfig(object):
 _ConfusionFeatureValue = bytes
 
 
+_MISSING_VALUE_PLACEHOLDER = b"__MISSING_VALUE__"
+
+
 def _get_confusion_feature_value(
     ex: tf.train.Example,
     name: types.FeatureName) -> Optional[_ConfusionFeatureValue]:
   """Returns a value for a named feature for confusion analysis."""
-  f = ex.features.feature[name]
+  f = ex.features.feature.get(name, None)
+  if f is None:
+    return _MISSING_VALUE_PLACEHOLDER
   if f.int64_list.value:
     raise ValueError("int64 features unsupported for confusion analysis.")
   if f.float_list.value:
     raise ValueError("float features unsupported for confusion analysis.")
   if len(f.bytes_list.value) > 1:
     raise ValueError("multivalent features unsupported for confusion analysis.")
+  if not f.bytes_list.value:
+    return _MISSING_VALUE_PLACEHOLDER
   return f.bytes_list.value[0]
 
 

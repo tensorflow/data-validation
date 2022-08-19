@@ -124,9 +124,11 @@ def _make_ex(identifier: str,
   ex = tf.train.Example()
   if identifier:
     ex.features.feature['id'].bytes_list.value.append(identifier.encode())
-  ex.features.feature['value_skew'].bytes_list.value.append(val_skew.encode())
-  ex.features.feature['value_noskew'].bytes_list.value.append(
-      val_noskew.encode())
+  if val_skew:
+    ex.features.feature['value_skew'].bytes_list.value.append(val_skew.encode())
+  if val_noskew:
+    ex.features.feature['value_noskew'].bytes_list.value.append(
+        val_noskew.encode())
   return ex
 
 
@@ -683,6 +685,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
         _make_ex('id4', 'bar', 'bar'),
         _make_ex('id5', 'bar', 'bar'),
         _make_ex('id6', 'baz', 'baz'),
+        _make_ex('id7', 'zip', 'zap'),
     ]
     test_examples = [
         _make_ex('id0', 'foo', 'foo'),
@@ -692,6 +695,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
         _make_ex('id4', 'bar', 'bar'),
         _make_ex('id5', 'foo', 'bar'),
         _make_ex('id6', 'baz', 'baz'),
+        _make_ex('id7', '', 'zap'),
     ]
 
     def _confusion_result(
@@ -713,6 +717,8 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
         _confusion_result('bar', 'bar', 'value_skew', 1),
         _confusion_result('bar', 'foo', 'value_skew', 1),
         _confusion_result('baz', 'baz', 'value_skew', 1),
+        _confusion_result('zip', '__MISSING_VALUE__', 'value_skew', 1),
+        _confusion_result('zap', 'zap', 'value_noskew', 1),
     ]
 
     with beam.Pipeline(runner=beam_runner_util.get_test_runner()) as p:
