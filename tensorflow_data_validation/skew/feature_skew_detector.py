@@ -383,12 +383,13 @@ def _make_match_stats_counter(base_with_id_count=0,
                               missing_base_count=0,
                               missing_test_count=0,
                               pairs_count=0,
+                              duplicate_id_count=0,
                               ids_missing_in_base_count=0,
                               ids_missing_in_test_count=0) -> np.ndarray:
   return np.array([
       base_with_id_count, test_with_id_count, id_count, missing_base_count,
-      missing_test_count, pairs_count, ids_missing_in_base_count,
-      ids_missing_in_test_count
+      missing_test_count, pairs_count, duplicate_id_count,
+      ids_missing_in_base_count, ids_missing_in_test_count
   ],
                   dtype=np.int64)
 
@@ -421,8 +422,9 @@ class _MergeMatchStatsFn(beam.CombineFn):
         ids_missing_in_base_count=accumulator[3],
         ids_missing_in_test_count=accumulator[4],
         matching_pairs_count=accumulator[5],
-        base_missing_id_count=accumulator[6],
-        test_missing_id_count=accumulator[7])
+        duplicate_id_count=accumulator[6],
+        base_missing_id_count=accumulator[7],
+        test_missing_id_count=accumulator[8])
 
 
 class _ComputeSkew(beam.DoFn):
@@ -467,6 +469,7 @@ class _ComputeSkew(beam.DoFn):
         0 if base_examples else 1,
         0 if test_examples else 1,
         len(base_examples) * len(test_examples),
+        1 if len(base_examples) > 1 or len(test_examples) > 1 else 0,
     )
     yield beam.pvalue.TaggedOutput(MATCH_STATS_KEY, match_stats)
 
@@ -729,3 +732,10 @@ def match_stats_iterator(
   """Reads records written by match_stats_sink."""
   return statistics_io_impl.default_record_reader(
       input_pattern_prefix + "*-of-*", feature_skew_results_pb2.MatchStats)
+
+
+def confusion_count_iterator(
+    input_pattern_prefix) -> Iterator[feature_skew_results_pb2.ConfusionCount]:
+  """Reads records written by confusion_count_sink."""
+  return statistics_io_impl.default_record_reader(
+      input_pattern_prefix + "*-of-*", feature_skew_results_pb2.ConfusionCount)

@@ -843,6 +843,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
         matching_pairs_count: 5
         ids_missing_in_base_count: 2
         ids_missing_in_test_count: 1
+        duplicate_id_count: 1
         base_missing_id_count: 1
         test_missing_id_count: 2
         """, feature_skew_results_pb2.MatchStats())

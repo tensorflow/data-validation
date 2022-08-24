@@ -88,6 +88,7 @@ message MatchStats {
   uint64 ids_missing_in_base_count = 4;
   uint64 ids_missing_in_test_count = 5;
   uint64 matching_pairs_count = 6;
+  uint64 duplicate_id_count = 9;
   uint64 base_missing_id_count = 7;
   uint64 test_missing_id_count = 8;
 }
