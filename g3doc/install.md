@@ -47,11 +47,17 @@ Google Cloud. To install the latest nightly package, please use the following
 command:
 
 ```bash
+export TFX_DEPENDENCY_SELECTOR=NIGHTLY
 pip install --extra-index-url https://pypi-nightly.tensorflow.org/simple tensorflow-data-validation
 ```
 
 This will install the nightly packages for the major dependencies of TFDV such
 as TensorFlow Metadata (TFMD) and TFX Basic Shared Libraries (TFX-BSL).
+
+Sometimes TFDV uses those dependencies' most recent changes, which are not yet
+released. Because of this, it is safer to use nightly versions of those
+dependent libraries when using nightly TFDV. Export the
+`TFX_DEPENDENCY_SELECTOR` environment variable to do so.
 
 Note: These nightly packages are unstable and breakages are likely to happen.
 The fix could often take a week or more depending on the complexity involved.
