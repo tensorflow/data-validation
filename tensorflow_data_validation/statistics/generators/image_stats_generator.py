@@ -143,7 +143,8 @@ class TfImageDecoder(ImageDecoderInterface):
     self._lazy_get_sizes_callable = self._session.make_callable(
         fetches=self._image_shapes, feed_list=[self._batch_image_input])
 
-  def get_formats(self, values: List[object]) -> np.ndarray:
+  def get_formats(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
+      self, values: List[object]) -> np.ndarray:
     """Returns the image format name for each value if it represents an image.
 
     Args:

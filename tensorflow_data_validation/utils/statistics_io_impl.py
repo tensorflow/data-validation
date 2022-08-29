@@ -82,7 +82,7 @@ class _TFRecordProviderImpl(StatisticsIOProvider):
     """Returns filenames matching the output pattern of record_sink_impl."""
     return tf.io.gfile.glob(output_path_prefix + '-*-of-*')
 
-  def record_iterator_impl(
+  def record_iterator_impl(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
       self,
       paths: Iterable[str],
   ) -> Iterator[statistics_pb2.DatasetFeatureStatisticsList]:
