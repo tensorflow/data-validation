@@ -20,6 +20,7 @@ from __future__ import division
 from __future__ import print_function
 
 import base64
+import collections
 import sys
 from typing import Dict, Iterable, List, Optional, Text, Tuple, Union
 
@@ -607,3 +608,56 @@ def get_skew_result_dataframe(
   return pd.DataFrame(
       result,
       columns=columns).sort_values('feature_name').reset_index(drop=True)
+
+
+def get_match_stats_dataframe(
+    match_stats: feature_skew_results_pb2.MatchStats) -> pd.DataFrame:
+  """Formats MatchStats as a pandas dataframe."""
+  return pd.DataFrame.from_dict({
+      'base_with_id_count': [match_stats.base_with_id_count],
+      'test_with_id_count': [match_stats.test_with_id_count],
+      'identifiers_count': [match_stats.identifiers_count],
+      'ids_missing_in_base_count': [match_stats.ids_missing_in_base_count],
+      'ids_missing_in_test_count': [match_stats.ids_missing_in_test_count],
+      'matching_pairs_count': [match_stats.matching_pairs_count],
+      'base_missing_id_count': [match_stats.base_missing_id_count],
+      'test_missing_id_count': [match_stats.test_missing_id_count],
+      'duplicate_id_count': [match_stats.duplicate_id_count],
+  })
+
+
+def get_confusion_count_dataframes(
+    confusion: Iterable[feature_skew_results_pb2.ConfusionCount]
+) -> Dict[str, pd.DataFrame]:
+  """Returns a pandas dataframe representation of a sequence of ConfusionCount.
+
+  Args:
+    confusion: An interable over ConfusionCount protos.
+  Returns: A map from feature name to a pandas dataframe containing match counts
+    along with base and test counts for all unequal value pairs in the input.
+  """
+  confusion = list(confusion)
+  confusion_per_feature = collections.defaultdict(list)
+  for c in confusion:
+    confusion_per_feature[c.feature_name].append(c)
+
+  def _build_df(confusion):
+    base_count_per_value = collections.defaultdict(lambda: 0)
+    test_count_per_value = collections.defaultdict(lambda: 0)
+    value_counts = []
+    for c in confusion:
+      base_count_per_value[c.base.bytes_value] += c.count
+      test_count_per_value[c.test.bytes_value] += c.count
+      value_counts.append((c.base.bytes_value, c.test.bytes_value, c.count))
+    df = pd.DataFrame(
+        value_counts, columns=('Base value', 'Test value', 'Pair count'))
+    df['Base count'] = df['Base value'].apply(lambda x: base_count_per_value[x])
+    df['Test count'] = df['Test value'].apply(lambda x: test_count_per_value[x])
+    df['Fraction of base'] = df['Pair count'] / df['Base count']
+    df = df[df['Base value'] != df['Test value']].sort_values(
+        ['Base value', 'Fraction of base']).reset_index(drop=True)
+    return df[[
+        'Base value', 'Test value', 'Pair count', 'Base count', 'Test count'
+    ]]
+
+  return {k: _build_df(v) for k, v in confusion_per_feature.items()}

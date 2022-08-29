@@ -884,7 +884,7 @@ class FeatureSkewTest(absltest.TestCase):
                             ])
     self.assertTrue(df.equals(expected))
 
-  def test_formats_empty_results(self):
+  def test_formats_empty_skew_results(self):
     skew_results = []
     df = display_util.get_skew_result_dataframe(skew_results)
     expected = pd.DataFrame([],
@@ -894,6 +894,80 @@ class FeatureSkewTest(absltest.TestCase):
                                 'mismatch_count', 'diff_count'
                             ])
     self.assertTrue(df.equals(expected))
+
+  def test_formats_confusion_counts(self):
+    confusion = [
+        text_format.Parse(
+            """
+        feature_name: "foo"
+        base {
+          bytes_value: "val1"
+        }
+        test {
+          bytes_value: "val1"
+        }
+        count: 99
+        """, feature_skew_results_pb2.ConfusionCount()),
+        text_format.Parse(
+            """
+        feature_name: "foo"
+        base {
+          bytes_value: "val1"
+        }
+        test {
+          bytes_value: "val2"
+        }
+        count: 1
+        """, feature_skew_results_pb2.ConfusionCount()),
+        text_format.Parse(
+            """
+        feature_name: "foo"
+        base {
+          bytes_value: "val2"
+        }
+        test {
+          bytes_value: "val3"
+        }
+        count: 1
+        """, feature_skew_results_pb2.ConfusionCount()),
+        text_format.Parse(
+            """
+        feature_name: "foo"
+        base {
+          bytes_value: "val3"
+        }
+        test {
+          bytes_value: "val3"
+        }
+        count: 100
+        """, feature_skew_results_pb2.ConfusionCount()),
+        text_format.Parse(
+            """
+        feature_name: "bar"
+        base {
+          bytes_value: "val1"
+        }
+        test {
+          bytes_value: "val2"
+        }
+        count: 1
+        """, feature_skew_results_pb2.ConfusionCount())
+    ]
+    dfs = display_util.get_confusion_count_dataframes(confusion)
+    self.assertSameElements(dfs.keys(), ['foo', 'bar'])
+    self.assertTrue(dfs['foo'].equals(
+        pd.DataFrame(
+            [[b'val1', b'val2', 1, 100, 1], [b'val2', b'val3', 1, 1, 101]],
+            columns=[
+                'Base value', 'Test value', 'Pair count', 'Base count',
+                'Test count'
+            ])))
+    self.assertTrue(dfs['bar'].equals(
+        pd.DataFrame([[b'val1', b'val2', 1, 1, 1]],
+                     columns=[
+                         'Base value', 'Test value', 'Pair count', 'Base count',
+                         'Test count'
+                     ])))
 
 if __name__ == '__main__':
   absltest.main()
