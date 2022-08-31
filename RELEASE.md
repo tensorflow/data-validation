@@ -6,6 +6,8 @@
 
 ## Bug Fixes and Other Changes
 
+*  Fix bug in implementation of `semantic_domain_stats_sample_rate`.
+
 ## Known Issues
 
 ## Breaking Changes

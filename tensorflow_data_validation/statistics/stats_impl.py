@@ -845,7 +845,7 @@ class CombinerFeatureStatsWrapperGenerator(
       The wrapper_accumulator after updating the statistics for the batch of
       inputs.
     """
-    if self._sample_rate is not None and random.random() <= self._sample_rate:
+    if self._sample_rate is not None and random.random() > self._sample_rate:
       return wrapper_accumulator
 
     for feature_path, feature_array, _ in arrow_util.enumerate_arrays(

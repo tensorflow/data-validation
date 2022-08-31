@@ -1058,6 +1058,7 @@ _GENERATE_STATS_TESTS = [
                 num_rank_histogram_buckets=3,
                 num_values_histogram_buckets=3,
                 enable_semantic_domain_stats=True,
+                semantic_domain_stats_sample_rate=1.0,
                 # Override the in-combiner batch size to be smaller than
                 # the total amount of records to to exercise add_inputs()
                 # multiple times.
