@@ -19,8 +19,12 @@ from __future__ import print_function
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import apache_beam as beam
+import numpy as np
 import pyarrow as pa
+import tensorflow_data_validation as tfdv
 from tensorflow_data_validation import types
+from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics.generators import top_k_uniques_sketch_stats_generator as sketch_generator
 from tensorflow_data_validation.utils import test_util
 from tensorflow_data_validation.utils.example_weight_map import ExampleWeightMap
@@ -1360,6 +1364,196 @@ class TopKUniquesSketchStatsGeneratorTest(test_util.CombinerStatsGeneratorTest,
                 """,
                 statistics_pb2.FeatureNameStatistics())
     }
+    self.assertCombinerOutputEqual(batches, generator, expected_result)
+
+  @parameterized.named_parameters(
+      {
+          'testcase_name': 'SHORT_STRING',
+      }, {
+          'testcase_name': 'LONG_STRING',
+          'num_repeat': 2048
+      }
+  )
+  def test_tfdv_string_length_telemetry(self, num_repeat=1):
+    data = ['a', 'b', 'c' * num_repeat, 'd' * num_repeat]
+    batch = [
+        pa.RecordBatch.from_arrays(
+            [pa.array([[1.0, 2.0]]),
+             pa.array([data])], ['a', 'b'])
+        ]
+    expected_result = {}
+    for value in data:
+      key = 'binary_scalar_len_' + str(int(np.log2(len(value))))
+      expected_result[key] = expected_result.get(key, 0) + 1
+    p = beam.Pipeline()
+    _ = (
+        p
+        | 'CreateBatches' >> beam.Create(batch, reshuffle=False)
+        | 'GenerateStatsImpl' >> stats_impl.GenerateStatisticsImpl(
+            tfdv.StatsOptions(
+                experimental_use_sketch_based_topk_uniques=True,
+                generators=[
+                    sketch_generator.TopKUniquesSketchStatsGenerator(
+                        length_counter_sampling_rate=1)
+                ])))
+
+    runner = p.run()
+    runner.wait_until_finish()
+    result_metrics = runner.metrics()
+    result = {}
+    for metrics in result_metrics.query()['counters']:
+      if 'binary_scalar_len_' in metrics.key.metric.name:
+        result[metrics.key.metric.name] = metrics.committed
+    self.assertEqual(expected_result, result)
+
+  @parameterized.named_parameters(
+      {
+          'testcase_name': 'UNDEFINED',
+          'schema': None,
+          'expected_partial_stats': """
+          path {
+            step: 'fa'
+          }
+          string_stats {
+            unique: 4
+            top_values {
+              value: "a"
+              frequency: 4.0
+            }
+            top_values {
+              value: "__LARGE_BYTES__"
+              frequency: 3.0
+            }
+            rank_histogram {
+              buckets {
+                label: "a"
+                sample_count: 4.0
+              }
+              buckets {
+                low_rank: 1
+                high_rank: 1
+                label: "__LARGE_BYTES__"
+                sample_count: 3.0
+              }
+            }
+          }
+          """
+      }, {
+          'testcase_name': 'CATEGORICAL_UNSPECIFIED',
+          'schema': """
+          feature {
+            name: "fa"
+            type: BYTES
+            string_domain {
+                is_categorical: 0
+            }
+          }""",
+          'expected_partial_stats': """
+          path {
+            step: 'fa'
+          }
+          string_stats {
+            unique: 4
+            top_values {
+              value: "a"
+              frequency: 4.0
+            }
+            top_values {
+              value: "__LARGE_BYTES__"
+              frequency: 3.0
+            }
+            rank_histogram {
+              buckets {
+                label: "a"
+                sample_count: 4.0
+              }
+              buckets {
+                low_rank: 1
+                high_rank: 1
+                label: "__LARGE_BYTES__"
+                sample_count: 3.0
+              }
+            }
+          }
+          """
+      }, {
+          'testcase_name': 'CATEGORICAL_YES',
+          'schema': """
+          feature {
+            name: "fa"
+            type: BYTES
+            string_domain {
+                is_categorical: 1
+            }
+          }""",
+          'expected_partial_stats': """
+          path {
+            step: 'fa'
+          }
+          string_stats {
+            unique: 4
+            top_values {
+              value: "a"
+              frequency: 4.0
+            }
+            top_values {
+              value: "__LARGE_BYTES__"
+              frequency: 3.0
+            }
+            rank_histogram {
+              buckets {
+                label: "a"
+                sample_count: 4.0
+              }
+              buckets {
+                low_rank: 1
+                high_rank: 1
+                label: "__LARGE_BYTES__"
+                sample_count: 3.0
+              }
+            }
+          }
+          """.replace('__LARGE_BYTES__', 'f' *
+                      (sketch_generator._LARGE_STRING_THRESHOLD + 1))
+      }, {
+          'testcase_name': 'CATEGORICAL_NO',
+          'schema': """
+          feature {
+            name: "fa"
+            type: BYTES
+            string_domain {
+                is_categorical: 2
+            }
+          }""",
+          'expected_partial_stats': None
+      }
+  )
+  def test_string_domain_categorization(self, schema, expected_partial_stats):
+    large_bytes = 'f' * (sketch_generator._LARGE_STRING_THRESHOLD + 1)
+    batches = [
+        pa.RecordBatch.from_arrays([
+            pa.array([['a', 'b', large_bytes, 'a'],
+                      ['a', large_bytes, large_bytes, 'a']]),
+        ], ['fa']),
+        pa.RecordBatch.from_arrays([
+            pa.array([['c']]),
+        ], ['fa']),
+    ]
+    if schema:
+      schema = text_format.Parse(schema, schema_pb2.Schema())
+    expected_result = {}
+    if expected_partial_stats:
+      expected_result = {
+          types.FeaturePath(['fa']):
+              text_format.Parse(
+                  expected_partial_stats,
+                  statistics_pb2.FeatureNameStatistics())
+      }
+    generator = sketch_generator.TopKUniquesSketchStatsGenerator(
+        num_top_values=2,
+        num_rank_histogram_buckets=2,
+        schema=schema,
+        length_counter_sampling_rate=1)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
 if __name__ == '__main__':

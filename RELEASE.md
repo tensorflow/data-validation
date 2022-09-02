@@ -8,6 +8,10 @@
 
 *  Fix bug in implementation of `semantic_domain_stats_sample_rate`.
 
+*   Add beam metrics on string length
+*   Determine whether to calculate string statistics based on the
+    `is_categorical` field in the schema string domain.
+
 ## Known Issues
 
 ## Breaking Changes

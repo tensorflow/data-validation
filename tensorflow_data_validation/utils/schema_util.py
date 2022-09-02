@@ -17,6 +17,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import collections
 import logging
 from typing import Any, Iterable, List, Mapping, Optional, Set, Text, Tuple, Union
 
@@ -243,6 +244,38 @@ def is_categorical_feature(feature: schema_pb2.Feature):
             feature.float_domain.is_categorical)
   else:
     return False
+
+
+def get_bytes_features_categorical_value(
+    schema: schema_pb2.Schema
+) -> Mapping[types.FeaturePath, 'schema_pb2.StringDomain.Categorical']:
+  """Get the mapping from FeaturePath to the associated is_categorical value.
+
+  The mapping will only perform on features with domain of string_domain or the
+  domain is unspecified.
+
+  Args:
+    schema: The schema for the data.
+
+  Returns:
+    A dictionary that maps feature to the associated is_categorical value.
+  """
+  categorical_dict = {}
+  feature_domain_mapping = collections.defaultdict(list)
+  if schema:
+    for feature_path, feature in get_all_leaf_features(schema):
+      domain_info = feature.WhichOneof('domain_info')
+      if domain_info == 'string_domain':
+        categorical_dict[feature_path] = feature.string_domain.is_categorical
+      elif domain_info == 'domain':
+        feature_domain_mapping[feature.domain] += [feature_path]
+      elif domain_info is None and feature.type == schema_pb2.BYTES:
+        categorical_dict[feature_path] = (
+            schema_pb2.StringDomain.CATEGORICAL_UNSPECIFIED)
+    for domain in schema.string_domain:
+      for feature_path in feature_domain_mapping.get(domain.name, []):
+        categorical_dict[feature_path] = domain.is_categorical
+  return categorical_dict
 
 
 def get_categorical_numeric_feature_types(

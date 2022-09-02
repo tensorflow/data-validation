@@ -101,7 +101,8 @@ class TopKUniquesSketchStatsGenerator(stats_generator.CombinerStatsGenerator):
       weighted_frequency_threshold: float = 1.0,
       num_misragries_buckets: int = 128,
       num_kmv_buckets: int = 128,
-      store_output_in_custom_stats: bool = False
+      store_output_in_custom_stats: bool = False,
+      length_counter_sampling_rate: float = 0.01
   ):
     """Initializes a top-k and uniques sketch combiner statistics generator.
 
@@ -124,6 +125,8 @@ class TopKUniquesSketchStatsGenerator(stats_generator.CombinerStatsGenerator):
       store_output_in_custom_stats: Boolean to indicate if the output stats need
         to be stored in custom stats. If False, the output is stored in
         `uniques` and `rank_histogram` fields.
+      length_counter_sampling_rate: The sampling rate to update the byte length
+        counter.
     """
     super(
         TopKUniquesSketchStatsGenerator,
@@ -139,9 +142,12 @@ class TopKUniquesSketchStatsGenerator(stats_generator.CombinerStatsGenerator):
         if schema else {})
     self._bytes_features = frozenset(
         schema_util.get_bytes_features(schema) if schema else [])
+    self._byte_feature_is_categorical_values = (
+        schema_util.get_bytes_features_categorical_value(schema))
     self._frequency_threshold = frequency_threshold
     self._weighted_frequency_threshold = weighted_frequency_threshold
     self._store_output_in_custom_stats = store_output_in_custom_stats
+    self._length_counter_sampling_rate = length_counter_sampling_rate
     # They should be gauges, but not all runners support gauges so they are
     # made distributions.
     # TODO(b/130840752): support gauges in the internal runner.
@@ -173,13 +179,19 @@ class TopKUniquesSketchStatsGenerator(stats_generator.CombinerStatsGenerator):
         self._num_top_values_gauge.update(self._num_top_values)
         self._num_rank_histogram_buckets_gauge.update(
             self._num_rank_histogram_buckets)
+        categorical = self._byte_feature_is_categorical_values.get(
+            feature_name,
+            schema_pb2.StringDomain.Categorical.CATEGORICAL_UNSPECIFIED
+        ) == schema_pb2.StringDomain.Categorical.CATEGORICAL_YES
         return MisraGriesSketch(
             num_buckets=num_buckets,
             invalid_utf8_placeholder=constants.NON_UTF8_PLACEHOLDER,
             # Maximum sketch size:
             # _LARGE_STRING_THRESHOLD * num_buckets * constant_factor.
-            large_string_threshold=_LARGE_STRING_THRESHOLD,
-            large_string_placeholder=constants.LARGE_BYTES_PLACEHOLDER)
+            large_string_threshold=_LARGE_STRING_THRESHOLD
+            if not categorical else None,
+            large_string_placeholder=constants.LARGE_BYTES_PLACEHOLDER
+            if not categorical else None)
 
       self._num_top_values_gauge.update(self._num_top_values)
       combined_sketch = _CombinedSketch(
@@ -199,16 +211,34 @@ class TopKUniquesSketchStatsGenerator(stats_generator.CombinerStatsGenerator):
   def _should_run(self, feature_path: tfdv_types.FeaturePath,
                   feature_type: Optional[int]) -> bool:
     # Only compute top-k and unique stats for categorical numeric and string
-    # features (excluding string features declared as bytes).
+    # features (excluding string features declared as bytes and features that
+    # indicates as non categorical under StringDomain).
     if feature_type == statistics_pb2.FeatureNameStatistics.STRING:
-      return feature_path not in self._bytes_features
+      return (feature_path not in self._bytes_features and
+              self._byte_feature_is_categorical_values.get(feature_path, 0) !=
+              schema_pb2.StringDomain.Categorical.CATEGORICAL_NO)
     return top_k_uniques_stats_util.output_categorical_numeric(
         self._categorical_numeric_types, feature_path, feature_type)
 
   def add_input(
       self, accumulator: Dict[tfdv_types.FeaturePath, _CombinedSketch],
       input_record_batch: pa.RecordBatch
-      ) -> Dict[tfdv_types.FeaturePath, _CombinedSketch]:
+  ) -> Dict[tfdv_types.FeaturePath, _CombinedSketch]:
+
+    def update_length_counters(
+        feature_type: tfdv_types.FeatureNameStatisticsType,
+        leaf_array: pa.Array):
+      if np.random.random() > self._length_counter_sampling_rate: return
+      if feature_type == statistics_pb2.FeatureNameStatistics.STRING:
+        distinct_count = collections.defaultdict(int)
+        values, _ = arrow_util.flatten_nested(leaf_array)
+        for value in values:
+          binary_scalar_len = int(np.log2(max(value.as_buffer().size, 1)))
+          distinct_count[binary_scalar_len] += 1
+        for k, v in distinct_count.items():
+          beam.metrics.Metrics.counter(constants.METRICS_NAMESPACE,
+                                       "binary_scalar_len_" + str(k)).inc(v)
+
     for feature_path, leaf_array, weights in arrow_util.enumerate_arrays(
         input_record_batch,
         example_weight_map=self._example_weight_map,
@@ -218,6 +248,7 @@ class TopKUniquesSketchStatsGenerator(stats_generator.CombinerStatsGenerator):
       if self._should_run(feature_path, feature_type):
         self._update_combined_sketch_for_feature(feature_path, leaf_array,
                                                  weights, accumulator)
+        update_length_counters(feature_type, leaf_array)
     return accumulator
 
   def merge_accumulators(

@@ -388,6 +388,102 @@ class SchemaUtilTest(parameterized.TestCase):
             types.FeaturePath(['ff', 'ff_fa'])
         ])
 
+  def test_get_bytes_features_categorical_value(self):
+    schema = text_format.Parse(
+        """
+        feature {
+          name: "fa"
+          type: BYTES
+          string_domain {
+            is_categorical: CATEGORICAL_UNSPECIFIED
+          }
+        }
+        feature {
+          name: "fb"
+          type: BYTES
+          string_domain {
+            is_categorical: CATEGORICAL_YES
+          }
+        }
+        feature {
+          name: "fc"
+          type: INT
+          bool_domain {
+            name: "fc_bool_domain"
+          }
+        }
+        feature {
+          name: "fd"
+          type: BYTES
+          string_domain {
+            is_categorical: CATEGORICAL_NO
+          }
+        }
+        feature {
+          name: "fe"
+          type: BYTES
+        }
+        feature {
+          name: "ff"
+          type: FLOAT
+        }
+        feature {
+          name: "fg"
+          type: BYTES
+          string_domain {
+          }
+        }
+        feature {
+            name: "fh"
+            type: BYTES
+            domain: "fh"
+        }
+        feature {
+            name: "fi"
+            type: BYTES
+            domain: "fi"
+        }
+        feature {
+            name: "fj"
+            type: BYTES
+            domain: "fi"
+        }
+        string_domain{
+            name: "fh"
+            value: "a"
+        }
+        string_domain{
+            name: "fi"
+            value: "b"
+            is_categorical: CATEGORICAL_YES
+        }
+        string_domain{
+            name: "fj"
+            value: "b"
+            is_categorical: CATEGORICAL_YES
+        }
+        """, schema_pb2.Schema())
+    expect_result = {
+        types.FeaturePath(['fa']):
+            schema_pb2.StringDomain.CATEGORICAL_UNSPECIFIED,
+        types.FeaturePath(['fb']):
+            schema_pb2.StringDomain.CATEGORICAL_YES,
+        types.FeaturePath(['fd']):
+            schema_pb2.StringDomain.CATEGORICAL_NO,
+        types.FeaturePath(['fe']):
+            schema_pb2.StringDomain.CATEGORICAL_UNSPECIFIED,
+        types.FeaturePath(['fg']):
+            schema_pb2.StringDomain.CATEGORICAL_UNSPECIFIED,
+        types.FeaturePath(['fh']):
+            schema_pb2.StringDomain.CATEGORICAL_UNSPECIFIED,
+        types.FeaturePath(['fi']):
+            schema_pb2.StringDomain.CATEGORICAL_YES,
+        types.FeaturePath(['fj']):
+            schema_pb2.StringDomain.CATEGORICAL_YES,
+    }
+    result = schema_util.get_bytes_features_categorical_value(schema)
+    self.assertEqual(result, expect_result)
+
   def test_get_categorical_numeric_feature_types(self):
     schema = text_format.Parse(
         """
