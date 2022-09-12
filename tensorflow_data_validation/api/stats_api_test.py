@@ -60,7 +60,8 @@ class StatsAPITest(absltest.TestCase):
         ], ['a', 'b', 'c'])
     ]
 
-    expected_result = text_format.Parse("""
+    expected_result = text_format.Parse(
+        """
     datasets {
       num_examples: 3
       features {
@@ -76,24 +77,6 @@ class StatsAPITest(absltest.TestCase):
             max_num_values: 4
             avg_num_values: 2.33333333
             tot_num_values: 7
-            num_values_histogram {
-              buckets {
-                low_value: 1.0
-                high_value: 2.0
-                sample_count: 1.0
-              }
-              buckets {
-                low_value: 2.0
-                high_value: 4.0
-                sample_count: 1.0
-              }
-              buckets {
-                low_value: 4.0
-                high_value: 4.0
-                sample_count: 1.0
-              }
-              type: QUANTILES
-            }
           }
           mean: 2.66666666
           std_dev: 1.49071198
@@ -101,49 +84,6 @@ class StatsAPITest(absltest.TestCase):
           min: 1.0
           max: 5.0
           median: 3.0
-          histograms {
-            num_nan: 1
-            buckets {
-              low_value: 1.0
-              high_value: 2.3333333
-              sample_count: 2.9866667
-            }
-            buckets {
-              low_value: 2.3333333
-              high_value: 3.6666667
-              sample_count: 1.0066667
-            }
-            buckets {
-              low_value: 3.6666667
-              high_value: 5.0
-              sample_count: 2.0066667
-            }
-            type: STANDARD
-          }
-          histograms {
-            num_nan: 1
-            buckets {
-              low_value: 1.0
-              high_value: 1.0
-              sample_count: 1.5
-            }
-            buckets {
-              low_value: 1.0
-              high_value: 3.0
-              sample_count: 1.5
-            }
-            buckets {
-              low_value: 3.0
-              high_value: 4.0
-              sample_count: 1.5
-            }
-            buckets {
-              low_value: 4.0
-              high_value: 5.0
-              sample_count: 1.5
-            }
-            type: QUANTILES
-          }
         }
       }
       features {
@@ -159,71 +99,12 @@ class StatsAPITest(absltest.TestCase):
             max_num_values: 1750
             avg_num_values: 1000.0
             tot_num_values: 3000
-            num_values_histogram {
-              buckets {
-                low_value: 500.0
-                high_value: 750.0
-                sample_count: 1.0
-              }
-              buckets {
-                low_value: 750.0
-                high_value: 1750.0
-                sample_count: 1.0
-              }
-              buckets {
-                low_value: 1750.0
-                high_value: 1750.0
-                sample_count: 1.0
-              }
-              type: QUANTILES
-            }
           }
           mean: 1500.5
           std_dev: 866.025355672
           min: 1.0
           max: 3000.0
           median: 1501.0
-          histograms {
-            buckets {
-              low_value: 1.0
-              high_value: 1000.66666667
-              sample_count: 999.666666667
-            }
-            buckets {
-              low_value: 1000.66666667
-              high_value: 2000.33333333
-              sample_count: 999.666666667
-            }
-            buckets {
-              low_value: 2000.33333333
-              high_value: 3000.0
-              sample_count: 1000.66666667
-            }
-            type: STANDARD
-          }
-          histograms {
-            buckets {
-              low_value: 1.0
-              high_value: 751.0
-              sample_count: 750.0
-            }
-            buckets {
-              low_value: 751.0
-              high_value: 1501.0
-              sample_count: 750.0
-            }
-            buckets {
-              low_value: 1501.0
-              high_value: 2251.0
-              sample_count: 750.0
-            }
-            buckets {
-              low_value: 2251.0
-              high_value: 3000.0
-              sample_count: 750.0
-            }
-            type: QUANTILES
-          }
         }
       }
       features {
@@ -238,24 +119,6 @@ class StatsAPITest(absltest.TestCase):
             max_num_values: 4
             avg_num_values: 4.0
             tot_num_values: 12
-            num_values_histogram {
-              buckets {
-                low_value: 4.0
-                high_value: 4.0
-                sample_count: 1.0
-              }
-              buckets {
-                low_value: 4.0
-                high_value: 4.0
-                sample_count: 1.0
-              }
-              buckets {
-                low_value: 4.0
-                high_value: 4.0
-                sample_count: 1.0
-              }
-              type: QUANTILES
-            }
           }
           unique: 5
           top_values {
@@ -306,9 +169,10 @@ class StatsAPITest(absltest.TestCase):
       util.assert_that(
           result,
           test_util.make_dataset_feature_stats_list_proto_equal_fn(
-              self, expected_result))
+              self, expected_result, check_histograms=False))
 
-  _sampling_test_expected_result = text_format.Parse("""
+  _sampling_test_expected_result = text_format.Parse(
+      """
     datasets {
       num_examples: 1
       features {
@@ -324,51 +188,12 @@ class StatsAPITest(absltest.TestCase):
             max_num_values: 3000
             avg_num_values: 3000.0
             tot_num_values: 3000
-            num_values_histogram {
-              buckets {
-                low_value: 3000.0
-                high_value: 3000.0
-                sample_count: 0.5
-              }
-              buckets {
-                low_value: 3000.0
-                high_value: 3000.0
-                sample_count: 0.5
-              }
-              type: QUANTILES
-            }
           }
           mean: 1500.5
           std_dev: 866.025355672
           min: 1.0
           max: 3000.0
           median: 1501.0
-          histograms {
-            buckets {
-              low_value: 1.0
-              high_value: 1500.5
-              sample_count: 1499.5
-            }
-            buckets {
-              low_value: 1500.5
-              high_value: 3000.0
-              sample_count: 1500.5
-            }
-            type: STANDARD
-          }
-          histograms {
-            buckets {
-              low_value: 1.0
-              high_value: 1501.0
-              sample_count: 1500.0
-            }
-            buckets {
-              low_value: 1501.0
-              high_value: 3000.0
-              sample_count: 1500.0
-            }
-            type: QUANTILES
-          }
         }
       }
     }
@@ -408,15 +233,6 @@ class StatsAPITest(absltest.TestCase):
           num_stats {
             common_stats {
               num_non_missing: 3
-              num_values_histogram {
-                buckets {
-                  sample_count: 1.5
-                }
-                buckets {
-                  sample_count: 1.5
-                }
-                type: QUANTILES
-              }
               weighted_common_stats {
                 num_non_missing: 6
               }
@@ -431,15 +247,6 @@ class StatsAPITest(absltest.TestCase):
           string_stats {
             common_stats {
               num_non_missing: 3
-              num_values_histogram {
-                buckets {
-                  sample_count: 1.5
-                }
-                buckets {
-                  sample_count: 1.5
-                }
-                type: QUANTILES
-              }
               weighted_common_stats {
                 num_non_missing: 6
               }
@@ -454,15 +261,6 @@ class StatsAPITest(absltest.TestCase):
           num_stats {
             common_stats {
               num_non_missing: 3
-              num_values_histogram {
-                buckets {
-                  sample_count: 1.5
-                }
-                buckets {
-                  sample_count: 1.5
-                }
-                type: QUANTILES
-              }
               weighted_common_stats {
                 num_non_missing: 6
               }
@@ -482,19 +280,6 @@ class StatsAPITest(absltest.TestCase):
             max_num_values: 1
             avg_num_values: 1.0
             tot_num_values: 3
-            num_values_histogram {
-              buckets {
-                low_value: 1.0
-                high_value: 1.0
-                sample_count: 1.5
-              }
-              buckets {
-                low_value: 1.0
-                high_value: 1.0
-                sample_count: 1.5
-              }
-              type: QUANTILES
-            }
             weighted_common_stats {
                 num_non_missing: 6.0
                 avg_num_values: 1.0
@@ -506,41 +291,9 @@ class StatsAPITest(absltest.TestCase):
           min: 2.0
           max: 2.0
           median: 2.0
-          histograms {
-            buckets {
-              low_value: 2.0
-              high_value: 2.0
-              sample_count: 3.0
-            }
-            type: STANDARD
-          }
-          histograms {
-            buckets {
-              low_value: 2.0
-              high_value: 2.0
-              sample_count: 3.0
-            }
-            type: QUANTILES
-          }
           weighted_numeric_stats {
             mean: 2.0
             median: 2.0
-            histograms {
-              buckets {
-                low_value: 2.0
-                high_value: 2.0
-                sample_count: 6.0
-              }
-              type: STANDARD
-            }
-            histograms {
-              buckets {
-                low_value: 2.0
-                high_value: 2.0
-                sample_count: 6.0
-              }
-              type: QUANTILES
-            }
           }
         }
       }
@@ -561,7 +314,7 @@ class StatsAPITest(absltest.TestCase):
       util.assert_that(
           result,
           test_util.make_dataset_feature_stats_list_proto_equal_fn(
-              self, expected_result))
+              self, expected_result, check_histograms=False))
 
   def test_stats_pipeline_with_zero_examples(self):
     expected_result = text_format.Parse(
@@ -582,7 +335,7 @@ class StatsAPITest(absltest.TestCase):
       util.assert_that(
           result,
           test_util.make_dataset_feature_stats_list_proto_equal_fn(
-              self, expected_result))
+              self, expected_result, check_histograms=False))
 
   def test_stats_pipeline_with_sample_rate(self):
     record_batches = [
@@ -605,7 +358,8 @@ class StatsAPITest(absltest.TestCase):
       util.assert_that(
           result,
           test_util.make_dataset_feature_stats_list_proto_equal_fn(
-              self, self._sampling_test_expected_result))
+              self, self._sampling_test_expected_result,
+              check_histograms=False))
 
   def test_invalid_stats_options(self):
     record_batches = [pa.RecordBatch.from_arrays([])]
@@ -633,7 +387,9 @@ class StatsAPITest(absltest.TestCase):
     stats_from_file.ParseFromString(serialized_stats)
     self.assertLen(stats_from_file.datasets, 1)
     test_util.assert_dataset_feature_stats_proto_equal(
-        self, stats_from_file.datasets[0], stats.datasets[0])
+        self,
+        stats_from_file.datasets[0],
+        stats.datasets[0])
 
   def test_write_stats_to_tfrecrod(self):
     stats = text_format.Parse(
@@ -650,7 +406,9 @@ class StatsAPITest(absltest.TestCase):
     stats_from_file = stats_util.load_statistics(output_path)
     self.assertLen(stats_from_file.datasets, 1)
     test_util.assert_dataset_feature_stats_proto_equal(
-        self, stats_from_file.datasets[0], stats.datasets[0])
+        self,
+        stats_from_file.datasets[0],
+        stats.datasets[0])
 
   def test_write_stats_to_tfrecord_and_binary(self):
     stats1 = text_format.Parse(
@@ -716,7 +474,9 @@ class StatsAPITest(absltest.TestCase):
                                                            '*').proto()
     self.assertLen(stats_from_shards.datasets, 1)
     test_util.assert_dataset_feature_stats_proto_equal(
-        self, stats_from_shards.datasets[0], stats_combined.datasets[0])
+        self,
+        stats_from_shards.datasets[0],
+        stats_combined.datasets[0])
 
 
 class MergeDatasetFeatureStatisticsListTest(absltest.TestCase):
@@ -771,7 +531,7 @@ class MergeDatasetFeatureStatisticsListTest(absltest.TestCase):
       util.assert_that(
           result,
           test_util.make_dataset_feature_stats_list_proto_equal_fn(
-              self, stats_combined))
+              self, stats_combined, check_histograms=False))
 
 if __name__ == '__main__':
   absltest.main()

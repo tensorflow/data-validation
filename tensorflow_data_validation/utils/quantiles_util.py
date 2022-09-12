@@ -13,16 +13,10 @@
 # limitations under the License.
 
 """Utilities to compute quantiles."""
-import bisect
-from typing import List
+from typing import Tuple
 
 import numpy as np
 from tensorflow_metadata.proto.v0 import statistics_pb2
-
-# TODO(https://issues.apache.org/jira/browse/SPARK-22674): Switch to
-# `collections.namedtuple` or `typing.NamedTuple` once the Spark issue is
-# resolved.
-from tfx_bsl.types import tfx_namedtuple  # pylint: disable=g-bad-import-order
 
 
 def find_median(quantiles: np.ndarray) -> float:
@@ -49,259 +43,293 @@ def find_median(quantiles: np.ndarray) -> float:
     return quantiles[median_index]
 
 
-def generate_quantiles_histogram(quantiles: np.ndarray,
-                                 total_count: float,
-                                 num_buckets: int
-                                ) -> statistics_pb2.Histogram:
-  """Generate quantiles histrogram from the quantile boundaries.
+def _get_bin_weights(
+    boundaries: np.ndarray,
+    cum_bin_weights: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+  """Returns bin weights from cumulative bin weights.
+
+  Args:
+    boundaries: A numpy array of bin boundaries. May not be unique.
+    cum_bin_weights: A cumulative sum of bin weights aligned with boundaries.
+
+  Returns:
+    A tuple of numpy arrays consisting of bin lower bounds, bin upper bounds,
+    and the weight falling in each bin. Weight of duplicated bins is spread
+    evenly across duplicates.
+  """
+  cum_bin_weights = cum_bin_weights.astype(np.float64)
+  low_bounds = boundaries[:-1]
+  high_bounds = boundaries[1:]
+  bin_counts = np.diff(cum_bin_weights)
+  i = 0
+  # First distribute each count across bins with the same upper bound.
+  while i < low_bounds.size:
+    for j in range(i + 1, low_bounds.size + 1):
+      if j == low_bounds.size:
+        break
+      if high_bounds[i] != high_bounds[j]:
+        break
+    if j > i + 1:
+      distributed_weight = bin_counts[i:j].sum() / (j - i)
+      bin_counts[i:j] = distributed_weight
+    i = j
+  # Now distribute the min element count across all identical bins.
+  for i in range(low_bounds.size + 1):
+    if i == low_bounds.size:
+      break
+    if low_bounds[0] != low_bounds[i] or high_bounds[0] != high_bounds[i]:
+      break
+  if i > 0:
+    bin_counts[0:i] += cum_bin_weights[0] / (i)
+  return low_bounds, high_bounds, bin_counts
+
+
+def rebin_quantiles(quantiles: np.ndarray, cumulative_counts: np.ndarray,
+                    reduction_factor: int) -> Tuple[np.ndarray, np.ndarray]:
+  """Reduces the number of quantiles bins by a factor."""
+  x = (cumulative_counts.size - 1) / reduction_factor
+  if x != np.floor(x):
+    raise ValueError('Reduction factor %d must divide size %d' %
+                     (reduction_factor, cumulative_counts.size - 1))
+
+  low_val, low_count = quantiles[0], cumulative_counts[0]
+  quantiles = np.concatenate([[low_val],
+                              quantiles[reduction_factor::reduction_factor]])
+  cumulative_counts = np.concatenate(
+      [[low_count], cumulative_counts[reduction_factor::reduction_factor]])
+  return quantiles, cumulative_counts
+
+
+def generate_quantiles_histogram(
+    quantiles: np.ndarray,
+    cumulative_counts: np.ndarray) -> statistics_pb2.Histogram:
+  """Generate quantiles histogram from the quantile boundaries.
 
   Args:
     quantiles: A numpy array containing the quantile boundaries.
-    total_count: The total number of values over which the quantiles
-        are computed.
-    num_buckets: The required number of buckets in the quantiles histogram.
+    cumulative_counts: A numpy array of the same length as quantiles containing
+      the cumulative quantile counts (sum of weights).
 
   Returns:
     A statistics_pb2.Histogram proto.
   """
   result = statistics_pb2.Histogram()
   result.type = statistics_pb2.Histogram.QUANTILES
-
-  quantiles = list(quantiles)
-  # We assume that the number of quantiles is a multiple of the required
-  # number of buckets in the quantiles histogram.
-  assert (len(quantiles) - 1) % num_buckets == 0
-
-  # Sample count per bucket based on the computed quantiles.
-  sample_count = float(total_count / (len(quantiles)-1))
-  width = int((len(quantiles) - 1) / num_buckets)
-  # Sample count per merged bucket.
-  merged_bucket_sample_count = sample_count * width
-  i = 0
-  while i + width < len(quantiles):
-    result.buckets.add(low_value=quantiles[i],
-                       high_value=quantiles[i + width],
-                       sample_count=merged_bucket_sample_count)
-    i += width
-
+  low_bounds, high_bounds, bin_weights = _get_bin_weights(
+      quantiles, cumulative_counts)
+  for i in range(low_bounds.size):
+    result.buckets.add(
+        low_value=low_bounds[i],
+        high_value=high_bounds[i],
+        sample_count=bin_weights[i])
   return result
 
 
-# Named tuple with details for each bucket in a histogram.
-Bucket = tfx_namedtuple.namedtuple('Bucket',
-                                   ['low_value', 'high_value', 'sample_count'])
-
-
-def generate_equi_width_histogram(quantiles: np.ndarray,
-                                  finite_min: float,
-                                  finite_max: float,
-                                  total_count: float,
-                                  num_buckets: int
-                                 ) -> statistics_pb2.Histogram:
-  """Generate equi-width histrogram from the quantile boundaries.
-
-  Currently we construct the equi-width histogram by using the quantiles.
-  Specifically, we compute a large number of quantiles and then compute
-  the density for each equi-width histogram bucket by aggregating the
-  densities of the smaller quantile intervals that fall within the bucket.
-  This approach assumes that the number of quantiles is much higher than
-  the required number of buckets in the equi-width histogram.
+def _strip_infinities(
+    quantiles: np.ndarray, cumulative_counts: np.ndarray, finite_max: float,
+    num_pos_inf: float) -> Tuple[np.ndarray, np.ndarray, float]:
+  """Removes buckets containing infinite bounds.
 
   Args:
     quantiles: A numpy array containing the quantile boundaries.
-    finite_min: The mimimum finite value.
+    cumulative_counts: A numpy array of the same length as quantiles containing
+      the cumulative quantile counts (or cumsum of weights).
     finite_max: The maximum finite value.
-    total_count: The total number of values over which the quantiles
-        are computed.
-    num_buckets: The required number of buckets in the equi-width histogram.
+    num_pos_inf: The total count of positive infinite values. May be non-
+      integral if weighted.
 
   Returns:
-    A statistics_pb2.Histogram proto.
+    A tuple consisting of new quantiles, new cumulative counts, and the total
+    count of removed buckets ending in negative infinity.
+
+  """
+  # Find the largest index containing a -inf bucket upper bound.
+  neg_inf_idx = np.searchsorted(quantiles, float('-inf'), side='right')
+  # First we strip negative infinities. Because quantiles represents bucket
+  # right hand bounds, we can just chop off any buckets with a value of -inf.
+  if neg_inf_idx:
+    # Strip off negative infinities.
+    # Note that the quantiles will be off by num_neg_inf, because they only
+    # count finite values.
+    num_neg_inf = cumulative_counts[neg_inf_idx - 1]
+    cumulative_counts = cumulative_counts[neg_inf_idx:]
+    quantiles = quantiles[neg_inf_idx:]
+    cumulative_counts = cumulative_counts - num_neg_inf
+  else:
+    num_neg_inf = 0
+  # Now we strip positive infinities. A bucket with a right hand bound of +inf
+  # may contain some finite values, so we need to use a separately computed
+  # number of positive inf values.
+  if num_pos_inf:
+    pos_inf_index = np.searchsorted(quantiles, float('inf'), side='left')
+    # Subtract num_pos_inf from the total count to get the total count of finite
+    # elements.
+    finite_max_count = cumulative_counts[-1] - num_pos_inf
+
+    # Strip off +inf
+    quantiles = quantiles[:pos_inf_index]
+    cumulative_counts = cumulative_counts[:pos_inf_index]
+
+    # If a trailing bucket contained the finite max, concatenate a new bucket
+    # ending in that value.
+    quantiles = np.concatenate([quantiles, np.array([finite_max])])
+    cumulative_counts = np.concatenate(
+        [cumulative_counts, np.array([finite_max_count])])
+  return quantiles, cumulative_counts, num_neg_inf
+
+
+def _overlap(bucket: statistics_pb2.Histogram.Bucket, low_bound: float,
+             high_bound: float, first_bucket: bool) -> Tuple[float, bool, bool]:
+  """Computes overlap fraction between a histogram bucket and an interval.
+
+  Args:
+    bucket: a histogram bucket. The low_value and high_value may be negative or
+      positive inf respectively.
+    low_bound: A finite lower bound of a probe interval.
+    high_bound: A finite upper bound of a probe interval.
+    first_bucket: Indicates if this is the first interval, which may contain a
+      point bucket on its left edge.
+
+  Returns:
+    A tuple consisting of the following elements:
+    1) The fraction of bucket's sample count falling into a probe
+    interval. Samples are assumed to be uniformly distributed within a bucket.
+    Buckets with infinite bounds are treated as having full overlap with any
+    intervals they overlap with.
+    2) A boolean indicating whether the bucket completely precedes the probe
+    interval.
+    3) A boolean indicating whether the bucket completely follows the probe
+    interval.
+  """
+  # Case 0, the bucket is a point, and is equal to an interval edge.
+  # If this is the first bucket, we treat it as overlapping if it falls on the
+  # left boundary.
+  if first_bucket and bucket.high_value == bucket.low_value == low_bound:
+    return 1.0, False, False
+  # Otherwise we treat it as not overlapping.
+  if not first_bucket and bucket.high_value == bucket.low_value == low_bound:
+    return 0.0, True, False
+  # Case 1, the bucket entirely precedes the interval.
+  #            |bucket|
+  #                       |   |
+  if bucket.high_value < low_bound:
+    return 0.0, True, False
+  # Case 2, the bucket entirely follows the interval.
+  #            |bucket|
+  #      |   |
+  if bucket.low_value > high_bound:
+    return 0.0, False, True
+  # Case 3: bucket is contained.
+  #            |bucket|
+  #        |              |
+  if low_bound <= bucket.low_value and high_bound >= bucket.high_value:
+    return 1.0, False, False
+  # Case 4: interval overlaps bucket on the left.
+  #            |bucket|
+  #        |     |
+  if low_bound <= bucket.low_value:
+    return (high_bound - bucket.low_value) / (bucket.high_value -
+                                              bucket.low_value), False, False
+  # Case 5: interval overlaps bucket on the right.
+  #            |bucket|
+  #               |     |
+  if high_bound >= bucket.high_value:
+    return (bucket.high_value - low_bound) / (bucket.high_value -
+                                              bucket.low_value), False, False
+  # Case 6: interval falls inside of the bucket.
+  #            |bucket|
+  #               | |
+  if low_bound > bucket.low_value and high_bound < bucket.high_value:
+    return (high_bound - low_bound) / (bucket.high_value -
+                                       bucket.low_value), False, False
+  raise ValueError('Unable to compute overlap between (%f, %f) and %s' %
+                   (low_bound, high_bound, bucket))
+
+
+def generate_equi_width_histogram(
+    quantiles: np.ndarray, cumulative_counts: np.ndarray, finite_min: float,
+    finite_max: float, num_buckets: int,
+    num_pos_inf: float) -> statistics_pb2.Histogram:
+  """Generates an equal bucket width hist by combining a quantiles histogram.
+
+  Args:
+    quantiles: A numpy array containing the quantile boundaries.
+    cumulative_counts: A numpy array of the same length as quantiles containing
+      the cumulative quantile counts (sum of weights).
+    finite_min: The mimimum finite value.
+    finite_max: The maximum finite value.
+    num_buckets: The required number of buckets in the equi-width histogram.
+    num_pos_inf: The number of positive infinite values. May be non- integral if
+      weighted.
+
+  Returns:
+    A standard histogram. Bucket counts are determined via linear interpolation.
   """
   result = statistics_pb2.Histogram()
   result.type = statistics_pb2.Histogram.STANDARD
-  buckets = generate_equi_width_buckets(
-      list(quantiles), finite_min, finite_max, total_count, num_buckets)
-  for bucket_info in buckets:
-    result.buckets.add(low_value=bucket_info.low_value,
-                       high_value=bucket_info.high_value,
-                       sample_count=bucket_info.sample_count)
-
-  return result
-
-
-def generate_equi_width_buckets(quantiles: List[float],
-                                finite_min: float,
-                                finite_max: float,
-                                total_count: float,
-                                num_buckets: int) -> List[Bucket]:
-  """Generate buckets for equi-width histogram.
-
-  Args:
-    quantiles: A list containing the quantile boundaries.
-    finite_min: The mimimum finite value.
-    finite_max: The maximum finite value.
-    total_count: The total number of values over which the quantiles
-        are computed.
-    num_buckets: The required number of buckets in the equi-width histogram.
-
-  Returns:
-    A list containing the buckets.
-  """
-  # We assume that the number of quantiles is much higher than
-  # the required number of buckets in the equi-width histogram.
-  assert len(quantiles) > num_buckets
-
-  # If all values of a feature are equal, have only a single bucket.
-  if quantiles[0] == quantiles[-1]:
-    return [Bucket(quantiles[0], quantiles[-1], total_count)]
-
-  # Find the index of the first and the last finite value. If there are only
-  # -inf and +inf values, we generate two buckets (-inf, -inf) and (+inf, +inf).
-  finite_min_index = np.searchsorted(quantiles, float('-inf'), side='right')
-  finite_max_index = np.searchsorted(quantiles, float('inf'), side='left') - 1
-
-  # Compute sample count associated with a quantile interval.
-  sample_count = total_count / (len(quantiles) - 1)
-
-  if finite_max_index < finite_min_index:
-    return [
-        # Divide the intersecting bucket (-inf, +inf) sample count equally.
-        Bucket(float('-inf'), float('-inf'),
-               (finite_min_index - 0.5) * sample_count),
-        Bucket(float('inf'), float('inf'),
-               (len(quantiles) - finite_max_index - 1.5) * sample_count),
-    ]
-
-  # Sample count to account for  (-inf, -inf) buckets.
-  start_bucket_count = finite_min_index * sample_count
-  # Sample count to account for (inf, inf) buckets.
-  last_bucket_count = (len(quantiles) - finite_max_index - 1) * sample_count
-  finite_values = quantiles[finite_min_index:finite_max_index+1]
-  # Insert finite minimum and maximum if first and last finite quantiles are
-  # greater or lesser than the finite mimimum and maximum respectively.
-  # Note that if all values of a feature are finite, we will always have the
-  # finite min and finite max as the first and last boundaries.
-  if finite_min_index > 0 and finite_min < finite_values[0]:
-    finite_values.insert(0, finite_min)
-    # Since we are adding an extra boundary, we borrow the sample count from the
-    # (-inf, -inf) buckets as the first bucket will anyhow be merged with all
-    # the (-inf, -inf) buckets.
-    start_bucket_count -= sample_count
-  if finite_max_index < len(quantiles) - 1 and finite_max > finite_values[-1]:
-    finite_values.append(finite_max)
-    # Since we are adding an extra boundary, we borrow the sample count from the
-    # (+inf, +inf) buckets as the last bucket will anyhow be merged with all
-    # the (+inf, +inf) buckets.
-    last_bucket_count -= sample_count
-
-  # Cast finite boundaries from float32 to float64 to avoid precision errors.
-  # This error can happen when both min and max in the boundaries are valid
-  # float32 values, but when we compute (max-min) to compute the width it can
-  # result in an overflow.
-  # Example: min=-3.4e+38, max=3.4e+38
-  finite_values = np.array(finite_values, dtype=np.float64)
-
-  # Check if the finite quantile boundaries are sorted.
-  assert np.all(np.diff(finite_values) >= 0), (
-      'Quantiles output not sorted %r'  % ','.join(map(str, finite_values)))
-
-  # Construct the list of buckets from finite boundaries.
-  result = _generate_equi_width_buckets_from_finite_boundaries(
-      finite_values, sample_count, num_buckets)
-
-  # If we have -inf values, update first bucket's low value (to be -inf) and
-  # sample count to account for remaining (-inf, -inf) buckets.
-  if finite_min_index > 0:
-    result[0] = Bucket(
-        float('-inf'), result[0].high_value,
-        result[0].sample_count + start_bucket_count)
-  # If we have +inf values, update last bucket's high value (to be +inf) and
-  # sample count to account for remaining (+inf, +inf) buckets.
-  if finite_max_index < len(quantiles) - 1:
-    result[-1] = Bucket(
-        result[-1].low_value, float('inf'),
-        result[-1].sample_count + last_bucket_count)
-  return result
-
-
-def _generate_equi_width_buckets_from_finite_boundaries(
-    quantiles: np.ndarray, sample_count: float, num_buckets: int):
-  """Generates equi width buckets from finite quantiles boundaries."""
-
-  def _compute_count(start_index, end_index, start_pos):
-    """Computes sample count of the interval."""
-    # Add sample count corresponding to the number of entire quantile
-    # intervals included in the current bucket.
-    result = (end_index - start_index - 1) * sample_count
-    if start_pos > quantiles[start_index]:
-      result -= sample_count
-      result += ((quantiles[start_index + 1] - start_pos) * sample_count /
-                 (quantiles[start_index + 1] - quantiles[start_index]))
+  # If there were no finite values at all, return a single bucket.
+  if not np.isfinite(finite_min) and not np.isfinite(finite_max):
+    result.buckets.add(
+        low_value=finite_min,
+        high_value=finite_max,
+        sample_count=cumulative_counts[-1])
     return result
 
-  min_val, max_val = quantiles[0], quantiles[-1]
+  assert np.isfinite(finite_min)
+  assert np.isfinite(finite_max)
+  # Verify that quantiles are sorted.
+  assert np.all(quantiles[:-1] <= quantiles[1:])
+  # First, strip off positive and negative infinities.
+  quantiles, cumulative_counts, num_neg_inf = _strip_infinities(
+      quantiles, cumulative_counts, finite_max, num_pos_inf)
 
-  # Compute the equal-width of the buckets in the standard histogram.
-  width = (max_val - min_val) / num_buckets
-
-  # Iterate to create the first num_buckets - 1 buckets.
-  bucket_boundaries = [min_val + (ix * width) for ix in range(num_buckets)]
-
-  # Index of the current quantile being processed.
-  quantile_index = 0
-  # Position within the current quantile bucket being processed.
-  quantile_pos = quantiles[quantile_index]
-
-  # Assert min/max values of the bucket boundaries.
-  assert np.min(bucket_boundaries) == min_val, (
-      'Invalid bucket boundaries %r for quantiles output %r' %
-      (','.join(map(str, bucket_boundaries)), ','.join(map(str, quantiles))))
-  assert np.max(bucket_boundaries) <= max_val, (
-      'Invalid bucket boundaries %r for quantiles output %r' %
-      (','.join(map(str, bucket_boundaries)), ','.join(map(str, quantiles))))
-
-  # Initialize the list of buckets.
-  result = []
-
-  for (bucket_start, bucket_end) in zip(bucket_boundaries[:-1],
-                                        bucket_boundaries[1:]):
-    # Initialize sample count of the current bucket.
-    bucket_count = 0
-
-    # Iterate over the quantiles to find where the current bucket ends.
-    curr_index = bisect.bisect_left(quantiles, bucket_end, lo=quantile_index)
-
-    # Handle case where we have at least one full quantile interval in the
-    # current bucket.
-    if curr_index > quantile_index + 1:
-      # Adds count for the initial range
-      # (quantile_pos, quantiles[quantile_index+1]) and remaining full quantile
-      # intervals for the current bucket.
-      bucket_count += _compute_count(quantile_index, curr_index, quantile_pos)
-      quantile_pos = quantiles[curr_index - 1]
-
-    # Add sample count corresponding to the partial last quantile interval.
-    # We assume the samples are uniformly distributed in an interval.
-    delta = ((bucket_end - quantile_pos) * sample_count /
-             (quantiles[curr_index] - quantiles[curr_index - 1]))
-
-    bucket_count += delta
-
-    # Add the current bucket to the result.
-    result.append(Bucket(bucket_start, bucket_end, bucket_count))
-
-    quantile_pos = bucket_end
-    # Update the index of the quantile to be processed for the next bucket.
-    quantile_index = (
-        (curr_index - 1) if quantile_pos < quantiles[curr_index] else
-        curr_index)
-
-  # Add the remaining sample count to the last bucket
-  # (bucket_boundaries[-1], max_val). Add sample count for all quantile
-  # intervals from quantile_index. We add the last bucket separately because
-  # the bucket end boundary is inclusive for the last bucket.
-  bucket_count = _compute_count(quantile_index, len(quantiles), quantile_pos)
-  result.append(
-      Bucket(bucket_boundaries[-1], quantiles[-1], bucket_count))
+  # TODO(zwestrick): Skip this and operate directly on the arrays?
+  quantiles_hist = generate_quantiles_histogram(quantiles, cumulative_counts)
+  if finite_min == finite_max:
+    new_boundaries = np.array([finite_min, finite_max])
+  else:
+    new_boundaries = np.linspace(finite_min, finite_max, num_buckets + 1)
+    if not np.isfinite(new_boundaries).all():
+      # Something has gone wrong, probably overflow. Bail out and return an
+      # empty histogram. We can't meaningfully proceed, but this may not be an
+      # error.
+      return result
+  start_index = 0
+  # If we stripped off negative infinities, add them back as a single bucket.
+  if num_neg_inf:
+    result.buckets.add(
+        low_value=float('-inf'),
+        high_value=float('-inf'),
+        sample_count=num_neg_inf)
+  # Now build the standard histogram by merging quantiles histogram buckets.
+  for i in range(new_boundaries.size - 1):
+    low_bound = new_boundaries[i]
+    high_bound = new_boundaries[i + 1]
+    sample_count = 0
+    # Find the first bucket with nonzero overlap with the first hist.
+    for current_index in range(start_index, len(quantiles_hist.buckets)):
+      overlap, bucket_precedes, bucket_follows = _overlap(
+          quantiles_hist.buckets[current_index],
+          low_bound=low_bound,
+          high_bound=high_bound,
+          first_bucket=i == 0)
+      if bucket_follows:
+        # We're entirely after the current interval.
+        # Time to bail.
+        break
+      if bucket_precedes:
+        # The bucket we considered is totally before the current interval, so
+        # we can start subsequent searches from here.
+        start_index = current_index
+      sample_count += overlap * quantiles_hist.buckets[
+          current_index].sample_count
+      current_index += 1
+    result.buckets.add(
+        low_value=low_bound, high_value=high_bound, sample_count=sample_count)
+  # If we stripped off positive infinites, add them back as a single bucket.
+  if num_pos_inf:
+    result.buckets.add(
+        low_value=float('inf'),
+        high_value=float('inf'),
+        sample_count=num_pos_inf)
   return result

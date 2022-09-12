@@ -31,6 +31,51 @@ from tensorflow.python.util.protobuf import compare  # pylint: disable=g-direct-
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
+# pytype: disable=attribute-error
+def _clear(msg, field_name) -> bool:
+  """Clear a field if set and return True if it was."""
+  try:
+    if msg.HasField(field_name):
+      msg.ClearField(field_name)
+      return True
+  except ValueError:
+    if msg.__getattribute__(field_name):
+      msg.ClearField(field_name)
+      return True
+  return False
+# pytype: enable=attribute-error
+
+
+def _clear_histograms(
+    dataset: statistics_pb2.DatasetFeatureStatistics
+) -> Tuple[statistics_pb2.DatasetFeatureStatistics, bool]:
+  """Returns input with cleared histograms returns true if any were set."""
+  has_hist = False
+  result = statistics_pb2.DatasetFeatureStatistics()
+  result.MergeFrom(dataset)
+  for feature in result.features:
+    if feature.HasField('num_stats'):
+      has_hist = _clear(feature.num_stats, 'histograms') or has_hist
+      has_hist = _clear(feature.num_stats.weighted_numeric_stats,
+                        'histograms') or has_hist
+      common_stats = feature.num_stats.common_stats
+    elif feature.HasField('string_stats'):
+      common_stats = feature.string_stats.common_stats
+    elif feature.HasField('struct_stats'):
+      common_stats = feature.struct_stats.common_stats
+    elif feature.HasField('bytes_stats'):
+      common_stats = feature.bytes_stats.common_stats
+    else:
+      common_stats = None
+    if common_stats is not None:
+      has_hist = _clear(common_stats,
+                        'feature_list_length_histogram') or has_hist
+      has_hist = _clear(common_stats, 'num_values_histogram') or has_hist
+    for custom in feature.custom_stats:
+      has_hist = _clear(custom, 'histogram') or has_hist
+  return result, has_hist
+
+
 def make_dataset_feature_stats_list_proto_equal_fn(
     test: absltest.TestCase,
     expected_result: statistics_pb2.DatasetFeatureStatisticsList,
@@ -38,6 +83,7 @@ def make_dataset_feature_stats_list_proto_equal_fn(
     expected_result_merge_fn: Optional[
         Callable[[Iterable[statistics_pb2.DatasetFeatureStatisticsList]],
                  statistics_pb2.DatasetFeatureStatisticsList]] = None,
+    check_histograms: bool = True
 ) -> Callable[[Iterable[statistics_pb2.DatasetFeatureStatisticsList]], None]:
   """Makes a matcher function for comparing DatasetFeatureStatisticsList proto.
 
@@ -49,6 +95,9 @@ def make_dataset_feature_stats_list_proto_equal_fn(
       inputs into the form expected by expected_result.
     expected_result_merge_fn: Called on elements to merge multiple inputs into
       the form expected by expected_result.
+    check_histograms: If True, asserts equality of histograms.
+      Otherwise histograms are not checked, and are assumed to not be specified
+      in expected output.
 
   Returns:
     A matcher function for comparing DatasetFeatureStatisticsList proto.
@@ -75,7 +124,8 @@ def make_dataset_feature_stats_list_proto_equal_fn(
       for i in range(len(sorted_actual_datasets)):
         assert_dataset_feature_stats_proto_equal(test,
                                                  sorted_actual_datasets[i],
-                                                 sorted_expected_datasets[i])
+                                                 sorted_expected_datasets[i],
+                                                 check_histograms)
     except AssertionError as e:
       raise util.BeamAssertException from e
 
@@ -111,8 +161,10 @@ def assert_feature_proto_equal(
 
 
 def assert_dataset_feature_stats_proto_equal(
-    test: absltest.TestCase, actual: statistics_pb2.DatasetFeatureStatistics,
-    expected: statistics_pb2.DatasetFeatureStatistics) -> None:
+    test: absltest.TestCase,
+    actual: statistics_pb2.DatasetFeatureStatistics,
+    expected: statistics_pb2.DatasetFeatureStatistics,
+    check_histograms: bool = True) -> None:
   """Compares DatasetFeatureStatistics protos.
 
   This function can be used to test whether two DatasetFeatureStatistics protos
@@ -122,7 +174,16 @@ def assert_dataset_feature_stats_proto_equal(
     test: The test case.
     actual: The actual DatasetFeatureStatistics proto.
     expected: The expected DatasetFeatureStatistics proto.
+    check_histograms: If True, asserts equality of histograms.
+      Otherwise histograms are not checked, and are assumed to not be specified
+      in expected output.
   """
+  if not check_histograms:
+    expected, any_hist = _clear_histograms(expected)
+    if any_hist:
+      raise ValueError(
+          'Histograms set in expected result with check_histogram=False.')
+    actual, _ = _clear_histograms(actual)
   test.assertEqual(
       expected.name, actual.name, 'Expected name to be {}, found {} in '
       'DatasetFeatureStatistics {}'.format(expected.name, actual.name, actual))

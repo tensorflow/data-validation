@@ -55,22 +55,22 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   buckets {
                     low_value: 1.0
                     high_value: 1.0
-                    sample_count: 0.75
+                    sample_count: 1.0
                   }
                   buckets {
                     low_value: 1.0
                     high_value: 2.0
-                    sample_count: 0.75
+                    sample_count: 1.0
                   }
                   buckets {
                     low_value: 2.0
                     high_value: 3.0
-                    sample_count: 0.75
+                    sample_count: 0.5
                   }
                   buckets {
                     low_value: 3.0
                     high_value: 3.0
-                    sample_count: 0.75
+                    sample_count: 0.5
                   }
                   type: QUANTILES
                 }
@@ -85,17 +85,17 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 buckets {
                   low_value: 1.0
                   high_value: 2.3333333
-                  sample_count: 2.9866667
+                  sample_count: 3.0049751
                 }
                 buckets {
                   low_value: 2.3333333
                   high_value: 3.6666667
-                  sample_count: 1.0066667
+                  sample_count: 1.0049751
                 }
                 buckets {
                   low_value: 3.6666667
                   high_value: 5.0
-                  sample_count: 2.0066667
+                  sample_count: 1.9900498
                 }
                 type: STANDARD
               }
@@ -103,22 +103,22 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 buckets {
                   low_value: 1.0
                   high_value: 1.0
-                  sample_count: 1.5
+                  sample_count: 2.0
                 }
                 buckets {
                   low_value: 1.0
                   high_value: 3.0
-                  sample_count: 1.5
+                  sample_count: 2.0
                 }
                 buckets {
                   low_value: 3.0
                   high_value: 4.0
-                  sample_count: 1.5
+                  sample_count: 1.0
                 }
                 buckets {
                   low_value: 4.0
                   high_value: 5.0
-                  sample_count: 1.5
+                  sample_count: 1.0
                 }
                 type: QUANTILES
               }
@@ -291,22 +291,22 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   buckets {
                     low_value: 3.0
                     high_value: 3.0
-                    sample_count: 0.75
+                    sample_count: 1.0
                   }
                   buckets {
                     low_value: 3.0
                     high_value: 4.0
-                    sample_count: 0.75
+                    sample_count: 1.0
                   }
                   buckets {
                     low_value: 4.0
                     high_value: 5.0
-                    sample_count: 0.75
+                    sample_count: 0.5
                   }
                   buckets {
                     low_value: 5.0
                     high_value: 5.0
-                    sample_count: 0.75
+                    sample_count: 0.5
                   }
                   type: QUANTILES
                 }
@@ -319,23 +319,33 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               histograms {
                 buckets {
                   low_value: -inf
+                  high_value: -inf
+                  sample_count: 3.0
+                }
+                buckets {
+                  low_value: 1.0
                   high_value: 2.0
-                  sample_count: 5.01
+                  sample_count: 3.0
                 }
                 buckets {
                   low_value: 2.0
                   high_value: 3.0
-                  sample_count: 0.99
+                  sample_count: 1.0
                 }
                 buckets {
                   low_value: 3.0
                   high_value: 4.0
-                  sample_count: 1.02
+                  sample_count: 1.0
                 }
                 buckets {
                   low_value: 4.0
+                  high_value: 5.0
+                  sample_count: 1.0
+                }
+                buckets {
+                  low_value: inf
                   high_value: inf
-                  sample_count: 4.98
+                  sample_count: 3.0
                 }
                 type: STANDARD
               }
@@ -343,22 +353,22 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 buckets {
                   low_value: -inf
                   high_value: 1.0
-                  sample_count: 3.0
+                  sample_count: 5.0
                 }
                 buckets {
                   low_value: 1.0
                   high_value: 3.0
-                  sample_count: 3.0
+                  sample_count: 2.0
                 }
                 buckets {
                   low_value: 3.0
                   high_value: inf
-                  sample_count: 3.0
+                  sample_count: 2.5
                 }
                 buckets {
                   low_value: inf
                   high_value: inf
-                  sample_count: 3.0
+                  sample_count: 2.5
                 }
                 type: QUANTILES
               }
@@ -446,39 +456,39 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 buckets {
                   low_value: 1.0
                   high_value: 1.3333333
-                  sample_count: 0.9955556
+                  sample_count: 1.0016584
                 }
                 buckets {
                   low_value: 1.3333333
                   high_value: 1.6666667
-                  sample_count: 0.0022222
+                  sample_count: 0.0016584
                 }
                 buckets {
                   low_value: 1.6666667
                   high_value: 2.0
-                  sample_count: 1.0022222
+                  sample_count: 0.9966833
                 }
               }
               histograms {
                 buckets {
                   low_value: 1.0
                   high_value: 1.0
-                  sample_count: 0.5
+                  sample_count: 1.0
                 }
                 buckets {
                   low_value: 1.0
                   high_value: 2.0
-                  sample_count: 0.5
+                  sample_count: 0.3333333
                 }
                 buckets {
                   low_value: 2.0
                   high_value: 2.0
-                  sample_count: 0.5
+                  sample_count: 0.3333333
                 }
                 buckets {
                   low_value: 2.0
                   high_value: 2.0
-                  sample_count: 0.5
+                  sample_count: 0.3333333
                 }
                 type: QUANTILES
               }
@@ -501,22 +511,22 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   buckets {
                     low_value: 1.0
                     high_value: 1.0
-                    sample_count: 0.75
+                    sample_count: 1.0
                   }
                   buckets {
                     low_value: 1.0
                     high_value: 1.0
-                    sample_count: 0.75
+                    sample_count: 1.0
                   }
                   buckets {
                     low_value: 1.0
                     high_value: 3.0
-                    sample_count: 0.75
+                    sample_count: 0.5
                   }
                   buckets {
                     low_value: 3.0
                     high_value: 3.0
-                    sample_count: 0.75
+                    sample_count: 0.5
                   }
                   type: QUANTILES
                 }
@@ -531,39 +541,39 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 buckets {
                   low_value: 1.0
                   high_value: 2.3333333
-                  sample_count: 1.9888889
+                  sample_count: 2.0041667
                 }
                 buckets {
                   low_value: 2.3333333
                   high_value: 3.6666667
-                  sample_count: 1.0055556
+                  sample_count: 1.0041667
                 }
                 buckets {
                   low_value: 3.6666667
                   high_value: 5.0
-                  sample_count: 2.0055556
+                  sample_count: 1.9916667
                 }
               }
               histograms {
                 buckets {
                   low_value: 1.0
                   high_value: 2.0
-                  sample_count: 1.25
+                  sample_count: 2.0
                 }
                 buckets {
                   low_value: 2.0
                   high_value: 3.0
-                  sample_count: 1.25
+                  sample_count: 1.0
                 }
                 buckets {
                   low_value: 3.0
                   high_value: 4.0
-                  sample_count: 1.25
+                  sample_count: 1.0
                 }
                 buckets {
                   low_value: 4.0
                   high_value: 5.0
-                  sample_count: 1.25
+                  sample_count: 1.0
                 }
                 type: QUANTILES
               }
@@ -647,22 +657,22 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   buckets {
                     low_value: 2.0
                     high_value: 2.0
-                    sample_count: 0.75
+                    sample_count: 1.0
                   }
                   buckets {
                     low_value: 2.0
                     high_value: 3.0
-                    sample_count: 0.75
+                    sample_count: 1.0
                   }
                   buckets {
                     low_value: 3.0
                     high_value: 4.0
-                    sample_count: 0.75
+                    sample_count: 0.5
                   }
                   buckets {
                     low_value: 4.0
                     high_value: 4.0
-                    sample_count: 0.75
+                    sample_count: 0.5
                   }
                   type: QUANTILES
                 }
@@ -684,17 +694,17 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 buckets {
                   low_value: 1.0
                   high_value: 2.3333333
-                  sample_count: 2.9866667
+                  sample_count: 3.0049751
                 }
                 buckets {
                   low_value: 2.3333333
                   high_value: 3.6666667
-                  sample_count: 1.0066667
+                  sample_count: 1.0049751
                 }
                 buckets {
                   low_value: 3.6666667
                   high_value: 5.0
-                  sample_count: 2.0066667
+                  sample_count: 1.9900498
                 }
                 type: STANDARD
               }
@@ -703,22 +713,22 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 buckets {
                   low_value: 1.0
                   high_value: 1.0
-                  sample_count: 1.5
+                  sample_count: 2.0
                 }
                 buckets {
                   low_value: 1.0
                   high_value: 3.0
-                  sample_count: 1.5
+                  sample_count: 2.0
                 }
                 buckets {
                   low_value: 3.0
                   high_value: 4.0
-                  sample_count: 1.5
+                  sample_count: 1.0
                 }
                 buckets {
                   low_value: 4.0
                   high_value: 5.0
-                  sample_count: 1.5
+                  sample_count: 1.0
                 }
                 type: QUANTILES
               }
@@ -731,17 +741,17 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   buckets {
                     low_value: 1.0
                     high_value: 2.3333333
-                    sample_count: 4.9988889
+                    sample_count: 5.0091324
                   }
                   buckets {
                     low_value: 2.3333333
                     high_value: 3.6666667
-                    sample_count: 1.9922222
+                    sample_count: 2.0091324
                   }
                   buckets {
                     low_value: 3.6666667
                     high_value: 5.0
-                    sample_count: 4.0088889
+                    sample_count: 3.9817352
                   }
                 }
                 histograms {
@@ -749,22 +759,22 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   buckets {
                     low_value: 1.0
                     high_value: 1.0
-                    sample_count: 2.75
+                    sample_count: 4.0
                   }
                   buckets {
                     low_value: 1.0
                     high_value: 3.0
-                    sample_count: 2.75
+                    sample_count: 3.0
                   }
                   buckets {
                     low_value: 3.0
                     high_value: 4.0
-                    sample_count: 2.75
+                    sample_count: 2.0
                   }
                   buckets {
                     low_value: 4.0
                     high_value: 5.0
-                    sample_count: 2.75
+                    sample_count: 2.0
                   }
                   type: QUANTILES
                 }
@@ -790,22 +800,22 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   buckets {
                     low_value: 1.0
                     high_value: 1.0
-                    sample_count: 0.75
+                    sample_count: 1.0
                   }
                   buckets {
                     low_value: 1.0
                     high_value: 2.0
-                    sample_count: 0.75
+                    sample_count: 1.0
                   }
                   buckets {
                     low_value: 2.0
                     high_value: 3.0
-                    sample_count: 0.75
+                    sample_count: 0.5
                   }
                   buckets {
                     low_value: 3.0
                     high_value: 3.0
-                    sample_count: 0.75
+                    sample_count: 0.5
                   }
                   type: QUANTILES
                 }
@@ -826,17 +836,17 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 buckets {
                   low_value: 1.0
                   high_value: 2.3333333
-                  sample_count: 2.9866667
+                  sample_count: 3.0049751
                 }
                 buckets {
                   low_value: 2.3333333
                   high_value: 3.6666667
-                  sample_count: 1.0066667
+                  sample_count: 1.0049751
                 }
                 buckets {
                   low_value: 3.6666667
                   high_value: 5.0
-                  sample_count: 2.0066667
+                  sample_count: 1.9900498
                 }
                 type: STANDARD
               }
@@ -844,22 +854,22 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 buckets {
                   low_value: 1.0
                   high_value: 1.0
-                  sample_count: 1.5
+                  sample_count: 2.0
                 }
                 buckets {
                   low_value: 1.0
                   high_value: 3.0
-                  sample_count: 1.5
+                  sample_count: 2.0
                 }
                 buckets {
                   low_value: 3.0
                   high_value: 4.0
-                  sample_count: 1.5
+                  sample_count: 1.0
                 }
                 buckets {
                   low_value: 4.0
                   high_value: 5.0
-                  sample_count: 1.5
+                  sample_count: 1.0
                 }
                 type: QUANTILES
               }
@@ -871,39 +881,39 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   buckets {
                     low_value: 1.0
                     high_value: 2.3333333
-                    sample_count: 4.9988889
+                    sample_count: 5.0091324
                   }
                   buckets {
                     low_value: 2.3333333
                     high_value: 3.6666667
-                    sample_count: 1.9922222
+                    sample_count: 2.0091324
                   }
                   buckets {
                     low_value: 3.6666667
                     high_value: 5.0
-                    sample_count: 4.0088889
+                    sample_count: 3.9817352
                   }
                 }
                 histograms {
                   buckets {
                     low_value: 1.0
                     high_value: 1.0
-                    sample_count: 2.75
+                    sample_count: 4.0
                   }
                   buckets {
                     low_value: 1.0
                     high_value: 3.0
-                    sample_count: 2.75
+                    sample_count: 3.0
                   }
                   buckets {
                     low_value: 3.0
                     high_value: 4.0
-                    sample_count: 2.75
+                    sample_count: 2.0
                   }
                   buckets {
                     low_value: 4.0
                     high_value: 5.0
-                    sample_count: 2.75
+                    sample_count: 2.0
                   }
                   type: QUANTILES
                 }
@@ -963,17 +973,17 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 buckets {
                   low_value: 1.0
                   high_value: 1.6666667
-                  sample_count: 0.9955556
+                  sample_count: 1.0066667
                 }
                 buckets {
                   low_value: 1.6666667
                   high_value: 2.3333333
-                  sample_count: 1.9955556
+                  sample_count: 1.9966337
                 }
                 buckets {
                   low_value: 2.3333333
                   high_value: 3.0
-                  sample_count: 1.0088889
+                  sample_count: 0.9966997
                 }
                 type: STANDARD
               }
@@ -981,7 +991,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 buckets {
                   low_value: 1.0
                   high_value: 2.0
-                  sample_count: 1.0
+                  sample_count: 2.0
                 }
                 buckets {
                   low_value: 2.0
@@ -991,12 +1001,12 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 buckets {
                   low_value: 2.0
                   high_value: 3.0
-                  sample_count: 1.0
+                  sample_count: 0.5
                 }
                 buckets {
                   low_value: 3.0
                   high_value: 3.0
-                  sample_count: 1.0
+                  sample_count: 0.5
                 }
                 type: QUANTILES
               }
@@ -1008,24 +1018,24 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   buckets {
                      low_value: 1.0
                       high_value: 1.6666667
-                      sample_count: 1.0044444
+                      sample_count: 1.0133333
                     }
                     buckets {
                       low_value: 1.6666667
                       high_value: 2.3333333
-                      sample_count: 3.9911111
+                      sample_count: 3.9932892
                     }
                     buckets {
                       low_value: 2.3333333
                       high_value: 3.0
-                      sample_count: 3.0044444
+                      sample_count: 2.9933775
                     }
                   }
                 histograms {
                   buckets {
                     low_value: 1.0
                     high_value: 2.0
-                    sample_count: 2.0
+                    sample_count: 3.0
                   }
                   buckets {
                     low_value: 2.0
@@ -1035,12 +1045,12 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   buckets {
                     low_value: 2.0
                     high_value: 3.0
-                    sample_count: 2.0
+                    sample_count: 1.5
                   }
                   buckets {
                     low_value: 3.0
                     high_value: 3.0
-                    sample_count: 2.0
+                    sample_count: 1.5
                   }
                   type: QUANTILES
                 }
@@ -1091,22 +1101,22 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   buckets {
                     low_value: 2.0
                     high_value: 2.0
-                    sample_count: 0.75
+                    sample_count: 1.0
                   }
                   buckets {
                     low_value: 2.0
                     high_value: 3.0
-                    sample_count: 0.75
+                    sample_count: 1.0
                   }
                   buckets {
                     low_value: 3.0
                     high_value: 4.0
-                    sample_count: 0.75
+                    sample_count: 0.5
                   }
                   buckets {
                     low_value: 4.0
                     high_value: 4.0
-                    sample_count: 0.75
+                    sample_count: 0.5
                   }
                   type: QUANTILES
                 }
@@ -1128,17 +1138,17 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 buckets {
                   low_value: 1.0
                   high_value: 2.3333333
-                  sample_count: 2.9866667
+                  sample_count: 3.0049751
                 }
                 buckets {
                   low_value: 2.3333333
                   high_value: 3.6666667
-                  sample_count: 1.0066667
+                  sample_count: 1.0049751
                 }
                 buckets {
                   low_value: 3.6666667
                   high_value: 5.0
-                  sample_count: 2.0066667
+                  sample_count: 1.9900498
                 }
                 type: STANDARD
               }
@@ -1147,22 +1157,22 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 buckets {
                   low_value: 1.0
                   high_value: 1.0
-                  sample_count: 1.5
+                  sample_count: 2.0
                 }
                 buckets {
                   low_value: 1.0
                   high_value: 3.0
-                  sample_count: 1.5
+                  sample_count: 2.0
                 }
                 buckets {
                   low_value: 3.0
                   high_value: 4.0
-                  sample_count: 1.5
+                  sample_count: 1.0
                 }
                 buckets {
                   low_value: 4.0
                   high_value: 5.0
-                  sample_count: 1.5
+                  sample_count: 1.0
                 }
                 type: QUANTILES
               }
@@ -1175,17 +1185,17 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   buckets {
                     low_value: 1.0
                     high_value: 2.3333333
-                    sample_count: 4.9988889
+                    sample_count: 5.0091324
                   }
                   buckets {
                     low_value: 2.3333333
                     high_value: 3.6666667
-                    sample_count: 1.9922222
+                    sample_count: 2.0091324
                   }
                   buckets {
                     low_value: 3.6666667
                     high_value: 5.0
-                    sample_count: 4.0088889
+                    sample_count: 3.9817352
                   }
                 }
                 histograms {
@@ -1193,22 +1203,22 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   buckets {
                     low_value: 1.0
                     high_value: 1.0
-                    sample_count: 2.75
+                    sample_count: 4.0
                   }
                   buckets {
                     low_value: 1.0
                     high_value: 3.0
-                    sample_count: 2.75
+                    sample_count: 3.0
                   }
                   buckets {
                     low_value: 3.0
                     high_value: 4.0
-                    sample_count: 2.75
+                    sample_count: 2.0
                   }
                   buckets {
                     low_value: 4.0
                     high_value: 5.0
-                    sample_count: 2.75
+                    sample_count: 2.0
                   }
                   type: QUANTILES
                 }
@@ -1229,22 +1239,22 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   buckets {
                     low_value: 1.0
                     high_value: 1.0
-                    sample_count: 0.75
+                    sample_count: 1.0
                   }
                   buckets {
                     low_value: 1.0
                     high_value: 2.0
-                    sample_count: 0.75
+                    sample_count: 1.0
                   }
                   buckets {
                     low_value: 2.0
                     high_value: 3.0
-                    sample_count: 0.75
+                    sample_count: 0.5
                   }
                   buckets {
                     low_value: 3.0
                     high_value: 3.0
-                    sample_count: 0.75
+                    sample_count: 0.5
                   }
                   type: QUANTILES
                 }
@@ -1265,39 +1275,39 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 buckets {
                   low_value: 1.0
                   high_value: 2.3333333
-                  sample_count: 2.9866667
+                  sample_count: 3.0049751
                 }
                 buckets {
                   low_value: 2.3333333
                   high_value: 3.6666667
-                  sample_count: 1.0066667
+                  sample_count: 1.0049751
                 }
                 buckets {
                   low_value: 3.6666667
                   high_value: 5.0
-                  sample_count: 2.0066667
+                  sample_count: 1.9900498
                 }
               }
               histograms {
                 buckets {
                   low_value: 1.0
                   high_value: 1.0
-                  sample_count: 1.5
+                  sample_count: 2.0
                 }
                 buckets {
                   low_value: 1.0
                   high_value: 3.0
-                  sample_count: 1.5
+                  sample_count: 2.0
                 }
                 buckets {
                   low_value: 3.0
                   high_value: 4.0
-                  sample_count: 1.5
+                  sample_count: 1.0
                 }
                 buckets {
                   low_value: 4.0
                   high_value: 5.0
-                  sample_count: 1.5
+                  sample_count: 1.0
                 }
                 type: QUANTILES
               }
@@ -1309,39 +1319,39 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   buckets {
                     low_value: 1.0
                     high_value: 2.3333333
-                    sample_count: 5.98
+                    sample_count: 6.0074074
                   }
                   buckets {
                     low_value: 2.3333333
                     high_value: 3.6666667
-                    sample_count: 1.03
+                    sample_count: 1.0077441
                   }
                   buckets {
                     low_value: 3.6666667
                     high_value: 5.0
-                    sample_count: 1.99
+                    sample_count: 1.9848485
                   }
                 }
                 histograms {
                   buckets {
                     low_value: 1.0
                     high_value: 1.0
-                    sample_count: 2.25
+                    sample_count: 4.0
                   }
                   buckets {
                     low_value: 1.0
                     high_value: 2.0
-                    sample_count: 2.25
+                    sample_count: 2.0
                   }
                   buckets {
                     low_value: 2.0
                     high_value: 3.0
-                    sample_count: 2.25
+                    sample_count: 1.0
                   }
                   buckets {
                     low_value: 3.0
                     high_value: 5.0
-                    sample_count: 2.25
+                    sample_count: 2.0
                   }
                   type: QUANTILES
                 }
@@ -1392,17 +1402,17 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   buckets {
                     low_value: 1.0
                     high_value: 2.0
-                    sample_count: 1.0
+                    sample_count: 2.0
                   }
                   buckets {
                     low_value: 2.0
                     high_value: 3.0
-                    sample_count: 1.0
+                    sample_count: 0.5
                   }
                   buckets {
                     low_value: 3.0
                     high_value: 3.0
-                    sample_count: 1.0
+                    sample_count: 0.5
                   }
                   type: QUANTILES
                 }
@@ -1417,17 +1427,17 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 buckets {
                   low_value: 1.0
                   high_value: 2.3333333
-                  sample_count: 2.9866667
+                  sample_count: 3.0049751
                 }
                 buckets {
                   low_value: 2.3333333
                   high_value: 3.6666667
-                  sample_count: 1.0066667
+                  sample_count: 1.0049751
                 }
                 buckets {
                   low_value: 3.6666667
                   high_value: 5.0
-                  sample_count: 2.0066667
+                  sample_count: 1.9900498
                 }
                 type: STANDARD
               }
@@ -1435,22 +1445,22 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 buckets {
                   low_value: 1.0
                   high_value: 1.0
-                  sample_count: 1.5
+                  sample_count: 2.0
                 }
                 buckets {
                   low_value: 1.0
                   high_value: 3.0
-                  sample_count: 1.5
+                  sample_count: 2.0
                 }
                 buckets {
                   low_value: 3.0
                   high_value: 4.0
-                  sample_count: 1.5
+                  sample_count: 1.0
                 }
                 buckets {
                   low_value: 4.0
                   high_value: 5.0
-                  sample_count: 1.5
+                  sample_count: 1.0
                 }
                 type: QUANTILES
               }
@@ -1474,17 +1484,17 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   buckets {
                     low_value: 1.0
                     high_value: 2.0
-                    sample_count: 1.0
+                    sample_count: 2.0
                   }
                   buckets {
                     low_value: 2.0
                     high_value: 4.0
-                    sample_count: 1.0
+                    sample_count: 0.5
                   }
                   buckets {
                     low_value: 4.0
                     high_value: 4.0
-                    sample_count: 1.0
+                    sample_count: 0.5
                   }
                   type: QUANTILES
                 }
@@ -1523,17 +1533,17 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   buckets {
                     low_value: 2.0
                     high_value: 2.0
-                    sample_count: 1.0
+                    sample_count: 2.0
                   }
                   buckets {
                     low_value: 2.0
                     high_value: 4.0
-                    sample_count: 1.0
+                    sample_count: 0.5
                   }
                   buckets {
                     low_value: 4.0
                     high_value: 4.0
-                    sample_count: 1.0
+                    sample_count: 0.5
                   }
                   type: QUANTILES
                 }
@@ -1549,17 +1559,17 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 buckets {
                   low_value: 1.0
                   high_value: 2.3333333
-                  sample_count: 2.9866667
+                  sample_count: 3.0049751
                 }
                 buckets {
                   low_value: 2.3333333
                   high_value: 3.6666667
-                  sample_count: 1.0066667
+                  sample_count: 1.0049751
                 }
                 buckets {
                   low_value: 3.6666667
                   high_value: 5.0
-                  sample_count: 2.0066667
+                  sample_count: 1.9900498
                 }
                 type: STANDARD
               }
@@ -1568,22 +1578,22 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 buckets {
                   low_value: 1.0
                   high_value: 1.0
-                  sample_count: 1.5
+                  sample_count: 2.0
                 }
                 buckets {
                   low_value: 1.0
                   high_value: 3.0
-                  sample_count: 1.5
+                  sample_count: 2.0
                 }
                 buckets {
                   low_value: 3.0
                   high_value: 4.0
-                  sample_count: 1.5
+                  sample_count: 1.0
                 }
                 buckets {
                   low_value: 4.0
                   high_value: 5.0
-                  sample_count: 1.5
+                  sample_count: 1.0
                 }
                 type: QUANTILES
               }
@@ -1635,17 +1645,17 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   buckets {
                     low_value: 1.0
                     high_value: 2.0
-                    sample_count: 1.0
+                    sample_count: 2.0
                   }
                   buckets {
                     low_value: 2.0
                     high_value: 3.0
-                    sample_count: 1.0
+                    sample_count: 0.5
                   }
                   buckets {
                     low_value: 3.0
                     high_value: 3.0
-                    sample_count: 1.0
+                    sample_count: 0.5
                   }
                   type: QUANTILES
                 }
@@ -1660,17 +1670,17 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 buckets {
                   low_value: 1.0
                   high_value: 2.3333333
-                  sample_count: 2.9866667
+                  sample_count: 3.0049751
                 }
                 buckets {
                   low_value: 2.3333333
                   high_value: 3.6666667
-                  sample_count: 1.0066667
+                  sample_count: 1.0049751
                 }
                 buckets {
                   low_value: 3.6666667
                   high_value: 5.0
-                  sample_count: 2.0066667
+                  sample_count: 1.9900498
                 }
                 type: STANDARD
               }
@@ -1678,22 +1688,22 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 buckets {
                   low_value: 1.0
                   high_value: 1.0
-                  sample_count: 1.5
+                  sample_count: 2.0
                 }
                 buckets {
                   low_value: 1.0
                   high_value: 3.0
-                  sample_count: 1.5
+                  sample_count: 2.0
                 }
                 buckets {
                   low_value: 3.0
                   high_value: 4.0
-                  sample_count: 1.5
+                  sample_count: 1.0
                 }
                 buckets {
                   low_value: 4.0
                   high_value: 5.0
-                  sample_count: 1.5
+                  sample_count: 1.0
                 }
                 type: QUANTILES
               }
@@ -1716,17 +1726,17 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   buckets {
                     low_value: 1.0
                     high_value: 2.0
-                    sample_count: 1.0
+                    sample_count: 2.0
                   }
                   buckets {
                     low_value: 2.0
                     high_value: 4.0
-                    sample_count: 1.0
+                    sample_count: 0.5
                   }
                   buckets {
                     low_value: 4.0
                     high_value: 4.0
-                    sample_count: 1.0
+                    sample_count: 0.5
                   }
                   type: QUANTILES
                 }
@@ -1775,17 +1785,17 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 buckets {
                   low_value: 1.0
                   high_value: 1000.66666667
-                  sample_count: 999.666666667
+                  sample_count: 1000.6666667
                 }
                 buckets {
                   low_value: 1000.66666667
                   high_value: 2000.33333333
-                  sample_count: 999.666666667
+                  sample_count: 999.6666667
                 }
                 buckets {
                   low_value: 2000.33333333
                   high_value: 3000.0
-                  sample_count: 1000.66666667
+                  sample_count: 999.6666667
                 }
                 type: STANDARD
               }
@@ -1793,7 +1803,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 buckets {
                   low_value: 1.0
                   high_value: 751.0
-                  sample_count: 750.0
+                  sample_count: 751.0
                 }
                 buckets {
                   low_value: 751.0
@@ -1808,7 +1818,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 buckets {
                   low_value: 2251.0
                   high_value: 3000.0
-                  sample_count: 750.0
+                  sample_count: 749.0
                 }
                 type: QUANTILES
               }
@@ -1851,17 +1861,17 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   buckets {
                     low_value: 1.0
                     high_value: 2.0
-                    sample_count: 1.0
+                    sample_count: 2.0
                   }
                   buckets {
                     low_value: 2.0
                     high_value: 4.0
-                    sample_count: 1.0
+                    sample_count: 0.5
                   }
                   buckets {
                     low_value: 4.0
                     high_value: 4.0
-                    sample_count: 1.0
+                    sample_count: 0.5
                   }
                   type: QUANTILES
                 }
@@ -1905,17 +1915,17 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   buckets {
                     low_value: 1.0
                     high_value: 1.0
-                    sample_count: 1.3333333
+                    sample_count: 2
                   }
                   buckets {
                     low_value: 1.0
                     high_value: 3.0
-                    sample_count: 1.3333333
+                    sample_count: 1
                   }
                   buckets {
                     low_value: 3.0
                     high_value: 5.0
-                    sample_count: 1.3333333
+                    sample_count: 1
                   }
                   type: QUANTILES
                 }
@@ -1970,17 +1980,17 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   buckets {
                     low_value: 1.0
                     high_value: 1.0
-                    sample_count: 1.3333333
+                    sample_count: 2
                   }
                   buckets {
                     low_value: 1.0
                     high_value: 3.0
-                    sample_count: 1.3333333
+                    sample_count: 1
                   }
                   buckets {
                     low_value: 3.0
                     high_value: 5.0
-                    sample_count: 1.3333333
+                    sample_count: 1
                   }
                   type: QUANTILES
                 }
@@ -2369,12 +2379,12 @@ _STRUCT_TEST_CASES = [
                     buckets {
                       low_value: 1.0
                       high_value: 1.0
-                      sample_count: 1.5
+                      sample_count: 2.0
                     }
                     buckets {
                       low_value: 1.0
                       high_value: 2.0
-                      sample_count: 1.5
+                      sample_count: 1.0
                     }
                     type: QUANTILES
                   }
@@ -2395,12 +2405,12 @@ _STRUCT_TEST_CASES = [
                     buckets {
                       low_value: 2.0
                       high_value: 3.0
-                      sample_count: 1.0
+                      sample_count: 1.5
                     }
                     buckets {
                       low_value: 3.0
                       high_value: 3.0
-                      sample_count: 1.0
+                      sample_count: 0.5
                     }
                     type: QUANTILES
                   }
@@ -2415,39 +2425,39 @@ _STRUCT_TEST_CASES = [
                   buckets {
                     low_value: 1.0
                     high_value: 2.3333333
-                    sample_count: 1.9888889
+                    sample_count: 2.0041667
                   }
                   buckets {
                     low_value: 2.3333333
                     high_value: 3.6666667
-                    sample_count: 1.0055556
+                    sample_count: 1.0041667
                   }
                   buckets {
                     low_value: 3.6666667
                     high_value: 5.0
-                    sample_count: 2.0055556
+                    sample_count: 1.9916667
                   }
                 }
                 histograms {
                   buckets {
                     low_value: 1.0
                     high_value: 2.0
-                    sample_count: 1.25
+                    sample_count: 2.0
                   }
                   buckets {
                     low_value: 2.0
                     high_value: 3.0
-                    sample_count: 1.25
+                    sample_count: 1.0
                   }
                   buckets {
                     low_value: 3.0
                     high_value: 4.0
-                    sample_count: 1.25
+                    sample_count: 1.0
                   }
                   buckets {
                     low_value: 4.0
                     high_value: 5.0
-                    sample_count: 1.25
+                    sample_count: 1.0
                   }
                   type: QUANTILES
                 }
@@ -2488,12 +2498,12 @@ _STRUCT_TEST_CASES = [
                     buckets {
                       low_value: 1.0
                       high_value: 2.0
-                      sample_count: 1.0
+                      sample_count: 1.5
                     }
                     buckets {
                       low_value: 2.0
                       high_value: 2.0
-                      sample_count: 1.0
+                      sample_count: 0.5
                     }
                     type: QUANTILES
                   }
@@ -2512,12 +2522,12 @@ _STRUCT_TEST_CASES = [
                     buckets {
                       low_value: 1.0
                       high_value: 2.0
-                      sample_count: 1.5
+                      sample_count: 2.0
                     }
                     buckets {
                       low_value: 2.0
                       high_value: 3.0
-                      sample_count: 1.5
+                      sample_count: 1.0
                     }
                     type: QUANTILES
                   }
@@ -2590,12 +2600,12 @@ _STRUCT_TEST_CASES = [
                   num_values_histogram {
                     buckets {
                       high_value: 2.0
-                      sample_count: 2.0
+                      sample_count: 2.5
                     }
                     buckets {
                       low_value: 2.0
                       high_value: 2.0
-                      sample_count: 2.0
+                      sample_count: 1.5
                     }
                     type: QUANTILES
                   }
@@ -2918,12 +2928,12 @@ class BasicStatsGeneratorStructStatsTest(test_util.CombinerStatsGeneratorTest,
                 buckets {
                   low_value: 1.0
                   high_value: 2.0
-                  sample_count: 1.0
+                  sample_count: 1.5
                 }
                 buckets {
                   low_value: 2.0
                   high_value: 2.0
-                  sample_count: 1.0
+                  sample_count: 0.5
                 }
                 type: QUANTILES
               }
@@ -2952,12 +2962,12 @@ class BasicStatsGeneratorStructStatsTest(test_util.CombinerStatsGeneratorTest,
                 buckets {
                   low_value: 1.0
                   high_value: 2.0
-                  sample_count: 1.5
+                  sample_count: 2.0
                 }
                 buckets {
                   low_value: 2.0
                   high_value: 2.0
-                  sample_count: 1.5
+                  sample_count: 1.0
                 }
                 type: QUANTILES
               }
@@ -2976,7 +2986,7 @@ class BasicStatsGeneratorStructStatsTest(test_util.CombinerStatsGeneratorTest,
             histograms {
               buckets {
                 high_value: 1.0
-                sample_count: 1.0
+                sample_count: 2.0
               }
               buckets {
                 low_value: 1.0
@@ -2986,28 +2996,28 @@ class BasicStatsGeneratorStructStatsTest(test_util.CombinerStatsGeneratorTest,
               buckets {
                 low_value: 2.0
                 high_value: 3.0
-                sample_count: 3.0
+                sample_count: 2.0
               }
             }
             histograms {
               buckets {
                 high_value: 1.0
-                sample_count: 1.25
+                sample_count: 2.0
               }
               buckets {
                 low_value: 1.0
                 high_value: 2.0
-                sample_count: 1.25
+                sample_count: 1.0
               }
               buckets {
                 low_value: 2.0
                 high_value: 3.0
-                sample_count: 1.25
+                sample_count: 1.0
               }
               buckets {
                 low_value: 3.0
                 high_value: 3.0
-                sample_count: 1.25
+                sample_count: 1.0
               }
               type: QUANTILES
             }
@@ -3018,38 +3028,38 @@ class BasicStatsGeneratorStructStatsTest(test_util.CombinerStatsGeneratorTest,
               histograms {
                 buckets {
                   high_value: 1.0
-                  sample_count: 1.0033333
+                  sample_count: 2.0
                 }
                 buckets {
                   low_value: 1.0
                   high_value: 2.0
-                  sample_count: 1.0033333
+                  sample_count: 1.0
                 }
                 buckets {
                   low_value: 2.0
                   high_value: 3.0
-                  sample_count: 4.9933333
+                  sample_count: 4.0
                 }
               }
               histograms {
                 buckets {
                   high_value: 1.0
-                  sample_count: 1.75
+                  sample_count: 2.0
                 }
                 buckets {
                   low_value: 1.0
                   high_value: 3.0
-                  sample_count: 1.75
+                  sample_count: 1.6666667
                 }
                 buckets {
                   low_value: 3.0
                   high_value: 3.0
-                  sample_count: 1.75
+                  sample_count: 1.6666667
                 }
                 buckets {
                   low_value: 3.0
                   high_value: 3.0
-                  sample_count: 1.75
+                  sample_count: 1.6666667
                 }
                 type: QUANTILES
               }
@@ -3099,39 +3109,39 @@ class BasicStatsGeneratorStructStatsTest(test_util.CombinerStatsGeneratorTest,
               buckets {
                 low_value: 1.0
                 high_value: 1.33333333333
-                sample_count: 0.995555555556
+                sample_count: 1.0016584
               }
               buckets {
                 low_value: 1.33333333333
                 high_value: 1.66666666667
-                sample_count: 0.00222222222222
+                sample_count: 0.0016584
               }
               buckets {
                 low_value: 1.66666666667
                 high_value: 2.0
-                sample_count: 1.00222222222
+                sample_count: 0.9966833
               }
             }
             histograms {
               buckets {
                 low_value: 1.0
                 high_value: 1.0
-                sample_count: 0.5
+                sample_count: 1.0
               }
               buckets {
                 low_value: 1.0
                 high_value: 2.0
-                sample_count: 0.5
+                sample_count: 0.3333333
               }
               buckets {
                 low_value: 2.0
                 high_value: 2.0
-                sample_count: 0.5
+                sample_count: 0.3333333
               }
               buckets {
                 low_value: 2.0
                 high_value: 2.0
-                sample_count: 0.5
+                sample_count: 0.3333333
               }
               type: QUANTILES
             }
@@ -3143,39 +3153,39 @@ class BasicStatsGeneratorStructStatsTest(test_util.CombinerStatsGeneratorTest,
                 buckets {
                   low_value: 1.0
                   high_value: 1.33333333333
-                  sample_count: 0.993333333333
+                  sample_count: 1.0024969
                 }
                 buckets {
                   low_value: 1.33333333333
                   high_value: 1.66666666667
-                  sample_count: 0.00333333333333
+                  sample_count: 0.0024969
                 }
                 buckets {
                   low_value: 1.66666666667
                   high_value: 2.0
-                  sample_count: 2.00333333333
+                  sample_count: 1.9950062
                 }
               }
               histograms {
                 buckets {
                   low_value: 1.0
                   high_value: 1.0
-                  sample_count: 0.75
+                  sample_count: 1.0
                 }
                 buckets {
                   low_value: 1.0
                   high_value: 2.0
-                  sample_count: 0.75
+                  sample_count: 0.6666667
                 }
                 buckets {
                   low_value: 2.0
                   high_value: 2.0
-                  sample_count: 0.75
+                  sample_count: 0.6666667
                 }
                 buckets {
                   low_value: 2.0
                   high_value: 2.0
-                  sample_count: 0.75
+                  sample_count: 0.6666667
                 }
                 type: QUANTILES
               }
@@ -3236,12 +3246,12 @@ _NESTED_TEST_CASES = [
                   buckets {
                     low_value: 2.0
                     high_value: 3.0
-                    sample_count: 1.5
+                    sample_count: 2.0
                   }
                   buckets {
                     low_value: 3.0
                     high_value: 3.0
-                    sample_count: 1.5
+                    sample_count: 1.0
                   }
                   type: QUANTILES
                 }
@@ -3298,12 +3308,12 @@ _NESTED_TEST_CASES = [
               histogram {
                 buckets {
                   high_value: 1.0
-                  sample_count: 1.5
+                  sample_count: 4.0
                 }
                 buckets {
                   low_value: 1.0
                   high_value: 3.0
-                  sample_count: 1.5
+                  sample_count: 2.0
                 }
                 type: QUANTILES
               }
@@ -3319,7 +3329,7 @@ _NESTED_TEST_CASES = [
                 buckets {
                   low_value: 2.0
                   high_value: 2.0
-                  sample_count: 3.0
+                  sample_count: 1.0
                 }
                 type: QUANTILES
               }
@@ -3349,12 +3359,12 @@ _NESTED_TEST_CASES = [
                 num_values_histogram {
                   buckets {
                     high_value: 2.0
-                    sample_count: 1.0
+                    sample_count: 1.5
                   }
                   buckets {
                     low_value: 2.0
                     high_value: 2.0
-                    sample_count: 1.0
+                    sample_count: 0.5
                   }
                   type: QUANTILES
                 }
@@ -3398,12 +3408,12 @@ _NESTED_TEST_CASES = [
                   buckets {
                     low_value: 2.0
                     high_value: 3.0
-                    sample_count: 1.0
+                    sample_count: 1.5
                   }
                   buckets {
                     low_value: 3.0
                     high_value: 3.0
-                    sample_count: 1.0
+                    sample_count: 0.5
                   }
                   type: QUANTILES
                 }
@@ -3436,7 +3446,7 @@ _NESTED_TEST_CASES = [
               histogram {
                 buckets {
                   high_value: 1.0
-                  sample_count: 1.0
+                  sample_count: 3.0
                 }
                 buckets {
                   low_value: 1.0
@@ -3452,12 +3462,12 @@ _NESTED_TEST_CASES = [
                 buckets {
                   low_value: 1.0
                   high_value: 2.0
-                  sample_count: 2.0
+                  sample_count: 3.0
                 }
                 buckets {
                   low_value: 2.0
                   high_value: 2.0
-                  sample_count: 2.0
+                  sample_count: 1.0
                 }
                 type: QUANTILES
               }

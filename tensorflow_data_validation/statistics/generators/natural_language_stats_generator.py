@@ -364,14 +364,14 @@ def _populate_token_length_histogram(
     nls: statistics_pb2.NaturalLanguageStatistics, accumulator: _PartialNLStats,
     num_quantiles_histogram_buckets: int):
   """Populate the token length histogram."""
-  quantiles = accumulator.vocab_token_length_quantiles.GetQuantiles(
-      num_quantiles_histogram_buckets)
-  quantiles = quantiles.flatten().to_pylist()
-
-  if quantiles:
+  quantiles, weights = (
+      accumulator.vocab_token_length_quantiles.GetQuantilesAndCumulativeWeights(
+          num_quantiles_histogram_buckets))
+  quantiles = quantiles.flatten().to_numpy(zero_copy_only=False)
+  weights = weights.flatten().to_numpy(zero_copy_only=False)
+  if quantiles.size:
     quantiles_histogram = quantiles_util.generate_quantiles_histogram(
-        quantiles, accumulator.num_in_vocab_tokens,
-        num_quantiles_histogram_buckets)
+        quantiles, weights)
     nls.token_length_histogram.CopyFrom(quantiles_histogram)
 
 
@@ -379,13 +379,16 @@ def _populate_sequence_length_histogram(
     nls: statistics_pb2.NaturalLanguageStatistics, accumulator: _PartialNLStats,
     num_quantiles_histogram_buckets: int):
   """Populate sequence length histogram."""
-  quantiles = accumulator.sequence_length_quantiles.GetQuantiles(
-      num_quantiles_histogram_buckets)
-  quantiles = quantiles.flatten().to_pylist()
 
-  if quantiles:
+  quantiles, weights = (
+      accumulator.sequence_length_quantiles.GetQuantilesAndCumulativeWeights(
+          num_quantiles_histogram_buckets))
+  quantiles = quantiles.flatten().to_numpy(zero_copy_only=False)
+  weights = weights.flatten().to_numpy(zero_copy_only=False)
+
+  if quantiles.size:
     quantiles_histogram = quantiles_util.generate_quantiles_histogram(
-        quantiles, accumulator.num_examples, num_quantiles_histogram_buckets)
+        quantiles, weights)
     nls.sequence_length_histogram.CopyFrom(quantiles_histogram)
 
 

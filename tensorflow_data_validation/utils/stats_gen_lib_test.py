@@ -143,19 +143,6 @@ class StatsGenTest(parameterized.TestCase):
             max_num_values: 4
             avg_num_values: 2.33333333
             tot_num_values: 7
-            num_values_histogram {
-              buckets {
-                low_value: 1.0
-                high_value: 2.0
-                sample_count: 1.5
-              }
-              buckets {
-                low_value: 2.0
-                high_value: 4.0
-                sample_count: 1.5
-              }
-              type: QUANTILES
-            }
           }
           mean: 2.66666666
           std_dev: 1.49071198
@@ -163,34 +150,6 @@ class StatsGenTest(parameterized.TestCase):
           min: 1.0
           max: 5.0
           median: 3.0
-          histograms {
-            num_nan: 1
-            buckets {
-              low_value: 1.0
-              high_value: 3.0
-              sample_count: 3.0
-            }
-            buckets {
-              low_value: 3.0
-              high_value: 5.0
-              sample_count: 3.0
-            }
-            type: STANDARD
-          }
-          histograms {
-            num_nan: 1
-            buckets {
-              low_value: 1.0
-              high_value: 3.0
-              sample_count: 3.0
-            }
-            buckets {
-              low_value: 3.0
-              high_value: 5.0
-              sample_count: 3.0
-            }
-            type: QUANTILES
-          }
         }
       }
       features {
@@ -205,19 +164,6 @@ class StatsGenTest(parameterized.TestCase):
             max_num_values: 4
             avg_num_values: 4.0
             tot_num_values: 12
-            num_values_histogram {
-              buckets {
-                low_value: 4.0
-                high_value: 4.0
-                sample_count: 1.5
-              }
-              buckets {
-                low_value: 4.0
-                high_value: 4.0
-                sample_count: 1.5
-              }
-              type: QUANTILES
-            }
           }
           unique: 5
           top_values {
@@ -252,7 +198,7 @@ class StatsGenTest(parameterized.TestCase):
         data_location=input_data_path,
         stats_options=self._default_stats_options)
     compare_fn = test_util.make_dataset_feature_stats_list_proto_equal_fn(
-        self, expected_result)
+        self, expected_result, check_histograms=False)
     compare_fn([result])
 
   def _write_records_to_csv(self, records, tmp_dir, filename,
@@ -290,19 +236,6 @@ class StatsGenTest(parameterized.TestCase):
         min_num_values: 1
         max_num_values: 1
         avg_num_values: 1.0
-        num_values_histogram {
-          buckets {
-            low_value: 1.0
-            high_value: 1.0
-            sample_count: 3.5
-          }
-          buckets {
-            low_value: 1.0
-            high_value: 1.0
-            sample_count: 3.5
-          }
-          type: QUANTILES
-        }
         tot_num_values: 7
       }
       mean: 4.0
@@ -310,31 +243,6 @@ class StatsGenTest(parameterized.TestCase):
       min: 1.0
       max: 7.0
       median: 4.0
-      histograms {
-        buckets {
-          low_value: 1.0
-          high_value: 4.0
-          sample_count: 3.01
-        }
-        buckets {
-          low_value: 4.0
-          high_value: 7.0
-          sample_count: 3.99
-        }
-      }
-      histograms {
-        buckets {
-          low_value: 1.0
-          high_value: 4.0
-          sample_count: 3.5
-        }
-        buckets {
-          low_value: 4.0
-          high_value: 7.0
-          sample_count: 3.5
-        }
-        type: QUANTILES
-      }
     }
   }
   features {
@@ -349,19 +257,6 @@ class StatsGenTest(parameterized.TestCase):
         min_num_values: 1
         max_num_values: 1
         avg_num_values: 1.0
-        num_values_histogram {
-          buckets {
-            low_value: 1.0
-            high_value: 1.0
-            sample_count: 3.5
-          }
-          buckets {
-            low_value: 1.0
-            high_value: 1.0
-            sample_count: 3.5
-          }
-          type: QUANTILES
-        }
         tot_num_values: 7
       }
       unique: 7
@@ -414,7 +309,7 @@ class StatsGenTest(parameterized.TestCase):
         stats_options=self._default_stats_options,
         compression_type=compression_type)
     compare_fn = test_util.make_dataset_feature_stats_list_proto_equal_fn(
-        self, expected_result)
+        self, expected_result, check_histograms=False)
     compare_fn([result])
 
   def test_stats_gen_with_csv_header_in_file(self):
@@ -429,7 +324,7 @@ class StatsGenTest(parameterized.TestCase):
         delimiter=',',
         stats_options=self._default_stats_options)
     compare_fn = test_util.make_dataset_feature_stats_list_proto_equal_fn(
-        self, expected_result)
+        self, expected_result, check_histograms=False)
     compare_fn([result])
 
   def test_stats_gen_with_csv_tab_delimiter_no_header_in_file(self):
@@ -444,7 +339,7 @@ class StatsGenTest(parameterized.TestCase):
         delimiter='\t',
         stats_options=self._default_stats_options)
     compare_fn = test_util.make_dataset_feature_stats_list_proto_equal_fn(
-        self, expected_result)
+        self, expected_result, check_histograms=False)
     compare_fn([result])
 
   def test_stats_gen_with_csv_header_in_multiple_files(self):
@@ -465,7 +360,7 @@ class StatsGenTest(parameterized.TestCase):
         delimiter=',',
         stats_options=self._default_stats_options)
     compare_fn = test_util.make_dataset_feature_stats_list_proto_equal_fn(
-        self, expected_result)
+        self, expected_result, check_histograms=False)
     compare_fn([result])
 
   def test_stats_gen_with_csv_with_schema(self):
@@ -492,19 +387,6 @@ class StatsGenTest(parameterized.TestCase):
         min_num_values: 1
         max_num_values: 1
         avg_num_values: 1.0
-        num_values_histogram {
-          buckets {
-            low_value: 1.0
-            high_value: 1.0
-            sample_count: 0.5
-          }
-          buckets {
-            low_value: 1.0
-            high_value: 1.0
-            sample_count: 0.5
-          }
-          type: QUANTILES
-        }
         tot_num_values: 1
       }
       unique: 1
@@ -531,7 +413,7 @@ class StatsGenTest(parameterized.TestCase):
         delimiter=',',
         stats_options=self._default_stats_options)
     compare_fn = test_util.make_dataset_feature_stats_list_proto_equal_fn(
-        self, expected_result)
+        self, expected_result, check_histograms=False)
     compare_fn([result])
 
   def test_stats_gen_with_invalid_csv_header_in_multiple_files(self):
@@ -590,7 +472,7 @@ class StatsGenTest(parameterized.TestCase):
         delimiter=',',
         stats_options=self._default_stats_options)
     compare_fn = test_util.make_dataset_feature_stats_list_proto_equal_fn(
-        self, expected_result)
+        self, expected_result, check_histograms=False)
     compare_fn([result])
 
   def test_stats_gen_with_header_in_empty_csv_file(self):
@@ -614,7 +496,10 @@ class StatsGenTest(parameterized.TestCase):
         stats_options=self._default_stats_options, n_jobs=1)
     self.assertLen(result.datasets, 1)
     test_util.assert_dataset_feature_stats_proto_equal(
-        self, result.datasets[0], expected_result.datasets[0])
+        self,
+        result.datasets[0],
+        expected_result.datasets[0],
+        check_histograms=False)
 
   def test_stats_gen_with_dataframe_feature_allowlist(self):
     records, _, expected_result = self._get_csv_test(delimiter=',',
@@ -631,7 +516,10 @@ class StatsGenTest(parameterized.TestCase):
         dataframe=dataframe, stats_options=stats_options_allowlist, n_jobs=1)
     self.assertLen(result.datasets, 1)
     test_util.assert_dataset_feature_stats_proto_equal(
-        self, result.datasets[0], expected_result.datasets[0])
+        self,
+        result.datasets[0],
+        expected_result.datasets[0],
+        check_histograms=False)
 
   def test_stats_gen_with_dataframe_invalid_njobs_zero(self):
     records, _, _ = self._get_csv_test(delimiter=',', with_header=True)

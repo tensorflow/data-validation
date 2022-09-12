@@ -6,16 +6,28 @@
 
 ## Bug Fixes and Other Changes
 
-*  Fix bug in implementation of `semantic_domain_stats_sample_rate`.
+*   Fix bug in implementation of `semantic_domain_stats_sample_rate`.
 
 *   Add beam metrics on string length
+
 *   Determine whether to calculate string statistics based on the
     `is_categorical` field in the schema string domain.
+
 *   Depends on `tensorflow>=1.15.5,<2` or `tensorflow>=2.10,<3`
+
+*   Histograms counts should now be more accurate for distributions with few
+    distinct values, or frequent individual values.
+
+*   Nested list length histogram counts are no longer based on the number of
+    values one up in the nested list hierarchy.
 
 ## Known Issues
 
 ## Breaking Changes
+
+*   Histogram semantics are slightly changed, so that buckets include their
+    upper bound instead of their lower bound. STANDARD histograms will no longer
+    generate buckets that contain infinite and finite endpoints together.
 
 ## Deprecations
 

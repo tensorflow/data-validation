@@ -268,34 +268,34 @@ datasets {
         buckets {
           low_value: 5.0
           high_value: 6.666666666666667
-          sample_count: 9.955555555555556
+          sample_count: 10.0220751
         }
         buckets {
           low_value: 6.666666666666667
           high_value: 8.333333333333334
-          sample_count: 0.022222222222222227
+          sample_count: 0.0220751
         }
         buckets {
           low_value: 8.333333333333334
           high_value: 10.0
-          sample_count: 10.022222222222222
+          sample_count: 9.9558499
         }
       }
       histograms {
         buckets {
           low_value: 5.0
           high_value: 5.0
-          sample_count: 6.666666666666667
+          sample_count: 10.0
         }
         buckets {
           low_value: 5.0
           high_value: 10.0
-          sample_count: 6.666666666666667
+          sample_count: 5
         }
         buckets {
           low_value: 10.0
           high_value: 10.0
-          sample_count: 6.666666666666667
+          sample_count: 5
         }
         type: QUANTILES
       }
@@ -341,34 +341,34 @@ datasets {
         buckets {
           low_value: 1.0
           high_value: 1.3333333333333333
-          sample_count: 9.955555555555556
+          sample_count: 10.0220751
         }
         buckets {
           low_value: 1.3333333333333333
           high_value: 1.6666666666666665
-          sample_count: 0.022222222222222216
+          sample_count: 0.0220751
         }
         buckets {
           low_value: 1.6666666666666665
           high_value: 2.0
-          sample_count: 10.022222222222222
+          sample_count: 9.9558499
         }
       }
       histograms {
         buckets {
           low_value: 1.0
           high_value: 1.0
-          sample_count: 6.666666666666667
+          sample_count: 10.0
         }
         buckets {
           low_value: 1.0
           high_value: 2.0
-          sample_count: 6.666666666666667
+          sample_count: 5.0
         }
         buckets {
           low_value: 2.0
           high_value: 2.0
-          sample_count: 6.666666666666667
+          sample_count: 5.0
         }
         type: QUANTILES
       }
@@ -389,17 +389,17 @@ datasets {
           buckets {
             low_value: 1.0
             high_value: 1.0
-            sample_count: 6.666666666666667
+            sample_count: 6.6666667
           }
           buckets {
             low_value: 1.0
             high_value: 1.0
-            sample_count: 6.666666666666667
+            sample_count: 6.6666667
           }
           buckets {
             low_value: 1.0
             high_value: 1.0
-            sample_count: 6.666666666666667
+            sample_count: 6.6666667
           }
           type: QUANTILES
         }
@@ -508,17 +508,17 @@ datasets {
           buckets {
             low_value: 1.0
             high_value: 1.0
-            sample_count: 6.666666666666667
+            sample_count: 10.0
           }
           buckets {
             low_value: 1.0
             high_value: 3.0
-            sample_count: 6.666666666666667
+            sample_count: 5.0
           }
           buckets {
             low_value: 3.0
             high_value: 3.0
-            sample_count: 6.666666666666667
+            sample_count: 5.0
           }
           type: QUANTILES
         }
@@ -545,34 +545,34 @@ datasets {
         buckets {
           low_value: 1.0
           high_value: 2.0
-          sample_count: 9.999999999999998
+          sample_count: 30.0
         }
         buckets {
           low_value: 2.0
           high_value: 3.0
-          sample_count: 20.0
+          sample_count: 10.0
         }
         buckets {
           low_value: 3.0
           high_value: 4.0
-          sample_count: 20.0
+          sample_count: 10.0
         }
       }
       histograms {
         buckets {
           low_value: 1.0
           high_value: 2.0
-          sample_count: 16.666666666666664
+          sample_count: 30.0
         }
         buckets {
           low_value: 2.0
           high_value: 3.0
-          sample_count: 16.666666666666664
+          sample_count: 10.0
         }
         buckets {
           low_value: 3.0
           high_value: 4.0
-          sample_count: 16.666666666666664
+          sample_count: 10.0
         }
         type: QUANTILES
       }
@@ -582,17 +582,17 @@ datasets {
       histogram {
         buckets {
           high_value: 2.0
-          sample_count: 6.666666666666667
+          sample_count: 20.0
         }
         buckets {
           low_value: 2.0
           high_value: 3.0
-          sample_count: 6.666666666666667
+          sample_count: 5.0
         }
         buckets {
           low_value: 3.0
           high_value: 3.0
-          sample_count: 6.666666666666667
+          sample_count: 5.0
         }
         type: QUANTILES
       }
@@ -759,34 +759,34 @@ datasets {
         buckets {
           low_value: 5.0
           high_value: 6.666666666666667
-          sample_count: 9.955555555555556
+          sample_count: 10.0220751
         }
         buckets {
           low_value: 6.666666666666667
           high_value: 8.333333333333334
-          sample_count: 0.022222222222222227
+          sample_count: 0.0220751
         }
         buckets {
           low_value: 8.333333333333334
           high_value: 10.0
-          sample_count: 10.022222222222222
+          sample_count: 9.9558499
         }
       }
       histograms {
         buckets {
           low_value: 5.0
           high_value: 5.0
-          sample_count: 6.666666666666667
+          sample_count: 10.0
         }
         buckets {
           low_value: 5.0
           high_value: 10.0
-          sample_count: 6.666666666666667
+          sample_count: 5.0
         }
         buckets {
           low_value: 10.0
           high_value: 10.0
-          sample_count: 6.666666666666667
+          sample_count: 5.0
         }
         type: QUANTILES
       }
@@ -798,34 +798,34 @@ datasets {
           buckets {
             low_value: 5.0
             high_value: 6.666666666666667
-            sample_count: 49.666666666666664
+            sample_count: 50.1658375
           }
           buckets {
             low_value: 6.666666666666667
             high_value: 8.333333333333334
-            sample_count: 0.16666666666666669
+            sample_count: 0.1658375
           }
           buckets {
             low_value: 8.333333333333334
             high_value: 10.0
-            sample_count: 100.16666666666667
+            sample_count: 99.668325
           }
         }
         histograms {
           buckets {
             low_value: 5.0
             high_value: 10.0
-            sample_count: 50.0
+            sample_count: 83.3333333
           }
           buckets {
             low_value: 10.0
             high_value: 10.0
-            sample_count: 50.0
+            sample_count: 33.3333333
           }
           buckets {
             low_value: 10.0
             high_value: 10.0
-            sample_count: 50.0
+            sample_count: 33.3333333
           }
           type: QUANTILES
         }
@@ -877,34 +877,34 @@ datasets {
         buckets {
           low_value: 1.0
           high_value: 1.3333333333333333
-          sample_count: 9.955555555555556
+          sample_count: 10.0220751
         }
         buckets {
           low_value: 1.3333333333333333
           high_value: 1.6666666666666665
-          sample_count: 0.022222222222222216
+          sample_count: 0.0220751
         }
         buckets {
           low_value: 1.6666666666666665
           high_value: 2.0
-          sample_count: 10.022222222222222
+          sample_count: 9.9558499
         }
       }
       histograms {
         buckets {
           low_value: 1.0
           high_value: 1.0
-          sample_count: 6.666666666666667
+          sample_count: 10.0
         }
         buckets {
           low_value: 1.0
           high_value: 2.0
-          sample_count: 6.666666666666667
+          sample_count: 5.0
         }
         buckets {
           low_value: 2.0
           high_value: 2.0
-          sample_count: 6.666666666666667
+          sample_count: 5.0
         }
         type: QUANTILES
       }
@@ -916,34 +916,34 @@ datasets {
           buckets {
             low_value: 1.0
             high_value: 1.3333333333333333
-            sample_count: 49.666666666666664
+            sample_count: 50.1658375
           }
           buckets {
             low_value: 1.3333333333333333
             high_value: 1.6666666666666665
-            sample_count: 0.16666666666666663
+            sample_count: 0.1658375
           }
           buckets {
             low_value: 1.6666666666666665
             high_value: 2.0
-            sample_count: 100.16666666666667
+            sample_count: 99.668325
           }
         }
         histograms {
           buckets {
             low_value: 1.0
             high_value: 2.0
-            sample_count: 50.0
+            sample_count: 83.3333333
           }
           buckets {
             low_value: 2.0
             high_value: 2.0
-            sample_count: 50.0
+            sample_count: 33.3333333
           }
           buckets {
             low_value: 2.0
             high_value: 2.0
-            sample_count: 50.0
+            sample_count: 33.3333333
           }
           type: QUANTILES
         }
@@ -1125,17 +1125,17 @@ datasets {
           buckets {
             low_value: 1.0
             high_value: 1.0
-            sample_count: 6.666666666666667
+            sample_count: 10.0
           }
           buckets {
             low_value: 1.0
             high_value: 3.0
-            sample_count: 6.666666666666667
+            sample_count: 5.0
           }
           buckets {
             low_value: 3.0
             high_value: 3.0
-            sample_count: 6.666666666666667
+            sample_count: 5.0
           }
           type: QUANTILES
         }
@@ -1178,34 +1178,34 @@ datasets {
         buckets {
           low_value: 1.0
           high_value: 2.0
-          sample_count: 9.999999999999998
+          sample_count: 30
         }
         buckets {
           low_value: 2.0
           high_value: 3.0
-          sample_count: 20.0
+          sample_count: 10.0
         }
         buckets {
           low_value: 3.0
           high_value: 4.0
-          sample_count: 20.0
+          sample_count: 10.0
         }
       }
       histograms {
         buckets {
           low_value: 1.0
           high_value: 2.0
-          sample_count: 16.666666666666664
+          sample_count: 30.0
         }
         buckets {
           low_value: 2.0
           high_value: 3.0
-          sample_count: 16.666666666666664
+          sample_count: 10.0
         }
         buckets {
           low_value: 3.0
           high_value: 4.0
-          sample_count: 16.666666666666664
+          sample_count: 10.0
         }
         type: QUANTILES
       }
@@ -1217,34 +1217,34 @@ datasets {
           buckets {
             low_value: 1.0
             high_value: 2.0
-            sample_count: 50.666666666666664
+            sample_count: 200.0
           }
           buckets {
             low_value: 2.0
             high_value: 3.0
-            sample_count: 149.33333333333334
+            sample_count: 100.0
           }
           buckets {
             low_value: 3.0
             high_value: 4.0
-            sample_count: 200.0
+            sample_count: 100.0
           }
         }
         histograms {
           buckets {
             low_value: 1.0
             high_value: 2.0
-            sample_count: 133.33333333333331
+            sample_count: 200.0
           }
           buckets {
             low_value: 2.0
             high_value: 3.0
-            sample_count: 133.33333333333331
+            sample_count: 100.0
           }
           buckets {
             low_value: 3.0
             high_value: 4.0
-            sample_count: 133.33333333333331
+            sample_count: 100.0
           }
           type: QUANTILES
         }
@@ -1255,17 +1255,17 @@ datasets {
       histogram {
         buckets {
           high_value: 2.0
-          sample_count: 6.666666666666667
+          sample_count: 20.0
         }
         buckets {
           low_value: 2.0
           high_value: 3.0
-          sample_count: 6.666666666666667
+          sample_count: 5.0
         }
         buckets {
           low_value: 3.0
           high_value: 3.0
-          sample_count: 6.666666666666667
+          sample_count: 5.0
         }
         type: QUANTILES
       }

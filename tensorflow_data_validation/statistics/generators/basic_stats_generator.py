@@ -59,7 +59,7 @@ import collections
 import itertools
 import math
 import sys
-from typing import Any, Callable, Iterable, List, Mapping, Optional, Text
+from typing import Any, Callable, Iterable, List, Mapping, Optional, Text, Tuple
 
 import apache_beam as beam
 import numpy as np
@@ -248,8 +248,9 @@ class _PartialNumericStats(object):
 
   __slots__ = [
       'num_zeros', 'num_nan', 'min', 'max', 'finite_min', 'finite_max',
-      'quantiles_summary', 'has_weights', 'weighted_quantiles_summary',
-      'mean_var_accumulator', 'weighted_mean_var_accumulator'
+      'pos_inf_count', 'pos_inf_weighted_count', 'quantiles_summary',
+      'has_weights', 'weighted_quantiles_summary', 'mean_var_accumulator',
+      'weighted_mean_var_accumulator'
   ]
 
   def __init__(
@@ -268,6 +269,10 @@ class _PartialNumericStats(object):
     self.finite_min = float('inf')
     # The maximum value among all the finite values for this feature.
     self.finite_max = float('-inf')
+    # The total count of positive inf values.
+    self.pos_inf_count = 0.0
+    # The total weight sum of positive inf values, if weights are used.
+    self.pos_inf_weighted_count = 0.0
     # Summary of the quantiles for the values in this feature.
     self.quantiles_summary = make_quantiles_sketch_fn()
 
@@ -293,6 +298,8 @@ class _PartialNumericStats(object):
     self.max = max(self.max, other.max)
     self.finite_min = min(self.finite_min, other.finite_min)
     self.finite_max = max(self.finite_max, other.finite_max)
+    self.pos_inf_count += other.pos_inf_count
+    self.pos_inf_weighted_count += other.pos_inf_weighted_count
     self.quantiles_summary.Merge(other.quantiles_summary)
     self.mean_var_accumulator.merge(other.mean_var_accumulator)
     assert self.has_weights == other.has_weights
@@ -341,7 +348,10 @@ class _PartialNumericStats(object):
       if finite_values.size > 0:
         self.finite_min = min(self.finite_min, np.min(finite_values))
         self.finite_max = max(self.finite_max, np.max(finite_values))
-
+    else:
+      self.finite_min = min(self.finite_min, curr_min)
+      self.finite_max = max(self.finite_max, curr_max)
+    self.pos_inf_count += np.isposinf(values_no_nan).sum()
     self.num_zeros += values_no_nan.size - np.count_nonzero(values_no_nan)
     self.quantiles_summary.AddValues(pa.array(values_no_nan))
     if weights is not None:
@@ -352,6 +362,8 @@ class _PartialNumericStats(object):
       self.weighted_quantiles_summary.AddValues(
           pa.array(values_no_nan),
           pa.array(flat_weights_no_nan))
+      self.pos_inf_weighted_count += flat_weights_no_nan[np.isposinf(
+          values_no_nan)].sum()
 
 
 class _PartialStringStats(object):
@@ -567,12 +579,12 @@ def _make_common_stats_proto(
     if top_level_presence_and_valency.num_values_summary is not None:
 
       # Add num_values_histogram to the common stats proto.
-      num_values_quantiles = (
-          top_level_presence_and_valency.num_values_summary.GetQuantiles(
-              num_values_histogram_buckets).flatten().to_pylist())
+      num_values_quantiles, num_values_counts = (
+          _get_quantiles_counts(
+              top_level_presence_and_valency.num_values_summary,
+              num_values_histogram_buckets))
       histogram = quantiles_util.generate_quantiles_histogram(
-          num_values_quantiles, top_level_presence_and_valency.num_non_missing,
-          num_values_histogram_buckets)
+          num_values_quantiles, num_values_counts)
       result.num_values_histogram.CopyFrom(histogram)
 
   # Add weighted common stats to the proto.
@@ -597,6 +609,14 @@ def _make_common_stats_proto(
     result.weighted_common_stats.CopyFrom(
         weighted_common_stats_proto)
   return result
+
+
+def _get_quantiles_counts(qs: sketches.QuantilesSketch,
+                          num_buckets: int) -> Tuple[np.ndarray, np.ndarray]:
+  quantiles, counts = qs.GetQuantilesAndCumulativeWeights(num_buckets)
+  quantiles = quantiles.flatten().to_numpy(zero_copy_only=False)
+  counts = counts.flatten().to_numpy(zero_copy_only=False)
+  return quantiles, counts
 
 
 def _make_numeric_stats_proto(
@@ -630,20 +650,22 @@ def _make_numeric_stats_proto(
 
   # Extract the quantiles from the summary.
   assert numeric_stats.quantiles_summary is not None
-  quantiles = (
-      numeric_stats.quantiles_summary.GetQuantiles(
-          max(num_quantiles_histogram_buckets,
-              _NUM_QUANTILES_FACTOR_FOR_STD_HISTOGRAM *
-              num_histogram_buckets)).flatten().to_pylist())
+  # Construct the equi-width histogram from the quantiles and add it to the
+  # numeric stats proto.
+  quantiles, counts = _get_quantiles_counts(
+      numeric_stats.quantiles_summary,
+      _NUM_QUANTILES_FACTOR_FOR_STD_HISTOGRAM * num_quantiles_histogram_buckets)
 
   # Find the median from the quantiles and update the numeric stats proto.
   result.median = float(quantiles_util.find_median(quantiles))
 
-  # Construct the equi-width histogram from the quantiles and add it to the
-  # numeric stats proto.
   std_histogram = quantiles_util.generate_equi_width_histogram(
-      quantiles, numeric_stats.finite_min, numeric_stats.finite_max,
-      total_num_values, num_histogram_buckets)
+      quantiles=quantiles,
+      cumulative_counts=counts,
+      finite_min=numeric_stats.finite_min,
+      finite_max=numeric_stats.finite_max,
+      num_buckets=num_histogram_buckets,
+      num_pos_inf=numeric_stats.pos_inf_count)
   std_histogram.num_nan = numeric_stats.num_nan
   new_std_histogram = result.histograms.add()
   new_std_histogram.CopyFrom(std_histogram)
@@ -651,7 +673,8 @@ def _make_numeric_stats_proto(
   # Construct the quantiles histogram from the quantiles and add it to the
   # numeric stats proto.
   q_histogram = quantiles_util.generate_quantiles_histogram(
-      quantiles, total_num_values, num_quantiles_histogram_buckets)
+      *quantiles_util.rebin_quantiles(quantiles, counts,
+                                      _NUM_QUANTILES_FACTOR_FOR_STD_HISTOGRAM))
   q_histogram.num_nan = numeric_stats.num_nan
   new_q_histogram = result.histograms.add()
   new_q_histogram.CopyFrom(q_histogram)
@@ -660,9 +683,6 @@ def _make_numeric_stats_proto(
   if has_weights:
     assert numeric_stats.weighted_mean_var_accumulator is not None
     weighted_numeric_stats_proto = statistics_pb2.WeightedNumericStatistics()
-    weighted_total_num_values = (
-        numeric_stats.weighted_mean_var_accumulator.weights_mean *
-        numeric_stats.weighted_mean_var_accumulator.count)
     weighted_mean = numeric_stats.weighted_mean_var_accumulator.mean
     weighted_variance = max(
         0, numeric_stats.weighted_mean_var_accumulator.variance)
@@ -671,11 +691,11 @@ def _make_numeric_stats_proto(
 
     # Extract the weighted quantiles from the summary.
     assert numeric_stats.weighted_quantiles_summary is not None
-    weighted_quantiles = (
-        numeric_stats.weighted_quantiles_summary.GetQuantiles(
-            max(num_quantiles_histogram_buckets,
-                _NUM_QUANTILES_FACTOR_FOR_STD_HISTOGRAM *
-                num_histogram_buckets)).flatten().to_pylist())
+
+    weighted_quantiles, weighted_counts = _get_quantiles_counts(
+        numeric_stats.weighted_quantiles_summary,
+        _NUM_QUANTILES_FACTOR_FOR_STD_HISTOGRAM *
+        num_quantiles_histogram_buckets)
 
     # Find the weighted median from the quantiles and update the proto.
     weighted_numeric_stats_proto.median = float(
@@ -684,16 +704,22 @@ def _make_numeric_stats_proto(
     # Construct the weighted equi-width histogram from the quantiles and
     # add it to the numeric stats proto.
     weighted_std_histogram = quantiles_util.generate_equi_width_histogram(
-        weighted_quantiles, numeric_stats.finite_min, numeric_stats.finite_max,
-        weighted_total_num_values, num_histogram_buckets)
+        quantiles=weighted_quantiles,
+        cumulative_counts=weighted_counts,
+        finite_min=numeric_stats.finite_min,
+        finite_max=numeric_stats.finite_max,
+        num_buckets=num_histogram_buckets,
+        num_pos_inf=numeric_stats.pos_inf_weighted_count)
     weighted_std_histogram.num_nan = numeric_stats.num_nan
     weighted_numeric_stats_proto.histograms.extend([weighted_std_histogram])
 
     # Construct the weighted quantiles histogram from the quantiles and
     # add it to the numeric stats proto.
+
     weighted_q_histogram = quantiles_util.generate_quantiles_histogram(
-        weighted_quantiles, weighted_total_num_values,
-        num_quantiles_histogram_buckets)
+        *quantiles_util.rebin_quantiles(
+            weighted_quantiles, weighted_counts,
+            _NUM_QUANTILES_FACTOR_FOR_STD_HISTOGRAM))
     weighted_q_histogram.num_nan = numeric_stats.num_nan
     weighted_numeric_stats_proto.histograms.extend([weighted_q_histogram])
 
@@ -753,15 +779,15 @@ def _make_num_values_custom_stats_proto(
     return result
 
   # The top level histogram is included in CommonStats -- skip.
-  for level, presence_and_valency, parent_presence_and_valency in zip(
-      itertools.count(2), presence_and_valency_stats[1:],
-      presence_and_valency_stats):
-    num_values_quantiles = (
-        presence_and_valency.num_values_summary.GetQuantiles(
-            num_histogram_buckets).flatten().to_pylist())
+  for level, presence_and_valency in zip(
+      itertools.count(2), presence_and_valency_stats[1:]):
+
+    num_values_quantiles, num_values_counts = (
+        _get_quantiles_counts(presence_and_valency.num_values_summary,
+                              num_histogram_buckets))
+
     histogram = quantiles_util.generate_quantiles_histogram(
-        num_values_quantiles, parent_presence_and_valency.num_non_missing,
-        num_histogram_buckets)
+        num_values_quantiles, num_values_counts)
     proto = statistics_pb2.CustomStatistic()
     proto.name = 'level_{}_value_list_length'.format(level)
     proto.histogram.CopyFrom(histogram)

@@ -393,8 +393,8 @@ class NaturalLanguageStatsGeneratorTest(
               avg_token_length=(3 + 3 + 4 + 4 + 4 + 5) / 6,
               min_sequence_length=3,
               max_sequence_length=5,
-              token_len_quantiles=[(3, 4, 3), (4, 5, 3)],
-              sequence_len_quantiles=[(3, 5, 1), (5, 5, 1)],
+              token_len_quantiles=[(3, 4, 5), (4, 5, 1)],
+              sequence_len_quantiles=[(3, 5, 1.5), (5, 5, 0.5)],
               sorted_token_names_and_counts=[('Bazz', 3), ('Car', 2)],
               reported_sequences=expected_reported_sequences),
           self._int_nlp_feature_with_vocab_path)

@@ -158,24 +158,7 @@ _GENERATE_STATS_TESTS = [
                             max_num_values: 4
                             avg_num_values: 4.0
                             tot_num_values: 12
-                            num_values_histogram {
-                              buckets {
-                                low_value: 4.0
-                                high_value: 4.0
-                                sample_count: 1.0
-                              }
-                              buckets {
-                                low_value: 4.0
-                                high_value: 4.0
-                                sample_count: 1.0
-                              }
-                              buckets {
-                                low_value: 4.0
-                                high_value: 4.0
-                                sample_count: 1.0
-                              }
-                              type: QUANTILES
-                            }
+
                           }
                           unique: 5
                           top_values {
@@ -248,24 +231,7 @@ _GENERATE_STATS_TESTS = [
                       max_num_values: 4
                       avg_num_values: 4.0
                       tot_num_values: 12
-                      num_values_histogram {
-                        buckets {
-                          low_value: 4.0
-                          high_value: 4.0
-                          sample_count: 1.0
-                        }
-                        buckets {
-                          low_value: 4.0
-                          high_value: 4.0
-                          sample_count: 1.0
-                        }
-                        buckets {
-                          low_value: 4.0
-                          high_value: 4.0
-                          sample_count: 1.0
-                        }
-                        type: QUANTILES
-                      }
+
                     }
                     unique: 10
                     top_values {
@@ -356,19 +322,7 @@ _GENERATE_STATS_TESTS = [
                     max_num_values: 4
                     avg_num_values: 3.0
                     tot_num_values: 6
-                    num_values_histogram {
-                      buckets {
-                        low_value: 2.0
-                        high_value: 4.0
-                        sample_count: 1
-                      }
-                      buckets {
-                        low_value: 4.0
-                        high_value: 4.0
-                        sample_count: 1
-                      }
-                      type: QUANTILES
-                    }
+
                     weighted_common_stats {
                       num_non_missing: 3.0
                       num_missing: 0.0
@@ -382,61 +336,12 @@ _GENERATE_STATS_TESTS = [
                   min: 1.0
                   max: 6.0
                   median: 4.0
-                  histograms {
-                    buckets {
-                      low_value: 1.0
-                      high_value: 3.5
-                      sample_count: 2.985
-                    }
-                    buckets {
-                      low_value: 3.5
-                      high_value: 6.0
-                      sample_count: 3.015
-                    }
-                    type: STANDARD
-                  }
-                  histograms {
-                    buckets {
-                      low_value: 1.0
-                      high_value: 4.0
-                      sample_count: 3.0
-                    }
-                    buckets {
-                      low_value: 4.0
-                      high_value: 6.0
-                      sample_count: 3.0
-                    }
-                    type: QUANTILES
-                  }
+
                   weighted_numeric_stats {
                     mean: 3.9
                     std_dev: 1.5779734
                     median: 4.0
-                    histograms {
-                      buckets {
-                        low_value: 1.0
-                        high_value: 3.5
-                        sample_count: 3.975
-                      }
-                      buckets {
-                        low_value: 3.5
-                        high_value: 6.0
-                        sample_count: 6.025
-                      }
-                    }
-                    histograms {
-                      buckets {
-                        low_value: 1.0
-                        high_value: 4.0
-                        sample_count: 5.0
-                      }
-                      buckets {
-                        low_value: 4.0
-                        high_value: 6.0
-                        sample_count: 5.0
-                      }
-                      type: QUANTILES
-                    }
+
                   }
                 }
               }
@@ -452,19 +357,7 @@ _GENERATE_STATS_TESTS = [
                     min_num_values: 2
                     max_num_values: 4
                     avg_num_values: 3.0
-                    num_values_histogram {
-                      buckets {
-                        low_value: 2.0
-                        high_value: 4.0
-                        sample_count: 1.0
-                      }
-                      buckets {
-                        low_value: 4.0
-                        high_value: 4.0
-                        sample_count: 1.0
-                      }
-                      type: QUANTILES
-                    }
+
                     weighted_common_stats {
                       num_non_missing: 3.0
                       num_missing: 0.0
@@ -524,19 +417,7 @@ _GENERATE_STATS_TESTS = [
                     max_num_values: 1
                     avg_num_values: 1.0
                     tot_num_values: 2
-                    num_values_histogram {
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 1
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 1
-                      }
-                      type: QUANTILES
-                    }
+
                     weighted_common_stats {
                       num_non_missing: 3.0
                       num_missing: 0.0
@@ -550,61 +431,12 @@ _GENERATE_STATS_TESTS = [
                   min: 1.0
                   max: 2.0
                   median: 2.0
-                  histograms {
-                    buckets {
-                      low_value: 1.0
-                      high_value: 1.5
-                      sample_count: 0.995
-                    }
-                    buckets {
-                      low_value: 1.5
-                      high_value: 2.0
-                      sample_count: 1.005
-                    }
-                    type: STANDARD
-                  }
-                  histograms {
-                    buckets {
-                      low_value: 1.0
-                      high_value: 2.0
-                      sample_count: 1.0
-                    }
-                    buckets {
-                      low_value: 2.0
-                      high_value: 2.0
-                      sample_count: 1.0
-                    }
-                    type: QUANTILES
-                  }
+
                   weighted_numeric_stats {
                     mean: 1.6666667
                     std_dev: 0.4714045
                     median: 2.0
-                    histograms {
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.5
-                        sample_count: 0.9975
-                      }
-                      buckets {
-                        low_value: 1.5
-                        high_value: 2.0
-                        sample_count: 2.0025
-                      }
-                    }
-                    histograms {
-                      buckets {
-                        low_value: 1.0
-                        high_value: 2.0
-                        sample_count: 1.5
-                      }
-                      buckets {
-                        low_value: 2.0
-                        high_value: 2.0
-                        sample_count: 1.5
-                      }
-                      type: QUANTILES
-                    }
+
                   }
                 }
               }
@@ -657,24 +489,7 @@ _GENERATE_STATS_TESTS = [
                     min_num_values: 1
                     max_num_values: 3
                     avg_num_values: 2.0
-                    num_values_histogram {
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 0.666666666667
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 3.0
-                        sample_count: 0.666666666667
-                      }
-                      buckets {
-                        low_value: 3.0
-                        high_value: 3.0
-                        sample_count: 0.666666666667
-                      }
-                      type: QUANTILES
-                    }
+
                     tot_num_values: 4
                   }
                   mean: 2.5
@@ -682,111 +497,7 @@ _GENERATE_STATS_TESTS = [
                   min: 1.0
                   median: 3.0
                   max: 4.0
-                  histograms {
-                    buckets {
-                      low_value: 1.0
-                      high_value: 1.3
-                      sample_count: 0.9972
-                    }
-                    buckets {
-                      low_value: 1.3
-                      high_value: 1.6
-                      sample_count: 0.0012
-                    }
-                    buckets {
-                      low_value: 1.6
-                      high_value: 1.9
-                      sample_count: 0.0012
-                    }
-                    buckets {
-                      low_value: 1.9
-                      high_value: 2.2
-                      sample_count: 0.9972
-                    }
-                    buckets {
-                      low_value: 2.2
-                      high_value: 2.5
-                      sample_count: 0.0012
-                    }
-                    buckets {
-                      low_value: 2.5
-                      high_value: 2.8
-                      sample_count: 0.0012
-                    }
-                    buckets {
-                      low_value: 2.8
-                      high_value: 3.1
-                      sample_count: 0.9972
-                    }
-                    buckets {
-                      low_value: 3.1
-                      high_value: 3.4
-                      sample_count: 0.0012
-                    }
-                    buckets {
-                      low_value: 3.4
-                      high_value: 3.7
-                      sample_count: 0.0012
-                    }
-                    buckets {
-                      low_value: 3.7
-                      high_value: 4.0
-                      sample_count: 1.0012
-                    }
-                  }
-                  histograms {
-                    buckets {
-                      low_value: 1.0
-                      high_value: 1.0
-                      sample_count: 0.4
-                    }
-                    buckets {
-                      low_value: 1.0
-                      high_value: 1.0
-                      sample_count: 0.4
-                    }
-                     buckets {
-                      low_value: 1.0
-                      high_value: 2.0
-                      sample_count: 0.4
-                    }
-                    buckets {
-                      low_value: 2.0
-                      high_value: 2.0
-                      sample_count: 0.4
-                    }
-                    buckets {
-                      low_value: 2.0
-                      high_value: 3.0
-                      sample_count: 0.4
-                    }
-                    buckets {
-                      low_value: 3.0
-                      high_value: 3.0
-                      sample_count: 0.4
-                    }
-                    buckets {
-                      low_value: 3.0
-                      high_value: 3.0
-                      sample_count: 0.4
-                    }
-                    buckets {
-                      low_value: 3.0
-                      high_value: 4.0
-                      sample_count: 0.4
-                    }
-                    buckets {
-                      low_value: 4.0
-                      high_value: 4.0
-                      sample_count: 0.4
-                    }
-                    buckets {
-                      low_value: 4.0
-                      high_value: 4.0
-                      sample_count: 0.4
-                    }
-                    type: QUANTILES
-                  }
+
                 }
                 custom_stats {
                   name: "_ValueCounter"
@@ -804,24 +515,6 @@ _GENERATE_STATS_TESTS = [
                     min_num_values: 1
                     max_num_values: 1
                     avg_num_values: 1.0
-                    num_values_histogram {
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 0.666666666667
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 0.666666666667
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 0.666666666667
-                      }
-                      type: QUANTILES
-                    }
                     tot_num_values: 2
                   }
                 }
@@ -838,24 +531,7 @@ _GENERATE_STATS_TESTS = [
                     min_num_values: 1
                     max_num_values: 3
                     avg_num_values: 2.0
-                    num_values_histogram {
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 0.666666666667
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 3.0
-                        sample_count: 0.666666666667
-                      }
-                      buckets {
-                        low_value: 3.0
-                        high_value: 3.0
-                        sample_count: 0.666666666667
-                      }
-                      type: QUANTILES
-                    }
+
                     tot_num_values: 4
                   }
                 }
@@ -908,24 +584,7 @@ _GENERATE_STATS_TESTS = [
                     min_num_values: 1
                     max_num_values: 2
                     avg_num_values: 1.5
-                    num_values_histogram {
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 0.6666667
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 2.0
-                        sample_count: 0.6666667
-                      }
-                      buckets {
-                        low_value: 2.0
-                        high_value: 2.0
-                        sample_count: 0.6666667
-                      }
-                      type: QUANTILES
-                    }
+
                     tot_num_values: 3
                   }
                   unique: 3
@@ -982,24 +641,7 @@ _GENERATE_STATS_TESTS = [
                     min_num_values: 1
                     max_num_values: 1
                     avg_num_values: 1.0
-                    num_values_histogram {
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 0.6666667
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 0.6666667
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 0.6666667
-                      }
-                      type: QUANTILES
-                    }
+
                     tot_num_values: 2
                   }
                   unique: 2
@@ -1078,24 +720,7 @@ _GENERATE_STATS_TESTS = [
                     min_num_values: 1
                     max_num_values: 1
                     avg_num_values: 1.0
-                    num_values_histogram {
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 33.3333333333
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 33.3333333333
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 33.3333333333
-                      }
-                      type: QUANTILES
-                    }
+
                     tot_num_values: 100
                   }
                   unique: 2
@@ -1141,24 +766,7 @@ _GENERATE_STATS_TESTS = [
                     min_num_values: 1
                     max_num_values: 1
                     avg_num_values: 1.0
-                    num_values_histogram {
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 33.3333333333
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 33.3333333333
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 33.3333333333
-                      }
-                      type: QUANTILES
-                    }
+
                     tot_num_values: 100
                   }
                   unique: 2
@@ -1249,24 +857,7 @@ _GENERATE_STATS_TESTS = [
                     min_num_values: 1
                     max_num_values: 1
                     avg_num_values: 1.0
-                    num_values_histogram {
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 33.3333333333
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 33.3333333333
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 33.3333333333
-                      }
-                      type: QUANTILES
-                    }
+
                     tot_num_values: 100
                   }
                   unique: 2
@@ -1304,24 +895,7 @@ _GENERATE_STATS_TESTS = [
                     min_num_values: 1
                     max_num_values: 1
                     avg_num_values: 1.0
-                    num_values_histogram {
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 33.3333333333
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 33.3333333333
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 33.3333333333
-                      }
-                      type: QUANTILES
-                    }
+
                     tot_num_values: 100
                   }
                   unique: 2
@@ -1392,19 +966,7 @@ _GENERATE_STATS_TESTS = [
                       max_num_values: 4
                       avg_num_values: 4.0
                       tot_num_values: 8
-                      num_values_histogram {
-                        buckets {
-                          low_value: 4.0
-                          high_value: 4.0
-                          sample_count: 1.0
-                        }
-                        buckets {
-                          low_value: 4.0
-                          high_value: 4.0
-                          sample_count: 1.0
-                        }
-                        type: QUANTILES
-                      }
+
                     }
                     mean: 4.75
                     std_dev: 2.8613808
@@ -1412,22 +974,7 @@ _GENERATE_STATS_TESTS = [
                     min: 0.0
                     max: 9.0
                     median: 6.0
-                    histograms {
-                      buckets {
-                        low_value: 0.0
-                        high_value: 9.0
-                        sample_count: 8.0
-                      }
-                      type: STANDARD
-                    }
-                    histograms {
-                      buckets {
-                        low_value: 0.0
-                        high_value: 9.0
-                        sample_count: 8.0
-                      }
-                      type: QUANTILES
-                    }
+
                   }
                 }
                 features {
@@ -1443,19 +990,7 @@ _GENERATE_STATS_TESTS = [
                       max_num_values: 4
                       avg_num_values: 4.0
                       tot_num_values: 8
-                      num_values_histogram {
-                        buckets {
-                          low_value: 4.0
-                          high_value: 4.0
-                          sample_count: 1.0
-                        }
-                        buckets {
-                          low_value: 4.0
-                          high_value: 4.0
-                          sample_count: 1.0
-                        }
-                        type: QUANTILES
-                      }
+
                     }
                     unique: 4
                     top_values {
@@ -1578,19 +1113,7 @@ _GENERATE_STATS_TESTS = [
                       max_num_values: 1
                       avg_num_values: 1.0
                       tot_num_values: 3
-                      num_values_histogram {
-                        buckets {
-                          low_value: 1.0
-                          high_value: 1.0
-                          sample_count: 1.5
-                        }
-                        buckets {
-                          low_value: 1.0
-                          high_value: 1.0
-                          sample_count: 1.5
-                        }
-                        type: QUANTILES
-                      }
+
                     }
                   }
                 }
@@ -1607,19 +1130,7 @@ _GENERATE_STATS_TESTS = [
                       max_num_values: 4
                       avg_num_values: 4.0
                       tot_num_values: 12
-                      num_values_histogram {
-                        buckets {
-                          low_value: 4.0
-                          high_value: 4.0
-                          sample_count: 1.5
-                        }
-                        buckets {
-                          low_value: 4.0
-                          high_value: 4.0
-                          sample_count: 1.5
-                        }
-                        type: QUANTILES
-                      }
+
                     }
                     mean: 4.5
                     std_dev: 2.6925824
@@ -1627,22 +1138,7 @@ _GENERATE_STATS_TESTS = [
                     min: 0.0
                     max: 9.0
                     median: 5.0
-                    histograms {
-                      buckets {
-                        low_value: 0.0
-                        high_value: 9.0
-                        sample_count: 12.0
-                      }
-                      type: STANDARD
-                    }
-                    histograms {
-                      buckets {
-                        low_value: 0.0
-                        high_value: 9.0
-                        sample_count: 12.0
-                      }
-                      type: QUANTILES
-                    }
+
                   }
                 }
                 features {
@@ -1658,19 +1154,7 @@ _GENERATE_STATS_TESTS = [
                       max_num_values: 4
                       avg_num_values: 4.0
                       tot_num_values: 12
-                      num_values_histogram {
-                        buckets {
-                          low_value: 4.0
-                          high_value: 4.0
-                          sample_count: 1.5
-                        }
-                        buckets {
-                          low_value: 4.0
-                          high_value: 4.0
-                          sample_count: 1.5
-                        }
-                        type: QUANTILES
-                      }
+
                     }
                     unique: 4
                     top_values {
@@ -1817,19 +1301,7 @@ _GENERATE_STATS_TESTS = [
                     min_num_values: 1
                     max_num_values: 1
                     avg_num_values: 1.0
-                    num_values_histogram {
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 2.5
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 2.5
-                      }
-                      type: QUANTILES
-                    }
+
                     tot_num_values: 5
                   }
                   mean: 5.0
@@ -1837,21 +1309,7 @@ _GENERATE_STATS_TESTS = [
                   min: 1.0
                   median: 5.0
                   max: 10.0
-                  histograms {
-                    buckets {
-                      low_value: 1.0
-                      high_value: 10.0
-                      sample_count: 5.0
-                    }
-                  }
-                  histograms {
-                    buckets {
-                      low_value: 1.0
-                      high_value: 10.0
-                      sample_count: 5.0
-                    }
-                    type: QUANTILES
-                  }
+
                 }
                 path {
                   step: "a"
@@ -1860,14 +1318,14 @@ _GENERATE_STATS_TESTS = [
             }""",
     },
     {
-        'testcase_name': 'no_default_generators',
-        'record_batches': [pa.RecordBatch.from_arrays([
-            pa.array([[1]])
-        ], ['f1'])],
+        'testcase_name':
+            'no_default_generators',
+        'record_batches': [
+            pa.RecordBatch.from_arrays([pa.array([[1]])], ['f1'])
+        ],
         'options':
             stats_options.StatsOptions(
-                generators=[_ValueCounter()],
-                add_default_generators=False),
+                generators=[_ValueCounter()], add_default_generators=False),
         'expected_result_proto_text':
             """
               datasets {
@@ -1920,41 +1378,14 @@ _GENERATE_STATS_TESTS = [
                       max_num_values: 4
                       avg_num_values: 3.0
                       tot_num_values: 9
-                      num_values_histogram {
-                        buckets {
-                          low_value: 1.0
-                          high_value: 4.0
-                          sample_count: 1.5
-                        }
-                        buckets {
-                          low_value: 4.0
-                          high_value: 4.0
-                          sample_count: 1.5
-                        }
-                        type: QUANTILES
-                      }
+
                     }
                     mean: 5
                     std_dev: 2.5819889
                     min: 1.0
                     max: 9.0
                     median: 5.0
-                    histograms {
-                      buckets {
-                        low_value: 1.0
-                        high_value: 9.0
-                        sample_count: 9.0
-                      }
-                      type: STANDARD
-                    }
-                    histograms {
-                      buckets {
-                        low_value: 1.0
-                        high_value: 9.0
-                        sample_count: 9.0
-                      }
-                      type: QUANTILES
-                    }
+
                   }
                 }
                 features {
@@ -1970,19 +1401,7 @@ _GENERATE_STATS_TESTS = [
                       max_num_values: 4
                       avg_num_values: 3.0
                       tot_num_values: 9
-                      num_values_histogram {
-                        buckets {
-                          low_value: 1.0
-                          high_value: 4.0
-                          sample_count: 1.5
-                        }
-                        buckets {
-                          low_value: 4.0
-                          high_value: 4.0
-                          sample_count: 1.5
-                        }
-                        type: QUANTILES
-                      }
+
                     }
                     unique: 4
                     top_values {
@@ -2112,59 +1531,7 @@ _GENERATE_STATS_NO_IN_MEMORY_TESTS = [
                     min_num_values: 1
                     max_num_values: 1
                     avg_num_values: 1.0
-                    num_values_histogram {
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 0.4
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 0.4
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 0.4
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 0.4
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 0.4
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 0.4
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 0.4
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 0.4
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 0.4
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 0.4
-                      }
-                      type: QUANTILES
-                    }
+
                     tot_num_values: 4
                   }
                   unique: 2
@@ -2202,59 +1569,7 @@ _GENERATE_STATS_NO_IN_MEMORY_TESTS = [
                     min_num_values: 1
                     max_num_values: 1
                     avg_num_values: 1.0
-                    num_values_histogram {
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 0.4
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 0.4
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 0.4
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 0.4
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 0.4
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 0.4
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 0.4
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 0.4
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 0.4
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 0.4
-                      }
-                      type: QUANTILES
-                    }
+
                     tot_num_values: 4
                   }
                   unique: 2
@@ -2339,19 +1654,6 @@ _SLICED_STATS_TEST_RESULT = """
                     min_num_values: 500
                     max_num_values: 1750
                     avg_num_values: 1000.0
-                    num_values_histogram {
-                      buckets {
-                        low_value: 500.0
-                        high_value: 750.0
-                        sample_count: 1.5
-                      }
-                      buckets {
-                        low_value: 750.0
-                        high_value: 1750.0
-                        sample_count: 1.5
-                      }
-                      type: QUANTILES
-                    }
                     tot_num_values: 3000
                   }
                   mean: 1500.5
@@ -2359,31 +1661,6 @@ _SLICED_STATS_TEST_RESULT = """
                   min: 1.0
                   median: 1501.0
                   max: 3000.0
-                  histograms {
-                    buckets {
-                      low_value: 1.0
-                      high_value: 1500.5
-                      sample_count: 1499.5
-                    }
-                    buckets {
-                      low_value: 1500.5
-                      high_value: 3000.0
-                      sample_count: 1500.5
-                    }
-                  }
-                  histograms {
-                    buckets {
-                      low_value: 1.0
-                      high_value: 1501.0
-                      sample_count: 1500.0
-                    }
-                    buckets {
-                      low_value: 1501.0
-                      high_value: 3000.0
-                      sample_count: 1500.0
-                    }
-                    type: QUANTILES
-                  }
                 }
               }
               features {
@@ -2397,19 +1674,6 @@ _SLICED_STATS_TEST_RESULT = """
                     min_num_values: 1
                     max_num_values: 2
                     avg_num_values: 1.33333337307
-                    num_values_histogram {
-                      buckets {
-                        low_value: 1.0
-                        high_value: 1.0
-                        sample_count: 1.5
-                      }
-                      buckets {
-                        low_value: 1.0
-                        high_value: 2.0
-                        sample_count: 1.5
-                      }
-                      type: QUANTILES
-                    }
                     tot_num_values: 4
                   }
                   unique: 2
@@ -2447,19 +1711,6 @@ _SLICED_STATS_TEST_RESULT = """
                     min_num_values: 1
                     max_num_values: 4
                     avg_num_values: 2.33333325386
-                    num_values_histogram {
-                      buckets {
-                        low_value: 1.0
-                        high_value: 2.0
-                        sample_count: 1.5
-                      }
-                      buckets {
-                        low_value: 2.0
-                        high_value: 4.0
-                        sample_count: 1.5
-                      }
-                      type: QUANTILES
-                    }
                     tot_num_values: 7
                   }
                   mean: 2.66666666667
@@ -2467,33 +1718,6 @@ _SLICED_STATS_TEST_RESULT = """
                   min: 1.0
                   median: 3.0
                   max: 5.0
-                  histograms {
-                    num_nan: 1
-                    buckets {
-                      low_value: 1.0
-                      high_value: 3.0
-                      sample_count: 3.0
-                    }
-                    buckets {
-                      low_value: 3.0
-                      high_value: 5.0
-                      sample_count: 3.0
-                    }
-                  }
-                  histograms {
-                    num_nan: 1
-                    buckets {
-                      low_value: 1.0
-                      high_value: 3.0
-                      sample_count: 3.0
-                    }
-                    buckets {
-                      low_value: 3.0
-                      high_value: 5.0
-                      sample_count: 3.0
-                    }
-                    type: QUANTILES
-                  }
                 }
               }
             }
@@ -2510,19 +1734,6 @@ _SLICED_STATS_TEST_RESULT = """
                     min_num_values: 500
                     max_num_values: 750
                     avg_num_values: 625.0
-                    num_values_histogram {
-                      buckets {
-                        low_value: 500.0
-                        high_value: 750.0
-                        sample_count: 1.0
-                      }
-                      buckets {
-                        low_value: 750.0
-                        high_value: 750.0
-                        sample_count: 1.0
-                      }
-                      type: QUANTILES
-                    }
                     tot_num_values: 1250
                   }
                   mean: 625.5
@@ -2530,31 +1741,6 @@ _SLICED_STATS_TEST_RESULT = """
                   min: 1.0
                   median: 626.0
                   max: 1250.0
-                  histograms {
-                    buckets {
-                      low_value: 1.0
-                      high_value: 625.5
-                      sample_count: 624.5535714
-                    }
-                    buckets {
-                      low_value: 625.5
-                      high_value: 1250.0
-                      sample_count: 625.4464286
-                    }
-                  }
-                  histograms {
-                    buckets {
-                      low_value: 1.0
-                      high_value: 626.0
-                      sample_count: 625.0
-                    }
-                    buckets {
-                      low_value: 626.0
-                      high_value: 1250.0
-                      sample_count: 625.0
-                    }
-                    type: QUANTILES
-                  }
                 }
               }
               features {
@@ -2568,19 +1754,6 @@ _SLICED_STATS_TEST_RESULT = """
                     min_num_values: 1
                     max_num_values: 2
                     avg_num_values: 1.5
-                    num_values_histogram {
-                      buckets {
-                        low_value: 1.0
-                        high_value: 2.0
-                        sample_count: 1.0
-                      }
-                      buckets {
-                        low_value: 2.0
-                        high_value: 2.0
-                        sample_count: 1.0
-                      }
-                      type: QUANTILES
-                    }
                     tot_num_values: 3
                   }
                   unique: 2
@@ -2618,19 +1791,6 @@ _SLICED_STATS_TEST_RESULT = """
                     min_num_values: 2
                     max_num_values: 4
                     avg_num_values: 3.0
-                    num_values_histogram {
-                      buckets {
-                        low_value: 2.0
-                        high_value: 4.0
-                        sample_count: 1.0
-                      }
-                      buckets {
-                        low_value: 4.0
-                        high_value: 4.0
-                        sample_count: 1.0
-                      }
-                      type: QUANTILES
-                    }
                     tot_num_values: 6
                   }
                   mean: 3.0
@@ -2638,33 +1798,6 @@ _SLICED_STATS_TEST_RESULT = """
                   min: 1.0
                   median: 3.0
                   max: 5.0
-                  histograms {
-                    num_nan: 1
-                    buckets {
-                      low_value: 1.0
-                      high_value: 3.0
-                      sample_count: 2.0
-                    }
-                    buckets {
-                      low_value: 3.0
-                      high_value: 5.0
-                      sample_count: 3.0
-                    }
-                  }
-                  histograms {
-                    num_nan: 1
-                    buckets {
-                      low_value: 1.0
-                      high_value: 3.0
-                      sample_count: 2.5
-                    }
-                    buckets {
-                      low_value: 3.0
-                      high_value: 5.0
-                      sample_count: 2.5
-                    }
-                    type: QUANTILES
-                  }
                 }
               }
             }
@@ -2681,19 +1814,6 @@ _SLICED_STATS_TEST_RESULT = """
                     min_num_values: 750
                     max_num_values: 1750
                     avg_num_values: 1250.0
-                    num_values_histogram {
-                      buckets {
-                        low_value: 750.0
-                        high_value: 1750.0
-                        sample_count: 1.0
-                      }
-                      buckets {
-                        low_value: 1750.0
-                        high_value: 1750.0
-                        sample_count: 1.0
-                      }
-                      type: QUANTILES
-                    }
                     tot_num_values: 2500
                   }
                   mean: 1750.5
@@ -2701,31 +1821,6 @@ _SLICED_STATS_TEST_RESULT = """
                   min: 501.0
                   median: 1751.0
                   max: 3000.0
-                  histograms {
-                    buckets {
-                      low_value: 501.0
-                      high_value: 1750.5
-                      sample_count: 1249.5192308
-                    }
-                    buckets {
-                      low_value: 1750.5
-                      high_value: 3000.0
-                      sample_count: 1250.4807692
-                    }
-                  }
-                  histograms {
-                    buckets {
-                      low_value: 501.0
-                      high_value: 1751.0
-                      sample_count: 1250.0
-                    }
-                    buckets {
-                      low_value: 1751.0
-                      high_value: 3000.0
-                      sample_count: 1250.0
-                    }
-                    type: QUANTILES
-                  }
                 }
               }
               features {
@@ -2739,19 +1834,6 @@ _SLICED_STATS_TEST_RESULT = """
                     min_num_values: 1
                     max_num_values: 2
                     avg_num_values: 1.5
-                    num_values_histogram {
-                      buckets {
-                        low_value: 1.0
-                        high_value: 2.0
-                        sample_count: 1.0
-                      }
-                      buckets {
-                        low_value: 2.0
-                        high_value: 2.0
-                        sample_count: 1.0
-                      }
-                      type: QUANTILES
-                    }
                     tot_num_values: 3
                   }
                   unique: 2
@@ -2789,19 +1871,6 @@ _SLICED_STATS_TEST_RESULT = """
                     min_num_values: 1
                     max_num_values: 4
                     avg_num_values: 2.5
-                    num_values_histogram {
-                      buckets {
-                        low_value: 1.0
-                        high_value: 4.0
-                        sample_count: 1.0
-                      }
-                      buckets {
-                        low_value: 4.0
-                        high_value: 4.0
-                        sample_count: 1.0
-                      }
-                      type: QUANTILES
-                    }
                     tot_num_values: 5
                   }
                   mean: 3.25
@@ -2809,33 +1878,6 @@ _SLICED_STATS_TEST_RESULT = """
                   min: 1.0
                   median: 4.0
                   max: 5.0
-                  histograms {
-                    num_nan: 1
-                    buckets {
-                      low_value: 1.0
-                      high_value: 3.0
-                      sample_count: 1.0
-                    }
-                    buckets {
-                      low_value: 3.0
-                      high_value: 5.0
-                      sample_count: 3.0
-                    }
-                  }
-                  histograms {
-                    num_nan: 1
-                    buckets {
-                      low_value: 1.0
-                      high_value: 4.0
-                      sample_count: 2.0
-                    }
-                    buckets {
-                      low_value: 4.0
-                      high_value: 5.0
-                      sample_count: 2.0
-                    }
-                    type: QUANTILES
-                  }
                 }
               }
             }
@@ -3036,6 +2078,7 @@ class StatsImplTest(parameterized.TestCase):
               expected_result,
               expected_result_len=expected_shards,
               expected_result_merge_fn=merge_fn,
+              check_histograms=False,
           ))
 
   # The SQL based slicing uses ZetaSQL which cannot be compiled on Windows.
@@ -3087,7 +2130,7 @@ class StatsImplTest(parameterized.TestCase):
       util.assert_that(
           result,
           test_util.make_dataset_feature_stats_list_proto_equal_fn(
-              self, expected_result))
+              self, expected_result, check_histograms=False))
 
   def test_nld_features(self):
     record_batches = [pa.RecordBatch.from_arrays([pa.array([[1]])], ['f1'])]
@@ -3151,7 +2194,7 @@ class StatsImplTest(parameterized.TestCase):
       util.assert_that(
           result,
           test_util.make_dataset_feature_stats_list_proto_equal_fn(
-              self, expected_result))
+              self, expected_result, check_histograms=True))
 
   def test_generate_sliced_statistics_impl_without_slice_fns(self):
     sliced_record_batches = [
@@ -3179,15 +2222,6 @@ class StatsImplTest(parameterized.TestCase):
             num_stats {
               common_stats {
                 num_non_missing: 2
-                num_values_histogram {
-                  buckets {
-                    sample_count: 1.0
-                  }
-                  buckets {
-                    sample_count: 1.0
-                  }
-                  type: QUANTILES
-                }
               }
             }
           }
@@ -3205,15 +2239,6 @@ class StatsImplTest(parameterized.TestCase):
             num_stats {
               common_stats {
                 num_non_missing: 2
-                num_values_histogram {
-                  buckets {
-                    sample_count: 1.0
-                  }
-                  buckets {
-                    sample_count: 1.0
-                  }
-                  type: QUANTILES
-                }
               }
             }
           }
@@ -3229,7 +2254,7 @@ class StatsImplTest(parameterized.TestCase):
       util.assert_that(
           result,
           test_util.make_dataset_feature_stats_list_proto_equal_fn(
-              self, expected_result_without_slice_key))
+              self, expected_result_without_slice_key, check_histograms=False))
 
     with beam.Pipeline() as p:
       result = (
@@ -3241,7 +2266,7 @@ class StatsImplTest(parameterized.TestCase):
       util.assert_that(
           result,
           test_util.make_dataset_feature_stats_list_proto_equal_fn(
-              self, expected_result_with_slice_key))
+              self, expected_result_with_slice_key, check_histograms=False))
 
   @parameterized.named_parameters(
       *_GENERATE_STATS_TESTS + _GENERATE_STATS_IN_MEMORY_ONLY_TESTS)
@@ -3262,7 +2287,10 @@ class StatsImplTest(parameterized.TestCase):
     # cannot use compare.assertProtoEqual (which requires the same ordering of
     # repeated fields) here.
     test_util.assert_dataset_feature_stats_proto_equal(
-        self, result.datasets[0], expected_result.datasets[0])
+        self,
+        result.datasets[0],
+        expected_result.datasets[0],
+        check_histograms=False)
 
   def test_stats_impl_custom_generators(self):
 
@@ -3292,7 +2320,8 @@ class StatsImplTest(parameterized.TestCase):
             pa.array([[]], type=pa.list_(pa.int64())),
         ], ['a', 'b']),
     ]
-    expected_result = text_format.Parse("""
+    expected_result = text_format.Parse(
+        """
     datasets {
       num_examples: 1
       features {
@@ -3305,19 +2334,6 @@ class StatsImplTest(parameterized.TestCase):
             num_non_missing: 1
             num_missing: 0
             tot_num_values: 0
-            num_values_histogram {
-              buckets {
-                low_value: 0
-                high_value: 0
-                sample_count: 0.5
-              }
-              buckets {
-                low_value: 0
-                high_value: 0
-                sample_count: 0.5
-              }
-              type: QUANTILES
-            }
           }
         }
         custom_stats {
@@ -3335,19 +2351,6 @@ class StatsImplTest(parameterized.TestCase):
             num_non_missing: 1
             num_missing: 0
             tot_num_values: 0
-            num_values_histogram {
-              buckets {
-                low_value: 0
-                high_value: 0
-                sample_count: 0.5
-              }
-              buckets {
-                low_value: 0
-                high_value: 0
-                sample_count: 0.5
-              }
-              type: QUANTILES
-            }
           }
         }
         custom_stats {
@@ -3373,7 +2376,7 @@ class StatsImplTest(parameterized.TestCase):
       util.assert_that(
           result,
           test_util.make_dataset_feature_stats_list_proto_equal_fn(
-              self, expected_result))
+              self, expected_result, check_histograms=False))
 
   def test_generate_statistics_in_memory_empty_examples(self):
     record_batch = pa.RecordBatch.from_arrays([])
@@ -3437,24 +2440,6 @@ class StatsImplTest(parameterized.TestCase):
                 max_num_values: 2
                 avg_num_values: 1.333333
                 tot_num_values: 4
-                num_values_histogram {
-                  buckets {
-                    low_value: 1.0
-                    high_value: 1.0
-                    sample_count: 1.0
-                  }
-                  buckets {
-                    low_value: 1.0
-                    high_value: 2.0
-                    sample_count: 1.0
-                  }
-                  buckets {
-                    low_value: 2.0
-                    high_value: 2.0
-                    sample_count: 1.0
-                  }
-                  type: QUANTILES
-                }
               }
               top_values {
                 value: 'qwe'
@@ -3489,8 +2474,11 @@ class StatsImplTest(parameterized.TestCase):
         num_values_histogram_buckets=3,
         enable_semantic_domain_stats=True)
     result = stats_impl.generate_statistics_in_memory(record_batch, options)
-    compare.assertProtoEqual(
-        self, result, expected_result, normalize_numbers=True)
+    test_util.assert_dataset_feature_stats_proto_equal(
+        self,
+        result.datasets[0],
+        expected_result.datasets[0],
+        check_histograms=False)
 
   def test_generate_statistics_in_memory_invalid_custom_generator(
       self):
