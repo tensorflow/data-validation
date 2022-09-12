@@ -455,12 +455,11 @@ class _ComputeSkew(beam.DoFn):
     self._confusion_configs = confusion_configs
 
   def process(
-      self, element: Tuple[str,
-                           Dict[str,
-                                List[Any]]]) -> Iterable[_PairOrFeatureSkew]:
+      self, element: Tuple[str, Dict[str, Iterable[Any]]]
+  ) -> Iterable[_PairOrFeatureSkew]:
     (_, examples) = element
-    base_examples = examples.get(_BASELINE_KEY)
-    test_examples = examples.get(_TEST_KEY)
+    base_examples = list(examples.get(_BASELINE_KEY))
+    test_examples = list(examples.get(_TEST_KEY))
 
     match_stats = _make_match_stats_counter(
         len(base_examples),
