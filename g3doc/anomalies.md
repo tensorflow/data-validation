@@ -470,7 +470,8 @@ condition(s) under which each anomaly type is detected.
             `feature.skew_comparator.jensen_shannon_divergence.threshold` or
             `feature.drift_comparator.jensen_shannon_divergence.threshold`. The
             approximate Jensen-Shannon divergence is computed based on the
-            normalized sample counts in the num_stats standard histogram.
+            normalized sample counts in both num_stats standard histogram and
+            string_stats rank histogram.
 
 -   `NO_DATA_IN_SPAN`
 

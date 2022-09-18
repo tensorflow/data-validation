@@ -100,7 +100,8 @@ TEST(LInftyDistanceTest, All) {
 }
 
 TEST(JensenShannonDivergence, SameStatistics) {
-  const DatasetForTesting dataset(ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+  const DatasetForTesting dataset_1(
+    ParseTextProtoOrDie<FeatureNameStatistics>(R"(
     name: 'float'
     type: FLOAT
     num_stats {
@@ -117,9 +118,24 @@ TEST(JensenShannonDivergence, SameStatistics) {
         type: STANDARD
       }
     })"));
+  const DatasetForTesting dataset_2(
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'string'
+        type: STRING
+        string_stats {
+          rank_histogram {
+            buckets { label: "b" sample_count: 2.0 }
+            buckets { label: "a" sample_count: 2.0 }
+            buckets { label: "c" sample_count: 1.0 }
+          }
+        })"));
   double result;
-  TF_ASSERT_OK(JensenShannonDivergence(dataset.feature_stats_view(),
-                                       dataset.feature_stats_view(), result));
+  TF_ASSERT_OK(JensenShannonDivergence(dataset_1.feature_stats_view(),
+                                       dataset_1.feature_stats_view(), result));
+  EXPECT_NEAR(result, 0.0, 1e-5);
+
+  TF_ASSERT_OK(JensenShannonDivergence(dataset_2.feature_stats_view(),
+                                       dataset_2.feature_stats_view(), result));
   EXPECT_NEAR(result, 0.0, 1e-5);
 }
 
@@ -397,6 +413,93 @@ TEST(JensenShannonDivergence, QuantileTypeHistograms) {
   double result;
   auto error = JensenShannonDivergence(dataset.feature_stats_view(),
                                        dataset.feature_stats_view(), result);
+  EXPECT_TRUE(tensorflow::errors::IsInvalidArgument(error));
+}
+
+TEST(JensenShannonDivergence, RankHistogram) {
+  const DatasetForTesting dataset_1(
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'string'
+        type: STRING
+        string_stats {
+          rank_histogram {
+            buckets { label: "b" sample_count: 2.0 }
+            buckets { label: "a" sample_count: 2.0 }
+            buckets { label: "c" sample_count: 1.0 }
+          }
+        })"));
+  const DatasetForTesting dataset_2(
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'string'
+        type: STRING
+        string_stats {
+          rank_histogram {
+            buckets { label: "a" sample_count: 2.0 }
+            buckets { label: "Z" sample_count: 1.0 }
+            buckets { label: "Y" sample_count: 1.0 }
+            buckets { label: "X" sample_count: 1.0 }
+          }
+        })"));
+  double result;
+  TF_ASSERT_OK(JensenShannonDivergence(dataset_1.feature_stats_view(),
+                                       dataset_2.feature_stats_view(), result));
+  EXPECT_NEAR(result, 0.6, 1e-5);
+}
+
+TEST(JensenShannonDivergence, EmptyRankHistogram) {
+  const DatasetForTesting empty_dataset(
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'string'
+        type: STRING
+        string_stats {
+          rank_histogram {
+          }
+        })"));
+  const DatasetForTesting non_empty_dataset(
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'string'
+        type: STRING
+        string_stats {
+          rank_histogram {
+            buckets { label: "a" sample_count: 2.0 }
+            buckets { label: "Z" sample_count: 1.0 }
+            buckets { label: "Y" sample_count: 1.0 }
+            buckets { label: "X" sample_count: 1.0 }
+          }
+        })"));
+  double result;
+  auto error = JensenShannonDivergence(empty_dataset.feature_stats_view(),
+                                       non_empty_dataset.feature_stats_view(),
+                                       result);
+  EXPECT_TRUE(tensorflow::errors::IsInvalidArgument(error));
+}
+
+TEST(JensenShannonDivergence, DifferentTypesHistogram) {
+  const DatasetForTesting dataset_1(
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'string'
+        type: STRING
+        string_stats {
+          rank_histogram {
+            buckets { label: "b" sample_count: 2.0 }
+            buckets { label: "a" sample_count: 2.0 }
+            buckets { label: "c" sample_count: 1.0 }
+          }
+        })"));
+  const DatasetForTesting dataset_2(
+      ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'float'
+        type: FLOAT
+        num_stats {
+          common_stats {}
+          histograms {
+            buckets { low_value: 1.0 high_value: 2.0 sample_count: 4.0 }
+            type: STANDARD
+          }
+        })"));
+  double result;
+  auto error = JensenShannonDivergence(dataset_1.feature_stats_view(),
+                                       dataset_2.feature_stats_view(), result);
   EXPECT_TRUE(tensorflow::errors::IsInvalidArgument(error));
 }
 

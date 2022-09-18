@@ -21,6 +21,9 @@
 *   Nested list length histogram counts are no longer based on the number of
     values one up in the nested list hierarchy.
 
+*   Support using jensen-shannon divergence to detect drift and skew for string
+    and categorical features.
+
 ## Known Issues
 
 ## Breaking Changes

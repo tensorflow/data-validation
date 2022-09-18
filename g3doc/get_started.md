@@ -336,9 +336,10 @@ serving dataset:
         statistics=train_stats, schema=schema, serving_statistics=serving_stats)
 ```
 
-NOTE To detect skew for numeric features, specify a
-`jensen_shannon_divergence` threshold instead of an `infinity_norm` threshold in
-the `skew_comparator`.
+NOTE L-infinity norm will only detect skew for the categorical features. Instead
+of specifying an `infinity_norm` threshold, specifying a
+`jensen_shannon_divergence` threshold in the `skew_comparator` would detect
+skew for both numeric and categorical features.
 
 Same with checking whether a dataset conform to the expectations set in the
 schema, the result is also an instance of the
@@ -373,9 +374,10 @@ way
         statistics=train_day2_stats, schema=schema, previous_statistics=train_day1_stats)
 ```
 
-NOTE To detect skew for numeric features, specify a
-`jensen_shannon_divergence` threshold instead of an `infinity_norm` threshold in
-the `drift_comparator`.
+NOTE L-infinity norm will only detect skew for the categorical features. Instead
+of specifying an `infinity_norm` threshold, specifying a
+`jensen_shannon_divergence` threshold in the `skew_comparator` would detect
+skew for both numeric and categorical features.
 
 ## Writing custom data connector
 

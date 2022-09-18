@@ -285,18 +285,79 @@ Status JensenShannonDivergence(Histogram& histogram_1, Histogram& histogram_2,
   return Status::OK();
 }
 
+
+Status JensenShannonDivergence(const std::map<string, double>& map_1,
+                               const std::map<string, double>& map_2,
+                               double& result) {
+  if (map_1.empty() || map_2.empty()) {
+    return errors::InvalidArgument("Input maps must not be empty.");
+  }
+  double a_sum = 0, b_sum = 0;
+  std::map<string, std::pair<double, double>> js_values;
+
+  // Map string to value counts from each dataset and calculate the total
+  // count for each dataset which will be used to calculate the
+  // probability/distribution of the values.
+  for (const auto& ele : map_1) {
+    if (ele.second <= 0){
+      return errors::InvalidArgument("Sample count is a non-positive value.");
+    }
+    js_values[ele.first].first += ele.second;
+    a_sum += ele.second;
+  }
+  for (const auto& ele : map_2) {
+    if (ele.second <= 0){
+      return errors::InvalidArgument("Sample count is a non-positive value.");
+    }
+    js_values[ele.first].second += ele.second;
+    b_sum += ele.second;
+  }
+  // Calculate JSD(P||Q) = (D(P||M) + D(Q||M))/2
+  double kl_sum = 0;
+  double m = 0;
+  double a_ele_prob = 0, b_ele_prob = 0;
+  for (const auto& ele : js_values) {
+    a_ele_prob = ele.second.first / a_sum;
+    b_ele_prob = ele.second.second / b_sum;
+    // M = (P + Q)/2.
+    m = (a_ele_prob + b_ele_prob) / 2;
+    if (ele.second.first != 0) {
+      // D(P||M)
+      kl_sum += a_ele_prob * std::log2(a_ele_prob / m);
+    }
+    if (ele.second.second != 0) {
+      // D(Q||M)
+      kl_sum += b_ele_prob * std::log2(b_ele_prob / m);
+    }
+  }
+  result = kl_sum/2;
+
+  return Status::OK();
+}
+
 Status JensenShannonDivergence(const FeatureStatsView& a,
                                const FeatureStatsView& b, double& result) {
+  std::map<string, double> mapping_1 = a.GetStringValuesWithCounts();
+  std::map<string, double> mapping_2 = b.GetStringValuesWithCounts();
+  if (!mapping_1.empty() && !mapping_2.empty()) {
+    return JensenShannonDivergence(mapping_1, mapping_2, result);
+  }
   const absl::optional<Histogram> maybe_histogram_1 = a.GetStandardHistogram();
   const absl::optional<Histogram> maybe_histogram_2 = b.GetStandardHistogram();
-  if (!maybe_histogram_1 || !maybe_histogram_2) {
-    return tensorflow::errors::InvalidArgument(
-        "Both input statistics must have a standard histogram in order to "
-        "calculate the Jensen-Shannon divergence.");
+  if (maybe_histogram_1 && maybe_histogram_2) {
+    Histogram histogram_1 = std::move(maybe_histogram_1.value());
+    Histogram histogram_2 = std::move(maybe_histogram_2.value());
+    return JensenShannonDivergence(histogram_1, histogram_2, result);
   }
-  Histogram histogram_1 = std::move(maybe_histogram_1.value());
-  Histogram histogram_2 = std::move(maybe_histogram_2.value());
-  return JensenShannonDivergence(histogram_1, histogram_2, result);
+
+  if ((mapping_1.empty() != mapping_2.empty()) &&
+      (!maybe_histogram_1 != !maybe_histogram_2)){
+    return tensorflow::errors::InvalidArgument(
+      "Both input statistics must have the same type of histogram in order to "
+      "calculate the Jensen-Shannon divergence.");
+  }
+  return tensorflow::errors::InvalidArgument(
+    "One or more feature missing data.");
 }
 
 }  // namespace data_validation
