@@ -200,7 +200,7 @@ Status Schema::Init(const tensorflow::metadata::v0::Schema& input) {
     return InvalidArgument("Schema is not empty when Init() called.");
   }
   schema_ = input;
-  return Status::OK();
+  return Status();
 }
 
 Status Schema::Update(const DatasetStatsView& dataset_stats,
@@ -244,12 +244,12 @@ tensorflow::Status Schema::UpdateFeature(
         ::tensorflow::data_validation::DeprecateSparseFeature(sparse_feature);
       }
       updater.UpdateSeverityForAnomaly(*descriptions, severity);
-      return Status::OK();
+      return Status();
     } else {
       *descriptions =
           UpdateWeightedFeature(feature_stats_view, weighted_feature);
       updater.UpdateSeverityForAnomaly(*descriptions, severity);
-      return Status::OK();
+      return Status();
     }
   }
 
@@ -264,11 +264,11 @@ tensorflow::Status Schema::UpdateFeature(
       ::tensorflow::data_validation::DeprecateSparseFeature(sparse_feature);
       ::tensorflow::data_validation::DeprecateFeature(feature);
       updater.UpdateSeverityForAnomaly(*descriptions, severity);
-      return Status::OK();
+      return Status();
     } else {
       *descriptions = UpdateSparseFeature(feature_stats_view, sparse_feature);
       updater.UpdateSeverityForAnomaly(*descriptions, severity);
-      return Status::OK();
+      return Status();
     }
   }
 
@@ -276,7 +276,7 @@ tensorflow::Status Schema::UpdateFeature(
     UpdateFeatureInternal(updater, feature_stats_view, feature, descriptions,
                           drift_skew_info);
     updater.UpdateSeverityForAnomaly(*descriptions, severity);
-    return Status::OK();
+    return Status();
   } else {
     const Description description = {
         tensorflow::metadata::v0::AnomalyInfo::SCHEMA_NEW_COLUMN, "New column",
@@ -285,7 +285,7 @@ tensorflow::Status Schema::UpdateFeature(
     updater.UpdateSeverityForAnomaly(*descriptions, severity);
     return updater.CreateColumn(feature_stats_view, this, severity);
   }
-  return Status::OK();
+  return Status();
 }
 
 bool Schema::FeatureIsDeprecated(const Path& path) {
@@ -314,7 +314,7 @@ Status Schema::UpdateRecursively(
     tensorflow::metadata::v0::AnomalyInfo::Severity* severity) {
   *severity = tensorflow::metadata::v0::AnomalyInfo::UNKNOWN;
   if (!ContainsPath(paths_to_consider, feature_stats_view.GetPath())) {
-    return Status::OK();
+    return Status();
   }
   absl::optional<tensorflow::metadata::v0::DriftSkewInfo>
       unused_drift_skew_info;
@@ -333,7 +333,7 @@ Status Schema::UpdateRecursively(
     }
   }
   updater.UpdateSeverityForAnomaly(*descriptions, severity);
-  return Status::OK();
+  return Status();
 }
 
 Schema::Updater::Updater(const FeatureStatisticsToProtoConfig& config)
@@ -389,7 +389,7 @@ Status Schema::Updater::CreateColumn(
   if (ContainsKey(columns_to_ignore_,
                   feature_stats_view.GetPath().Serialize())) {
     ::tensorflow::data_validation::DeprecateFeature(feature);
-    return Status::OK();
+    return Status();
   }
   if (feature_stats_view.HasValidationDerivedSource()) {
     // TODO(b/227478330): Consider setting a lower severity.
@@ -399,7 +399,7 @@ Status Schema::Updater::CreateColumn(
 
   if (BestEffortUpdateCustomDomain(feature_stats_view.custom_stats(),
                                    feature)) {
-    return Status::OK();
+    return Status();
   } else if (ContainsKey(grouped_enums_, feature_stats_view.GetPath())) {
     const string& enum_name = grouped_enums_.at(feature_stats_view.GetPath());
     StringDomain* result = schema->GetExistingStringDomain(enum_name);
@@ -407,29 +407,29 @@ Status Schema::Updater::CreateColumn(
       result = schema->GetNewStringDomain(enum_name);
     }
     UpdateStringDomain(*this, feature_stats_view, 0, result);
-    return Status::OK();
+    return Status();
   } else if (feature_stats_view.HasInvalidUTF8Strings() ||
              feature_stats_view.type() == FeatureNameStatistics::BYTES) {
     // If there are invalid UTF8 strings, or the field should not be further
     // interpreted, add no domain info.
-    return Status::OK();
+    return Status();
   } else if (IsBoolDomainCandidate(feature_stats_view)) {
     *feature->mutable_bool_domain() = BoolDomainFromStats(feature_stats_view);
-    return Status::OK();
+    return Status();
   } else if (IsIntDomainCandidate(feature_stats_view)) {
     // By default don't set any values.
     feature->mutable_int_domain();
-    return Status::OK();
+    return Status();
   } else if (IsStringDomainCandidate(feature_stats_view,
                                      config_.enum_threshold())) {
     StringDomain* string_domain =
         schema->GetNewStringDomain(feature_stats_view.GetPath().Serialize());
     UpdateStringDomain(*this, feature_stats_view, 0, string_domain);
     *feature->mutable_domain() = string_domain->name();
-    return Status::OK();
+    return Status();
   } else {
     // No domain info for this field.
-    return Status::OK();
+    return Status();
   }
 }
 
@@ -570,7 +570,7 @@ Status Schema::Update(const DatasetStatsView& dataset_stats,
       DeprecateFeature(missing_path);
     }
   }
-  return Status::OK();
+  return Status();
 }
 
 // TODO(b/114757721): expose this.
@@ -605,7 +605,7 @@ Status Schema::GetRelatedEnums(const DatasetStatsView& dataset_stats,
     }
     *column_constraint->mutable_enum_name() = best_name;
   }
-  return Status::OK();
+  return Status();
 }
 
 tensorflow::metadata::v0::Schema Schema::GetSchema() const { return schema_; }

@@ -68,7 +68,7 @@ string SerializeStep(const string& str) {
 // quotes with single quotes.
 tensorflow::Status DeserializeStep(string* to_modify) {
   if (IsStandardStep(*to_modify)) {
-    return Status::OK();
+    return Status();
   }
 
   // A legal serialized string here begins and ends with a single quote and
@@ -82,7 +82,7 @@ tensorflow::Status DeserializeStep(string* to_modify) {
 
   // Replace each pair of quotes remaining with a single quote.
   *to_modify = absl::StrReplaceAll(quotes_removed, {{"''", "'"}});
-  return Status::OK();
+  return Status();
 }
 
 // Find the next step delimiter.
@@ -173,13 +173,13 @@ tensorflow::metadata::v0::Path Path::AsProto() const {
 tensorflow::Status Path::Deserialize(absl::string_view str, Path* result) {
   result->step_.clear();
   if (str.empty()) {
-    return Status::OK();
+    return Status();
   }
   result->step_ = absl::StrSplit(str, StepDelimiter());
   for (string& step : result->step_) {
     TF_RETURN_IF_ERROR(DeserializeStep(&step));
   }
-  return Status::OK();
+  return Status();
 }
 
 Path Path::GetChild(absl::string_view last_step) const {

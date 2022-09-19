@@ -37,7 +37,7 @@ Status ToFeaturesNeededProto(const FeaturesNeeded& feature_needed,
     *result->add_path_and_reason_feature_need() = path_and_reason_feature_need;
   }
 
-  return Status::OK();
+  return Status();
 }
 
 Status FromFeaturesNeededProto(const FeaturesNeededProto& feature_needed_proto,
@@ -51,7 +51,7 @@ Status FromFeaturesNeededProto(const FeaturesNeededProto& feature_needed_proto,
     (*result)[key] = value;
   }
 
-  return Status::OK();
+  return Status();
 }
 
 }  // namespace data_validation

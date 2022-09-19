@@ -227,7 +227,7 @@ tensorflow::Status SchemaAnomaly::Update(
   descriptions_.insert(descriptions_.end(), new_descriptions.begin(),
                        new_descriptions.end());
   UpgradeSeverity(new_severity);
-  return tensorflow::Status::OK();
+  return tensorflow::Status();
 }
 
 tensorflow::Status SchemaAnomaly::CreateNewField(
@@ -245,7 +245,7 @@ tensorflow::Status SchemaAnomaly::CreateNewField(
   // Instead, we just push the first one.
   descriptions_.insert(descriptions_.end(), new_descriptions.begin(),
                        new_descriptions.end());
-  return Status::OK();
+  return Status();
 }
 
 void SchemaAnomaly::UpdateSkewComparator(
@@ -351,7 +351,7 @@ tensorflow::Status SchemaAnomalies::GenericUpdate(
   if (schema_anomaly->drift_skew_info()) {
     drift_skew_infos_[path].MergeFrom(*schema_anomaly->drift_skew_info());
   }
-  return Status::OK();
+  return Status();
 }
 
 tensorflow::Status SchemaAnomalies::GenericDatasetUpdate(
@@ -363,7 +363,7 @@ tensorflow::Status SchemaAnomalies::GenericDatasetUpdate(
   if (dataset_schema_anomaly.is_problem()) {
     dataset_anomalies_ = std::move(dataset_schema_anomaly);
   }
-  return Status::OK();
+  return Status();
 }
 
 tensorflow::Status SchemaAnomalies::FindChangesRecursively(
@@ -375,7 +375,7 @@ tensorflow::Status SchemaAnomalies::FindChangesRecursively(
   if (baseline.FeatureExists(feature_stats_view.GetPath())) {
     // TODO(b/148407751): Treat PLANNED separately.
     if (baseline.FeatureIsDeprecated(feature_stats_view.GetPath())) {
-      return Status::OK();
+      return Status();
     }
     TF_RETURN_IF_ERROR(GenericUpdate(
         [&feature_stats_view, &updater](SchemaAnomaly* schema_anomaly) {
@@ -385,7 +385,7 @@ tensorflow::Status SchemaAnomalies::FindChangesRecursively(
     if (ContainsKey(anomalies_, feature_stats_view.GetPath()) &&
         anomalies_[feature_stats_view.GetPath()].FeatureIsDeprecated(
             feature_stats_view.GetPath())) {
-      return Status::OK();
+      return Status();
     }
     for (const FeatureStatsView& child : feature_stats_view.GetChildren()) {
       TF_RETURN_IF_ERROR(
@@ -405,7 +405,7 @@ tensorflow::Status SchemaAnomalies::FindChangesRecursively(
     TF_RETURN_IF_ERROR(anomalies_[feature_stats_view.GetPath()].CreateNewField(
         updater, features_needed, feature_stats_view));
   }
-  return Status::OK();
+  return Status();
 }
 
 tensorflow::Status SchemaAnomalies::FindChanges(
@@ -433,7 +433,7 @@ tensorflow::Status SchemaAnomalies::FindChanges(
     TF_RETURN_IF_ERROR(GenericUpdate(
         [&updater](SchemaAnomaly* schema_anomaly) {
           schema_anomaly->ObserveMissing(updater);
-          return Status::OK();
+          return Status();
         },
         path));
   }
@@ -451,7 +451,7 @@ tensorflow::Status SchemaAnomalies::FindChanges(
 
   TF_RETURN_IF_ERROR(FindDatasetChanges(statistics));
 
-  return Status::OK();
+  return Status();
 }
 
 tensorflow::Status SchemaAnomalies::FindSkew(
@@ -463,11 +463,11 @@ tensorflow::Status SchemaAnomalies::FindSkew(
     TF_RETURN_IF_ERROR(GenericUpdate(
         [&feature_stats_view](SchemaAnomaly* schema_anomaly) {
           schema_anomaly->UpdateSkewComparator(feature_stats_view);
-          return Status::OK();
+          return Status();
         },
         feature_stats_view.GetPath()));
   }
-  return Status::OK();
+  return Status();
 }
 
 tensorflow::Status SchemaAnomalies::FindDatasetChanges(
@@ -475,9 +475,9 @@ tensorflow::Status SchemaAnomalies::FindDatasetChanges(
   TF_RETURN_IF_ERROR(GenericDatasetUpdate(
       [&dataset_stats_view](DatasetSchemaAnomaly* dataset_schema_anomaly) {
         dataset_schema_anomaly->Update(dataset_stats_view);
-        return Status::OK();
+        return Status();
       }));
-  return Status::OK();
+  return Status();
 }
 
 }  // namespace data_validation

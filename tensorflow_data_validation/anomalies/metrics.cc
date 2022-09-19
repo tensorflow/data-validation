@@ -207,7 +207,7 @@ Status NormalizeHistogram(Histogram& histogram) {
     new_bucket->set_sample_count(bucket.sample_count() / total_sample_count);
   }
   histogram = std::move(normalized_histogram);
-  return Status::OK();
+  return Status();
 }
 
 // Returns an approximate Kullback-Leibler divergence
@@ -282,7 +282,7 @@ Status JensenShannonDivergence(Histogram& histogram_1, Histogram& histogram_2,
         KullbackLeiblerDivergence(histogram_2,
                                   average_distribution_histogram)) /
        2);
-  return Status::OK();
+  return Status();
 }
 
 

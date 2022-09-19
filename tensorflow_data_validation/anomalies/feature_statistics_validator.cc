@@ -71,7 +71,7 @@ tensorflow::Status InferSchema(const string& feature_statistics_proto_string,
     return tensorflow::errors::Internal(
         "Could not serialize Schema output proto to string.");
   }
-  return tensorflow::Status::OK();
+  return tensorflow::Status();
 }
 
 tensorflow::Status UpdateSchema(const string& schema_proto_string,
@@ -99,7 +99,7 @@ tensorflow::Status UpdateSchema(const string& schema_proto_string,
     return tensorflow::errors::Internal(
         "Could not serialize Schema output proto to string.");
   }
-  return tensorflow::Status::OK();
+  return tensorflow::Status();
 }
 
 tensorflow::Status ValidateFeatureStatistics(
@@ -190,7 +190,7 @@ tensorflow::Status ValidateFeatureStatistics(
     anomaly_type_counts->GetCell("data_missing")->IncrementBy(1);
   }
 
-  return tensorflow::Status::OK();
+  return tensorflow::Status();
 }
 
 tensorflow::Status ValidateFeatureStatisticsWithSerializedInputs(
@@ -284,7 +284,7 @@ tensorflow::Status ValidateFeatureStatisticsWithSerializedInputs(
     return tensorflow::errors::Internal(
         "Could not serialize Anomalies output proto to string.");
   }
-  return tensorflow::Status::OK();
+  return tensorflow::Status();
 }
 
 tensorflow::Status UpdateSchema(
@@ -329,7 +329,7 @@ tensorflow::Status UpdateSchema(
         feature_statistics_to_proto_config));
   }
   *result = schema.GetSchema();
-  return tensorflow::Status::OK();
+  return tensorflow::Status();
 }
 
 }  // namespace data_validation
