@@ -98,6 +98,10 @@ class _TFRecordProviderImpl(StatisticsIOProvider):
     return '.tfrecords'
 
 
+def get_default_columnar_provider() -> Optional[StatisticsIOProvider]:
+  return None
+
+
 def should_write_sharded():
   return False
 

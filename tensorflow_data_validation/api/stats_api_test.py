@@ -25,8 +25,10 @@ import apache_beam as beam
 from apache_beam.testing import util
 import numpy as np
 import pyarrow as pa
+import tensorflow as tf
 
 from tensorflow_data_validation.api import stats_api
+from tensorflow_data_validation.utils import statistics_io_impl
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.utils import io_util
 from tensorflow_data_validation.utils import stats_util
@@ -456,11 +458,13 @@ class StatsAPITest(absltest.TestCase):
 
     output_path_binary = os.path.join(self._get_temp_dir(), 'stats.pb')
     output_path_prefix = os.path.join(self._get_temp_dir(), 'stats_shards')
+    columnar_path_prefix = os.path.join(self._get_temp_dir(),
+                                        'columnar_outputs')
     with beam.Pipeline() as p:
       _ = (
           p | beam.Create([stats1, stats2])
           | stats_api.WriteStatisticsToRecordsAndBinaryFile(
-              output_path_binary, output_path_prefix))
+              output_path_binary, output_path_prefix, columnar_path_prefix))
 
     stats_from_pb = statistics_pb2.DatasetFeatureStatisticsList()
     serialized_stats = io_util.read_file_to_string(
@@ -477,6 +481,9 @@ class StatsAPITest(absltest.TestCase):
         self,
         stats_from_shards.datasets[0],
         stats_combined.datasets[0])
+
+    if statistics_io_impl.get_default_columnar_provider():
+      self.assertNotEmpty(tf.io.gfile.glob(columnar_path_prefix + '-*-of-*'))
 
 
 class MergeDatasetFeatureStatisticsListTest(absltest.TestCase):

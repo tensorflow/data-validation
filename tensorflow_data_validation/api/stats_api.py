@@ -44,7 +44,7 @@ from __future__ import division
 from __future__ import print_function
 
 import random
-from typing import Generator, Optional, Text
+from typing import Generator, Text, Optional
 
 import apache_beam as beam
 import pyarrow as pa
@@ -183,7 +183,7 @@ class WriteStatisticsToRecordsAndBinaryFile(beam.PTransform):
       self,
       binary_proto_path: str,
       records_path_prefix: str,
-      io_provider: Optional[statistics_io_impl.StatisticsIOProvider] = None
+      columnar_path_prefix: Optional[str] = None,
   ) -> None:
     """Initializes the transform.
 
@@ -191,20 +191,26 @@ class WriteStatisticsToRecordsAndBinaryFile(beam.PTransform):
       binary_proto_path: Output path for writing statistics as a binary proto.
       records_path_prefix: File pattern for writing statistics to sharded
         records.
-      io_provider: Optional StatisticsIOProvider. If unset, a default will be
-      constructed. This argument determines the format of statistics output.
+      columnar_path_prefix: Optional file pattern for writing statistics to
+        columnar outputs. If provided, columnar outputs will be written when
+        supported.
     """
     self._binary_proto_path = binary_proto_path
     self._records_path_prefix = records_path_prefix
-    if io_provider is None:
-      io_provider = statistics_io_impl.get_io_provider()
-    self._io_provider = io_provider
+    self._io_provider = statistics_io_impl.get_io_provider()
+    self._columnar_path_prefix = columnar_path_prefix
 
   def expand(self, stats: beam.PCollection) -> beam.pvalue.PDone:
     # Write sharded outputs, ignoring PDone.
     _ = (
         stats | 'WriteShardedStats' >> self._io_provider.record_sink_impl(
             output_path_prefix=self._records_path_prefix))
+    if self._columnar_path_prefix is not None:
+      columnar_provider = statistics_io_impl.get_default_columnar_provider()
+      if columnar_provider is not None:
+        _ = (
+            stats | 'WriteColumnarStats' >> columnar_provider.record_sink_impl(
+                self._columnar_path_prefix))
     return (stats
             | 'MergeDatasetFeatureStatisticsProtos' >> beam.CombineGlobally(
                 merge_util.merge_dataset_feature_statistics_list)
