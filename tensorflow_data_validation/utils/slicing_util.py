@@ -18,6 +18,7 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
+from collections import abc
 import functools
 
 from typing import Any, Dict, Iterable, List, Optional, Text, Union
@@ -90,7 +91,7 @@ def get_feature_value_slicer(
   """
   for values in features.values():
     if values is not None:
-      if not isinstance(values, collections.Iterable):
+      if not isinstance(values, abc.Iterable):
         raise TypeError('Feature values must be specified in an iterable.')
       for value in values:
         if (not isinstance(value, (six.string_types, six.binary_type)) and
