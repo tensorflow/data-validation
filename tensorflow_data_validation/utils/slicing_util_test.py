@@ -25,6 +25,9 @@ from apache_beam.testing import util
 import pyarrow as pa
 from tensorflow_data_validation import constants
 from tensorflow_data_validation.utils import slicing_util
+from tfx_bsl.public.proto import slicing_spec_pb2
+
+from google.protobuf import text_format
 
 
 class SlicingUtilTest(absltest.TestCase):
@@ -182,6 +185,59 @@ class SlicingUtilTest(absltest.TestCase):
     with self.assertRaisesRegex(ValueError, 'must be valid UTF-8'):
       _ = list(
           slicing_util.get_feature_value_slicer(features)(input_record_batch))
+
+  def test_convert_slicing_config_to_fns_and_sqls(self):
+    slicing_config = text_format.Parse(
+        """
+        slicing_specs {
+          slice_keys_sql: "SELECT STRUCT(education) FROM example.education"
+        }
+        """, slicing_spec_pb2.SlicingConfig())
+
+    slicing_fns, slicing_sqls = (
+        slicing_util.convert_slicing_config_to_slice_functions_and_sqls(
+            slicing_config))
+    self.assertEqual(slicing_fns, [])
+    self.assertEqual(slicing_sqls,
+                     ['SELECT STRUCT(education) FROM example.education'])
+
+    slicing_config = text_format.Parse(
+        """
+        slicing_specs {}
+        slicing_specs {
+          feature_keys: ["country"]
+        }
+        slicing_specs {
+          feature_keys: ["state"]
+          feature_values: [{key: "age", value: "20"}]
+        }
+        """, slicing_spec_pb2.SlicingConfig())
+
+    slicing_fns, slicing_sqls = (
+        slicing_util.convert_slicing_config_to_slice_functions_and_sqls(
+            slicing_config))
+    self.assertLen(slicing_fns, 2)
+    self.assertEqual(slicing_sqls, [])
+
+    slicing_config = text_format.Parse(
+        """
+        slicing_specs {
+          feature_values: [{key: "a", value: "2"}]
+        }
+        """, slicing_spec_pb2.SlicingConfig())
+    input_record_batch = pa.RecordBatch.from_arrays([
+        pa.array([['1'], ['2', '1']]),
+        pa.array([['dog'], ['cat']]),
+    ], ['a', 'b'])
+    expected_result = [
+        (u'a_2',
+         pa.RecordBatch.from_arrays(
+             [pa.array([['2', '1']]), pa.array([['cat']])], ['a', 'b'])),
+    ]
+    slicing_fns, slicing_sqls = (
+        slicing_util.convert_slicing_config_to_slice_functions_and_sqls(
+            slicing_config))
+    self._check_results(slicing_fns[0](input_record_batch), expected_result)
 
   # The SQL based slicing uses ZetaSQL which cannot be compiled on Windows.
   # b/191377114

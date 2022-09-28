@@ -35,6 +35,7 @@ from tensorflow_data_validation.utils import slicing_util
 from tensorflow_data_validation.utils import test_util
 from tfx_bsl.arrow import array_util
 from tfx_bsl.arrow import table_util
+from tfx_bsl.public.proto import slicing_spec_pb2
 from tfx_bsl.statistics import merge_util
 
 from google.protobuf import text_format
@@ -1925,6 +1926,31 @@ _SLICING_FN_TESTS = [
     },
 ]
 
+_SLICING_FN_IN_CONFIG_TESTS = [
+    {
+        'testcase_name':
+            'feature_value_slicing_slice_fns_in_config',
+        'record_batches':
+            _SLICE_TEST_RECORD_BATCHES,
+        'options':
+            stats_options.StatsOptions(
+                slicing_config=text_format.Parse(
+                    """
+                    slicing_specs {
+                      feature_keys: ["b"]
+                    }
+                    """, slicing_spec_pb2.SlicingConfig()),
+                num_top_values=2,
+                num_rank_histogram_buckets=2,
+                num_values_histogram_buckets=2,
+                num_histogram_buckets=2,
+                num_quantiles_histogram_buckets=2,
+                enable_semantic_domain_stats=True),
+        'expected_result_proto_text':
+            _SLICED_STATS_TEST_RESULT
+    },
+]
+
 _SLICING_FN_TESTS_SHARDED = [
     {
         'testcase_name':
@@ -2049,7 +2075,8 @@ class StatsImplTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       *(_GENERATE_STATS_TESTS + _GENERATE_STATS_NO_IN_MEMORY_TESTS +
-        _SLICING_FN_TESTS + _SLICING_FN_TESTS_SHARDED +
+        _SLICING_FN_TESTS + _SLICING_FN_IN_CONFIG_TESTS +
+        _SLICING_FN_TESTS_SHARDED +
         _GENERATE_STATS_WITH_FEATURE_PARTITIONS_TESTS +
         _SLICING_FN_TESTS_SHARDED_EMPTY_INPUTS))
   def test_stats_impl(self,
@@ -2114,6 +2141,55 @@ class StatsImplTest(parameterized.TestCase):
               example.b
             """
         ],
+        num_top_values=2,
+        num_rank_histogram_buckets=2,
+        num_values_histogram_buckets=2,
+        num_histogram_buckets=2,
+        num_quantiles_histogram_buckets=2,
+        enable_semantic_domain_stats=True)
+    expected_result = text_format.Parse(
+        _SLICED_STATS_TEST_RESULT,
+        statistics_pb2.DatasetFeatureStatisticsList())
+    with beam.Pipeline() as p:
+      result = (
+          p | beam.Create(record_batches, reshuffle=False)
+          | stats_impl.GenerateStatisticsImpl(options))
+      util.assert_that(
+          result,
+          test_util.make_dataset_feature_stats_list_proto_equal_fn(
+              self, expected_result, check_histograms=False))
+
+  # The SQL based slicing uses ZetaSQL which cannot be compiled on Windows.
+  # b/191377114
+  @unittest.skipIf(
+      sys.platform.startswith('win'),
+      'SQL based slicing is not supported on Windows.')
+  def test_stats_impl_slicing_sql_in_config(self):
+    record_batches = [
+        pa.RecordBatch.from_arrays([
+            pa.array([[1.0, 2.0]], type=pa.list_(pa.float32())),
+            pa.array([[b'a']], type=pa.list_(pa.binary())),
+            pa.array([np.linspace(1, 500, 500, dtype=np.int64)]),
+        ], ['a', 'b', 'c']),
+        pa.RecordBatch.from_arrays([
+            pa.array([[3.0, 4.0, np.NaN, 5.0]], type=pa.list_(
+                pa.float32())),
+            pa.array([[b'a', b'b']], type=pa.list_(pa.binary())),
+            pa.array([np.linspace(501, 1250, 750, dtype=np.int64)]),
+        ], ['a', 'b', 'c']),
+        pa.RecordBatch.from_arrays([
+            pa.array([[1.0]], type=pa.list_(pa.float32())),
+            pa.array([[b'b']], type=pa.list_(pa.binary())),
+            pa.array([np.linspace(1251, 3000, 1750, dtype=np.int64)]),
+        ], ['a', 'b', 'c'])
+    ]
+    options = stats_options.StatsOptions(
+        slicing_config=text_format.Parse(
+            """
+            slicing_specs {
+              slice_keys_sql: "SELECT STRUCT(b) FROM example.b"
+            }
+            """, slicing_spec_pb2.SlicingConfig()),
         num_top_values=2,
         num_rank_histogram_buckets=2,
         num_values_histogram_buckets=2,

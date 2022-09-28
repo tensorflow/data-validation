@@ -26,9 +26,12 @@ from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.statistics.generators import lift_stats_generator
 from tensorflow_data_validation.utils import slicing_util
+from tfx_bsl.public.proto import slicing_spec_pb2
 
+from google.protobuf import text_format
 from tensorflow.python.util.protobuf import compare  # pylint: disable=g-direct-tensorflow-import
 from tensorflow_metadata.proto.v0 import schema_pb2
+
 
 INVALID_STATS_OPTIONS = [
     {
@@ -224,6 +227,63 @@ INVALID_STATS_OPTIONS = [
         'exception_type': ValueError,
         'error_message': 'Only one of experimental_slice_functions or'
     },
+    {
+        'testcase_name':
+            'both_slicing_config_and_slice_fns_specified',
+        'stats_options_kwargs': {
+            'experimental_slice_functions': [lambda x: (None, x)],
+            'slicing_config':
+                text_format.Parse(
+                    """
+              slicing_specs {
+                feature_keys: ["country", "city"]
+              }
+              """, slicing_spec_pb2.SlicingConfig()),
+        },
+        'exception_type':
+            ValueError,
+        'error_message':
+            'Specify only one of slicing_config or experimental_slice_functions.'
+    },
+    {
+        'testcase_name':
+            'both_slicing_config_and_slice_sqls_specified',
+        'stats_options_kwargs': {
+            'experimental_slice_sqls': [''],
+            'slicing_config':
+                text_format.Parse(
+                    """
+              slicing_specs {
+                feature_keys: ["country", "city"]
+              }
+              """, slicing_spec_pb2.SlicingConfig()),
+        },
+        'exception_type':
+            ValueError,
+        'error_message':
+            'Specify only one of slicing_config or experimental_slice_sqls.'
+    },
+    {
+        'testcase_name':
+            'both_functions_and_sqls_in_slicing_config',
+        'stats_options_kwargs': {
+            'slicing_config':
+                text_format.Parse(
+                    """
+            slicing_specs {
+              feature_keys: ["country", "city"]
+            }
+            slicing_specs {
+              slice_keys_sql: "SELECT STRUCT(education) FROM example.education"
+            }
+            """, slicing_spec_pb2.SlicingConfig()),
+        },
+        'exception_type':
+            ValueError,
+        'error_message':
+            'Only one of slicing features or slicing sql queries can be '
+            'specified in the slicing config.'
+    },
 ]
 
 
@@ -282,6 +342,12 @@ class StatsOptionsTest(parameterized.TestCase):
     add_default_generators = True
     use_sketch_based_topk_uniques = True
     experimental_result_partitions = 3
+    slicing_config = text_format.Parse(
+        """
+        slicing_specs {
+          feature_keys: ["country", "city"]
+        }
+        """, slicing_spec_pb2.SlicingConfig())
 
     options = stats_options.StatsOptions(
         feature_allowlist=feature_allowlist,
@@ -306,6 +372,7 @@ class StatsOptionsTest(parameterized.TestCase):
         add_default_generators=add_default_generators,
         experimental_use_sketch_based_topk_uniques=use_sketch_based_topk_uniques,
         experimental_result_partitions=experimental_result_partitions,
+        slicing_config=slicing_config,
     )
 
     options_json = options.to_json()
@@ -342,6 +409,7 @@ class StatsOptionsTest(parameterized.TestCase):
                      options.experimental_use_sketch_based_topk_uniques)
     self.assertEqual(experimental_result_partitions,
                      options.experimental_result_partitions)
+    self.assertEqual(slicing_config, options.slicing_config)
 
   def test_stats_options_with_generators_to_json(self):
     generators = [
@@ -407,7 +475,8 @@ class StatsOptionsTest(parameterized.TestCase):
       "_use_sketch_based_topk_uniques": false,
       "_slice_sqls": null,
       "_experimental_result_partitions": 1,
-      "_experimental_num_feature_partitions": 1
+      "_experimental_num_feature_partitions": 1,
+      "_slicing_config": null
     """
     options_json += type_name_line + '}'
     if want_exception:

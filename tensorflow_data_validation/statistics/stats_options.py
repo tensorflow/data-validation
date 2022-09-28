@@ -31,12 +31,14 @@ from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import slicing_util
 from tfx_bsl.arrow import sql_util
 from tfx_bsl.coders import example_coder
+from tfx_bsl.public.proto import slicing_spec_pb2
 
 from google.protobuf import json_format
 from tensorflow_metadata.proto.v0 import schema_pb2
 
 
 _SCHEMA_JSON_KEY = 'schema_json'
+_SLICING_CONFIG_JSON_KEY = 'slicing_config_json'
 _PER_FEATURE_WEIGHT_OVERRIDE_JSON_KEY = 'per_feature_weight_override_json'
 _TYPE_NAME_KEY = 'TYPE_NAME'
 
@@ -79,7 +81,8 @@ class StatsOptions(object):
       experimental_slice_functions: Optional[List[types.SliceFunction]] = None,
       experimental_slice_sqls: Optional[List[Text]] = None,
       experimental_result_partitions: int = 1,
-      experimental_num_feature_partitions: int = 1):
+      experimental_num_feature_partitions: int = 1,
+      slicing_config: Optional[slicing_spec_pb2.SlicingConfig] = None):
     """Initializes statistics options.
 
     Args:
@@ -186,6 +189,9 @@ class StatsOptions(object):
         results this should be set to at least several times less than the
         number of features in a dataset, and never more than the available beam
         parallelism.
+      slicing_config: an optional SlicingConfig. SlicingConfig includes
+      slicing_specs specified with feature keys, feature values or slicing
+      SQL queries.
     """
     self.generators = generators
     self.feature_allowlist = feature_allowlist
@@ -221,6 +227,7 @@ class StatsOptions(object):
     self.experimental_slice_sqls = experimental_slice_sqls
     self.experimental_num_feature_partitions = experimental_num_feature_partitions
     self.experimental_result_partitions = experimental_result_partitions
+    self.slicing_config = slicing_config
 
   def to_json(self) -> Text:
     """Convert from an object to JSON representation of the __dict__ attribute.
@@ -229,7 +236,7 @@ class StatsOptions(object):
     a ValueError will be raised when these options are specified and TFDV is
     running in a setting where the stats options have been json-serialized,
     first. This will happen in the case where TFDV is run as a TFX component.
-    The schema proto will be json_encoded.
+    The schema proto and slicing_config will be json_encoded.
 
     Returns:
       A JSON representation of a filtered version of __dict__.
@@ -247,6 +254,10 @@ class StatsOptions(object):
     if self.schema is not None:
       del options_dict['_schema']
       options_dict[_SCHEMA_JSON_KEY] = json_format.MessageToJson(self.schema)
+    if self.slicing_config is not None:
+      del options_dict['_slicing_config']
+      options_dict[_SLICING_CONFIG_JSON_KEY] = json_format.MessageToJson(
+          self.slicing_config)
     if self._per_feature_weight_override is not None:
       del options_dict['_per_feature_weight_override']
       options_dict[_PER_FEATURE_WEIGHT_OVERRIDE_JSON_KEY] = {
@@ -274,6 +285,11 @@ class StatsOptions(object):
       options_dict['_schema'] = json_format.Parse(
           options_dict[_SCHEMA_JSON_KEY], schema_pb2.Schema())
       del options_dict[_SCHEMA_JSON_KEY]
+    if _SLICING_CONFIG_JSON_KEY in options_dict:
+      options_dict['_slicing_config'] = json_format.Parse(
+          options_dict[_SLICING_CONFIG_JSON_KEY],
+          slicing_spec_pb2.SlicingConfig())
+      del options_dict[_SLICING_CONFIG_JSON_KEY]
     per_feature_weight_override_json = options_dict.get(
         _PER_FEATURE_WEIGHT_OVERRIDE_JSON_KEY)
     if per_feature_weight_override_json is not None:
@@ -379,6 +395,26 @@ class StatsOptions(object):
       for slice_sql in slice_sqls:
         _validate_sql(slice_sql, self.schema)
     self._slice_sqls = slice_sqls
+
+  @property
+  def slicing_config(self) -> Optional[slicing_spec_pb2.SlicingConfig]:
+    return self._slicing_config
+
+  @slicing_config.setter
+  def slicing_config(
+      self, slicing_config: Optional[slicing_spec_pb2.SlicingConfig]) -> None:
+    _validate_slicing_config(slicing_config)
+
+    if (slicing_config is not None and
+        self.experimental_slice_functions is not None):
+      raise ValueError(
+          'Specify only one of slicing_config or experimental_slice_functions.')
+
+    if slicing_config is not None and self.experimental_slice_sqls is not None:
+      raise ValueError(
+          'Specify only one of slicing_config or experimental_slice_sqls.')
+
+    self._slicing_config = slicing_config
 
   @property
   def sample_rate(self) -> Optional[float]:
@@ -526,3 +562,35 @@ def _validate_slicing_options(
   if slice_fns and slice_sqls:
     raise ValueError('Only one of experimental_slice_functions or '
                      'experimental_slice_sqls must be specified.')
+
+
+def _validate_slicing_config(
+    slicing_config: Optional[slicing_spec_pb2.SlicingConfig]):
+  """Validates slicing config.
+
+  Args:
+    slicing_config: an optional list of slicing specifications. Slicing
+    specifications can be provided by feature keys, feature values or slicing
+    SQL queries.
+  Returns:
+    None if slicing_config is None.
+  Raises:
+    ValueError: If both slicing functions and slicing sql queries are specified
+    in the slicing config.
+  """
+  if slicing_config is None:
+    return
+
+  has_slice_fns, has_slice_sqls = False, False
+
+  for slicing_spec in slicing_config.slicing_specs:
+    if (not has_slice_fns) and (slicing_spec.feature_keys or
+                                slicing_spec.feature_values):
+      has_slice_fns = True
+    if (not has_slice_sqls) and slicing_spec.slice_keys_sql:
+      has_slice_sqls = True
+
+    if has_slice_fns and has_slice_sqls:
+      raise ValueError(
+          'Only one of slicing features or slicing sql queries can be '
+          'specified in the slicing config.')

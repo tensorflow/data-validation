@@ -81,20 +81,28 @@ class GenerateStatisticsImpl(beam.PTransform):
 
     _ = dataset | 'TrackTotalBytes' >> collection.TrackRecordBatchBytes(
         constants.METRICS_NAMESPACE, 'record_batch_input_bytes')
-    if self._options.experimental_slice_functions:
+
+    if self._options.slicing_config:
+      slice_fns, slice_sqls = (
+          slicing_util.convert_slicing_config_to_slice_functions_and_sqls(
+              self._options.slicing_config))
+    else:
+      slice_fns, slice_sqls = (self._options.experimental_slice_functions,
+                               self._options.experimental_slice_sqls)
+
+    if slice_fns:
       # Add default slicing function.
       slice_functions = [slicing_util.default_slicer]
-      slice_functions.extend(self._options.experimental_slice_functions)
+      slice_functions.extend(slice_fns)
       dataset = (
           dataset
           | 'GenerateSliceKeys' >> beam.FlatMap(
               slicing_util.generate_slices, slice_functions=slice_functions))
-    elif self._options.experimental_slice_sqls:
+    elif slice_sqls:
       dataset = (
           dataset
           | 'GenerateSlicesSql' >> beam.ParDo(
-              slicing_util.GenerateSlicesSqlDoFn(
-                  slice_sqls=self._options.experimental_slice_sqls)))
+              slicing_util.GenerateSlicesSqlDoFn(slice_sqls=slice_sqls)))
     else:
       dataset = (dataset
                  | 'KeyWithVoid' >> beam.Map(lambda v: (None, v)))
@@ -206,8 +214,10 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
     """
     self._options = options
     self._is_slicing_enabled = (
-        is_slicing_enabled or bool(self._options.experimental_slice_functions)
-        or bool(self._options.experimental_slice_sqls))
+        is_slicing_enabled or
+        bool(self._options.experimental_slice_functions) or
+        bool(self._options.experimental_slice_sqls) or
+        bool(self._options.slicing_config))
 
   def _to_partitioned_combiner_stats_generator_combine_fn(
       self, generators: List[stats_generator.CombinerStatsGenerator]

@@ -20,8 +20,9 @@ from __future__ import print_function
 import collections
 from collections import abc
 import functools
+import logging
 
-from typing import Any, Dict, Iterable, List, Optional, Text, Union
+from typing import Any, Dict, Iterable, List, Optional, Text, Union, Tuple
 import apache_beam as beam
 import numpy as np
 import pandas as pd
@@ -36,6 +37,7 @@ from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.utils import stats_util
 from tfx_bsl.arrow import sql_util
 from tfx_bsl.arrow import table_util
+from tfx_bsl.public.proto import slicing_spec_pb2
 
 
 _ValueType = Iterable[Union[Text, int, bytes]]
@@ -235,6 +237,46 @@ def format_slice_sql_query(slice_sql_query: Text) -> Text:
              {}
            ) as slice_key
          FROM Examples as example;""".format(slice_sql_query)
+
+
+def convert_slicing_config_to_slice_functions_and_sqls(
+    slicing_config: Optional[slicing_spec_pb2.SlicingConfig]
+) -> Tuple[List[types.SliceFunction], List[Text]]:
+  """Convert slicing config to a tuple of slice functions and sql queries.
+
+  Args:
+    slicing_config: an optional list of slicing specifications. Slicing
+    specifications can be provided by feature keys, feature values or slicing
+    SQL queries.
+
+  Returns:
+    A tuple consisting of a list of slice functions and a list of slice sql
+    queries.
+  """
+  if not slicing_config:
+    return [], []
+  slice_function_list = []
+  slice_keys_sql_list = []
+  for slicing_spec in slicing_config.slicing_specs:
+    # checking overall slice
+    if (not slicing_spec.feature_keys and not slicing_spec.feature_values and
+        not slicing_spec.slice_keys_sql):
+      logging.info('The entire dataset is already included as a slice.')
+      continue
+
+    # create slice functions by parsing config based slicing specs
+    slice_spec_dict = {
+        feature_key: None for feature_key in slicing_spec.feature_keys
+    }
+    for feature_key, feature_value in slicing_spec.feature_values.items():
+      slice_spec_dict.update({feature_key: [feature_value]})
+    if slice_spec_dict:
+      slice_function_list.append(get_feature_value_slicer(slice_spec_dict))
+
+    if slicing_spec.slice_keys_sql:
+      slice_keys_sql_list.append(slicing_spec.slice_keys_sql)
+
+  return slice_function_list, slice_keys_sql_list
 
 
 class GenerateSlicesSqlDoFn(beam.DoFn):
