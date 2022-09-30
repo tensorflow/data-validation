@@ -332,7 +332,7 @@ Status JensenShannonDivergence(const std::map<string, double>& map_1,
   }
   result = kl_sum/2;
 
-  return Status::OK();
+  return Status();
 }
 
 Status JensenShannonDivergence(const FeatureStatsView& a,
