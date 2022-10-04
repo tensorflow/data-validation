@@ -31,6 +31,9 @@
 *   Histogram semantics are slightly changed, so that buckets include their
     upper bound instead of their lower bound. STANDARD histograms will no longer
     generate buckets that contain infinite and finite endpoints together.
+*   Introduces StatsOptions.use_sketch_based_topk_uniques replacing
+    experimental_use_sketch_based_topk_uniques. The latter option can still be
+    written, but not read.
 
 ## Deprecations
 

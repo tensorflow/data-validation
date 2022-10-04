@@ -77,7 +77,8 @@ class StatsOptions(object):
       vocab_paths: Optional[Dict[types.VocabName, types.VocabPath]] = None,
       add_default_generators: bool = True,
       feature_allowlist: Optional[List[types.FeatureName]] = None,
-      experimental_use_sketch_based_topk_uniques: bool = False,
+      experimental_use_sketch_based_topk_uniques: Optional[bool] = None,
+      use_sketch_based_topk_uniques: Optional[bool] = None,
       experimental_slice_functions: Optional[List[types.SliceFunction]] = None,
       experimental_slice_sqls: Optional[List[Text]] = None,
       experimental_result_partitions: int = 1,
@@ -151,7 +152,9 @@ class StatsOptions(object):
         generators that are enabled based on information provided in the schema.
       feature_allowlist: An optional list of names of the features to calculate
         statistics for.
-      experimental_use_sketch_based_topk_uniques: if True, use the sketch based
+      experimental_use_sketch_based_topk_uniques: Deprecated, prefer
+        use_sketch_based_topk_uniques.
+      use_sketch_based_topk_uniques: if True, use the sketch based
         top-k and uniques stats generator.
       experimental_slice_functions: An optional list of functions that generate
         slice keys for each example. Each slice function should take
@@ -222,8 +225,18 @@ class StatsOptions(object):
     self._per_feature_weight_override = per_feature_weight_override
     self.vocab_paths = vocab_paths
     self.add_default_generators = add_default_generators
-    self.experimental_use_sketch_based_topk_uniques = (
-        experimental_use_sketch_based_topk_uniques)
+    if (use_sketch_based_topk_uniques is not None and
+        experimental_use_sketch_based_topk_uniques is not None):
+      raise ValueError(
+          'Must set at most one of use_sketch_based_topk_uniques and'
+          ' experimental_use_sketch_based_topk_uniques')
+    if experimental_use_sketch_based_topk_uniques is not None:
+      use_sketch_based_topk_uniques = experimental_use_sketch_based_topk_uniques
+    if use_sketch_based_topk_uniques is None:
+      # TODO(b/239609486): Use True.
+      use_sketch_based_topk_uniques = False
+    self.use_sketch_based_topk_uniques = (
+        use_sketch_based_topk_uniques)
     self.experimental_slice_sqls = experimental_slice_sqls
     self.experimental_num_feature_partitions = experimental_num_feature_partitions
     self.experimental_result_partitions = experimental_result_partitions
@@ -503,11 +516,11 @@ class StatsOptions(object):
     self._add_default_generators = add_default_generators
 
   @property
-  def experimental_use_sketch_based_topk_uniques(self) -> bool:
+  def use_sketch_based_topk_uniques(self) -> bool:
     return self._use_sketch_based_topk_uniques
 
-  @experimental_use_sketch_based_topk_uniques.setter
-  def experimental_use_sketch_based_topk_uniques(
+  @use_sketch_based_topk_uniques.setter
+  def use_sketch_based_topk_uniques(
       self, use_sketch_based_topk_uniques: bool) -> None:
     # Check that if sketch based generators are turned off we don't have any
     # categorical float features in the schema.
@@ -515,7 +528,7 @@ class StatsOptions(object):
         schema_pb2.FLOAT in schema_util.get_categorical_numeric_feature_types(
             self.schema).values()):
       raise ValueError('Categorical float features set in schema require '
-                       'experimental_use_sketch_based_topk_uniques')
+                       'use_sketch_based_topk_uniques')
     self._use_sketch_based_topk_uniques = use_sketch_based_topk_uniques
 
   @property

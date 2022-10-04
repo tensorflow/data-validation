@@ -410,7 +410,7 @@ def _get_default_generators(
           .num_quantiles_histogram_buckets,
           epsilon=options.epsilon),
   ]
-  if options.experimental_use_sketch_based_topk_uniques or in_memory:
+  if options.use_sketch_based_topk_uniques or in_memory:
     stats_generators.append(
         top_k_uniques_sketch_stats_generator.TopKUniquesSketchStatsGenerator(
             schema=options.schema,

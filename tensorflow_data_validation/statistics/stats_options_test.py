@@ -201,7 +201,7 @@ INVALID_STATS_OPTIONS = [
         'testcase_name':
             'categorical_float_without_sketch_generators',
         'stats_options_kwargs': {
-            'experimental_use_sketch_based_topk_uniques':
+            'use_sketch_based_topk_uniques':
                 False,
             'schema':
                 schema_pb2.Schema(
@@ -216,7 +216,7 @@ INVALID_STATS_OPTIONS = [
         'exception_type':
             ValueError,
         'error_message': ('Categorical float features set in schema require '
-                          'experimental_use_sketch_based_topk_uniques'),
+                          'use_sketch_based_topk_uniques'),
     },
     {
         'testcase_name': 'both_slice_fns_and_slice_sqls_specified',
@@ -264,8 +264,7 @@ INVALID_STATS_OPTIONS = [
             'Specify only one of slicing_config or experimental_slice_sqls.'
     },
     {
-        'testcase_name':
-            'both_functions_and_sqls_in_slicing_config',
+        'testcase_name': 'both_functions_and_sqls_in_slicing_config',
         'stats_options_kwargs': {
             'slicing_config':
                 text_format.Parse(
@@ -278,8 +277,7 @@ INVALID_STATS_OPTIONS = [
             }
             """, slicing_spec_pb2.SlicingConfig()),
         },
-        'exception_type':
-            ValueError,
+        'exception_type': ValueError,
         'error_message':
             'Only one of slicing features or slicing sql queries can be '
             'specified in the slicing config.'
@@ -406,7 +404,7 @@ class StatsOptionsTest(parameterized.TestCase):
                      options._per_feature_weight_override)
     self.assertEqual(add_default_generators, options.add_default_generators)
     self.assertEqual(use_sketch_based_topk_uniques,
-                     options.experimental_use_sketch_based_topk_uniques)
+                     options.use_sketch_based_topk_uniques)
     self.assertEqual(experimental_result_partitions,
                      options.experimental_result_partitions)
     self.assertEqual(slicing_config, options.slicing_config)
@@ -507,6 +505,21 @@ class StatsOptionsTest(parameterized.TestCase):
                      options.example_weight_map.get(types.FeaturePath(['x'])))
     self.assertEqual(frozenset(['w']),
                      options.example_weight_map.all_weight_features())
+
+  def test_sketch_based_uniques_set_both_fields(self):
+    with self.assertRaises(ValueError):
+      stats_options.StatsOptions(
+          experimental_use_sketch_based_topk_uniques=True,
+          use_sketch_based_topk_uniques=True)
+
+  def test_sketch_based_uniques_set_old(self):
+    opts = stats_options.StatsOptions(
+        experimental_use_sketch_based_topk_uniques=True)
+    self.assertTrue(opts.use_sketch_based_topk_uniques)
+
+  def test_sketch_based_uniques_set_new(self):
+    opts = stats_options.StatsOptions(use_sketch_based_topk_uniques=True)
+    self.assertTrue(opts.use_sketch_based_topk_uniques)
 
 
 if __name__ == '__main__':
