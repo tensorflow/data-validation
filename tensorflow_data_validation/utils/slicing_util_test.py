@@ -239,6 +239,53 @@ class SlicingUtilTest(absltest.TestCase):
             slicing_config))
     self._check_results(slicing_fns[0](input_record_batch), expected_result)
 
+  def test_convert_slicing_config_to_fns_and_sqls_on_int_field(self):
+    slicing_config = text_format.Parse(
+        """
+        slicing_specs {
+          feature_values: [{key: "a", value: "2"}]
+        }
+        """, slicing_spec_pb2.SlicingConfig())
+    input_record_batch = pa.RecordBatch.from_arrays([
+        pa.array([[1], [2, 1]]),
+        pa.array([['dog'], ['cat']]),
+    ], ['a', 'b'])
+    expected_result = [
+        (u'a_2',
+         pa.RecordBatch.from_arrays(
+             [pa.array([[2, 1]]),
+              pa.array([['cat']])], ['a', 'b'])),
+    ]
+    slicing_fns, _ = (
+        slicing_util.convert_slicing_config_to_slice_functions_and_sqls(
+            slicing_config))
+    self._check_results(slicing_fns[0](input_record_batch), expected_result)
+
+  def test_convert_slicing_config_to_fns_and_sqls_on_int_invalid(self):
+    slicing_config = text_format.Parse(
+        """
+        slicing_specs {
+          feature_values: [{key: "a", value: "2.5"}]
+        }
+        """, slicing_spec_pb2.SlicingConfig())
+    input_record_batch = pa.RecordBatch.from_arrays([
+        pa.array([[1], [2, 1]]),
+        pa.array([['dog'], ['cat']]),
+    ], ['a', 'b'])
+
+    expected_result = [
+        (u'a_2',
+         pa.RecordBatch.from_arrays(
+             [pa.array([[2, 1]]), pa.array([['cat']])], ['a', 'b'])),
+    ]
+    slicing_fns, _ = (
+        slicing_util.convert_slicing_config_to_slice_functions_and_sqls(
+            slicing_config))
+
+    with self.assertRaisesRegex(
+        ValueError, 'The feature to slice on has integer values but*'):
+      self._check_results(slicing_fns[0](input_record_batch), expected_result)
+
   # The SQL based slicing uses ZetaSQL which cannot be compiled on Windows.
   # b/191377114
   @unittest.skipIf(

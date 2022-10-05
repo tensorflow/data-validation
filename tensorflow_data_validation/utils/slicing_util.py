@@ -38,6 +38,7 @@ from tensorflow_data_validation.utils import stats_util
 from tfx_bsl.arrow import sql_util
 from tfx_bsl.arrow import table_util
 from tfx_bsl.public.proto import slicing_spec_pb2
+from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
 _ValueType = Iterable[Union[Text, int, bytes]]
@@ -134,6 +135,20 @@ def get_feature_value_slicer(
       # drop it from the set of sliced features.
       if feature_array is None:
         continue
+
+      # convert values from list[str] to list[int] if the feature type
+      # is integer.
+      if values is not None:
+        feature_type = stats_util.get_feature_type_from_arrow_type(
+            types.FeaturePath([feature_name]), feature_array.type)
+        if feature_type == statistics_pb2.FeatureNameStatistics.INT:
+          try:
+            values = [int(value) for value in values]
+          except ValueError as e:
+            raise ValueError(
+                'The feature to slice on has integer values but '
+                'the provided slice values are not valid integers.') from e
+
       flattened, value_parent_indices = arrow_util.flatten_nested(
           feature_array, True)
       non_missing_values = np.asarray(flattened)
