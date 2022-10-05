@@ -217,7 +217,7 @@ def get_anomalies_dataframe(anomalies: anomalies_pb2.Anomalies) -> pd.DataFrame:
         anomalies.dataset_anomaly_info.description
     ])
 
-  # Construct a DataFrame consisting of the anomalies and display it.
+  # Construct a DataFrame consisting of the anomalies.
   anomalies_df = pd.DataFrame(
       anomaly_rows,
       columns=[
