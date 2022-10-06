@@ -418,12 +418,11 @@ class StatsOptions(object):
       self, slicing_config: Optional[slicing_spec_pb2.SlicingConfig]) -> None:
     _validate_slicing_config(slicing_config)
 
-    if (slicing_config is not None and
-        self.experimental_slice_functions is not None):
+    if slicing_config and self.experimental_slice_functions:
       raise ValueError(
           'Specify only one of slicing_config or experimental_slice_functions.')
 
-    if slicing_config is not None and self.experimental_slice_sqls is not None:
+    if slicing_config and self.experimental_slice_sqls:
       raise ValueError(
           'Specify only one of slicing_config or experimental_slice_sqls.')
 
