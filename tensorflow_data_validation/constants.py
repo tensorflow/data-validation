@@ -22,7 +22,9 @@ from tfx_bsl.telemetry import util
 
 
 # Name of the default slice containing all examples.
+# LINT.IfChange
 DEFAULT_SLICE_KEY = 'All Examples'
+# LINT.ThenChange(../anomalies/custom_validation.cc)
 
 # Namespace for all TFDV metrics.
 METRICS_NAMESPACE = util.MakeTfxNamespace(['DataValidation'])
