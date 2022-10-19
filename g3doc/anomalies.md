@@ -455,6 +455,24 @@ condition(s) under which each anomaly type is detected.
             `feature.skew_comparator.infinity_norm.threshold` or
             `feature.drift_comparator.infinity_norm.threshold`
 
+-   `COMPARATOR_NORMALIZED_ABSOLUTE_DIFFERENCE_HIGH`
+
+    -   Schema Fields:
+        -   `feature.skew_comparator.normalized_abs_difference.threshold`
+        -   `feature.drift_comparator.normalized_abs_difference.threshold`
+    -   Statistics Fields:
+        -   `feature.string_stats.rank_histogram`
+    -   Detection Condition:
+        -   The normalized absolute count difference of value counts from the
+            `feature.string_stats.rank_histogram` in the control statistics
+            (i.e., serving statistics for skew or previous statistics for drift)
+            and the treatment statistics (i.e., training statistics for skew or
+            current statistics for drift) exceeded
+            feature.skew_comparator.normalized_abs_difference.threshold or
+            feature.drift_comparator.normalized_abs_difference.threshold. Count
+            differences are normalized by the total count across both
+            conditions.
+
 -   `COMPARATOR_JENSEN_SHANNON_DIVERGENCE_HIGH`
 
     -   Schema Fields:
