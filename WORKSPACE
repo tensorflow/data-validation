@@ -70,6 +70,5 @@ load("//tensorflow_data_validation:workspace.bzl", "tf_data_validation_workspace
 tf_data_validation_workspace()
 
 # Specify the minimum required bazel version.
-load("@org_tensorflow//tensorflow:version_check.bzl", "check_bazel_version_at_least")
-
-check_bazel_version_at_least("3.7.2")
+load("@bazel_skylib//lib:versions.bzl", "versions")
+versions.check("3.7.2")
