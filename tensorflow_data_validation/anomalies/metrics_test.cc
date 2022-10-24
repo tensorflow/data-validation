@@ -63,14 +63,15 @@ GetFeatureNameStatisticsWithTokens(const std::map<string, double>& tokens) {
   return result;
 }
 
-struct LInftyDistanceExample {
+// Used for L-inf and NormalizedAbsoluteDifference.
+struct NormalizedDifferenceExample {
   string name;
   std::map<string, double> training;
   std::map<string, double> serving;
   double expected;
 };
 
-std::vector<LInftyDistanceExample> GetLInftyDistanceTests() {
+std::vector<NormalizedDifferenceExample> GetLInftyDistanceTests() {
   return {{"Two empty maps", {}, {}, 0.0},
           {"Normal distribution.",
            {{"hello", 0.1}, {"world", 0.9}},
@@ -95,6 +96,33 @@ TEST(LInftyDistanceTest, All) {
     const double result = LInftyDistance(training.feature_stats_view(),
                                          serving.feature_stats_view())
                               .second;
+    EXPECT_NEAR(result, test.expected, 1e-5) << test.name;
+  }
+}
+
+std::vector<NormalizedDifferenceExample> GetNormalizedAbsDifferenceTests() {
+  return {{"Two empty maps", {}, {}, 0.0},
+          {"Normal distribution.",
+           {{"hello", 0.1}, {"world", 0.9}},
+           {{"hello", 0.3}, {"world", 0.7}},
+           0.1},
+          {"Different scales with same distribution.",
+           {{"hello", 1.0}, {"world", 5.0}},
+           {{"hello", 10.0}, {"world", 50.0}},
+           0.68181818 /* 45 / 60 */},
+          };
+}
+
+TEST(NormalizedAbsoluteDifferenceTest, All) {
+  for (const auto& test : GetNormalizedAbsDifferenceTests()) {
+    const DatasetForTesting training(
+        GetFeatureNameStatisticsWithTokens(test.training));
+    const DatasetForTesting serving(
+        GetFeatureNameStatisticsWithTokens(test.serving));
+    const double result =
+        NormalizedAbsoluteDifference(training.feature_stats_view(),
+                                     serving.feature_stats_view())
+            .second;
     EXPECT_NEAR(result, test.expected, 1e-5) << test.name;
   }
 }

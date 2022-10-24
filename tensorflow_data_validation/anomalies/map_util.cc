@@ -49,18 +49,24 @@ std::vector<string> GetKeysFromMap(const std::map<string, double>& input) {
   return keys;
 }
 
+std::map<string, double> ScaleBy(const std::map<string, double>& input,
+                                 double scale) {
+  if (scale == 0) return input;
+  std::map<string, double> result;
+  for (const auto& pair : input) {
+    const string& key = pair.first;
+    const double value = pair.second;
+    result[key] = value / scale;
+  }
+  return result;
+}
+
 std::map<string, double> Normalize(const std::map<string, double>& input) {
   double sum = SumValues(input);
   if (sum == 0.0) {
     return input;
   }
-  std::map<string, double> result;
-  for (const auto& pair : input) {
-    const string& key = pair.first;
-    const double value = pair.second;
-    result[key] = value / sum;
-  }
-  return result;
+  return ScaleBy(input, sum);
 }
 
 std::map<string, double> GetDifference(const std::map<string, double>& a,

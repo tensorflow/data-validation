@@ -25,7 +25,6 @@ limitations under the License.
 #include "absl/types/optional.h"
 #include "tensorflow_data_validation/anomalies/statistics_view_test_util.h"
 #include "tensorflow_data_validation/anomalies/test_util.h"
-#include "tensorflow/core/platform/logging.h"
 #include "tensorflow/core/platform/types.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
@@ -222,15 +221,19 @@ TEST(FeatureUtilTest, UpdateComparatorProposeNewThreshold) {
 
     FeatureComparator comparator =
         ParseTextProtoOrDie<FeatureComparator>(R"(
-          infinity_norm: { threshold: 0.1 })");
+          infinity_norm: { threshold: 0.1 }
+          normalized_abs_difference: { threshold: 0.1}
+          )");
 
     auto result = UpdateFeatureComparatorDirect(
         feature_stats_view, FeatureComparatorType::DRIFT, &comparator);
 
     EXPECT_EQ(comparator.infinity_norm().threshold(), 1.0);
-    ASSERT_EQ(result.measurements.size(), 1);
+    ASSERT_EQ(result.measurements.size(), 2);
     EXPECT_THAT(result.measurements[0], EqualsProto(
         "type: L_INFTY value: 1 threshold: 0.1"));
+        EXPECT_THAT(result.measurements[1], EqualsProto(
+        "type: NORMALIZED_ABSOLUTE_DIFFERENCE value: 0.5 threshold: 0.1"));
   }
   {
     const FeatureStatsView feature_stats_view =

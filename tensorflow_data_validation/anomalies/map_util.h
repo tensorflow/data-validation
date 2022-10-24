@@ -47,6 +47,11 @@ std::vector<double> GetValuesFromMap(const std::map<string, double>& input);
 // If the values sum to zero, return the input map.
 std::map<string, double> Normalize(const std::map<string, double>& input);
 
+// Scales a map by the provided constant. Returns input unmodified if scale is
+// zero.
+std::map<string, double> ScaleBy(const std::map<string, double>& input,
+                                 double scale);
+
 // Gets the difference of the values of two maps. Values that are not
 // present are treated as zero.
 std::map<string, double> GetDifference(const std::map<string, double>& a,

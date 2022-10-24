@@ -33,7 +33,6 @@ namespace {
 using absl::optional;
 using ::tensorflow::metadata::v0::AnomalyInfo;
 using ::tensorflow::metadata::v0::Feature;
-using ::tensorflow::metadata::v0::FeatureComparator;
 using ::tensorflow::metadata::v0::SparseFeature;
 using ::tensorflow::metadata::v0::ValueCount;
 using ::tensorflow::metadata::v0::WeightedFeature;
@@ -324,6 +323,47 @@ SingleFeatureComparisonResult UpdateInfinityNormComparator(
   return result;
 }
 
+// If the comparator contains a normalized absolute difference threshold, checks
+// whether the difference between stats and control stats is within that
+// threshold. If not, updates the comparator and returns a description of the
+// anomaly.
+SingleFeatureComparisonResult UpdateNormalizedAbsoluteDifferenceComparator(
+    const FeatureStatsView& stats, const FeatureStatsView& control_stats,
+    const ComparatorContext& context,
+    tensorflow::metadata::v0::FeatureComparator* comparator) {
+  SingleFeatureComparisonResult result;
+  if (!comparator->normalized_abs_difference().has_threshold()) {
+    return result;
+  }
+  const double threshold = comparator->normalized_abs_difference().threshold();
+  const std::pair<std::string, double> distance =
+      NormalizedAbsoluteDifference(stats, control_stats);
+  const std::string max_difference_value = distance.first;
+  const double stats_norm = distance.second;
+  result.measurement.emplace();
+  result.measurement->set_value(stats_norm);
+  result.measurement->set_threshold(threshold);
+  result.measurement->set_type(
+      metadata::v0::DriftSkewInfo_Measurement::NORMALIZED_ABSOLUTE_DIFFERENCE);
+  if (stats_norm <= threshold) {
+    return result;
+  }
+  comparator->mutable_normalized_abs_difference()->set_threshold(stats_norm);
+  result.description = Description(
+      {tensorflow::metadata::v0::AnomalyInfo::
+           COMPARATOR_NORMALIZED_ABSOLUTE_DIFFERENCE_HIGH,
+       absl::StrCat("High normalized absolute difference between ",
+                    context.treatment_name, " and ", context.control_name),
+       absl::StrCat("The normalized absolute difference between ",
+                    context.treatment_name, " and ", context.control_name,
+                    " is ", absl::SixDigits(stats_norm),
+                    " (up to six significant digits), above the threshold ",
+                    absl::SixDigits(threshold),
+                    ". The feature value with maximum difference is: ",
+                    max_difference_value)});
+  return result;
+}
+
 // If the comparator contains a Jensen-Shannon Divergence threshold, checks
 // whether the approximate Jensen-Shannon Divergence between the stats and
 // control stats is within that threshold. If not, updates the comparator and
@@ -404,7 +444,8 @@ FeatureComparisonResult UpdateFeatureComparatorDirect(
     tensorflow::metadata::v0::FeatureComparator* comparator) {
   FeatureComparisonResult result;
   if (!comparator->infinity_norm().has_threshold() &&
-      !comparator->jensen_shannon_divergence().has_threshold()) {
+      !comparator->jensen_shannon_divergence().has_threshold() &&
+     !comparator->normalized_abs_difference().has_threshold()) {
     // There is nothing to check.
     return result;
   }
@@ -412,23 +453,18 @@ FeatureComparisonResult UpdateFeatureComparatorDirect(
   const absl::optional<FeatureStatsView> control_stats =
       GetControlStats(stats, comparator_type);
   if (control_stats) {
-    const SingleFeatureComparisonResult linfty_result =
-        UpdateInfinityNormComparator(stats, control_stats.value(), context,
-                                     comparator);
-    if (linfty_result.description) {
-      result.descriptions.push_back(*linfty_result.description);
-    }
-    if (linfty_result.measurement) {
-      result.measurements.push_back(*linfty_result.measurement);
-    }
-    const SingleFeatureComparisonResult jensen_shannon_result =
-        UpdateJensenShannonDivergenceComparator(stats, control_stats.value(),
-                                                context, comparator);
-    if (jensen_shannon_result.description) {
-      result.descriptions.push_back(*jensen_shannon_result.description);
-    }
-    if (jensen_shannon_result.measurement) {
-      result.measurements.push_back(*jensen_shannon_result.measurement);
+    for (const auto& comparison_fn :
+         {UpdateInfinityNormComparator,
+          UpdateNormalizedAbsoluteDifferenceComparator,
+          UpdateJensenShannonDivergenceComparator}) {
+      const SingleFeatureComparisonResult single_feature_result =
+          comparison_fn(stats, control_stats.value(), context, comparator);
+      if (single_feature_result.description) {
+        result.descriptions.push_back(*single_feature_result.description);
+      }
+      if (single_feature_result.measurement) {
+        result.measurements.push_back(*single_feature_result.measurement);
+      }
     }
     return result;
 

@@ -36,9 +36,24 @@ namespace data_validation {
 std::pair<string, double> LInftyDistance(const FeatureStatsView& a,
                                          const FeatureStatsView& b);
 
-std::pair<string, double> LInftyDistance(
+// Defines how rank histograms are normalized for count comparison.
+// kSeparateTotal: Normalizes each rank histogram by its sum.
+// kCombinedTotal: Normalizes both rank histogram by their combined sum.
+enum class NormalizationMode { kSeparateTotal, kCombinedTotal };
+
+// Returns the element with the largest difference in normalized count between
+// two rank histograms, as well as the absolute difference.
+std::pair<string, double> MaxNormalizedDifference(
     const std::map<string, double>& counts_a,
-    const std::map<string, double>& counts_b);
+    const std::map<string, double>& counts_b,
+    NormalizationMode normalization_mode);
+
+// Computes the NormalizedAbsoluteDifference (see schema.proto) between the
+// (weighted) histograms of features.
+// The first value returned is the element with highest deviation, and
+// the second value returned is the distance itself.
+std::pair<string, double> NormalizedAbsoluteDifference(
+    const FeatureStatsView& a, const FeatureStatsView& b);
 
 // Computes the approximate Jensen-Shannon divergence
 // (https://en.wikipedia.org/wiki/Jensen%E2%80%93Shannon_divergence) between the

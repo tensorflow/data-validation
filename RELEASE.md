@@ -31,6 +31,8 @@
 
 *   `get_drift_skew_dataframe` now includes a `threshold` column.
 
+*   Adds support for NormalizedAbsoluteDifference comparator.
+
 ## Known Issues
 
 ## Breaking Changes

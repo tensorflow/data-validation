@@ -229,20 +229,34 @@ double KullbackLeiblerDivergence(const Histogram& histogram_1,
 
 }  // namespace
 
-std::pair<string, double> LInftyDistance(
+std::pair<string, double> MaxNormalizedDifference(
     const std::map<string, double>& counts_a,
-    const std::map<string, double>& counts_b) {
-  return GetLInftyNorm(GetDifference(Normalize(counts_a), Normalize(counts_b)));
+    const std::map<string, double>& counts_b,
+    NormalizationMode normalization_mode) {
+  switch (normalization_mode) {
+    case NormalizationMode::kSeparateTotal:
+      return GetLInftyNorm(
+          GetDifference(Normalize(counts_a), Normalize(counts_b)));
+    case NormalizationMode::kCombinedTotal:
+      double scale = SumValues(counts_a) + SumValues(counts_b);
+      return GetLInftyNorm(
+          GetDifference(ScaleBy(counts_a, scale), ScaleBy(counts_b, scale)));
+      return GetLInftyNorm(GetDifference(counts_a, counts_b));
+  }
 }
 
 std::pair<string, double> LInftyDistance(const FeatureStatsView& a,
                                          const FeatureStatsView& b) {
-  const std::map<string, double> prob_a =
-      Normalize(a.GetStringValuesWithCounts());
-  const std::map<string, double> prob_b =
-      Normalize(b.GetStringValuesWithCounts());
+  return MaxNormalizedDifference(a.GetStringValuesWithCounts(),
+                                 b.GetStringValuesWithCounts(),
+                                 NormalizationMode::kSeparateTotal);
+}
 
-  return GetLInftyNorm(GetDifference(prob_a, prob_b));
+std::pair<string, double> NormalizedAbsoluteDifference(
+    const FeatureStatsView& a, const FeatureStatsView& b)  {
+  return MaxNormalizedDifference(a.GetStringValuesWithCounts(),
+                                 b.GetStringValuesWithCounts(),
+                                 NormalizationMode::kCombinedTotal);
 }
 
 Status JensenShannonDivergence(Histogram& histogram_1, Histogram& histogram_2,
