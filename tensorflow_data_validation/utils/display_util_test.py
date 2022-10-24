@@ -490,9 +490,10 @@ class DisplayUtilTest(absltest.TestCase):
     }
     """, anomalies_pb2.Anomalies())
     actual_output = display_util.get_drift_skew_dataframe(anomalies)
-    expected = pd.DataFrame([['feature_1', 'JENSEN_SHANNON_DIVERGENCE', 0.4],
-                             ['feature_2', 'L_INFTY', 0.5]],
-                            columns=['path', 'type', 'value'])
+    expected = pd.DataFrame(
+        [['feature_1', 'JENSEN_SHANNON_DIVERGENCE', 0.4, 0.1],
+         ['feature_2', 'L_INFTY', 0.5, 0.1]],
+        columns=['path', 'type', 'value', 'threshold']).set_index('path')
     self.assertTrue(actual_output.equals(expected))
 
   def test_get_anomalies_dataframe_no_anomalies(self):

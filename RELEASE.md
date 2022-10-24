@@ -29,6 +29,8 @@
 *   Support using jensen-shannon divergence to detect drift and skew for string
     and categorical features.
 
+*   `get_drift_skew_dataframe` now includes a `threshold` column.
+
 ## Known Issues
 
 ## Breaking Changes

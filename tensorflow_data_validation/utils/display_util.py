@@ -237,8 +237,10 @@ def get_drift_skew_dataframe(anomalies):
       result.append(
           (str(types.FeaturePath.from_proto(info.path)),
            anomalies_pb2.DriftSkewInfo.Measurement.Type.Name(measurement.type),
-           measurement.value))
-  return pd.DataFrame(result, columns=['path', 'type', 'value'])
+           measurement.value,
+           measurement.threshold))
+  return pd.DataFrame(
+      result, columns=['path', 'type', 'value', 'threshold']).set_index('path')
 
 
 def display_anomalies(anomalies: anomalies_pb2.Anomalies) -> None:
