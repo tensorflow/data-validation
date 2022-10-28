@@ -18,8 +18,6 @@
 *   Determine whether to calculate string statistics based on the
     `is_categorical` field in the schema string domain.
 
-*   Depends on `tensorflow>=1.15.5,<2` or `tensorflow>=2.10,<3`
-
 *   Histograms counts should now be more accurate for distributions with few
     distinct values, or frequent individual values.
 
@@ -32,6 +30,9 @@
 *   `get_drift_skew_dataframe` now includes a `threshold` column.
 
 *   Adds support for NormalizedAbsoluteDifference comparator.
+
+*   Depends on `tensorflow>=1.15.5,<2` or `tensorflow>=2.10,<3`
+*   Depends on `joblib>=1.2.0`.
 
 ## Known Issues
 
