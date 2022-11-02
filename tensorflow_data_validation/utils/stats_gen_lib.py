@@ -33,6 +33,7 @@ from joblib import delayed
 from joblib import Parallel
 import numpy as np
 from pandas import DataFrame
+import pyarrow as pa
 import tensorflow as tf
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
@@ -270,10 +271,8 @@ def _generate_partial_statistics_from_df(
   dataframe = dataframe.drop(columns=drop_columns)
   if schema.feature:
     stats_options_modified.schema = schema
-  record_batch_with_primitive_arrays = table_util.DataFrameToRecordBatch(
-      dataframe)
   record_batch_with_list_arrays = table_util.CanonicalizeRecordBatch(
-      record_batch_with_primitive_arrays)
+      pa.RecordBatch.from_pandas(dataframe))
   return stats_impl.generate_partial_statistics_in_memory(
       record_batch_with_list_arrays, stats_options_modified, stats_generators)
 
