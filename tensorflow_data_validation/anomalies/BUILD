@@ -442,6 +442,7 @@ cc_library(
         "//tensorflow_data_validation/anomalies/proto:custom_validation_config_cc_proto",
         "//third_party/py/tfx_bsl/cc/statistics:sql_util",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
+        "@com_google_absl//absl/container:flat_hash_map",
         "@org_tensorflow//tensorflow/core:lib",
     ],
 )

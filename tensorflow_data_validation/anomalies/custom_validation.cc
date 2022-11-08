@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "tensorflow_data_validation/anomalies/custom_validation.h"
 
+#include "absl/container/flat_hash_map.h"
 #include "tensorflow_data_validation/anomalies/schema_util.h"
 #include "tensorflow_data_validation/anomalies/statistics_view.h"
 #include "third_party/py/tfx_bsl/cc/statistics/sql_util.h"
