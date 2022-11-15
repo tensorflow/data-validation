@@ -2087,6 +2087,82 @@ class ValidationApiTest(ValidationTestCase):
           schema,
           previous_version_statistics=previous_version_stats)
 
+  # Custom validation uses ZetaSQL, which cannot be compiled on Windows.
+  @unittest.skipIf(
+      sys.platform.startswith('win'),
+      'Custom validation is not supported on Windows.')
+  def test_validate_stats_with_custom_validations(self):
+    statistics = text_format.Parse(
+        """
+        datasets{
+          num_examples: 10
+          features {
+            path { step: 'annotated_enum' }
+            type: STRING
+            string_stats {
+              common_stats {
+                num_missing: 3
+                num_non_missing: 7
+                min_num_values: 1
+                max_num_values: 1
+              }
+              unique: 3
+              rank_histogram {
+                buckets {
+                  label: "D"
+                  sample_count: 1
+                }
+              }
+            }
+          }
+        }
+        """, statistics_pb2.DatasetFeatureStatisticsList())
+    schema = text_format.Parse(
+        """
+        feature {
+          name: 'annotated_enum'
+          type: BYTES
+          unique_constraints {
+            min: 4
+            max: 4
+          }
+        }
+        """, schema_pb2.Schema())
+    validation_config = text_format.Parse("""
+      feature_validations {
+       feature_path { step: 'annotated_enum' }
+       validations {
+         sql_expression: 'feature.string_stats.common_stats.num_missing < 3'
+         severity: WARNING
+         description: 'Feature has too many missing.'
+       }
+     }
+    """, custom_validation_config_pb2.CustomValidationConfig())
+    expected_anomalies = {
+        'annotated_enum':
+            text_format.Parse(
+                """
+               path { step: 'annotated_enum' }
+               short_description: 'Multiple errors'
+               description: 'Expected at least 4 unique values but found only 3. Custom validation triggered anomaly. Query: feature.string_stats.common_stats.num_missing < 3 Test dataset: default slice'
+               severity: ERROR
+               reason {
+                 type: FEATURE_TYPE_LOW_UNIQUE
+                 short_description: 'Low number of unique values'
+                 description: 'Expected at least 4 unique values but found only 3.'
+               }
+               reason {
+                 type: CUSTOM_VALIDATION
+                 short_description: 'Feature has too many missing.'
+                 description: 'Custom validation triggered anomaly. Query: feature.string_stats.common_stats.num_missing < 3 Test dataset: default slice'
+               }
+    """, anomalies_pb2.AnomalyInfo())
+    }
+    anomalies = validation_api.validate_statistics(statistics, schema, None,
+                                                   None, None,
+                                                   validation_config)
+    self._assert_equal_anomalies(anomalies, expected_anomalies)
+
   def test_validate_stats_internal_with_previous_version_stats(self):
     statistics = text_format.Parse(
         """

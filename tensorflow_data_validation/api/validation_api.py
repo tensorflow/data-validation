@@ -18,6 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import itertools
 import logging
 from typing import Callable, Iterable, List, Optional, Text, Tuple, Set
 import apache_beam as beam
@@ -57,6 +58,8 @@ _GLOBAL_ONLY_ANOMALY_TYPES = frozenset([
     anomalies_pb2.AnomalyInfo.DATASET_LOW_NUM_EXAMPLES,
     anomalies_pb2.AnomalyInfo.DATASET_HIGH_NUM_EXAMPLES,
 ])
+
+_MULTIPLE_ERRORS = 'Multiple errors'
 
 
 def infer_schema(
@@ -189,6 +192,47 @@ def update_schema(schema: schema_pb2.Schema,
   return result
 
 
+def _merge_descriptions(
+    anomaly_info: anomalies_pb2.AnomalyInfo,
+    other_anomaly_info: Optional[anomalies_pb2.AnomalyInfo]) -> str:
+  """Merges anomaly descriptions."""
+  descriptions = []
+  if other_anomaly_info is not None:
+    for reason in itertools.chain(anomaly_info.reason,
+                                  other_anomaly_info.reason):
+      descriptions.append(reason.description)
+  else:
+    descriptions = [reason.description for reason in anomaly_info.reason]
+  return ' '.join(descriptions)
+
+
+def _merge_custom_anomalies(
+    anomalies: anomalies_pb2.Anomalies,
+    custom_anomalies: anomalies_pb2.Anomalies) -> anomalies_pb2.Anomalies:
+  """Merges custom_anomalies with anomalies."""
+  for key, custom_anomaly_info in custom_anomalies.anomaly_info.items():
+    if key in anomalies.anomaly_info:
+      # If the key is found in in both inputs, we know it has multiple errors.
+      anomalies.anomaly_info[key].short_description = _MULTIPLE_ERRORS
+      anomalies.anomaly_info[key].description = _merge_descriptions(
+          anomalies.anomaly_info[key], custom_anomaly_info)
+      anomalies.anomaly_info[key].severity = max(
+          anomalies.anomaly_info[key].severity, custom_anomaly_info.severity)
+      anomalies.anomaly_info[key].reason.extend(custom_anomaly_info.reason)
+    else:
+      anomalies.anomaly_info[key].CopyFrom(custom_anomaly_info)
+      # Also populate top-level descriptions.
+      anomalies.anomaly_info[key].description = _merge_descriptions(
+          custom_anomaly_info, None)
+      if len(anomalies.anomaly_info[key].reason) > 1:
+        anomalies.anomaly_info[key].short_description = _MULTIPLE_ERRORS
+      else:
+        anomalies.anomaly_info[
+            key].short_description = custom_anomaly_info.reason[
+                0].short_description
+  return anomalies
+
+
 def validate_statistics(
     statistics: statistics_pb2.DatasetFeatureStatisticsList,
     schema: schema_pb2.Schema,
@@ -197,6 +241,8 @@ def validate_statistics(
         statistics_pb2.DatasetFeatureStatisticsList] = None,
     serving_statistics: Optional[
         statistics_pb2.DatasetFeatureStatisticsList] = None,
+    custom_validation_config: Optional[
+        custom_validation_config_pb2.CustomValidationConfig] = None
 ) -> anomalies_pb2.Anomalies:
   """Validates the input statistics against the provided input schema.
 
@@ -248,6 +294,14 @@ def validate_statistics(
         distribution skew between current data and serving data. Configuration
         for skew detection can be done by specifying a `skew_comparator` in the
         schema.
+    custom_validation_config: An optional config that can be used to specify
+        custom validations to perform. If doing single-feature validations,
+        the test feature will come from `statistics` and will be mapped to
+        `feature` in the SQL query. If doing feature pair validations, the test
+        feature will come from `statistics` and will be mapped to `feature_test`
+        in the SQL query, and the base feature will come from
+        `previous_statistics` and will be mapped to `feature_base` in the SQL
+        query. Custom validations are not supported on Windows.
 
   Returns:
     An Anomalies protocol buffer.
@@ -270,7 +324,9 @@ def validate_statistics(
           % type(previous_statistics).__name__)
 
   return validate_statistics_internal(statistics, schema, environment,
-                                      previous_statistics, serving_statistics)
+                                      previous_statistics, serving_statistics,
+                                      None, None, False,
+                                      custom_validation_config)
 
 
 def validate_statistics_internal(
@@ -284,7 +340,9 @@ def validate_statistics_internal(
     previous_version_statistics: Optional[
         statistics_pb2.DatasetFeatureStatisticsList] = None,
     validation_options: Optional[vo.ValidationOptions] = None,
-    enable_diff_regions: bool = False
+    enable_diff_regions: bool = False,
+    custom_validation_config: Optional[
+        custom_validation_config_pb2.CustomValidationConfig] = None
 ) -> anomalies_pb2.Anomalies:
   """Validates the input statistics against the provided input schema.
 
@@ -341,6 +399,14 @@ def validate_statistics_internal(
     enable_diff_regions: Specifies whether to include a comparison between the
         existing schema and the fixed schema in the Anomalies protocol buffer
         output.
+    custom_validation_config: An optional config that can be used to specify
+        custom validations to perform. If doing single-feature validations,
+        the test feature will come from `statistics` and will be mapped to
+        `feature` in the SQL query. If doing feature pair validations, the test
+        feature will come from `statistics` and will be mapped to `feature_test`
+        in the SQL query, and the base feature will come from
+        `previous_statistics` and will be mapped to `feature_base` in the SQL
+        query. Custom validations are not supported on Windows.
 
   Returns:
     An Anomalies protocol buffer.
@@ -449,10 +515,23 @@ def validate_statistics_internal(
   # Parse the serialized Anomalies proto.
   result = anomalies_pb2.Anomalies()
   result.ParseFromString(anomalies_proto_string)
+
+  if custom_validation_config is not None:
+    serialized_previous_statistics = previous_span_statistics.SerializeToString(
+    ) if previous_span_statistics is not None else ''
+    custom_anomalies_string = (
+        pywrap_tensorflow_data_validation.CustomValidateStatistics(
+            tf.compat.as_bytes(statistics.SerializeToString()),
+            tf.compat.as_bytes(serialized_previous_statistics),
+            tf.compat.as_bytes(custom_validation_config.SerializeToString()),
+            tf.compat.as_bytes(environment)))
+    custom_anomalies = anomalies_pb2.Anomalies()
+    custom_anomalies.ParseFromString(custom_anomalies_string)
+    result = _merge_custom_anomalies(result, custom_anomalies)
+
   return result
 
 
-# TODO(b/239095455): Also integrate with validate_statistics.
 def custom_validate_statistics(
     statistics: statistics_pb2.DatasetFeatureStatisticsList,
     validations: custom_validation_config_pb2.CustomValidationConfig,

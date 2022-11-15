@@ -9,8 +9,9 @@
 
 ## Major Features and Improvements
 
-*  Add a `custom_validate_statistics` function to the validation API. Note that
-   this function is not available on Windows.
+*  Add a `custom_validate_statistics` function to the validation API, and
+   support passing custom validations to `validate_statistics`. Note that
+   custom validation is not supported on Windows.
 
 ## Bug Fixes and Other Changes
 
