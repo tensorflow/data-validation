@@ -9,6 +9,9 @@
 
 ## Major Features and Improvements
 
+*  Add a `custom_validate_statistics` function to the validation API. Note that
+   this function is not available on Windows.
+
 ## Bug Fixes and Other Changes
 
 *   Fix bug in implementation of `semantic_domain_stats_sample_rate`.

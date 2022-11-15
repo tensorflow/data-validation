@@ -15,6 +15,7 @@ limitations under the License.
 #ifndef THIRD_PARTY_PY_TENSORFLOW_DATA_VALIDATION_ANOMALIES_CUSTOM_VALIDATION_H_
 #define THIRD_PARTY_PY_TENSORFLOW_DATA_VALIDATION_ANOMALIES_CUSTOM_VALIDATION_H_
 
+#include "absl/types/optional.h"
 #include "tensorflow_data_validation/anomalies/proto/custom_validation_config.pb.h"
 #include "tensorflow/core/lib/core/status.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
@@ -32,6 +33,15 @@ Status CustomValidateStatistics(
     const metadata::v0::DatasetFeatureStatisticsList* base_statistics,
     const CustomValidationConfig& validations,
     const absl::optional<string> environment, metadata::v0::Anomalies* result);
+
+// Like CustomValidateStatistics but with serialized inputs. Used for doing
+// custom validation in Python.
+Status CustomValidateStatisticsWithSerializedInputs(
+    const std::string& serialized_test_statistics,
+    const std::string& serialized_base_statistics,
+    const std::string& serialized_validations,
+    const std::string& serialized_environment,
+    std::string* serialized_anomalies_proto);
 
 }  // namespace data_validation
 }  // namespace tensorflow

@@ -25,6 +25,7 @@ import pyarrow as pa
 import tensorflow as tf
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
+from tensorflow_data_validation.anomalies.proto import custom_validation_config_pb2
 from tensorflow_data_validation.anomalies.proto import validation_config_pb2
 from tensorflow_data_validation.anomalies.proto import validation_metadata_pb2
 from tensorflow_data_validation.api import validation_options as vo
@@ -448,6 +449,58 @@ def validate_statistics_internal(
   # Parse the serialized Anomalies proto.
   result = anomalies_pb2.Anomalies()
   result.ParseFromString(anomalies_proto_string)
+  return result
+
+
+# TODO(b/239095455): Also integrate with validate_statistics.
+def custom_validate_statistics(
+    statistics: statistics_pb2.DatasetFeatureStatisticsList,
+    validations: custom_validation_config_pb2.CustomValidationConfig,
+    baseline_statistics: Optional[
+        statistics_pb2.DatasetFeatureStatisticsList] = None,
+    environment: Optional[str] = None) -> anomalies_pb2.Anomalies:
+  """Validates the input statistics with the user-supplied SQL queries.
+
+  If the SQL query from a user-supplied validation returns False, TFDV will
+  return an anomaly for that validation. In single feature valdiations, the test
+  feature will be mapped to `feature` in the SQL query. In two feature
+  validations, the test feature will be mapped to `feature_test` in the SQL
+  query, and the base feature will be mapped to `feature_base`.
+
+  If an optional `environment` is supplied, TFDV will run validations with
+  that environment specified and validations with no environment specified.
+
+  NOTE: This function is not supported on Windows.
+
+  Args:
+    statistics: A DatasetFeatureStatisticsList protocol buffer that holds the
+      statistics to validate.
+    validations: Configuration that specifies the dataset(s) and feature(s) to
+      validate and the SQL query to use for the validation. The SQL query must
+      return a boolean value.
+    baseline_statistics: An optional DatasetFeatureStatisticsList protocol
+      buffer that holds the baseline statistics used when validating feature
+      pairs.
+    environment: If supplied, TFDV will run validations with that
+      environment specified and validations with no environment specified. If
+      not supplied, TFDV will run all validations.
+  Returns:
+    An Anomalies protocol buffer.
+  """
+  serialized_statistics = statistics.SerializeToString()
+  serialized_baseline_statistics = (
+      baseline_statistics.SerializeToString()
+      if baseline_statistics is not None else '')
+  serialized_validations = validations.SerializeToString()
+  environment = '' if environment is None else environment
+  serialized_anomalies = (
+      pywrap_tensorflow_data_validation.CustomValidateStatistics(
+          tf.compat.as_bytes(serialized_statistics),
+          tf.compat.as_bytes(serialized_baseline_statistics),
+          tf.compat.as_bytes(serialized_validations),
+          tf.compat.as_bytes(environment)))
+  result = anomalies_pb2.Anomalies()
+  result.ParseFromString(serialized_anomalies)
   return result
 
 

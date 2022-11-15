@@ -12,16 +12,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
-
 #include "tensorflow_data_validation/anomalies/custom_validation.h"
 
 #include "absl/container/flat_hash_map.h"
 #include "tensorflow_data_validation/anomalies/schema_util.h"
 #include "tensorflow_data_validation/anomalies/statistics_view.h"
-#include "third_party/py/tfx_bsl/cc/statistics/sql_util.h"
+#include "tfx_bsl/cc/statistics/sql_util.h"
 #include "tensorflow/core/lib/core/errors.h"
-#include "tensorflow/core/platform/errors.h"
-#include "tensorflow/tsl/platform/errors.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
 #include "tensorflow_metadata/proto/v0/path.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
@@ -251,6 +248,49 @@ Status CustomValidateStatistics(
         }
       }
     }
+  }
+  return tensorflow::Status();
+}
+
+Status CustomValidateStatisticsWithSerializedInputs(
+    const std::string& serialized_test_statistics,
+    const std::string& serialized_base_statistics,
+    const std::string& serialized_validations,
+    const std::string& serialized_environment,
+    std::string* serialized_anomalies_proto) {
+  metadata::v0::DatasetFeatureStatisticsList test_statistics;
+  metadata::v0::DatasetFeatureStatisticsList base_statistics;
+  metadata::v0::DatasetFeatureStatisticsList* base_statistics_ptr = nullptr;
+  if (!test_statistics.ParseFromString(serialized_test_statistics)) {
+    return tensorflow::errors::InvalidArgument(
+        "Failed to parse DatasetFeatureStatistics proto.");
+  }
+  if (!serialized_base_statistics.empty()) {
+    if (!base_statistics.ParseFromString(serialized_base_statistics)) {
+      return tensorflow::errors::InvalidArgument(
+          "Failed to parse DatasetFeatureStatistics proto.");
+    }
+    base_statistics_ptr = &base_statistics;
+  }
+  CustomValidationConfig validations;
+  if (!validations.ParseFromString(serialized_validations)) {
+    return tensorflow::errors::InvalidArgument(
+        "Failed to parse CustomValidationConfig proto.");
+  }
+  absl::optional<std::string> environment = absl::nullopt;
+  if (!serialized_environment.empty()) {
+    environment = serialized_environment;
+  }
+  metadata::v0::Anomalies anomalies;
+  const tensorflow::Status status =
+      CustomValidateStatistics(test_statistics, base_statistics_ptr,
+                               validations, environment, &anomalies);
+  if (!status.ok()) {
+    return tensorflow::errors::Internal("Failed to run custom validations.");
+  }
+  if (!anomalies.SerializeToString(serialized_anomalies_proto)) {
+    return tensorflow::errors::Internal(
+        "Failed to serialize Anomalies output proto to string.");
   }
   return tensorflow::Status();
 }

@@ -20,7 +20,9 @@ from __future__ import division
 from __future__ import print_function
 
 import os
+import sys
 import tempfile
+import unittest
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -32,6 +34,7 @@ import pyarrow as pa
 import tensorflow as tf
 import tensorflow_data_validation as tfdv
 from tensorflow_data_validation import types
+from tensorflow_data_validation.anomalies.proto import custom_validation_config_pb2
 from tensorflow_data_validation.api import validation_api
 from tensorflow_data_validation.api import validation_options
 from tensorflow_data_validation.skew.protos import feature_skew_results_pb2
@@ -2342,6 +2345,209 @@ class ValidationApiTest(ValidationTestCase):
         validation_options=vo)
     self._assert_equal_anomalies(anomalies, expected_anomalies)
   # pylint: enable=line-too-long
+
+  # Custom validation uses ZetaSQL, which cannot be compiled on Windows.
+  @unittest.skipIf(
+      sys.platform.startswith('win'),
+      'Custom validation is not supported on Windows.')
+  def test_custom_validate_statistics_single_feature(self):
+    statistics = text_format.Parse(
+        """
+        datasets{
+          num_examples: 10
+          features {
+            path { step: 'annotated_enum' }
+            type: STRING
+            string_stats {
+              common_stats {
+                num_missing: 3
+                num_non_missing: 7
+                min_num_values: 1
+                max_num_values: 1
+              }
+              unique: 3
+              rank_histogram {
+                buckets {
+                  label: "D"
+                  sample_count: 1
+                }
+              }
+            }
+          }
+        }
+        """, statistics_pb2.DatasetFeatureStatisticsList())
+    config = text_format.Parse("""
+      feature_validations {
+       feature_path { step: 'annotated_enum' }
+       validations {
+         sql_expression: 'feature.string_stats.common_stats.num_missing < 3'
+         severity: ERROR
+         description: 'Feature has too many missing.'
+       }
+     }
+    """, custom_validation_config_pb2.CustomValidationConfig())
+    expected_anomalies = {
+        'annotated_enum':
+            text_format.Parse(
+                """
+               path { step: 'annotated_enum' }
+               severity: ERROR
+               reason {
+                 type: CUSTOM_VALIDATION
+                 short_description: 'Feature has too many missing.'
+                 description: 'Custom validation triggered anomaly. Query: feature.string_stats.common_stats.num_missing < 3 Test dataset: default slice'
+               }
+    """, anomalies_pb2.AnomalyInfo())
+    }
+    anomalies = validation_api.custom_validate_statistics(statistics, config)
+    self._assert_equal_anomalies(anomalies, expected_anomalies)
+
+  # Custom validation uses ZetaSQL, which cannot be compiled on Windows.
+  @unittest.skipIf(
+      sys.platform.startswith('win'),
+      'Custom validation is not supported on Windows.')
+  def test_custom_validate_statistics_two_features(self):
+    test_statistics = text_format.Parse(
+        """
+        datasets{
+          num_examples: 10
+          features {
+            path { step: 'annotated_enum' }
+            type: STRING
+            string_stats {
+              common_stats {
+                num_missing: 3
+                num_non_missing: 7
+                min_num_values: 1
+                max_num_values: 1
+              }
+              unique: 10
+              rank_histogram {
+                buckets {
+                  label: "D"
+                  sample_count: 1
+                }
+              }
+            }
+          }
+        }
+        """, statistics_pb2.DatasetFeatureStatisticsList())
+    base_statistics = text_format.Parse(
+        """
+        datasets{
+          num_examples: 10
+          features {
+            path { step: 'annotated_enum' }
+            type: STRING
+            string_stats {
+              common_stats {
+                num_missing: 3
+                num_non_missing: 7
+                min_num_values: 1
+                max_num_values: 1
+              }
+              unique: 5
+              rank_histogram {
+                buckets {
+                  label: "D"
+                  sample_count: 1
+                }
+              }
+            }
+          }
+        }
+        """, statistics_pb2.DatasetFeatureStatisticsList())
+    config = text_format.Parse("""
+      feature_pair_validations {
+       feature_test_path { step: 'annotated_enum' }
+       feature_base_path { step: 'annotated_enum' }
+       validations {
+         sql_expression: 'feature_test.string_stats.unique = feature_base.string_stats.unique'
+         severity: ERROR
+         description: 'Test and base do not have same number of uniques.'
+       }
+     }
+    """, custom_validation_config_pb2.CustomValidationConfig())
+    expected_anomalies = {
+        'annotated_enum':
+            text_format.Parse(
+                """
+               path { step: 'annotated_enum' }
+               severity: ERROR
+               reason {
+                 type: CUSTOM_VALIDATION
+                 short_description: 'Test and base do not have same number of uniques.'
+                 description: 'Custom validation triggered anomaly. Query: feature_test.string_stats.unique = feature_base.string_stats.unique Test dataset: default slice Base dataset:  Base path: annotated_enum'
+               }
+    """, anomalies_pb2.AnomalyInfo())
+    }
+    anomalies = validation_api.custom_validate_statistics(
+        test_statistics, config, base_statistics)
+    self._assert_equal_anomalies(anomalies, expected_anomalies)
+
+  # Custom validation uses ZetaSQL, which cannot be compiled on Windows.
+  @unittest.skipIf(
+      sys.platform.startswith('win'),
+      'Custom validation is not supported on Windows.')
+  def test_custom_validate_statistics_environment(self):
+    statistics = text_format.Parse(
+        """
+        datasets{
+          num_examples: 10
+          features {
+            path { step: 'some_feature' }
+            type: STRING
+            string_stats {
+              common_stats {
+                num_missing: 3
+                num_non_missing: 7
+                min_num_values: 1
+                max_num_values: 1
+              }
+              unique: 10
+              rank_histogram {
+                buckets {
+                  label: "D"
+                  sample_count: 1
+                }
+              }
+            }
+          }
+        }
+        """, statistics_pb2.DatasetFeatureStatisticsList())
+    config = text_format.Parse("""
+      feature_validations {
+       feature_path { step: 'some_feature' }
+       validations {
+         sql_expression: 'feature.string_stats.common_stats.num_missing < 1'
+         severity: ERROR
+         description: 'Too many missing'
+         in_environment: 'TRAINING'
+       }
+       validations {
+         sql_expression: 'feature.string_stats.common_stats.num_missing > 5'
+         severity: ERROR
+         description: 'Too few missing'
+         in_environment: 'SERVING'
+       }
+     }
+    """, custom_validation_config_pb2.CustomValidationConfig())
+    expected_anomalies = {
+        'some_feature':
+            text_format.Parse(
+                """
+               path { step: 'some_feature' }
+               severity: ERROR
+               reason {
+                 type: CUSTOM_VALIDATION
+                 short_description: 'Too many missing'
+                 description: 'Custom validation triggered anomaly. Query: feature.string_stats.common_stats.num_missing < 1 Test dataset: default slice'
+               }
+    """, anomalies_pb2.AnomalyInfo())
+    }
+    anomalies = validation_api.custom_validate_statistics(
+        statistics, config, None, 'TRAINING')
+    self._assert_equal_anomalies(anomalies, expected_anomalies)
 
   def test_validate_instance(self):
     instance = pa.RecordBatch.from_arrays([pa.array([['D']])],

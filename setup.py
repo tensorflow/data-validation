@@ -73,7 +73,7 @@ class _BazelBuildCommand(setuptools.Command):
           'installation instruction.')
     self._additional_build_options = []
     if platform.system() == 'Darwin':
-      self._additional_build_options = ['--macos_minimum_os=10.9']
+      self._additional_build_options = ['--macos_minimum_os=10.14']
     elif platform.system() == 'Windows':
       self._additional_build_options = ['--copt=-DWIN32_LEAN_AND_MEAN']
 

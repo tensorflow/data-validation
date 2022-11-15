@@ -34,6 +34,8 @@ function tfdv::move_generated_files() {
 
     cp -f ${BUILD_WORKSPACE_DIRECTORY}/${GENFILES}/tensorflow_data_validation/skew/protos/feature_skew_results_pb2.py \
       ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/skew/protos
+    cp -f ${BUILD_WORKSPACE_DIRECTORY}/${GENFILES}/tensorflow_data_validation/anomalies/proto/custom_validation_config_pb2.py \
+      ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/anomalies/proto
     cp -f ${BUILD_WORKSPACE_DIRECTORY}/${GENFILES}/tensorflow_data_validation/anomalies/proto/validation_config_pb2.py \
       ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/anomalies/proto
     cp -f ${BUILD_WORKSPACE_DIRECTORY}/${GENFILES}/tensorflow_data_validation/anomalies/proto/validation_metadata_pb2.py \
@@ -48,6 +50,8 @@ function tfdv::move_generated_files() {
     RUNFILES_DIR=$(pwd)
     cp -f ${RUNFILES_DIR}/tensorflow_data_validation/skew/protos/feature_skew_results_pb2.py \
       ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/skew/protos
+    cp -f ${RUNFILES_DIR}/tensorflow_data_validation/anomalies/proto/custom_validation_config_pb2.py \
+      ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/anomalies/proto
     cp -f ${RUNFILES_DIR}/tensorflow_data_validation/anomalies/proto/validation_config_pb2.py \
       ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/anomalies/proto
     cp -f ${RUNFILES_DIR}/tensorflow_data_validation/anomalies/proto/validation_metadata_pb2.py \

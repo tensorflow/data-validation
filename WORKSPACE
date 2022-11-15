@@ -64,6 +64,63 @@ load("@rules_proto//proto:repositories.bzl", "rules_proto_dependencies", "rules_
 rules_proto_dependencies()
 rules_proto_toolchains()
 
+# TODO(b/239095455): Change to using a tfx-bsl workspace macro to load these
+# dependencies.
+# Needed by zetasql.
+PROTOBUF_COMMIT = "fde7cf7358ec7cd69e8db9be4f1fa6a5c431386a" # 3.13.0
+http_archive(
+    name = "com_google_protobuf",
+    sha256 = "e589e39ef46fb2b3b476b3ca355bd324e5984cbdfac19f0e1625f0042e99c276",
+    strip_prefix = "protobuf-%s" % PROTOBUF_COMMIT,
+    urls = [
+        "https://storage.googleapis.com/grpc-bazel-mirror/github.com/google/protobuf/archive/%s.tar.gz" % PROTOBUF_COMMIT,
+        "https://github.com/google/protobuf/archive/%s.tar.gz" % PROTOBUF_COMMIT,
+    ],
+)
+
+# Needed by abseil-py by zetasql.
+http_archive(
+    name = "six_archive",
+    urls = [
+        "http://mirror.bazel.build/pypi.python.org/packages/source/s/six/six-1.10.0.tar.gz",
+        "https://pypi.python.org/packages/source/s/six/six-1.10.0.tar.gz",
+    ],
+    sha256 = "105f8d68616f8248e24bf0e9372ef04d3cc10104f1980f54d57b2ce73a5ad56a",
+    strip_prefix = "six-1.10.0",
+    build_file = "//third_party:six.BUILD"
+)
+
+ABSL_COMMIT = "e1d388e7e74803050423d035e4374131b9b57919"  # lts_20210324.1
+http_archive(
+    name = "com_google_absl",
+    urls = ["https://github.com/abseil/abseil-cpp/archive/%s.zip" % ABSL_COMMIT],
+    sha256 = "baebd1536bec56ae7d7c060c20c01af89ecba2c0b1bc8992b652520655395f94",
+    strip_prefix = "abseil-cpp-%s" % ABSL_COMMIT,
+)
+
+ZETASQL_COMMIT = "5ccb05880e72ab9ff75dd6b05d7b0acce53f1ea2"  # 04/22/2021
+http_archive(
+    name = "com_google_zetasql",
+    urls = ["https://github.com/google/zetasql/archive/%s.zip" % ZETASQL_COMMIT],
+    strip_prefix = "zetasql-%s" % ZETASQL_COMMIT,
+    sha256 = "4ca4e45f457926484822701ec15ca4d0172b01d7ce43c0b34c6f3ab98c95b241",
+)
+
+load("@com_google_zetasql//bazel:zetasql_deps_step_1.bzl", "zetasql_deps_step_1")
+
+zetasql_deps_step_1()
+
+load("@com_google_zetasql//bazel:zetasql_deps_step_2.bzl", "zetasql_deps_step_2")
+
+zetasql_deps_step_2(
+    analyzer_deps = True,
+    evaluator_deps = True,
+    tools_deps = False,
+    java_deps = False,
+    testing_deps = False,
+)
+
+
 # Please add all new TensorFlow Data Validation dependencies in workspace.bzl.
 load("//tensorflow_data_validation:workspace.bzl", "tf_data_validation_workspace")
 

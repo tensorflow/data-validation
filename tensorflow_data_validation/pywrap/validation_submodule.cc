@@ -13,10 +13,9 @@
 // limitations under the License.
 #include "tensorflow_data_validation/pywrap/validation_submodule.h"
 
-#include "tensorflow/core/lib/core/status.h"
+#include "tensorflow_data_validation/anomalies/custom_validation.h"
 #include "tensorflow_data_validation/anomalies/feature_statistics_validator.h"
 #include "include/pybind11/pybind11.h"
-
 
 namespace tensorflow {
 namespace data_validation {
@@ -73,6 +72,22 @@ void DefineValidationSubmodule(py::module main_module) {
                   previous_version_statistics_proto_string,
                   feature_needed_string, validation_config_string,
                   enable_diff_regions, &anomalies_proto_string);
+          if (!status.ok()) {
+            throw std::runtime_error(status.ToString());
+          }
+          return py::bytes(anomalies_proto_string);
+        });
+  m.def("CustomValidateStatistics",
+        [](const std::string& test_statistics_string,
+           const std::string& base_statistics_string,
+           const std::string& validations_string,
+           const std::string& environment_string) -> py::object {
+          std::string anomalies_proto_string;
+          const tensorflow::Status status =
+              CustomValidateStatisticsWithSerializedInputs(
+                  test_statistics_string, base_statistics_string,
+                  validations_string, environment_string,
+                  &anomalies_proto_string);
           if (!status.ok()) {
             throw std::runtime_error(status.ToString());
           }
