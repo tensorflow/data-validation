@@ -179,7 +179,7 @@ std::vector<Description> UpdateNaturalLanguageDomain(
 
   VerifyCoverageConstraints(nl_stats, nl_domain, &result);
 
-  std::map<absl::variant<std::string, int>,
+  std::map<absl::variant<std::string, int64>,
            const NaturalLanguageStatistics::TokenStatistics&>
       token_stats_map;
 
@@ -195,7 +195,7 @@ std::vector<Description> UpdateNaturalLanguageDomain(
   }
 
   for (auto& constraint : *nl_domain->mutable_token_constraints()) {
-    absl::variant<string, int> constraint_name;
+    absl::variant<string, int64> constraint_name;
     std::string token_string;
     if (constraint.has_int_value()) {
       constraint_name = constraint.int_value();
