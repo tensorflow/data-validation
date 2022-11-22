@@ -21,6 +21,7 @@ limitations under the License.
 
 #include <gtest/gtest.h>
 #include "tensorflow_data_validation/anomalies/feature_util.h"
+#include "tensorflow_data_validation/anomalies/proto/feature_statistics_to_proto.pb.h"
 #include "tensorflow_data_validation/anomalies/proto/validation_config.pb.h"
 #include "tensorflow_data_validation/anomalies/statistics_view_test_util.h"
 #include "tensorflow_data_validation/anomalies/test_schema_protos.h"
@@ -43,40 +44,11 @@ using testing::GetTestAllTypesMessage;
 using testing::GetTestSchemaAlone;
 using testing::ParseTextProtoOrDie;
 
-std::vector<ValidationConfig> GetValidationConfigs() {
-  return std::vector<ValidationConfig>(
-      {ValidationConfig(), ParseTextProtoOrDie<ValidationConfig>(
-                               "new_features_are_warnings: true")});
-}
-
-// This schema was broken. The problem was default Initialization in IntType.
-TEST(SchemaTest, CreateFromSchemaProtoBroken) {
-  const tensorflow::metadata::v0::Schema initial =
-      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
-        feature {
-          name: "few_int64"
-          presence: { min_count: 1 }
-          value_count: { min: 1 max: 1 }
-          type: INT
-        })");
-  Schema schema;
-
-  TF_ASSERT_OK(schema.Init(initial));
-  const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
-  EXPECT_THAT(actual, EqualsProto(R"(feature {
-                                       name: "few_int64"
-                                       presence: { min_count: 1 }
-                                       value_count: { min: 1 max: 1 }
-                                       type: INT
-                                     })"));
-}
-
 // Test that initializing from a schema proto, then exporting a schema proto,
-// does not change the schema proto. See
-// CreateFromProtoWithEmbeddedStringDomain for when this doesn't work.
+// does not change the schema proto.
 TEST(SchemaTest, CreateFromSchemaProto) {
   const tensorflow::metadata::v0::Schema initial =
-      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"pb(
         string_domain {
           name: "MyAloneEnum"
           value: "4"
@@ -95,6 +67,13 @@ TEST(SchemaTest, CreateFromSchemaProto) {
           name: "big_int64"
           presence: { min_count: 1 }
           value_count: { min: 1 }
+          type: INT
+          int_domain { min: 65 }
+        }
+        feature {
+          name: "real_optional"
+          presence: { min_count: 1 }
+          value_count: { min: 1 max: 1 }
           type: INT
           int_domain { min: 65 }
         }
@@ -127,17 +106,29 @@ TEST(SchemaTest, CreateFromSchemaProto) {
           int_domain { min: 0 max: 4294967295 }
         }
         feature {
+          name: "embedded_domain"
+          presence: { min_count: 1 }
+          value_count: { min: 1 max: 1 }
+          type: BYTES
+          string_domain { value: "A" }
+        }
+        feature {
           name: "ignore_this"
           lifecycle_stage: DEPRECATED
           presence: { min_count: 1 }
           value_count: { min: 1 }
           type: BYTES
-        })");
+        })pb");
 
   Schema schema;
   TF_ASSERT_OK(schema.Init(initial));
   const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
+
+  Schema schema_2;
+  TF_ASSERT_OK(schema_2.Init(actual));
+  const tensorflow::metadata::v0::Schema actual_2 = schema_2.GetSchema();
   EXPECT_THAT(actual, EqualsProto(initial));
+  EXPECT_THAT(actual_2, EqualsProto(initial));
 }
 
 // The StringDomain is too large after a new value arrives.
@@ -246,96 +237,8 @@ TEST(SchemaTest, EmbeddedStringDomainTooLarge) {
                 })"));
 }
 
-// Test that initializing from a schema proto, then exporting a schema proto,
-// does not change the schema proto. See
-// CreateFromProtoWithEmbeddedStringDomain for when this doesn't work.
-TEST(SchemaTest, CreateFromSchema) {
-  const tensorflow::metadata::v0::Schema initial =
-      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
-        string_domain {
-          name: "MyAloneEnum"
-          value: "4"
-          value: "5"
-          value: "6"
-          value: "ALONE_BUT_NORMAL"
-        }
-        feature {
-          name: "annotated_enum"
-          presence: { min_count: 1 }
-          value_count: { min: 1 max: 1 }
-          type: BYTES
-          domain: "MyAloneEnum"
-        }
-        feature {
-          name: "annotated_enum_with_constraint"
-          presence: { min_count: 1 }
-          value_count: { min: 1 max: 1 }
-          type: BYTES
-          distribution_constraints: { min_domain_mass: 0.75 }
-          domain: "MyAloneEnum"
-        }
-        feature {
-          name: "big_int64"
-          presence: { min_count: 1 }
-          value_count: { min: 1 }
-          type: INT
-          int_domain { min: 65 }
-        }
-        feature {
-          name: "real_optional"
-          presence: { min_count: 1 }
-          value_count: { min: 1 max: 1 }
-          type: INT
-          int_domain { min: 65 }
-        }
-        feature {
-          name: "small_int64"
-          presence: { min_count: 1 }
-          value_count: { min: 1 }
-          type: INT
-          int_domain { max: 123 }
-        }
-        feature {
-          name: "string_int32"
-          presence: { min_count: 1 }
-          value_count: { min: 1 max: 1 }
-          type: BYTES
-          int_domain { min: -2147483648 max: 2147483647 }
-        }
-        feature {
-          name: "string_int64"
-          presence: { min_count: 1 }
-          value_count: { min: 1 max: 1 }
-          type: BYTES
-          int_domain {}
-        }
-        feature {
-          name: "string_uint32"
-          presence: { min_count: 1 }
-          value_count: { min: 1 max: 1 }
-          type: BYTES
-          int_domain { min: 0 max: 4294967295 }
-        }
-        feature {
-          name: "ignore_this"
-          lifecycle_stage: DEPRECATED
-          presence: { min_count: 1 }
-          value_count: { min: 1 }
-          type: BYTES
-        })");
-  Schema schema;
-  TF_ASSERT_OK(schema.Init(initial));
-  const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
-
-  Schema schema_2;
-  TF_ASSERT_OK(schema_2.Init(actual));
-  const tensorflow::metadata::v0::Schema actual_2 = schema_2.GetSchema();
-  EXPECT_THAT(actual, EqualsProto(initial));
-  EXPECT_THAT(actual_2, EqualsProto(initial));
-}
-
-// Runs all codepaths in UpdateSomeColumns, and makes sure we can update
-// multiple columns.
+// Runs all codepaths in Update where paths_to_consider is specified, and makes
+// sure we can update multiple columns.
 // Lots of these test the logic where FeatureStats are present but the
 // number of examples for a feature is zero.
 TEST(SchemaTest, UpdateSomeColumns) {
@@ -806,23 +709,23 @@ TEST(SchemaTest, UpdateColumnsWithNewEnvironmentDescription) {
 
 TEST(SchemaTest, DeprecateFeature) {
   const tensorflow::metadata::v0::Schema schema_proto =
-      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"pb(
         feature {
           name: "feature_name"
-          type: INT
+          type: BYTES
           skew_comparator: { infinity_norm: { threshold: 0.1 } }
-        })");
+        })pb");
 
   Schema schema;
   TF_ASSERT_OK(schema.Init(schema_proto));
   schema.DeprecateFeature(Path({"feature_name"}));
-  EXPECT_THAT(schema.GetSchema(), EqualsProto(R"(
+  EXPECT_THAT(schema.GetSchema(), EqualsProto(R"pb(
                 feature {
                   name: "feature_name"
-                  type: INT
+                  type: BYTES
                   skew_comparator: { infinity_norm: { threshold: 0.1 } }
                   lifecycle_stage: DEPRECATED
-                })"));
+                })pb"));
 }
 
 // For now, just checks if the environments are passed through.
@@ -854,76 +757,128 @@ TEST(SchemaTest, DefaultEnvironments) {
 }
 
 TEST(SchemaTest, FindSkew) {
-  const DatasetFeatureStatistics training =
-      testing::GetDatasetFeatureStatisticsForTesting(
-          ParseTextProtoOrDie<FeatureNameStatistics>(
-              R"(name: 'foo'
-                 type: STRING
-                 string_stats: {
-                   common_stats: { num_missing: 0 max_num_values: 1 }
-                   rank_histogram {
-                     buckets { label: "a" sample_count: 1 }
-                     buckets { label: "b" sample_count: 2 }
-                     buckets { label: "c" sample_count: 7 }
-                   }
-                 })"));
-  const DatasetFeatureStatistics serving =
-      testing::GetDatasetFeatureStatisticsForTesting(
-          ParseTextProtoOrDie<FeatureNameStatistics>(
-              R"(name: 'foo'
-                 type: STRING
-                 string_stats: {
-                   common_stats: { num_missing: 0 max_num_values: 1 }
-                   rank_histogram {
-                     buckets { label: "a" sample_count: 3 }
-                     buckets { label: "b" sample_count: 1 }
-                     buckets { label: "c" sample_count: 6 }
-                   }
-                 })"));
-
-  const tensorflow::metadata::v0::Schema schema_proto =
-      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
+  const tensorflow::metadata::v0::Schema initial =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"pb(
         feature {
-          name: 'foo'
+          name: 'string_feature'
           type: BYTES
           skew_comparator { infinity_norm: { threshold: 0.1 } }
-        })");
-  std::shared_ptr<DatasetStatsView> serving_view =
-      std::make_shared<DatasetStatsView>(serving);
-  std::shared_ptr<DatasetStatsView> training_view =
-      std::make_shared<DatasetStatsView>(
-          training,
-          /* by_weight= */ false,
-          /* environment= */ absl::nullopt,
-          /* previous_span= */ std::shared_ptr<DatasetStatsView>(),
-          serving_view,
-          /* previous_version= */ std::shared_ptr<DatasetStatsView>());
-
-  Schema schema;
-  TF_ASSERT_OK(schema.Init(schema_proto));
-
-  tensorflow::metadata::v0::Schema expected_schema =
-      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
+        }
         feature {
-          name: "foo"
+          name: 'numeric_feature'
+          type: INT
+          skew_comparator { jensen_shannon_divergence: { threshold: 0.1 } }
+        }
+      )pb");
+
+  const DatasetFeatureStatistics training_statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"pb(
+        features {
+          name: 'string_feature'
+          type: STRING
+          string_stats: {
+            common_stats: { num_missing: 0 max_num_values: 1 }
+            rank_histogram {
+              buckets { label: "a" sample_count: 1 }
+              buckets { label: "b" sample_count: 2 }
+              buckets { label: "c" sample_count: 7 }
+            }
+          }
+        }
+        features {
+          name: 'numeric_feature'
+          type: INT
+          num_stats: {
+            common_stats: { num_missing: 0 max_num_values: 1 }
+            histograms {
+              buckets { low_value: 1.0 high_value: 2.0 sample_count: 1.0 }
+              buckets { low_value: 2.0 high_value: 3.0 sample_count: 1.0 }
+              type: STANDARD
+            }
+          }
+        }
+      )pb");
+
+  const DatasetFeatureStatistics serving_statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"pb(
+        features {
+          name: 'string_feature'
+          type: STRING
+          string_stats: {
+            common_stats: { num_missing: 0 max_num_values: 1 }
+            rank_histogram {
+              buckets { label: "a" sample_count: 3 }
+              buckets { label: "b" sample_count: 1 }
+              buckets { label: "c" sample_count: 6 }
+            }
+          }
+        }
+        features {
+          name: 'numeric_feature'
+          type: INT
+          num_stats: {
+            common_stats: { num_missing: 0 max_num_values: 1 }
+            histograms {
+              buckets { low_value: 5.0 high_value: 6.0 sample_count: 1.0 }
+              buckets { low_value: 6.0 high_value: 7.0 sample_count: 1.0 }
+              type: STANDARD
+            }
+          }
+        }
+      )pb");
+
+  const tensorflow::metadata::v0::Schema expected =
+      ParseTextProtoOrDie<::tensorflow::metadata::v0::Schema>(R"pb(
+        feature {
+          name: "string_feature"
           type: BYTES
           skew_comparator { infinity_norm: { threshold: 0.19999999999999998 } }
-        })");
-  FeatureComparisonResult result =
-      schema.UpdateSkewComparator(*training_view->GetByPath(Path({"foo"})));
+        }
+        feature {
+          name: 'numeric_feature'
+          type: INT
+          skew_comparator { jensen_shannon_divergence: { threshold: 1.0 } }
+        }
+      )pb");
 
-  EXPECT_THAT(schema.GetSchema(), EqualsProto(expected_schema));
+  const DatasetStatsView dataset_statistics = DatasetStatsView(
+      training_statistics,
+      /* by_weight= */ false,
+      /* environment= */ absl::nullopt,
+      /* previous_span= */ std::shared_ptr<DatasetStatsView>(),
+      std::make_shared<DatasetStatsView>(serving_statistics),
+      /* previous_version= */ std::shared_ptr<DatasetStatsView>());
+
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(initial));
+  // Update both features in the dataset.
+  FeatureComparisonResult string_result =
+      schema.UpdateSkewComparator(FeatureStatsView(0, dataset_statistics));
+  FeatureComparisonResult numeric_result =
+      schema.UpdateSkewComparator(FeatureStatsView(1, dataset_statistics));
+  const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
+  EXPECT_THAT(actual, EqualsProto(expected));
   // We're not particular about the description, just that there be one.
-  ASSERT_FALSE(result.descriptions.empty());
-  ASSERT_EQ(result.measurements.size(), 1);
+  ASSERT_FALSE(string_result.descriptions.empty());
+  ASSERT_EQ(string_result.measurements.size(), 1);
+  ASSERT_FALSE(numeric_result.descriptions.empty());
+  ASSERT_EQ(numeric_result.measurements.size(), 1);
   EXPECT_THAT(
-      result.measurements[0],
+      string_result.measurements[0],
       EqualsProto(ParseTextProtoOrDie<
-                  tensorflow::metadata::v0::DriftSkewInfo::Measurement>(R"(
+                  tensorflow::metadata::v0::DriftSkewInfo::Measurement>(R"pb(
         type: L_INFTY
         value: 0.19999999999999998
         threshold: 0.1
-      )")));
+      )pb")));
+  EXPECT_THAT(
+      numeric_result.measurements[0],
+      EqualsProto(ParseTextProtoOrDie<
+                  tensorflow::metadata::v0::DriftSkewInfo::Measurement>(R"pb(
+        type: JENSEN_SHANNON_DIVERGENCE
+        value: 1.0
+        threshold: 0.1
+      )pb")));
 }
 
 TEST(SchemaTest, FindDrift) {
@@ -1123,61 +1078,6 @@ TEST(SchemaTest, FindNumExamplesTooLow) {
   EXPECT_THAT(schema.GetSchema(), EqualsProto(expected_schema));
   // We're not particular about the description, just that there be one.
   EXPECT_FALSE(result.empty());
-}
-
-// This test captures what happens today with embedded string domains. In the
-// future, we want to make initial == Schema::Create(initial)->GetSchema().
-TEST(SchemaTest, CreateFromProtoWithEmbeddedStringDomain) {
-  const tensorflow::metadata::v0::Schema initial =
-      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
-        feature {
-          name: "empty_domain"
-          presence: { min_count: 1 }
-          value_count { min: 1 max: 1 }
-          type: BYTES
-          string_domain {}
-        }
-        feature {
-          name: "one_value_domain"
-          presence: { min_count: 1 }
-          value_count { min: 1 max: 1 }
-          type: BYTES
-          string_domain { value: "A" }
-        }
-        feature {
-          name: "two_value_domain"
-          presence: { min_count: 1 }
-          value_count { min: 1 max: 1 }
-          type: BYTES
-          string_domain { value: "A" value: "B" }
-        })");
-  Schema schema;
-  TF_ASSERT_OK(schema.Init(initial));
-  const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
-  EXPECT_THAT(actual, EqualsProto(R"(
-                feature {
-                  name: "empty_domain"
-                  string_domain {}
-
-                  presence: { min_count: 1 }
-                  value_count { min: 1 max: 1 }
-                  type: BYTES
-                }
-                feature {
-                  name: "one_value_domain"
-                  string_domain { value: "A" }
-
-                  presence: { min_count: 1 }
-                  value_count { min: 1 max: 1 }
-                  type: BYTES
-                }
-                feature {
-                  name: "two_value_domain"
-                  string_domain { value: "A" value: "B" }
-                  presence: { min_count: 1 }
-                  value_count { min: 1 max: 1 }
-                  type: BYTES
-                })"));
 }
 
 // Test if the feature exists.
@@ -1555,7 +1455,7 @@ TEST(SchemaTest, GetMissingPathsAllMissing) {
                   Path({"foo.bar"})));
 }
 
-// Test when GetMissingPaths when all paths in a schema are in the data.
+// Test GetMissingPaths when all paths in a schema are in the data.
 TEST(SchemaTest, GetMissingPathsAllPresent) {
   const tensorflow::metadata::v0::Schema initial =
       ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"pb(
@@ -1626,7 +1526,8 @@ TEST(SchemaTest, GetMissingPathsAllPresent) {
   EXPECT_EQ(schema.GetMissingPaths(view).size(), 0);
 }
 
-// This tests if UpdateRecursively can create a deep feature.
+// This tests if UpdateRecursively can create a deep feature when
+// UpdateRecursively is passed the full path to the feature (i.e., struct.foo).
 TEST(SchemaTest, CreateDeepFieldUpdateRecursivelyStructFoo) {
   const tensorflow::metadata::v0::Schema initial =
       ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
@@ -1695,7 +1596,8 @@ TEST(SchemaTest, CreateDeepFieldUpdateRecursivelyStructFoo) {
                                       })"));
 }
 
-// This tests if UpdateRecursively can create a deep feature.
+// This tests if UpdateRecursively can create a deep feature when
+// UpdateRecursively is passed the path to the parent feature (i.e., struct).
 TEST(SchemaTest, CreateDeepFieldUpdateRecursivelyStruct) {
   const tensorflow::metadata::v0::Schema initial =
       ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
@@ -1764,9 +1666,9 @@ TEST(SchemaTest, CreateDeepFieldUpdateRecursivelyStruct) {
                                       })"));
 }
 
-// applying Update to a struct should do nothing but confirm that it is a
-// struct.
-TEST(SchemaTest, UpdateStruct) {
+// applying UpdateFeature to a struct feature should do nothing but confirm that
+// it is a struct.
+TEST(SchemaTest, UpdateFeatureStruct) {
   const tensorflow::metadata::v0::Schema initial =
       ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
         feature {
@@ -1813,6 +1715,7 @@ TEST(SchemaTest, UpdateStruct) {
       schema.UpdateFeature(Schema::Updater(FeatureStatisticsToProtoConfig()),
                            *view.GetByPath(Path({"struct"})), &descriptions,
                            &drift_skew_info, &severity));
+  // struct.foo is not added to the schema.
   EXPECT_THAT(schema.GetSchema(), EqualsProto(initial));
 }
 
@@ -2386,6 +2289,748 @@ TEST(SchemaTest, Update) {
   EXPECT_THAT(actual, EqualsProto(expected));
 }
 
+TEST(SchemaTest, UpdateBadStartingSchema) {
+  const tensorflow::metadata::v0::Schema initial =
+      ParseTextProtoOrDie<::tensorflow::metadata::v0::Schema>(R"pb(
+        feature {
+          name: "no_type"
+          presence: { min_count: 1 min_fraction: 1.0 }
+          value_count: { min: 1 max: 1 }
+          float_domain: { disallow_nan: true }
+        }
+        feature {
+          name: "invalid_value_count"
+          presence: { min_count: 1 }
+          value_count: { min: -1 max: 3 }
+          type: BYTES
+        }
+        feature {
+          name: "invalid_value_counts"
+          presence: { min_count: 1 }
+          value_counts {
+            value_count: { min: -1 max: 3 }
+            value_count: { min: 3 max: 1 }
+          }
+          type: BYTES
+        }
+        feature {
+          name: "invalid_presence"
+          presence: { min_fraction: 1.5 }
+          type: BYTES
+        }
+        feature {
+          name: "nl_float"
+          presence: { min_fraction: 1.0 }
+          natural_language_domain: {}
+          type: FLOAT
+        }
+        feature {
+          name: "struct_bytes"
+          presence: { min_fraction: 1.0 }
+          struct_domain: {}
+          type: BYTES
+        }
+        feature {
+          name: "distribution_constraints_bool"
+          presence: { min_fraction: 1.0 }
+          bool_domain: {}
+          distribution_constraints: { min_domain_mass: .8 }
+          type: FLOAT
+        }
+      )pb");
+
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"pb(
+        features: {
+          name: "no_type"
+          type: FLOAT
+          num_stats: {
+            common_stats: {
+              num_missing: 0
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 1
+              avg_num_values: 1
+            }
+            histograms: {
+              num_nan: 5
+              buckets: { high_value: 1 }
+              buckets: { low_value: 0 high_value: 1 sample_count: 100 }
+              type: QUANTILES
+            }
+            mean: .5
+            std_dev: .25
+            max: 1.0
+          }
+        }
+        features: {
+          name: "invalid_value_count"
+          type: STRING
+          string_stats: {
+            common_stats: {
+              num_missing: 10
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 3
+              avg_num_values: 1.5
+            }
+          }
+        }
+        features: {
+          name: "invalid_value_counts"
+          type: STRING
+          string_stats: {
+            common_stats: {
+              num_missing: 10
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 3
+              avg_num_values: 1.5
+              presence_and_valency_stats {
+                num_missing: 10
+                num_non_missing: 4
+                min_num_values: 1
+                max_num_values: 3
+                tot_num_values: 8
+              }
+              presence_and_valency_stats {
+                num_missing: 10
+                num_non_missing: 4
+                min_num_values: 3
+                max_num_values: 3
+                tot_num_values: 8
+              }
+            }
+          }
+        }
+        features: {
+          name: "invalid_presence"
+          type: STRING
+          string_stats: {
+            common_stats: {
+              num_missing: 10
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 3
+              avg_num_values: 1.5
+            }
+          }
+        }
+        features: {
+          name: "nl_float"
+          type: FLOAT
+          num_stats: {
+            common_stats: {
+              num_missing: 10
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 3
+              avg_num_values: 1.5
+            }
+          }
+        }
+        features: {
+          name: "struct_bytes"
+          type: BYTES
+          num_stats: {
+            common_stats: {
+              num_missing: 10
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 3
+              avg_num_values: 1.5
+            }
+          }
+        }
+        features: {
+          name: "distribution_constraints_bool"
+          type: FLOAT
+          num_stats: {
+            common_stats: {
+              num_missing: 10
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 3
+              avg_num_values: 1.5
+            }
+          }
+        })pb");
+
+  const tensorflow::metadata::v0::Schema expected =
+      ParseTextProtoOrDie<::tensorflow::metadata::v0::Schema>(
+          R"pb(feature {
+                 name: "no_type"
+                 value_count { min: 1 max: 1 }
+                 float_domain { disallow_nan: true }
+                 presence { min_fraction: 1 min_count: 1 }
+                 lifecycle_stage: DEPRECATED
+               }
+               feature {
+                 name: "invalid_value_count"
+                 value_count { max: 3 }
+                 type: BYTES
+                 presence { min_count: 1 }
+               }
+               feature {
+                 name: "invalid_value_counts"
+                 type: BYTES
+                 presence { min_count: 1 }
+                 value_counts {
+                   value_count { max: 3 }
+                   value_count { min: 3 max: 3 }
+                 }
+               }
+               feature {
+                 name: "invalid_presence"
+                 type: BYTES
+                 presence { min_fraction: 1 }
+               }
+               feature {
+                 name: "nl_float"
+                 type: FLOAT
+                 presence { min_fraction: 1 }
+               }
+               feature {
+                 name: "struct_bytes"
+                 type: BYTES
+                 presence { min_fraction: 1 }
+               }
+               feature {
+                 name: "distribution_constraints_bool"
+                 type: FLOAT
+                 bool_domain {}
+                 presence { min_fraction: 1 }
+               })pb");
+
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(initial));
+  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
+                             FeatureStatisticsToProtoConfig()));
+  const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
+  EXPECT_THAT(actual, EqualsProto(expected));
+}
+
+TEST(SchemaTest, UpdateDisallowNans) {
+  const tensorflow::metadata::v0::Schema initial =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"pb(
+        feature {
+          name: "income"
+          presence: { min_count: 1 min_fraction: 1.0 }
+          value_count: { min: 1 max: 1 }
+          type: FLOAT
+          float_domain: { disallow_nan: true }
+        }
+        feature {
+          name: "string_encoded_float"
+          presence: { min_count: 1 }
+          value_count: { min: 1 max: 3 }
+          type: BYTES
+          float_domain: { disallow_nan: true }
+        }
+      )pb");
+
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"pb(
+        features: {
+          name: "income"
+          type: FLOAT
+          num_stats: {
+            common_stats: {
+              num_missing: 0
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 1
+              avg_num_values: 1
+            }
+            histograms: {
+              num_nan: 5
+              buckets: { high_value: 1 }
+              buckets: { low_value: 0 high_value: 1 sample_count: 100 }
+              type: QUANTILES
+            }
+            mean: .5
+            std_dev: .25
+            max: 1.0
+          }
+        }
+        features: {
+          name: "string_encoded_float"
+          type: STRING
+          string_stats: {
+            common_stats: {
+              num_missing: 10
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 3
+              avg_num_values: 1.5
+            }
+            rank_histogram: {
+              buckets: { label: "1.5" sample_count: 5 }
+              buckets: { label: "2.5" sample_count: 3 }
+              buckets: { label: "-1.5" sample_count: 15 }
+              buckets: { label: "NaN" sample_count: 20 }
+              buckets: { label: "0.5" sample_count: 10 }
+            }
+          }
+        })pb");
+
+  const tensorflow::metadata::v0::Schema expected =
+      ParseTextProtoOrDie<::tensorflow::metadata::v0::Schema>(R"pb(
+        feature {
+          name: "income"
+          presence: { min_count: 1 min_fraction: 1.0 }
+          value_count: { min: 1 max: 1 }
+          type: FLOAT
+          float_domain: { disallow_nan: false }
+        }
+        feature {
+          name: "string_encoded_float"
+          presence: { min_count: 1 }
+          value_count: { min: 1 max: 3 }
+          type: BYTES
+          float_domain: { disallow_nan: false }
+        }
+      )pb");
+
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(initial));
+  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
+                             FeatureStatisticsToProtoConfig()));
+  const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
+  EXPECT_THAT(actual, EqualsProto(expected));
+}
+
+TEST(SchemaTest, UpdateDisallowInfs) {
+  const tensorflow::metadata::v0::Schema initial =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"pb(
+        feature {
+          name: "income"
+          presence: { min_count: 1 min_fraction: 1.0 }
+          value_count: { min: 1 max: 1 }
+          type: FLOAT
+          float_domain: { disallow_inf: true }
+        }
+        feature {
+          name: "age"
+          presence: { min_count: 1 min_fraction: 1.0 }
+          value_count: { min: 1 max: 1 }
+          type: FLOAT
+          float_domain: { disallow_inf: true }
+        }
+      )pb");
+
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"pb(
+        features: {
+          name: "income"
+          type: FLOAT
+          num_stats: {
+            common_stats: {
+              num_missing: 0
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 1
+              avg_num_values: 1
+            }
+            histograms: {
+              num_nan: 5
+              buckets: { low_value: 0 high_value: 1 sample_count: 100 }
+              buckets: { low_value: 0 high_value: inf sample_count: 100 }
+              type: QUANTILES
+            }
+            mean: .5
+            std_dev: .25
+            max: inf
+          }
+        }
+        features: {
+          name: "age"
+          type: FLOAT
+          num_stats: {
+            common_stats: {
+              num_missing: 0
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 1
+              avg_num_values: 1
+            }
+            mean: .5
+            std_dev: .25
+            max: 10
+            min: -inf
+          }
+        })pb");
+
+  const tensorflow::metadata::v0::Schema expected =
+      ParseTextProtoOrDie<::tensorflow::metadata::v0::Schema>(R"pb(
+        feature {
+          name: "income"
+          presence: { min_count: 1 min_fraction: 1.0 }
+          value_count: { min: 1 max: 1 }
+          type: FLOAT
+          float_domain: { disallow_inf: false }
+        }
+        feature {
+          name: "age"
+          presence: { min_count: 1 min_fraction: 1.0 }
+          value_count: { min: 1 max: 1 }
+          type: FLOAT
+          float_domain: { disallow_inf: false }
+        }
+      )pb");
+
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(initial));
+  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
+                             FeatureStatisticsToProtoConfig()));
+  const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
+  EXPECT_THAT(actual, EqualsProto(expected));
+}
+
+TEST(SchemaTest, UpdateImageDomain) {
+  const tensorflow::metadata::v0::Schema initial =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"pb(
+        feature {
+          name: "image/encoded"
+          presence: { min_count: 1 min_fraction: 1.0 }
+          value_count: { min: 1 max: 1 }
+          type: BYTES
+          image_domain: {
+            minimum_supported_image_fraction: 0.85
+            max_image_byte_size: 100
+          }
+        }
+      )pb");
+
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"pb(
+        features: {
+          name: 'image/encoded'
+          type: BYTES
+          bytes_stats: {
+            max_num_bytes_int: 101
+            common_stats: {
+              num_non_missing: 10
+              min_num_values: 1
+              max_num_values: 1
+            }
+          }
+          custom_stats: {
+            name: 'image_format_histogram'
+            rank_histogram: {
+              buckets: { label: 'jpeg' sample_count: 5 }
+              buckets: { label: 'png' sample_count: 3 }
+              buckets: { label: 'UNKNOWN' sample_count: 2 }
+            }
+          }
+        })pb");
+
+  const tensorflow::metadata::v0::Schema expected =
+      ParseTextProtoOrDie<::tensorflow::metadata::v0::Schema>(R"pb(
+        feature {
+          name: "image/encoded"
+          presence: { min_count: 1 min_fraction: 1.0 }
+          value_count: { min: 1 max: 1 }
+          type: BYTES
+          image_domain: {
+            minimum_supported_image_fraction: 0.8
+            max_image_byte_size: 101
+          }
+        }
+      )pb");
+
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(initial));
+  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
+                             FeatureStatisticsToProtoConfig()));
+  const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
+  EXPECT_THAT(actual, EqualsProto(expected));
+}
+
+TEST(SchemaTest, UpdateBooleanFloat) {
+  const tensorflow::metadata::v0::Schema initial =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"pb(
+        feature {
+          name: "a_float_outside_range"
+          value_count: { min: 1 max: 1 }
+          type: FLOAT
+          bool_domain {}
+        }
+        feature {
+          name: "a_float_with_nans"
+          value_count: { min: 1 max: 1 }
+          type: FLOAT
+          bool_domain {}
+        }
+        feature {
+          name: "a_float_between_0_and_1"
+          value_count: { min: 1 max: 1 }
+          type: FLOAT
+          bool_domain {}
+        }
+      )pb");
+
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"pb(
+        features: {
+          name: 'a_float_outside_range'
+          type: FLOAT
+          num_stats: {
+            common_stats: {
+              num_missing: 3
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 1
+              avg_num_values: 1
+            }
+            min: 0
+            max: 2.0
+            median: .5
+            histograms: {
+              buckets: { high_value: 0.4 sample_count: 200 }
+              buckets: { low_value: 1.8 high_value: 2.0 sample_count: 10 }
+              type: QUANTILES
+            }
+          }
+        }
+        features: {
+          name: 'a_float_with_nans'
+          type: FLOAT
+          num_stats: {
+            common_stats: {
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 1
+              avg_num_values: 1
+            }
+            min: 0
+            max: 1
+            histograms: {
+              num_nan: 3
+              buckets: { high_value: 1 }
+              buckets: { low_value: 0 high_value: 1 sample_count: 100 }
+              type: QUANTILES
+            }
+          }
+        }
+        features: {
+          name: 'a_float_between_0_and_1'
+          type: FLOAT
+          num_stats: {
+            common_stats: {
+              num_non_missing: 4
+              min_num_values: 1
+              max_num_values: 1
+              avg_num_values: 1
+            }
+            min: 0
+            max: 1
+            histograms: {
+              buckets: { high_value: 0.4 sample_count: 200 }
+              buckets: { low_value: 0.4 high_value: 0.7 sample_count: 10 }
+              buckets: { low_value: 0.7 high_value: 1 sample_count: 10 }
+              type: QUANTILES
+            }
+          }
+        })pb");
+
+  const tensorflow::metadata::v0::Schema expected =
+      ParseTextProtoOrDie<::tensorflow::metadata::v0::Schema>(R"pb(
+        feature {
+          name: "a_float_outside_range"
+          value_count { min: 1 max: 1 }
+          type: FLOAT
+          float_domain { min: 0, max: 2 }
+        }
+        feature {
+          name: "a_float_with_nans"
+          value_count { min: 1 max: 1 }
+          type: FLOAT
+          float_domain { min: 0, max: 1 }
+        }
+        feature {
+          name: "a_float_between_0_and_1"
+          value_count { min: 1 max: 1 }
+          type: FLOAT
+          float_domain { min: 0, max: 1 }
+        }
+      )pb");
+
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(initial));
+  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
+                             FeatureStatisticsToProtoConfig()));
+  const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
+  EXPECT_THAT(actual, EqualsProto(expected));
+}
+
+TEST(SchemaTest, UpdateAnnotatedFeature) {
+  const tensorflow::metadata::v0::Schema initial =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(
+          R"pb(string_domain {
+                 name: "MyAloneEnum"
+                 value: "A"
+                 value: "B"
+                 value: "C"
+               }
+               feature {
+                 name: "annotated_enum"
+                 presence: { min_count: 1 }
+                 value_count: { min: 1 max: 1 }
+                 type: BYTES
+                 domain: "MyAloneEnum"
+                 annotation { tag: "some tag" comment: "some comment" }
+               }
+          )pb");
+
+  const DatasetFeatureStatistics statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(
+          R"pb(features: {
+                 name: 'annotated_enum'
+                 type: STRING
+                 string_stats: {
+                   common_stats: {
+                     num_missing: 3
+                     num_non_missing: 4
+                     min_num_values: 1
+                     max_num_values: 1
+                     avg_num_values: 1
+                   }
+                   unique: 3
+                   rank_histogram: { buckets: { label: "D" sample_count: 2 } }
+                 }
+               }
+          )pb");
+
+  const tensorflow::metadata::v0::Schema expected =
+      ParseTextProtoOrDie<::tensorflow::metadata::v0::Schema>(R"pb(
+        string_domain {
+          name: "MyAloneEnum"
+          value: "A"
+          value: "B"
+          value: "C"
+          value: "D"
+        }
+        feature {
+          name: "annotated_enum"
+          presence: { min_count: 1 }
+          value_count: { min: 1 max: 1 }
+          type: BYTES
+          domain: "MyAloneEnum"
+          annotation { tag: "some tag" comment: "some comment" }
+        }
+      )pb");
+
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(initial));
+  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
+                             FeatureStatisticsToProtoConfig()));
+  const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
+  EXPECT_THAT(actual, EqualsProto(expected));
+}
+
+TEST(SchemaTest, UpdateSkewComparator) {
+  const tensorflow::metadata::v0::Schema initial =
+      ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"pb(
+        feature {
+          name: 'string_feature'
+          type: BYTES
+          skew_comparator { infinity_norm: { threshold: 0.1 } }
+        }
+        feature {
+          name: 'numeric_feature'
+          type: INT
+          skew_comparator { jensen_shannon_divergence: { threshold: 0.1 } }
+        }
+      )pb");
+
+  const DatasetFeatureStatistics training_statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"pb(
+        features {
+          name: 'string_feature'
+          type: STRING
+          string_stats: {
+            common_stats: { num_missing: 0 max_num_values: 1 }
+            rank_histogram {
+              buckets { label: "a" sample_count: 1 }
+              buckets { label: "b" sample_count: 2 }
+              buckets { label: "c" sample_count: 7 }
+            }
+          }
+        }
+        features {
+          name: 'numeric_feature'
+          type: INT
+          num_stats: {
+            common_stats: { num_missing: 0 max_num_values: 1 }
+            histograms {
+              buckets { low_value: 1.0 high_value: 2.0 sample_count: 1.0 }
+              buckets { low_value: 2.0 high_value: 3.0 sample_count: 1.0 }
+              type: STANDARD
+            }
+          }
+        }
+      )pb");
+
+  const DatasetFeatureStatistics serving_statistics =
+      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"pb(
+        features {
+          name: 'string_feature'
+          type: STRING
+          string_stats: {
+            common_stats: { num_missing: 0 max_num_values: 1 }
+            rank_histogram {
+              buckets { label: "a" sample_count: 3 }
+              buckets { label: "b" sample_count: 1 }
+              buckets { label: "c" sample_count: 6 }
+            }
+          }
+        }
+        features {
+          name: 'numeric_feature'
+          type: INT
+          num_stats: {
+            common_stats: { num_missing: 0 max_num_values: 1 }
+            histograms {
+              buckets { low_value: 5.0 high_value: 6.0 sample_count: 1.0 }
+              buckets { low_value: 6.0 high_value: 7.0 sample_count: 1.0 }
+              type: STANDARD
+            }
+          }
+        }
+      )pb");
+
+  const tensorflow::metadata::v0::Schema expected =
+      ParseTextProtoOrDie<::tensorflow::metadata::v0::Schema>(R"pb(
+        feature {
+          name: "string_feature"
+          type: BYTES
+          skew_comparator { infinity_norm: { threshold: 0.19999999999999998 } }
+        }
+        feature {
+          name: 'numeric_feature'
+          type: INT
+          skew_comparator { jensen_shannon_divergence: { threshold: 1.0 } }
+        }
+      )pb");
+
+  const DatasetStatsView dataset_statistics = DatasetStatsView(
+      training_statistics,
+      /* by_weight= */ false,
+      /* environment= */ absl::nullopt,
+      /* previous_span= */ std::shared_ptr<DatasetStatsView>(),
+      std::make_shared<DatasetStatsView>(serving_statistics),
+      /* previous_version= */ std::shared_ptr<DatasetStatsView>());
+
+  Schema schema;
+  TF_ASSERT_OK(schema.Init(initial));
+  // Update both features in the dataset.
+  schema.UpdateSkewComparator(FeatureStatsView(0, dataset_statistics));
+  schema.UpdateSkewComparator(FeatureStatsView(1, dataset_statistics));
+  const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
+  EXPECT_THAT(actual, EqualsProto(expected));
+}
+
 TEST(SchemaTest, UpdateWeightedNoAnomaly) {
   const DatasetFeatureStatistics statistics =
       ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
@@ -2827,84 +3472,6 @@ struct ValidTest {
   const FeatureNameStatistics statistics;
   const bool expected_is_valid;
 };
-
-TEST(SchemaTest, ValidTestAllTypesMessage) {
-  const std::vector<ValidTest> valid_tests = {
-      {"optional_float_valid", ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-         name: 'bar'
-         type: FLOAT
-         num_stats: {
-           common_stats: { num_missing: 0 min_num_values: 1 max_num_values: 1 }
-         })"), true},
-      {"optional_string_valid", ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-         name: 'bar'
-         type: STRING
-         string_stats: {
-           common_stats: { num_missing: 3 min_num_values: 1 max_num_values: 2 }
-           unique: 3
-           rank_histogram: {
-             buckets: { label: "foo" }
-             buckets: { label: "bar" }
-             buckets: { label: "baz" }
-           }
-         })"), false},
-      {"optional_int64_valid", ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-         name: 'bar'
-         type: INT
-         num_stats: {
-           common_stats: { num_missing: 0 min_num_values: 1 max_num_values: 1 }
-         })"), true},
-      {"optional_bool_valid", ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-         name: 'optional_bool'
-         type: INT
-         num_stats: {
-           common_stats: { num_missing: 0 min_num_values: 1 max_num_values: 1 }
-           min: 0.0
-           max: 1.0
-         })"), true},
-      {"repeated_float_valid", ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-         name: 'repeated_float'
-         type: FLOAT
-         num_stats: {
-           common_stats: { num_missing: 0 min_num_values: 1 max_num_values: 1 }
-         })"), true},
-      {"repeated_string_valid", ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-         name: 'repeated_string'
-         type: STRING
-         string_stats: {
-           common_stats: { num_missing: 3 min_num_values: 1 max_num_values: 2 }
-           unique: 3
-           rank_histogram: {
-             buckets: { label: "foo" }
-             buckets: { label: "bar" }
-             buckets: { label: "baz" }
-           }
-         })"), true},
-      {"repeated_int64_valid", ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-         name: 'bar'
-         type: INT
-         num_stats: {
-           common_stats: {
-             num_missing: 10000
-             min_num_values: 1
-             max_num_values: 1012
-           }
-           min: 0.0
-           max: 1.0
-         })"), true},
-      {"repeated_bool_valid", ParseTextProtoOrDie<FeatureNameStatistics>(R"(
-         name: 'bar'
-         type: INT
-         num_stats: {
-           common_stats: {
-             num_missing: 10000
-             min_num_values: 1
-             max_num_values: 1012
-           }
-           min: 0.0
-           max: 1.0
-         })"), true}};
-}
 
 DatasetFeatureStatistics GetDatasetFeatureStatisticsForAnnotated() {
   return ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
@@ -3494,7 +4061,7 @@ TEST(SchemaTest, ValidTestAnnotatedFieldsMessageBaseline) {
 TEST(SchemaTest, UpdateUniqueConstraints) {
   Schema schema;
   TF_ASSERT_OK(
-      schema.Init(ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
+      schema.Init(ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"pb(
         feature {
           name: "categorical_feature"
           type: INT
@@ -3505,39 +4072,51 @@ TEST(SchemaTest, UpdateUniqueConstraints) {
           name: "string_feature"
           type: BYTES
           unique_constraints { min: 2 max: 2 }
-        })")));
-  const DatasetFeatureStatistics statistics =
-      ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
-        features: {
-          name: "categorical_feature"
-          type: INT
-          string_stats {
-            common_stats: {
-              num_missing: 0
-              num_non_missing: 2
-              min_num_values: 1
-              max_num_values: 1
-            }
-            unique: 5
-          }
-        },
-        features: {
-          name: "string_feature"
-          type: STRING
-          string_stats {
-            common_stats: {
-              num_missing: 0
-              num_non_missing: 2
-              min_num_values: 1
-              max_num_values: 1
-            }
-            unique: 1
-          }
-        })");
+        }
+        feature {
+          name: "numeric_feature"
+          type: FLOAT
+          unique_constraints { min: 1 max: 1 }
+        })pb")));
+  const DatasetFeatureStatistics statistics = ParseTextProtoOrDie<
+      DatasetFeatureStatistics>(R"pb(
+    features: {
+      name: "categorical_feature"
+      type: INT
+      string_stats {
+        common_stats: {
+          num_missing: 0
+          num_non_missing: 2
+          min_num_values: 1
+          max_num_values: 1
+        }
+        unique: 5
+      }
+    },
+    features: {
+      name: "string_feature"
+      type: STRING
+      string_stats {
+        common_stats: {
+          num_missing: 0
+          num_non_missing: 2
+          min_num_values: 1
+          max_num_values: 1
+        }
+        unique: 1
+      }
+    }
+    features: {
+      name: 'numeric_feature'
+      type: FLOAT
+      num_stats: {
+        common_stats: { min_num_values: 1 max_num_values: 1 num_non_missing: 1 }
+      }
+    })pb");
   TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, /*by_weight=*/false),
                              FeatureStatisticsToProtoConfig()));
   const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
-  EXPECT_THAT(actual, EqualsProto(R"(
+  EXPECT_THAT(actual, EqualsProto(R"pb(
                 feature {
                   name: "categorical_feature"
                   type: INT
@@ -3548,7 +4127,8 @@ TEST(SchemaTest, UpdateUniqueConstraints) {
                   name: "string_feature"
                   type: BYTES
                   unique_constraints { min: 1 max: 2 }
-                })"));
+                }
+                feature { name: "numeric_feature" type: FLOAT })pb"));
 }
 
 TEST(SchemaTest, AddsDerivedFeature) {

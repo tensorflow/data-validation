@@ -310,6 +310,7 @@ cc_test(
         ":statistics_view_test_util",
         ":test_schema_protos",
         ":test_util",
+        "//tensorflow_data_validation/anomalies/proto:feature_statistics_to_proto_proto",
         "//tensorflow_data_validation/anomalies/proto:validation_config_proto",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
         "@com_google_googletest//:gtest_main",
