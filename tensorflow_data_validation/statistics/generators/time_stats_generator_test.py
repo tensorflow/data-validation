@@ -68,10 +68,12 @@ VALID_FORMATS_TESTS = [
         'input_batch': pa.array([[
             '2018-11-30T23:59',
             '2018/11/30 23:59',
+            'Fri Nov 30 10:47:02 2018'
         ]]),
         'expected_matching_formats': {
             '%Y-%m-%dT%H:%M': 1,
             '%Y/%m/%d %H:%M': 1,
+            '%a %b %d %H:%M:%S %Y': 1
         },
     },
 ]

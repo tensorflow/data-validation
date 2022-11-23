@@ -55,15 +55,15 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 _MATCH_RATIO = 0.8
 _VALUES_THRESHOLD = 100
 
-
-_UnixTime = collections.namedtuple(
-    '_UnixTime', ['format_constant', 'begin', 'end']
-    )
+_UnixTime = collections.namedtuple('_UnixTime',
+                                   ['format_constant', 'begin', 'end'])
 
 # Named tuples containing values used to detect integer times.
 # The beginning times correspond to 01-Jan-90 00:00:00 UTC.
 # The ending times correspond to 01-Jan-30 00:00:00 UTC.
 _UNIX_TIMES = [
+    _UnixTime(
+        format_constant=schema_pb2.TimeDomain.UNIX_DAYS, begin=7305, end=21915),
     _UnixTime(
         format_constant=schema_pb2.TimeDomain.UNIX_SECONDS,
         begin=631152000,
@@ -92,7 +92,10 @@ _TIME_MATCH_RATIO = 'time_match_ratio'
 # This is consistent with Python's strptime()'s mapping of format directives to
 # regexes.
 _STRPTIME_TO_RE = {
-    # Do not include month_name[0], since it's an empty string.
+    # Do not include month_name[0] or month_abbr[0], since they are empty
+    # strings.
+    '%a': r'(?:' + r'|'.join(calendar.day_abbr) + ')',
+    '%b': r'(?:' + r'|'.join(calendar.month_abbr[1:]) + ')',
     '%B': r'(?:' + r'|'.join(calendar.month_name[1:]) + ')',
     '%f': r'(?:[0-9]{1,6})',
     '%d': r'(?:3[0-1]|[1-2]\d|0[1-9]|[1-9]| [1-9])',
@@ -137,6 +140,10 @@ _TIME_ONLY_FORMATS = [
     '%H:%M:%S.%f'  # 23:59:58[.123456]
 ]
 
+_COMBINED_FORMATS = [
+    '%a %b %d %H:%M:%S %Y'  # Fri Nov 30 10:47:02 2018
+]
+
 
 def _convert_strptime_to_regex(strptime_str: Text) -> Text:
   """Converts a string that includes strptime directives to a regex.
@@ -159,11 +166,13 @@ def _convert_strptime_to_regex(strptime_str: Text) -> Text:
 def _build_all_formats() -> Iterable[Text]:
   """Yields all valid date, time, and combination formats.
 
-  The valid formats are defined by _DATE_ONLY_FORMATS, _TIME_ONLY_FORMATS, and
+  The valid formats are defined by _COMBINED_FORMATS, _DATE_ONLY_FORMATS,
+  _TIME_ONLY_FORMATS,
   _TIME_DELIMITERS. This function yields each date only and time only format.
   For combination formats, each date format from _DATE_ONLY_FORMATS is combined
   with each time format from _TIME_ONLY_FORMATS in two ways: one with the time
-  delimiter and one with a space.
+  delimiter and one with a space. Additionally, some combined formats are
+  specified directly by _COMBINED_FORMATS and yielded.
 
   Yields:
     All valid date, time, and combination date and time formats.
@@ -172,6 +181,8 @@ def _build_all_formats() -> Iterable[Text]:
     yield date_fmt
   for time_fmt in _TIME_ONLY_FORMATS:
     yield time_fmt
+  for combined_fmt in _COMBINED_FORMATS:
+    yield combined_fmt
   for date_fmt in _DATE_ONLY_FORMATS:
     for time_fmt in _TIME_ONLY_FORMATS:
       for time_delimiter in _TIME_DELIMITERS:
@@ -179,8 +190,7 @@ def _build_all_formats() -> Iterable[Text]:
 
 
 def _build_all_formats_regexes(
-    strptime_formats: Iterable[Text]
-) -> Iterable[Tuple[Text, Pattern[Text]]]:
+    strptime_formats: Iterable[Text]) -> Iterable[Tuple[Text, Pattern[Text]]]:
   """Yields compiled regexes corresponding to the input formats.
 
   Args:
@@ -195,16 +205,13 @@ def _build_all_formats_regexes(
     yield (strptime_format, compiled_regex)
 
 
-_TIME_RE_LIST = list(
-    _build_all_formats_regexes(_build_all_formats()))
+_TIME_RE_LIST = list(_build_all_formats_regexes(_build_all_formats()))
 
 
 class _PartialTimeStats(object):
   """Partial feature stats for dates/times."""
 
-  def __init__(self,
-               considered: int = 0,
-               invalidated: bool = False) -> None:
+  def __init__(self, considered: int = 0, invalidated: bool = False) -> None:
     # The total number of values considered for classification.
     self.considered = considered
     # True only if this feature should never be considered, e.g., some
@@ -243,10 +250,8 @@ class _PartialTimeStats(object):
           self.matching_formats[
               unix_time.format_constant] += num_matching_values
     else:
-      raise ValueError(
-          'Attempt to update partial time stats with values of an '
-          'unsupported type.'
-      )
+      raise ValueError('Attempt to update partial time stats with values of an '
+                       'unsupported type.')
 
 
 class TimeStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
@@ -268,12 +273,12 @@ class TimeStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
 
     Args:
       name: The unique name associated with this statistics generator.
-      match_ratio: For a feature to be marked as a Time, the classifier
-        match ratio must meet or exceed this ratio. This ratio must be in
-        (0, 1]. The classifier match ratio is determined by comparing the most
-        common valid matching format to the total number of values considered.
-      values_threshold: For a feature to be marked as a Time, at least
-        this many values must be considered.
+      match_ratio: For a feature to be marked as a Time, the classifier match
+        ratio must meet or exceed this ratio. This ratio must be in (0, 1]. The
+        classifier match ratio is determined by comparing the most common valid
+        matching format to the total number of values considered.
+      values_threshold: For a feature to be marked as a Time, at least this many
+        values must be considered.
 
     Raises:
       ValueError: If values_threshold <= 0 or match_ratio not in (0, 1].
@@ -304,8 +309,8 @@ class TimeStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
     Args:
       accumulator: The current accumulator.
       feature_path: The path of the feature.
-      feature_array: An arrow Array representing a batch of feature values
-        which should be added to the accumulator.
+      feature_array: An arrow Array representing a batch of feature values which
+        should be added to the accumulator.
 
     Returns:
       The accumulator after updating the statistics for the batch of inputs.
@@ -352,8 +357,9 @@ class TimeStatsGenerator(stats_generator.CombinerFeatureStatsGenerator):
       result += acc
     return result
 
-  def extract_output(self, accumulator: _PartialTimeStats
-                    ) -> statistics_pb2.FeatureNameStatistics:
+  def extract_output(
+      self,
+      accumulator: _PartialTimeStats) -> statistics_pb2.FeatureNameStatistics:
     """Returns the result of converting accumulator into the output value.
 
     This method will add the time_domain custom stat to the proto if the match
