@@ -20,6 +20,97 @@ package tensorflow.data_validation;
 import "tensorflow_metadata/proto/v0/anomalies.proto";
 import "tensorflow_metadata/proto/v0/path.proto";
 
+// Use this proto to configure custom validations in TFDV.
+// Example usages follow.
+// -----------------------------------------------------------------------------
+// Example Single-Feature Validation
+// Statistics
+  // datasets {
+  //   name: "All Examples"
+  //     num_examples: 10
+  //       features {
+  //         path { step: 'test_feature' }
+  //         type: INT
+  //         num_stats { num_zeros: 5 max: 25 }
+  //       }
+  // }
+// CustomValidationConfig
+  // feature_validations {
+  //   feature_path { step: 'test_feature' }
+  //     validations {
+  //       sql_expression: 'feature.num_stats.num_zeros < 3'
+  //       severity: ERROR
+  //       description: 'Feature has too many zeros.'
+  //     }
+  //     validations {
+  //       sql_expression: 'feature.num_stats.max > 10'
+  //       severity: ERROR
+  //       description: 'Maximum value is too low.'
+  //     }
+  // }
+// Anomalies
+  // anomaly_info {
+  //   key: 'test_feature'
+  //     value: {
+  //       path { step: 'test_feature' }
+  //       severity: ERROR
+  //       reason {
+  //         type: CUSTOM_VALIDATION
+  //         short_description: 'Feature has too many zeros.'
+  //         description: 'Custom validation triggered anomaly. Query: feature.num_stats.num_zeros < 3 Test dataset: default slice'
+  //      }
+  //   }
+  // }
+// -----------------------------------------------------------------------------
+// Example Feature Pair Validation
+// Statistics
+// Test statistics
+  // datasets {
+  //   name: "slice_1"
+  //   num_examples: 10
+  //   features {
+  //     path { step: 'test_feature' }
+  //     type: INT
+  //     num_stats { num_zeros: 5 max: 25 }
+  //   }
+  // }
+// Base statistics
+  // datasets {
+  //   name: "slice_2"
+  //   num_examples: 10
+  //   features {
+  //     path { step: 'test_feature' }
+  //     type: INT
+  //     num_stats { num_zeros: 1 max: 1 }
+  //   }
+  // }
+// CustomValidationConfig
+  // feature_pair_validations {
+  //   dataset_name: 'slice_1'
+  //   feature_test_path { step: 'test_feature' }
+  //   base_dataset_name: 'slice_2'
+  //   feature_base_path { step: 'test_feature' }
+  //   validations {
+  //     sql_expression: 'feature_test.num_stats.num_zeros < feature_base.num_stats.num_zeros'
+  //     severity: ERROR
+  //     description: 'Test feature has too many zeros.'
+  //   }
+  // }
+// Anomalies
+  // anomaly_info {
+  //   key: 'test_feature'
+  //   value: {
+  //   path { step: 'test_feature' }
+  //   severity: ERROR
+  //   reason {
+  //     type: CUSTOM_VALIDATION
+  //     short_description: 'Test feature has too many zeros.'
+  //      description: 'Custom validation triggered anomaly. Query: feature_test.num_stats.num_zeros < feature_base.num_stats.num_zeros Test dataset: slice_1 Base dataset: slice_2 Base path: test_feature'
+  //     }
+  //   }
+  // }
+// =============================================================================
+
 message Validation {
   // Expression to evaluate. If the expression returns false, the anomaly is
   // returned.
