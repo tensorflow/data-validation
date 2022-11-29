@@ -10,6 +10,8 @@
 
 ## Breaking Changes
 
+*   Depends on `tensorflow>=2.11,<3`
+
 ## Deprecations
 
 # Version 1.11.0
