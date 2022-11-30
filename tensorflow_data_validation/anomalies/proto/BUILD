@@ -1,4 +1,7 @@
-package(default_visibility = ["//tensorflow_data_validation:__subpackages__"])
+package(default_visibility = [
+    "//tensorflow_data_validation:__subpackages__",
+    "//third_party/py/tfx:__subpackages__",
+])
 
 licenses(["notice"])  # Apache 2.0
 
