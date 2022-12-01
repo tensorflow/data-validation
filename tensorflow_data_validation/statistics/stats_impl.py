@@ -16,7 +16,7 @@
 
 import math
 import random
-from typing import Any, Callable, cast, Dict, Iterable, List, Optional, Text, Tuple
+from typing import Any, Callable, cast, Dict, Iterable, List, Optional, Text, Tuple, Union
 
 import apache_beam as beam
 import pyarrow as pa
@@ -465,7 +465,8 @@ def _schema_has_natural_language_domains(schema: schema_pb2.Schema) -> bool:
 
 def _filter_features(
     record_batch: pa.RecordBatch,
-    feature_allowlist: List[types.FeatureName]) -> pa.RecordBatch:
+    feature_allowlist: Union[List[types.FeatureName], List[types.FeaturePath]]
+) -> pa.RecordBatch:
   """Removes features that are not on the allowlist.
 
   Args:
@@ -478,6 +479,9 @@ def _filter_features(
   columns_to_select = []
   column_names_to_select = []
   for feature_name in feature_allowlist:
+    if isinstance(feature_name, types.FeaturePath):
+      # TODO(b/255895499): Support paths.
+      raise NotImplementedError
     col = arrow_util.get_column(record_batch, feature_name, missing_ok=True)
     if col is None:
       continue

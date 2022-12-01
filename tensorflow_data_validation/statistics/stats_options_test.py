@@ -474,7 +474,8 @@ class StatsOptionsTest(parameterized.TestCase):
       "_slice_sqls": null,
       "_experimental_result_partitions": 1,
       "_experimental_num_feature_partitions": 1,
-      "_slicing_config": null
+      "_slicing_config": null,
+      "_experimental_filter_read_paths": false
     """
     options_json += type_name_line + '}'
     if want_exception:

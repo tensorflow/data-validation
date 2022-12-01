@@ -56,6 +56,7 @@ from tensorflow_data_validation.utils.display_util import visualize_statistics
 
 
 # Import schema utilities.
+from tensorflow_data_validation.utils.schema_util import generate_dummy_schema_with_paths
 from tensorflow_data_validation.utils.schema_util import get_domain
 from tensorflow_data_validation.utils.schema_util import get_feature
 from tensorflow_data_validation.utils.schema_util import load_schema_text

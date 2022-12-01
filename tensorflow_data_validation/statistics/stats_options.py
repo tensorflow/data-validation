@@ -22,7 +22,7 @@ import copy
 import json
 import logging
 import types as python_types
-from typing import Dict, List, Optional, Text
+from typing import Dict, List, Optional, Text, Union
 
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import stats_generator
@@ -76,14 +76,17 @@ class StatsOptions(object):
                                                  types.FeatureName]] = None,
       vocab_paths: Optional[Dict[types.VocabName, types.VocabPath]] = None,
       add_default_generators: bool = True,
-      feature_allowlist: Optional[List[types.FeatureName]] = None,
+      # TODO(b/255895499): Support "from schema" for feature_allowlist.
+      feature_allowlist: Optional[Union[List[types.FeatureName],
+                                        List[types.FeaturePath]]] = None,
       experimental_use_sketch_based_topk_uniques: Optional[bool] = None,
       use_sketch_based_topk_uniques: Optional[bool] = None,
       experimental_slice_functions: Optional[List[types.SliceFunction]] = None,
       experimental_slice_sqls: Optional[List[Text]] = None,
       experimental_result_partitions: int = 1,
       experimental_num_feature_partitions: int = 1,
-      slicing_config: Optional[slicing_spec_pb2.SlicingConfig] = None):
+      slicing_config: Optional[slicing_spec_pb2.SlicingConfig] = None,
+      experimental_filter_read_paths: bool = False):
     """Initializes statistics options.
 
     Args:
@@ -151,7 +154,7 @@ class StatsOptions(object):
         (controlled by `enable_semantic_domain_stats`) and 4) schema-based
         generators that are enabled based on information provided in the schema.
       feature_allowlist: An optional list of names of the features to calculate
-        statistics for.
+        statistics for, or a list of paths.
       experimental_use_sketch_based_topk_uniques: Deprecated, prefer
         use_sketch_based_topk_uniques.
       use_sketch_based_topk_uniques: if True, use the sketch based
@@ -193,8 +196,11 @@ class StatsOptions(object):
         number of features in a dataset, and never more than the available beam
         parallelism.
       slicing_config: an optional SlicingConfig. SlicingConfig includes
-      slicing_specs specified with feature keys, feature values or slicing
-      SQL queries.
+        slicing_specs specified with feature keys, feature values or slicing
+        SQL queries.
+      experimental_filter_read_paths: If provided, tries to push down either
+        paths passed via feature_allowlist or via the schema (in that priority)
+        to the underlying read operation. Support depends on the file reader.
     """
     self.generators = generators
     self.feature_allowlist = feature_allowlist
@@ -241,6 +247,7 @@ class StatsOptions(object):
     self.experimental_num_feature_partitions = experimental_num_feature_partitions
     self.experimental_result_partitions = experimental_result_partitions
     self.slicing_config = slicing_config
+    self.experimental_filter_read_paths = experimental_filter_read_paths
 
   def to_json(self) -> Text:
     """Convert from an object to JSON representation of the __dict__ attribute.
@@ -340,12 +347,16 @@ class StatsOptions(object):
     self._generators = generators
 
   @property
-  def feature_allowlist(self) -> Optional[List[types.FeatureName]]:
+  def feature_allowlist(
+      self
+  ) -> Optional[Union[List[types.FeatureName], List[types.FeaturePath]]]:
     return self._feature_allowlist
 
   @feature_allowlist.setter
   def feature_allowlist(
-      self, feature_allowlist: Optional[List[types.FeatureName]]) -> None:
+      self, feature_allowlist: Optional[Union[List[types.FeatureName],
+                                              List[types.FeaturePath]]]
+  ) -> None:
     if feature_allowlist is not None and not isinstance(feature_allowlist,
                                                         list):
       raise TypeError('feature_allowlist is of type %s, should be a list.' %
@@ -553,6 +564,14 @@ class StatsOptions(object):
     if feature_partitions <= 0:
       raise ValueError('experimental_num_feature_partitions must be > 0.')
     self._experimental_num_feature_partitions = feature_partitions
+
+  @property
+  def experimental_filter_read_paths(self) -> bool:
+    return self._experimental_filter_read_paths
+
+  @experimental_filter_read_paths.setter
+  def experimental_filter_read_paths(self, filter_read: bool) -> None:
+    self._experimental_filter_read_paths = filter_read
 
 
 def _validate_sql(sql_query: Text, schema: schema_pb2.Schema):

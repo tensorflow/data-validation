@@ -754,5 +754,35 @@ class SchemaUtilTest(parameterized.TestCase):
         schema_util.look_up_feature('feature2', container), feature_2)
     self.assertIsNone(schema_util.look_up_feature('feature3', container), None)
 
+  def test_generate_dummy_schema_with_paths(self):
+    schema = text_format.Parse(
+        """
+    feature {
+      name: "foo"
+    }
+    feature {
+      name: "bar"
+    }
+    feature {
+      name: "baz"
+      struct_domain: {
+        feature {
+          name: "zip"
+        }
+        feature {
+          name: "zop"
+        }
+      }
+    }
+    """, schema_pb2.Schema())
+    self.assertEqual(
+        schema_util.generate_dummy_schema_with_paths([
+            types.FeaturePath(['foo']),
+            types.FeaturePath(['bar']),
+            types.FeaturePath(['baz', 'zip']),
+            types.FeaturePath(['baz', 'zop'])
+        ]), schema)
+
+
 if __name__ == '__main__':
   absltest.main()

@@ -374,3 +374,37 @@ def get_all_leaf_features(
   result = []
   _recursion_helper(types.FeaturePath([]), schema.feature, result)
   return result
+
+
+def _paths_to_tree(paths: List[types.FeaturePath]):
+  """Convert paths to recursively nested dict."""
+  nested_dict = lambda: collections.defaultdict(nested_dict)
+
+  result = nested_dict()
+
+  def _add(tree, path):
+    if not path:
+      return
+    children = tree[path[0]]
+    _add(children, path[1:])
+
+  for path in paths:
+    _add(result, path.steps())
+  return result
+
+
+def generate_dummy_schema_with_paths(
+    paths: List[types.FeaturePath]) -> schema_pb2.Schema:
+  """Generate a schema with the requested paths and no other information."""
+  schema = schema_pb2.Schema()
+  tree = _paths_to_tree(paths)
+
+  def _add(container, name, children):
+    container.feature.add(name=name)
+    if children:
+      for child_name, grandchildren in children.items():
+        _add(container.feature[-1].struct_domain, child_name, grandchildren)
+
+  for name, children in tree.items():
+    _add(schema, name, children)
+  return schema
