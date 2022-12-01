@@ -1,7 +1,7 @@
 # TensorFlow Data Validation Anomalies Reference
 
 <!--*
-freshness: { owner: 'caveness' reviewed: '2022-06-03' }
+freshness: { owner: 'caveness' reviewed: '2022-12-01' }
 *-->
 
 TFDV checks for anomalies by comparing a schema and statistics proto(s). The
