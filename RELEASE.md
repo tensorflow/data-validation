@@ -6,6 +6,8 @@
 
 ## Bug Fixes and Other Changes
 
+*  TFDV is now tested against macOS 12.5 (Monterey).
+
 ## Known Issues
 
 ## Breaking Changes
