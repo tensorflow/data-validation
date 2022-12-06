@@ -286,7 +286,8 @@ Status CustomValidateStatisticsWithSerializedInputs(
       CustomValidateStatistics(test_statistics, base_statistics_ptr,
                                validations, environment, &anomalies);
   if (!status.ok()) {
-    return tensorflow::errors::Internal("Failed to run custom validations.");
+    return tensorflow::errors::Internal("Failed to run custom validations: ",
+                                        status.error_message());
   }
   if (!anomalies.SerializeToString(serialized_anomalies_proto)) {
     return tensorflow::errors::Internal(
