@@ -190,12 +190,12 @@ setup(
         'six>=1.12,<2',
         'tensorflow>=2.11,<3',
         'tensorflow-metadata' + select_constraint(
-            default='>=1.11.0,<1.12',
-            nightly='>=1.12.0.dev',
+            default='>=1.12.0,<1.13',
+            nightly='>=1.13.0.dev',
             git_master='@git+https://github.com/tensorflow/metadata@master'),
         'tfx-bsl' + select_constraint(
-            default='>=1.11.0,<1.12',
-            nightly='>=1.12.0.dev',
+            default='>=1.12.0,<1.13',
+            nightly='>=1.13.0.dev',
             git_master='@git+https://github.com/tensorflow/tfx-bsl@master'),
     ],
     extras_require={
