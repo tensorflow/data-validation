@@ -438,8 +438,8 @@ cc_library(
     srcs = ["custom_validation.cc"],
     hdrs = ["custom_validation.h"],
     deps = [
+        ":path",
         ":schema",
-        ":statistics_view",
         "//tensorflow_data_validation/anomalies/proto:custom_validation_config_proto",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
         "@com_github_tfx_bsl//tfx_bsl/cc/statistics:sql_util",

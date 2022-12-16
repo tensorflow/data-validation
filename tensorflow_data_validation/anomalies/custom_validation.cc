@@ -15,8 +15,8 @@ limitations under the License.
 #include "tensorflow_data_validation/anomalies/custom_validation.h"
 
 #include "absl/container/flat_hash_map.h"
+#include "tensorflow_data_validation/anomalies/path.h"
 #include "tensorflow_data_validation/anomalies/schema_util.h"
-#include "tensorflow_data_validation/anomalies/statistics_view.h"
 #include "tfx_bsl/cc/statistics/sql_util.h"
 #include "tensorflow/core/lib/core/errors.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
@@ -46,7 +46,6 @@ BuildNamedStatisticsMap(const DatasetFeatureStatisticsList& statistics) {
                       absl::flat_hash_map<std::string, FeatureNameStatistics>>
       named_statistics;
   for (const auto& dataset : statistics.datasets()) {
-    DatasetStatsView dataset_stats = DatasetStatsView(dataset, false);
     for (const auto& feature : dataset.features()) {
       const metadata::v0::Path& feature_path = feature.path();
       const std::string serialized_feature_path =
@@ -63,11 +62,11 @@ Status GetFeatureStatistics(
         named_statistics,
     const std::string& dataset_name, const metadata::v0::Path& feature_path,
     FeatureNameStatistics* statistics) {
-  metadata::v0::DatasetFeatureStatistics dataset_statistics;
   auto named_feature_statistics = named_statistics.find(dataset_name);
   if (named_feature_statistics == named_statistics.end()) {
     if (dataset_name.empty()) {
-      // Look for the first
+      // If no matching stats are found and no dataset name is specified, use
+      // the default slice.
       named_feature_statistics = named_statistics.find(kDefaultSlice);
     }
     if (named_feature_statistics == named_statistics.end()) {
