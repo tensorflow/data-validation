@@ -36,7 +36,6 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 
 TEST_SEED = 12345
 
-
 _SAMPLE_PARTITION_TESTS = [{
     'testcase_name': 'sample_2_from_4',
     'partitioned_record_batches': [
@@ -91,7 +90,8 @@ _SAMPLE_PARTITION_TESTS = [{
                   ], ['fa', 'label_key']))],
     'sample_size':
         10,
-    'num_compacts': 1
+    'num_compacts':
+        1
 }, {
     'testcase_name': 'partition_of_empty_rb',
     'partitioned_record_batches': [(1,
@@ -123,7 +123,8 @@ _SAMPLE_PARTITION_TESTS = [{
     'sample_size': 10,
     'num_compacts': 1
 }, {
-    'testcase_name': 'many_compacts',
+    'testcase_name':
+        'many_compacts',
     'partitioned_record_batches': [(1,
                                     pa.RecordBatch.from_arrays([
                                         pa.array([['Green']]),
@@ -134,8 +135,10 @@ _SAMPLE_PARTITION_TESTS = [{
                       pa.array([['Green']] * 2),
                       pa.array([['Label']] * 2),
                   ], ['fa', 'label_key']))],
-    'sample_size': 2,
-    'num_compacts': 2
+    'sample_size':
+        2,
+    'num_compacts':
+        2
 }]
 
 
@@ -394,12 +397,20 @@ class SampleRecordBatchRows(parameterized.TestCase):
               counter_name))['distributions']
       self.assertEqual(actual_counter[0].committed.count,
                        expected_distributions[counter_name]['count'])
-      self.assertEqual(actual_counter[0].committed.sum,
-                       expected_distributions[counter_name]['sum'])
-      self.assertEqual(actual_counter[0].committed.max,
-                       expected_distributions[counter_name]['max'])
-      self.assertEqual(actual_counter[0].committed.min,
-                       expected_distributions[counter_name]['min'])
+      # The size estimation used delegate to Arrow, which empirically
+      # sometimes changes how size of batches is calculated.
+      self.assertAlmostEqual(
+          actual_counter[0].committed.sum,
+          expected_distributions[counter_name]['sum'],
+          delta=20)
+      self.assertAlmostEqual(
+          actual_counter[0].committed.max,
+          expected_distributions[counter_name]['max'],
+          delta=20)
+      self.assertAlmostEqual(
+          actual_counter[0].committed.min,
+          expected_distributions[counter_name]['min'],
+          delta=20)
 
 
 def _get_test_stats_with_mi(feature_paths):
