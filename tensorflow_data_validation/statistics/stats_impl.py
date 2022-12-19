@@ -269,8 +269,8 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
 
     # Apply combiner stats generators.
     # TODO(b/162543416): Obviate the need for explicit fanout.
-    fanout = max(32,
-                 5 * int(math.ceil(math.sqrt(len(combine_fns)))))
+    fanout = max(128,
+                 20 * int(math.ceil(math.sqrt(len(combine_fns)))))
     for i, combine_fn in enumerate(combine_fns):
       result_protos.append(
           dataset
@@ -565,6 +565,8 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
   # contain the merged record batch. If the total byte size of accumulated
   # record batches exceeds this threshold a merge will be forced to avoid
   # consuming too much memory.
+  #
+  # TODO(b/162543416): Perhaps this should be increased (eg to 32 or 64 MiB)?
   _MERGE_RECORD_BATCH_BYTE_SIZE_THRESHOLD = 20 << 20  # 20MiB
 
   def __init__(
@@ -608,6 +610,9 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
     return [func(gen, *args_for_func) for gen, args_for_func in zip(
         self._generators, zip(*args))]
 
+  # TODO(b/162543416): Perhaps counters should be incremented for each of the
+  # triggering (True) conditions, so that we understand the applicability and/or
+  # coverage of each?
   def _should_do_batch(self, accumulator: _CombinerStatsGeneratorsCombineFnAcc,
                        force: bool) -> bool:
     curr_batch_size = accumulator.curr_batch_size
