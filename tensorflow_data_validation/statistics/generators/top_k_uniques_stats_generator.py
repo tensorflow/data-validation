@@ -165,10 +165,10 @@ class _ComputeTopKUniquesStats(beam.PTransform):
       # is much faster as the length is known beforehand.
       if isinstance(iter_of_pairs, list):
         arr = np.array(
-            iter_of_pairs, dtype=[('c', np.int64), ('w', np.float)])
+            iter_of_pairs, dtype=[('c', np.int64), ('w', float)])
       else:
         arr = np.fromiter(
-            iter_of_pairs, dtype=[('c', np.int64), ('w', np.float)])
+            iter_of_pairs, dtype=[('c', np.int64), ('w', float)])
       return int(arr['c'].sum()), float(arr['w'].sum())
 
     has_any_weight = bool(self._example_weight_map.all_weight_features())

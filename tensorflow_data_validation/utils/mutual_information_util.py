@@ -105,7 +105,7 @@ def mutual_information(
     weight_feature: Optional[np.ndarray] = None,
     filter_feature: Optional[np.ndarray] = None,
     output_each: bool = False,
-    seed: Optional[int] = None) -> Union[np.float, Tuple[np.float, np.ndarray]]:
+    seed: Optional[int] = None) -> Union[float, Tuple[float, np.ndarray]]:
   """Computes MI between two lists of features (numpy arrays).
 
   The mutual information value is scaled by log(2) in the end so that the unit
@@ -396,7 +396,7 @@ def _assert_feature_list(feature_list: List[np.ndarray],
                          list_name: str) -> None:
   """Validates the contents of feature_list arg for `mutual_information`."""
   for f in feature_list:
-    if f.dtype == np.float:
+    if f.dtype == float:
       mask = (f == float('inf')) | (f == float('-inf'))
       assert np.sum(mask) == 0, (
           'Feature list: %s in list %s contains infinite values, which '

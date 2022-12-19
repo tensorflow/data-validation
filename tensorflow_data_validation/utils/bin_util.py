@@ -56,7 +56,7 @@ def bin_array(array: pa.Array,
   # np.less (and np.greater_equal) returns an (n, b) shape matrix of boolean
   # values where the entry at (i, j) indicates whether the ith array element is
   # less than (or greater than or equal to) the jth boundary.
-  array_column = np.expand_dims(np.asarray(array, dtype=np.float), axis=1)
+  array_column = np.expand_dims(np.asarray(array, dtype=float), axis=1)
   lower_bound_masks = np.greater_equal(array_column, boundaries)
   upper_bound_masks = np.less(array_column, boundaries)
 
