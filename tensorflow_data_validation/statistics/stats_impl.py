@@ -76,8 +76,8 @@ class GenerateStatisticsImpl(beam.PTransform):
 
     # If a set of allowed features are provided, keep only those features.
     if self._options.feature_allowlist:
-      dataset |= ('FilterFeaturesByAllowList' >> beam.Map(
-          _filter_features, feature_allowlist=self._options.feature_allowlist))
+      dataset |= 'FilterFeaturesByAllowList' >> beam.Map(
+          _filter_features, feature_allowlist=self._options.feature_allowlist)
 
     _ = dataset | 'TrackTotalBytes' >> collection.TrackRecordBatchBytes(
         constants.METRICS_NAMESPACE, 'record_batch_input_bytes')
