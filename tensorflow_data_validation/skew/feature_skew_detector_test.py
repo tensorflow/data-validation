@@ -510,7 +510,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
     result_metrics = runner.metrics()
     actual_counter = result_metrics.query(
         beam.metrics.metric.MetricsFilter().with_name(
-            'skipped_duplicate_identifier'))['counters']
+            'examplediff_skip_dupe_id'))['counters']
     self.assertLen(actual_counter, 1)
     self.assertEqual(actual_counter[0].committed, 1)
 

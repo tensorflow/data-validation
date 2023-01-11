@@ -450,8 +450,12 @@ class _ComputeSkew(beam.DoFn):
     self._features_to_ignore = features_to_ignore
     self._float_round_ndigits = float_round_ndigits
     self._allow_duplicate_identifiers = allow_duplicate_identifiers
-    self._skipped_duplicate_identifiers = beam.metrics.Metrics.counter(
-        constants.METRICS_NAMESPACE, "skipped_duplicate_identifier")
+    self._skipped_duplicate_identifiers_counter = beam.metrics.Metrics.counter(
+        constants.METRICS_NAMESPACE, "examplediff_skip_dupe_id")
+    self._ids_counter = beam.metrics.Metrics.counter(
+        constants.METRICS_NAMESPACE, "examplediff_ids_counter")
+    self._pairs_counter = beam.metrics.Metrics.counter(
+        constants.METRICS_NAMESPACE, "examplediff_pairs_counter")
     self._confusion_configs = confusion_configs
 
   def process(
@@ -471,10 +475,11 @@ class _ComputeSkew(beam.DoFn):
         1 if len(base_examples) > 1 or len(test_examples) > 1 else 0,
     )
     yield beam.pvalue.TaggedOutput(MATCH_STATS_KEY, match_stats)
-
+    self._ids_counter.inc(1)
+    self._pairs_counter.inc(len(base_examples) * len(test_examples))
     if not self._allow_duplicate_identifiers:
       if len(base_examples) > 1 or len(test_examples) > 1:
-        self._skipped_duplicate_identifiers.inc(1)
+        self._skipped_duplicate_identifiers_counter.inc(1)
         return
     if base_examples and test_examples:
       for base_example in base_examples:
