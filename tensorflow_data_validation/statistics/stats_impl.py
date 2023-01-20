@@ -592,6 +592,12 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
         constants.METRICS_NAMESPACE, 'num_compacts')
     self._num_instances = beam.metrics.Metrics.counter(
         constants.METRICS_NAMESPACE, 'num_instances')
+    self._num_do_batch_force = beam.metrics.Metrics.counter(
+        constants.METRICS_NAMESPACE, 'num_do_batch_force')
+    self._num_do_batch_count = beam.metrics.Metrics.counter(
+        constants.METRICS_NAMESPACE, 'num_do_batch_count')
+    self._num_do_batch_bytes = beam.metrics.Metrics.counter(
+        constants.METRICS_NAMESPACE, 'num_do_batch_bytes')
 
   def _for_each_generator(self,
                           func: Callable[..., Any],
@@ -610,20 +616,20 @@ class _CombinerStatsGeneratorsCombineFn(beam.CombineFn):
     return [func(gen, *args_for_func) for gen, args_for_func in zip(
         self._generators, zip(*args))]
 
-  # TODO(b/162543416): Perhaps counters should be incremented for each of the
-  # triggering (True) conditions, so that we understand the applicability and/or
-  # coverage of each?
   def _should_do_batch(self, accumulator: _CombinerStatsGeneratorsCombineFnAcc,
                        force: bool) -> bool:
     curr_batch_size = accumulator.curr_batch_size
     if force and curr_batch_size > 0:
+      self._num_do_batch_force.inc(1)
       return True
 
     if curr_batch_size >= self._desired_batch_size:
+      self._num_do_batch_count.inc(1)
       return True
 
     if (accumulator.curr_byte_size >=
         self._MERGE_RECORD_BATCH_BYTE_SIZE_THRESHOLD):
+      self._num_do_batch_bytes.inc(1)
       return True
 
     return False
