@@ -46,12 +46,13 @@ except ImportError as e:
   def HTML(s):  # pylint: disable=invalid-name
     return s
 
-  sys.stderr.write('Unable to import IPython: {}. \n'
-                   'TFDV visualization APIs will not function. To use '
-                   'visualization features, make sure IPython is installed, or '
-                   'install TFDV using '
-                   '"pip install tensorflow-data-validation[visualization]"\n'
-                   .format(e))
+  sys.stderr.write(
+      'Unable to import IPython: {}. \n'
+      'TFDV visualization APIs will not function. To use '
+      'visualization features, make sure IPython is installed, or '
+      'install TFDV using '
+      '"pip install tensorflow-data-validation[visualization]"\n'.format(e)
+  )
 
 _NL_CUSTOM_STATS_NAME = 'nl_statistics'
 _TOKEN_NAME_KEY = 'token_name'
@@ -68,24 +69,29 @@ def _add_quotes(input_str: types.FeatureName) -> types.FeatureName:
 
 
 def get_schema_dataframe(
-    schema: schema_pb2.Schema) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    schema: schema_pb2.Schema,
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
   """Returns a tuple of DataFrames containing the input schema information.
 
   Args:
     schema: A Schema protocol buffer.
+
   Returns:
     A tuple of DataFrames containing the features and domains of the schema.
   """
   if not isinstance(schema, schema_pb2.Schema):
-    raise TypeError('schema is of type %s, should be a Schema proto.' %
-                    type(schema).__name__)
+    raise TypeError(
+        'schema is of type %s, should be a Schema proto.'
+        % type(schema).__name__
+    )
 
   # Extract all the string domains at the schema level.
   domain_rows = []
   for domain in schema.string_domain:
-    domain_rows.append(
-        [_add_quotes(domain.name),
-         ', '.join(_add_quotes(v) for v in domain.value)])
+    domain_rows.append([
+        _add_quotes(domain.name),
+        ', '.join(_add_quotes(v) for v in domain.value),
+    ])
 
   feature_rows = []
   # Iterate over the features in the schema and extract the properties of each
@@ -103,21 +109,30 @@ def get_schema_dataframe(
     # Extract the valency information of the feature.
     valency = ''
     if feature.HasField('value_count'):
-      if (feature.value_count.min == feature.value_count.max and
-          feature.value_count.min == 1):
+      if (
+          feature.value_count.min == feature.value_count.max
+          and feature.value_count.min == 1
+      ):
         valency = 'single'
       else:
-        min_value_count = ('[%d' % feature.value_count.min
-                           if feature.value_count.HasField('min') else '[0')
-        max_value_count = ('%d]' % feature.value_count.max
-                           if feature.value_count.HasField('max') else 'inf)')
+        min_value_count = (
+            '[%d' % feature.value_count.min
+            if feature.value_count.HasField('min')
+            else '[0'
+        )
+        max_value_count = (
+            '%d]' % feature.value_count.max
+            if feature.value_count.HasField('max')
+            else 'inf)'
+        )
         valency = min_value_count + ',' + max_value_count
 
     # Extract the feature type.
     feature_type = schema_pb2.FeatureType.Name(feature.type)
     # If the feature has a string domain, treat it as a string feature.
-    if feature_type == 'BYTES' and (feature.HasField('domain') or
-                                    feature.HasField('string_domain')):
+    if feature_type == 'BYTES' and (
+        feature.HasField('domain') or feature.HasField('string_domain')
+    ):
       feature_type = 'STRING'
 
     # Extract the domain (if any) of the feature.
@@ -136,10 +151,16 @@ def get_schema_dataframe(
     if feature.HasField('domain'):
       domain = _add_quotes(feature.domain)
     elif feature.HasField('int_domain'):
-      min_string = ('min: %d' % feature.int_domain.min
-                    if feature.int_domain.HasField('min') else None)
-      max_string = ('max: %d' % feature.int_domain.max
-                    if feature.int_domain.HasField('max') else None)
+      min_string = (
+          'min: %d' % feature.int_domain.min
+          if feature.int_domain.HasField('min')
+          else None
+      )
+      max_string = (
+          'max: %d' % feature.int_domain.max
+          if feature.int_domain.HasField('max')
+          else None
+      )
       domain = combine_min_max_strings(min_string, max_string)
     elif feature.HasField('float_domain'):
       if feature.float_domain.HasField('min'):
@@ -156,24 +177,32 @@ def get_schema_dataframe(
         max_string = 'max: inf'
       domain = combine_min_max_strings(min_string, max_string)
     elif feature.HasField('string_domain'):
-      domain = _add_quotes(feature.string_domain.name if
-                           feature.string_domain.name else
-                           feature.name + '_domain')
-      domain_rows.append([domain,
-                          ', '.join(_add_quotes(v) for v in
-                                    feature.string_domain.value)])
+      domain = _add_quotes(
+          feature.string_domain.name
+          if feature.string_domain.name
+          else feature.name + '_domain'
+      )
+      domain_rows.append([
+          domain,
+          ', '.join(_add_quotes(v) for v in feature.string_domain.value),
+      ])
 
-    feature_rows.append(
-        [_add_quotes(feature.name), feature_type, feature_presence, valency,
-         domain])
+    feature_rows.append([
+        _add_quotes(feature.name),
+        feature_type,
+        feature_presence,
+        valency,
+        domain,
+    ])
 
   features = pd.DataFrame(
       feature_rows,
-      columns=['Feature name', 'Type', 'Presence', 'Valency',
-               'Domain']).set_index('Feature name')
+      columns=['Feature name', 'Type', 'Presence', 'Valency', 'Domain'],
+  ).set_index('Feature name')
 
-  domains = pd.DataFrame(
-      domain_rows, columns=['Domain', 'Values']).set_index('Domain')
+  domains = pd.DataFrame(domain_rows, columns=['Domain', 'Values']).set_index(
+      'Domain'
+  )
 
   return features, domains
 
@@ -197,33 +226,40 @@ def get_anomalies_dataframe(anomalies: anomalies_pb2.Anomalies) -> pd.DataFrame:
 
   Args:
     anomalies: An Anomalies protocol buffer.
+
   Returns:
     A DataFrame containing the input anomalies, or an empty DataFrame if there
     are no anomalies.
   """
   if not isinstance(anomalies, anomalies_pb2.Anomalies):
-    raise TypeError('anomalies is of type %s, should be an Anomalies proto.' %
-                    type(anomalies).__name__)
+    raise TypeError(
+        'anomalies is of type %s, should be an Anomalies proto.'
+        % type(anomalies).__name__
+    )
 
   anomaly_rows = []
   for feature_name, anomaly_info in anomalies.anomaly_info.items():
     anomaly_rows.append([
-        _add_quotes(feature_name), anomaly_info.short_description,
-        anomaly_info.description
+        _add_quotes(feature_name),
+        anomaly_info.short_description,
+        anomaly_info.description,
     ])
   if anomalies.HasField('dataset_anomaly_info'):
     anomaly_rows.append([
-        '[dataset anomaly]', anomalies.dataset_anomaly_info.short_description,
-        anomalies.dataset_anomaly_info.description
+        '[dataset anomaly]',
+        anomalies.dataset_anomaly_info.short_description,
+        anomalies.dataset_anomaly_info.description,
     ])
 
   # Construct a DataFrame consisting of the anomalies.
   anomalies_df = pd.DataFrame(
       anomaly_rows,
       columns=[
-          'Feature name', 'Anomaly short description',
-          'Anomaly long description'
-      ]).set_index('Feature name')
+          'Feature name',
+          'Anomaly short description',
+          'Anomaly long description',
+      ],
+  ).set_index('Feature name')
   # Do not truncate columns.
   pd.set_option('max_colwidth', None)
   return anomalies_df
@@ -234,13 +270,15 @@ def get_drift_skew_dataframe(anomalies):
   result = []
   for info in anomalies.drift_skew_info:
     for measurement in info.drift_measurements:
-      result.append(
-          (str(types.FeaturePath.from_proto(info.path)),
-           anomalies_pb2.DriftSkewInfo.Measurement.Type.Name(measurement.type),
-           measurement.value,
-           measurement.threshold))
+      result.append((
+          str(types.FeaturePath.from_proto(info.path)),
+          anomalies_pb2.DriftSkewInfo.Measurement.Type.Name(measurement.type),
+          measurement.value,
+          measurement.threshold,
+      ))
   return pd.DataFrame(
-      result, columns=['path', 'type', 'value', 'threshold']).set_index('path')
+      result, columns=['path', 'type', 'value', 'threshold']
+  ).set_index('path')
 
 
 def display_anomalies(anomalies: anomalies_pb2.Anomalies) -> None:
@@ -259,7 +297,7 @@ def display_anomalies(anomalies: anomalies_pb2.Anomalies) -> None:
 def _project_statistics(
     statistics: statistics_pb2.DatasetFeatureStatisticsList,
     allowlist_features: Optional[List[types.FeaturePath]] = None,
-    denylist_features: Optional[List[types.FeaturePath]] = None
+    denylist_features: Optional[List[types.FeaturePath]] = None,
 ) -> statistics_pb2.DatasetFeatureStatisticsList:
   """Project statistics proto based on allowlist and denylist features."""
   if allowlist_features is None and denylist_features is None:
@@ -283,51 +321,67 @@ def _project_statistics(
   return result
 
 
+def _get_default_slice_stats(
+    statistics: statistics_pb2.DatasetFeatureStatisticsList,
+) -> statistics_pb2.DatasetFeatureStatisticsList:
+  if len(statistics.datasets) == 1:
+    return statistics
+  view = stats_util.DatasetListView(statistics)
+  return statistics_pb2.DatasetFeatureStatisticsList(
+      datasets=[view.get_default_slice_or_die().proto()]
+  )
+
+
 def _get_combined_statistics(
     lhs_statistics: statistics_pb2.DatasetFeatureStatisticsList,
     rhs_statistics: Optional[
-        statistics_pb2.DatasetFeatureStatisticsList] = None,
-    lhs_name: Text = 'lhs_statistics',
-    rhs_name: Text = 'rhs_statistics',
+        statistics_pb2.DatasetFeatureStatisticsList
+    ] = None,
+    lhs_name: Optional[str] = None,
+    rhs_name: Optional[str] = None,
     allowlist_features: Optional[List[types.FeaturePath]] = None,
-    denylist_features: Optional[List[types.FeaturePath]] = None
+    denylist_features: Optional[List[types.FeaturePath]] = None,
 ) -> statistics_pb2.DatasetFeatureStatisticsList:
   """Get combined datatset statistics list proto."""
-  if not isinstance(lhs_statistics,
-                    statistics_pb2.DatasetFeatureStatisticsList):
+  if not isinstance(
+      lhs_statistics, statistics_pb2.DatasetFeatureStatisticsList
+  ):
     raise TypeError(
         'lhs_statistics is of type %s, should be '
-        'a DatasetFeatureStatisticsList proto.' % type(lhs_statistics).__name__)
+        'a DatasetFeatureStatisticsList proto.'
+        % type(lhs_statistics).__name__
+    )
 
-  if not lhs_statistics.datasets:
-    raise ValueError('lhs_statistics proto contains no dataset.')
-
-  if len(lhs_statistics.datasets) != 1:
-    raise ValueError('lhs_statistics proto contains multiple datasets. Only '
-                     'one dataset is currently supported.')
-
-  if lhs_statistics.datasets[0].name:
-    lhs_name = lhs_statistics.datasets[0].name
+  lhs_statistics = _get_default_slice_stats(lhs_statistics)
+  if lhs_name is None:
+    if lhs_statistics.datasets[0].name:
+      lhs_name = lhs_statistics.datasets[0].name
+    else:
+      lhs_name = 'lhs_statistics'
 
   # Add lhs stats.
   lhs_statistics = _project_statistics(
-      lhs_statistics, allowlist_features, denylist_features)
+      lhs_statistics, allowlist_features, denylist_features
+  )
   combined_statistics = statistics_pb2.DatasetFeatureStatisticsList()
   lhs_stats_copy = combined_statistics.datasets.add()
   lhs_stats_copy.MergeFrom(lhs_statistics.datasets[0])
 
   if rhs_statistics is not None:
-    if not isinstance(rhs_statistics,
-                      statistics_pb2.DatasetFeatureStatisticsList):
-      raise TypeError('rhs_statistics is of type %s, should be a '
-                      'DatasetFeatureStatisticsList proto.'
-                      % type(rhs_statistics).__name__)
-    if len(rhs_statistics.datasets) != 1:
-      raise ValueError('rhs_statistics proto contains multiple datasets. Only '
-                       'one dataset is currently supported.')
-
-    if rhs_statistics.datasets[0].name:
-      rhs_name = rhs_statistics.datasets[0].name
+    if not isinstance(
+        rhs_statistics, statistics_pb2.DatasetFeatureStatisticsList
+    ):
+      raise TypeError(
+          'rhs_statistics is of type %s, should be a '
+          'DatasetFeatureStatisticsList proto.'
+          % type(rhs_statistics).__name__
+      )
+    rhs_statistics = _get_default_slice_stats(rhs_statistics)
+    if rhs_name is None:
+      if rhs_statistics.datasets[0].name:
+        rhs_name = rhs_statistics.datasets[0].name
+      else:
+        rhs_name = 'rhs_statistics'
 
     # If we have same name, revert to default names.
     if lhs_name == rhs_name:
@@ -335,7 +389,8 @@ def _get_combined_statistics(
 
     # Add rhs stats.
     rhs_statistics = _project_statistics(
-        rhs_statistics, allowlist_features, denylist_features)
+        rhs_statistics, allowlist_features, denylist_features
+    )
     rhs_stats_copy = combined_statistics.datasets.add()
     rhs_stats_copy.MergeFrom(rhs_statistics.datasets[0])
     rhs_stats_copy.name = rhs_name
@@ -348,11 +403,12 @@ def _get_combined_statistics(
 def get_statistics_html(
     lhs_statistics: statistics_pb2.DatasetFeatureStatisticsList,
     rhs_statistics: Optional[
-        statistics_pb2.DatasetFeatureStatisticsList] = None,
+        statistics_pb2.DatasetFeatureStatisticsList
+    ] = None,
     lhs_name: Text = 'lhs_statistics',
     rhs_name: Text = 'rhs_statistics',
     allowlist_features: Optional[List[types.FeaturePath]] = None,
-    denylist_features: Optional[List[types.FeaturePath]] = None
+    denylist_features: Optional[List[types.FeaturePath]] = None,
 ) -> Text:
   """Build the HTML for visualizing the input statistics using Facets.
 
@@ -375,10 +431,16 @@ def get_statistics_html(
     ValueError: If the input statistics protos does not have only one dataset.
   """
   combined_statistics = _get_combined_statistics(
-      lhs_statistics, rhs_statistics, lhs_name, rhs_name, allowlist_features,
-      denylist_features)
-  protostr = base64.b64encode(
-      combined_statistics.SerializeToString()).decode('utf-8')
+      lhs_statistics,
+      rhs_statistics,
+      lhs_name,
+      rhs_name,
+      allowlist_features,
+      denylist_features,
+  )
+  protostr = base64.b64encode(combined_statistics.SerializeToString()).decode(
+      'utf-8'
+  )
 
   # pylint: disable=line-too-long,anomalous-backslash-in-string
   # Note that in the html template we currently assign a temporary id to the
@@ -407,11 +469,13 @@ def get_statistics_html(
 def visualize_statistics(
     lhs_statistics: statistics_pb2.DatasetFeatureStatisticsList,
     rhs_statistics: Optional[
-        statistics_pb2.DatasetFeatureStatisticsList] = None,
+        statistics_pb2.DatasetFeatureStatisticsList
+    ] = None,
     lhs_name: Text = 'lhs_statistics',
     rhs_name: Text = 'rhs_statistics',
     allowlist_features: Optional[List[types.FeaturePath]] = None,
-    denylist_features: Optional[List[types.FeaturePath]] = None) -> None:
+    denylist_features: Optional[List[types.FeaturePath]] = None,
+) -> None:
   """Visualize the input statistics using Facets.
 
   Args:
@@ -429,15 +493,25 @@ def visualize_statistics(
     TypeError: If the input argument is not of the expected type.
     ValueError: If the input statistics protos does not have only one dataset.
   """
-  assert (not allowlist_features or not denylist_features), (
-      'Only specify one of allowlist_features and denylist_features.')
-  html = get_statistics_html(lhs_statistics, rhs_statistics, lhs_name, rhs_name,
-                             allowlist_features, denylist_features)
+  assert (
+      not allowlist_features or not denylist_features
+  ), 'Only specify one of allowlist_features and denylist_features.'
+  html = get_statistics_html(
+      lhs_statistics,
+      rhs_statistics,
+      lhs_name,
+      rhs_name,
+      allowlist_features,
+      denylist_features,
+  )
   display(HTML(html))
 
 
-def compare_slices(statistics: statistics_pb2.DatasetFeatureStatisticsList,
-                   lhs_slice_key: Text, rhs_slice_key: Text):
+def compare_slices(
+    statistics: statistics_pb2.DatasetFeatureStatisticsList,
+    lhs_slice_key: Text,
+    rhs_slice_key: Text,
+):
   """Compare statistics of two slices using Facets.
 
   Args:
@@ -451,20 +525,25 @@ def compare_slices(statistics: statistics_pb2.DatasetFeatureStatisticsList,
   """
   lhs_stats = stats_util.get_slice_stats(statistics, lhs_slice_key)
   rhs_stats = stats_util.get_slice_stats(statistics, rhs_slice_key)
-  visualize_statistics(lhs_stats, rhs_stats,
-                       lhs_name=lhs_slice_key, rhs_name=rhs_slice_key)
+  visualize_statistics(
+      lhs_stats, rhs_stats, lhs_name=lhs_slice_key, rhs_name=rhs_slice_key
+  )
 
 
 def get_natural_language_statistics_dataframes(
     lhs_statistics: statistics_pb2.DatasetFeatureStatisticsList,
     rhs_statistics: Optional[
-        statistics_pb2.DatasetFeatureStatisticsList] = None,
+        statistics_pb2.DatasetFeatureStatisticsList
+    ] = None,
     lhs_name: Text = 'lhs_statistics',
     rhs_name: Text = 'rhs_statistics',
     allowlist_features: Optional[List[types.FeaturePath]] = None,
-    denylist_features: Optional[List[types.FeaturePath]] = None
-) -> Optional[Dict[str, Dict[Union[int, str], Union[Dict[str, pd.DataFrame],
-                                                    pd.DataFrame]]]]:
+    denylist_features: Optional[List[types.FeaturePath]] = None,
+) -> Optional[
+    Dict[
+        str, Dict[Union[int, str], Union[Dict[str, pd.DataFrame], pd.DataFrame]]
+    ]
+]:
   """Gets the `NaturalLanguageStatistics` as a dict of pandas.DataFrame.
 
   Each pd.DataFrame can be fed into a plot with little to no manipulation.
@@ -504,10 +583,14 @@ def get_natural_language_statistics_dataframes(
     A dict of pandas data frames. Returns None if natural language statistics
     does not exist in the statistics proto.
   """
-  combined_statistics = _get_combined_statistics(lhs_statistics, rhs_statistics,
-                                                 lhs_name, rhs_name,
-                                                 allowlist_features,
-                                                 denylist_features)
+  combined_statistics = _get_combined_statistics(
+      lhs_statistics,
+      rhs_statistics,
+      lhs_name,
+      rhs_name,
+      allowlist_features,
+      denylist_features,
+  )
   nlp_stats = _get_natural_language_statistics(combined_statistics)
   if not nlp_stats:
     return None
@@ -517,16 +600,18 @@ def get_natural_language_statistics_dataframes(
     result[ds_name] = {}
     for feature_name, nlp_stat in features_dict.items():
       result[ds_name][feature_name] = {
-          'token_length_histogram':
-              _get_histogram_dataframe(nlp_stat.token_length_histogram),
-          'token_statistics':
-              _get_token_statistics(list(nlp_stat.token_statistics))
+          'token_length_histogram': _get_histogram_dataframe(
+              nlp_stat.token_length_histogram
+          ),
+          'token_statistics': _get_token_statistics(
+              list(nlp_stat.token_statistics)
+          ),
       }
   return result
 
 
 def _get_natural_language_statistics(
-    statistics: statistics_pb2.DatasetFeatureStatisticsList
+    statistics: statistics_pb2.DatasetFeatureStatisticsList,
 ) -> Dict[str, Dict[str, statistics_pb2.NaturalLanguageStatistics]]:
   """Gets the Natural Language stat out of the custom statistic."""
   result = {}
@@ -551,7 +636,8 @@ def _get_natural_language_statistics(
 
 def _get_token_statistics(
     token_statistic: List[
-        statistics_pb2.NaturalLanguageStatistics.TokenStatistics]
+        statistics_pb2.NaturalLanguageStatistics.TokenStatistics
+    ],
 ) -> pd.DataFrame:
   """Returns a dict of each token's stats."""
   nlp_stats_dict = {
@@ -572,18 +658,23 @@ def _get_token_statistics(
     nlp_stats_dict[_FREQUENCY_KEY].append(token.frequency)
     nlp_stats_dict[_FRACTION_OF_SEQ_KEY].append(token.fraction_of_sequences)
     nlp_stats_dict[_PER_SEQ_MIN_FREQ_KEY].append(
-        token.per_sequence_min_frequency)
+        token.per_sequence_min_frequency
+    )
     nlp_stats_dict[_PER_SEQ_MAX_FREQ_KEY].append(
-        token.per_sequence_max_frequency)
+        token.per_sequence_max_frequency
+    )
     nlp_stats_dict[_PER_SEQ_AVG_FREQ_KEY].append(
-        token.per_sequence_avg_frequency)
+        token.per_sequence_avg_frequency
+    )
     nlp_stats_dict[_POSITIONS_KEY].append(
-        _get_histogram_dataframe(token.positions))
+        _get_histogram_dataframe(token.positions)
+    )
   return pd.DataFrame.from_dict(nlp_stats_dict)
 
 
 def _get_histogram_dataframe(
-    histogram: statistics_pb2.Histogram) -> pd.DataFrame:
+    histogram: statistics_pb2.Histogram,
+) -> pd.DataFrame:
   """Gets the `Histogram` as a pandas.DataFrame."""
   return pd.DataFrame.from_dict({
       'high_values': [b.high_value for b in histogram.buckets],
@@ -593,27 +684,42 @@ def _get_histogram_dataframe(
 
 
 def get_skew_result_dataframe(
-    skew_results: Iterable[feature_skew_results_pb2.FeatureSkew]
+    skew_results: Iterable[feature_skew_results_pb2.FeatureSkew],
 ) -> pd.DataFrame:
   """Formats FeatureSkew results as a pandas dataframe."""
   result = []
   for feature_skew in skew_results:
-    result.append((feature_skew.feature_name, feature_skew.base_count,
-                   feature_skew.test_count, feature_skew.match_count,
-                   feature_skew.base_only, feature_skew.test_only,
-                   feature_skew.mismatch_count, feature_skew.diff_count))
+    result.append((
+        feature_skew.feature_name,
+        feature_skew.base_count,
+        feature_skew.test_count,
+        feature_skew.match_count,
+        feature_skew.base_only,
+        feature_skew.test_only,
+        feature_skew.mismatch_count,
+        feature_skew.diff_count,
+    ))
   # Preserve deterministic order from the proto.
   columns = [
-      'feature_name', 'base_count', 'test_count', 'match_count', 'base_only',
-      'test_only', 'mismatch_count', 'diff_count'
+      'feature_name',
+      'base_count',
+      'test_count',
+      'match_count',
+      'base_only',
+      'test_only',
+      'mismatch_count',
+      'diff_count',
   ]
-  return pd.DataFrame(
-      result,
-      columns=columns).sort_values('feature_name').reset_index(drop=True)
+  return (
+      pd.DataFrame(result, columns=columns)
+      .sort_values('feature_name')
+      .reset_index(drop=True)
+  )
 
 
 def get_match_stats_dataframe(
-    match_stats: feature_skew_results_pb2.MatchStats) -> pd.DataFrame:
+    match_stats: feature_skew_results_pb2.MatchStats,
+) -> pd.DataFrame:
   """Formats MatchStats as a pandas dataframe."""
   return pd.DataFrame.from_dict({
       'base_with_id_count': [match_stats.base_with_id_count],
@@ -629,7 +735,7 @@ def get_match_stats_dataframe(
 
 
 def get_confusion_count_dataframes(
-    confusion: Iterable[feature_skew_results_pb2.ConfusionCount]
+    confusion: Iterable[feature_skew_results_pb2.ConfusionCount],
 ) -> Dict[str, pd.DataFrame]:
   """Returns a pandas dataframe representation of a sequence of ConfusionCount.
 
@@ -652,14 +758,18 @@ def get_confusion_count_dataframes(
       test_count_per_value[c.test.bytes_value] += c.count
       value_counts.append((c.base.bytes_value, c.test.bytes_value, c.count))
     df = pd.DataFrame(
-        value_counts, columns=('Base value', 'Test value', 'Pair count'))
+        value_counts, columns=('Base value', 'Test value', 'Pair count')
+    )
     df['Base count'] = df['Base value'].apply(lambda x: base_count_per_value[x])
     df['Test count'] = df['Test value'].apply(lambda x: test_count_per_value[x])
     df['Fraction of base'] = df['Pair count'] / df['Base count']
-    df = df[df['Base value'] != df['Test value']].sort_values(
-        ['Base value', 'Fraction of base']).reset_index(drop=True)
-    return df[[
-        'Base value', 'Test value', 'Pair count', 'Base count', 'Test count'
-    ]]
+    df = (
+        df[df['Base value'] != df['Test value']]
+        .sort_values(['Base value', 'Fraction of base'])
+        .reset_index(drop=True)
+    )
+    return df[
+        ['Base value', 'Test value', 'Pair count', 'Base count', 'Test count']
+    ]
 
   return {k: _build_df(v) for k, v in confusion_per_feature.items()}
