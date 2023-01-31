@@ -693,28 +693,28 @@ def skew_results_sink(output_path_prefix: str) -> beam.PTransform:
   """Record based PSink for FeatureSkew protos."""
   return statistics_io_impl.default_record_sink(
       output_path_prefix,
-      beam.coders.ProtoCoder(feature_skew_results_pb2.FeatureSkew))
+      feature_skew_results_pb2.FeatureSkew)
 
 
 def skew_pair_sink(output_path_prefix: str) -> beam.PTransform:
   """Record based PSink for SkewPair protos."""
   return statistics_io_impl.default_record_sink(
       output_path_prefix,
-      beam.coders.ProtoCoder(feature_skew_results_pb2.SkewPair))
+      feature_skew_results_pb2.SkewPair)
 
 
 def confusion_count_sink(output_path_prefix: str) -> beam.PTransform:
   """Record based PSink for ConfusionCount protos."""
   return statistics_io_impl.default_record_sink(
       output_path_prefix,
-      beam.coders.ProtoCoder(feature_skew_results_pb2.ConfusionCount))
+      feature_skew_results_pb2.ConfusionCount)
 
 
 def match_stats_sink(output_path_prefix: str) -> beam.PTransform:
   """Record based PSink for MatchStats protos."""
   return statistics_io_impl.default_record_sink(
       output_path_prefix,
-      beam.coders.ProtoCoder(feature_skew_results_pb2.MatchStats))
+      feature_skew_results_pb2.MatchStats)
 
 
 def skew_results_iterator(

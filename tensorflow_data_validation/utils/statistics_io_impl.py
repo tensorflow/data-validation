@@ -13,10 +13,11 @@
 # limitations under the License
 """Record sink support."""
 
-from typing import Callable, Iterable, Iterator, Optional, TypeVar
+from typing import Callable, Iterable, Iterator, Optional, Type, TypeVar
 
 import apache_beam as beam
 import tensorflow as tf
+from google.protobuf import message
 
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
@@ -74,9 +75,8 @@ class _TFRecordProviderImpl(StatisticsIOProvider):
   def record_sink_impl(self,
                        output_path_prefix: str) -> beam.PTransform:
     return default_record_sink(
-        output_path_prefix,
-        coder=beam.coders.ProtoCoder(
-            statistics_pb2.DatasetFeatureStatisticsList))
+        output_path_prefix, proto=statistics_pb2.DatasetFeatureStatisticsList
+    )
 
   def glob(self, output_path_prefix) -> Iterator[str]:
     """Returns filenames matching the output pattern of record_sink_impl."""
@@ -107,9 +107,11 @@ def should_write_sharded():
 
 
 def default_record_sink(output_path_prefix: str,
-                        coder: beam.coders.Coder) -> beam.PTransform:
+                        proto: Type[message.Message]) -> beam.PTransform:
   """TFRecord based record sink."""
-  return beam.io.WriteToTFRecord(output_path_prefix, coder=coder)
+  return beam.io.WriteToTFRecord(
+      output_path_prefix, coder=beam.coders.ProtoCoder(proto)
+  )
 
 
 _MESSAGE_TYPE = TypeVar('_MESSAGE_TYPE')  # pylint: disable=invalid-name
