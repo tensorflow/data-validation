@@ -28,7 +28,7 @@ import pyarrow as pa
 import tensorflow as tf
 
 from tensorflow_data_validation.api import stats_api
-from tensorflow_data_validation.utils import statistics_io_impl
+from tensorflow_data_validation.utils import artifacts_io_impl
 from tensorflow_data_validation.statistics import stats_options
 from tensorflow_data_validation.utils import io_util
 from tensorflow_data_validation.utils import stats_util
@@ -482,7 +482,7 @@ class StatsAPITest(absltest.TestCase):
         stats_from_shards.datasets[0],
         stats_combined.datasets[0])
 
-    if statistics_io_impl.get_default_columnar_provider():
+    if artifacts_io_impl.get_default_columnar_provider():
       self.assertNotEmpty(tf.io.gfile.glob(columnar_path_prefix + '-*-of-*'))
 
 

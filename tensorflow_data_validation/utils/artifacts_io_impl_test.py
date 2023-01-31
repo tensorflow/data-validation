@@ -11,12 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License
-"""Tests for record_sink."""
+"""Tests for artifacts_io_impl."""
 import tempfile
 
 from absl.testing import absltest
 import apache_beam as beam
-from tensorflow_data_validation.utils import statistics_io_impl
+from tensorflow_data_validation.utils import artifacts_io_impl
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
@@ -32,7 +32,7 @@ class RecordSinkAndSourceTest(absltest.TestCase):
     output_prefix = tempfile.mkdtemp() + '/statistics'
 
     with beam.Pipeline() as p:
-      provider = statistics_io_impl.get_io_provider('tfrecords')
+      provider = artifacts_io_impl.get_io_provider('tfrecords')
       _ = (p | beam.Create(datasets) | provider.record_sink_impl(output_prefix))
 
     got = provider.record_iterator_impl(provider.glob(output_prefix))

@@ -24,7 +24,7 @@ from absl.testing import absltest
 import numpy as np
 import tensorflow as tf
 from tensorflow_data_validation import types
-from tensorflow_data_validation.utils import statistics_io_impl
+from tensorflow_data_validation.utils import artifacts_io_impl
 from tensorflow_data_validation.utils import stats_util
 
 from google.protobuf import text_format
@@ -440,7 +440,7 @@ class LoadShardedStatisticsTest(absltest.TestCase):
     writer.close()
     view = stats_util.load_sharded_statistics(
         input_paths=[tmp_path],
-        io_provider=statistics_io_impl.get_io_provider('tfrecords'))
+        io_provider=artifacts_io_impl.get_io_provider('tfrecords'))
     compare.assertProtoEqual(self, view.proto(), full_stats_proto)
 
   def test_load_sharded_pattern(self):
@@ -456,7 +456,7 @@ class LoadShardedStatisticsTest(absltest.TestCase):
     writer.close()
     view = stats_util.load_sharded_statistics(
         input_path_prefix=tmp_path.rstrip('-0-of-1'),
-        io_provider=statistics_io_impl.get_io_provider('tfrecords'))
+        io_provider=artifacts_io_impl.get_io_provider('tfrecords'))
     compare.assertProtoEqual(self, view.proto(), full_stats_proto)
 
 

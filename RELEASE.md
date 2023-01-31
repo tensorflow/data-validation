@@ -6,6 +6,8 @@
 
 ## Bug Fixes and Other Changes
 
+* Rename `statistics_io_impl` and `default_record_sink` (not part of public API).
+
 ## Known Issues
 
 ## Breaking Changes

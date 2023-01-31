@@ -85,7 +85,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
-from tensorflow_data_validation.utils import statistics_io_impl
+from tensorflow_data_validation.utils import artifacts_io_impl
 from tensorflow_data_validation.skew.protos import feature_skew_results_pb2
 
 
@@ -691,28 +691,28 @@ class DetectFeatureSkewImpl(beam.PTransform):
 
 def skew_results_sink(output_path_prefix: str) -> beam.PTransform:
   """Record based PSink for FeatureSkew protos."""
-  return statistics_io_impl.default_record_sink(
+  return artifacts_io_impl.feature_skew_sink(
       output_path_prefix,
       feature_skew_results_pb2.FeatureSkew)
 
 
 def skew_pair_sink(output_path_prefix: str) -> beam.PTransform:
   """Record based PSink for SkewPair protos."""
-  return statistics_io_impl.default_record_sink(
+  return artifacts_io_impl.feature_skew_sink(
       output_path_prefix,
       feature_skew_results_pb2.SkewPair)
 
 
 def confusion_count_sink(output_path_prefix: str) -> beam.PTransform:
   """Record based PSink for ConfusionCount protos."""
-  return statistics_io_impl.default_record_sink(
+  return artifacts_io_impl.feature_skew_sink(
       output_path_prefix,
       feature_skew_results_pb2.ConfusionCount)
 
 
 def match_stats_sink(output_path_prefix: str) -> beam.PTransform:
   """Record based PSink for MatchStats protos."""
-  return statistics_io_impl.default_record_sink(
+  return artifacts_io_impl.feature_skew_sink(
       output_path_prefix,
       feature_skew_results_pb2.MatchStats)
 
@@ -720,26 +720,26 @@ def match_stats_sink(output_path_prefix: str) -> beam.PTransform:
 def skew_results_iterator(
     input_pattern_prefix) -> Iterator[feature_skew_results_pb2.FeatureSkew]:
   """Reads records written by skew_results_sink."""
-  return statistics_io_impl.default_record_reader(
+  return artifacts_io_impl.default_record_reader(
       input_pattern_prefix + "*-of-*", feature_skew_results_pb2.FeatureSkew)
 
 
 def skew_pair_iterator(
     input_pattern_prefix) -> Iterator[feature_skew_results_pb2.SkewPair]:
   """Reads records written by skew_pair_sink."""
-  return statistics_io_impl.default_record_reader(
+  return artifacts_io_impl.default_record_reader(
       input_pattern_prefix + "*-of-*", feature_skew_results_pb2.SkewPair)
 
 
 def match_stats_iterator(
     input_pattern_prefix) -> Iterator[feature_skew_results_pb2.MatchStats]:
   """Reads records written by match_stats_sink."""
-  return statistics_io_impl.default_record_reader(
+  return artifacts_io_impl.default_record_reader(
       input_pattern_prefix + "*-of-*", feature_skew_results_pb2.MatchStats)
 
 
 def confusion_count_iterator(
     input_pattern_prefix) -> Iterator[feature_skew_results_pb2.ConfusionCount]:
   """Reads records written by confusion_count_sink."""
-  return statistics_io_impl.default_record_reader(
+  return artifacts_io_impl.default_record_reader(
       input_pattern_prefix + "*-of-*", feature_skew_results_pb2.ConfusionCount)

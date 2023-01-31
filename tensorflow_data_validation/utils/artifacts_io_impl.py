@@ -72,10 +72,12 @@ def get_io_provider(
 class _TFRecordProviderImpl(StatisticsIOProvider):
   """TFRecord backed impl."""
 
-  def record_sink_impl(self,
-                       output_path_prefix: str) -> beam.PTransform:
-    return default_record_sink(
-        output_path_prefix, proto=statistics_pb2.DatasetFeatureStatisticsList
+  def record_sink_impl(self, output_path_prefix: str) -> beam.PTransform:
+    return beam.io.WriteToTFRecord(
+        output_path_prefix,
+        coder=beam.coders.ProtoCoder(
+            statistics_pb2.DatasetFeatureStatisticsList
+        ),
     )
 
   def glob(self, output_path_prefix) -> Iterator[str]:
@@ -106,9 +108,10 @@ def should_write_sharded():
   return False
 
 
-def default_record_sink(output_path_prefix: str,
-                        proto: Type[message.Message]) -> beam.PTransform:
-  """TFRecord based record sink."""
+def feature_skew_sink(
+    output_path_prefix: str, proto: Type[message.Message]
+) -> beam.PTransform:
+  """Sink for writing feature skew results."""
   return beam.io.WriteToTFRecord(
       output_path_prefix, coder=beam.coders.ProtoCoder(proto)
   )

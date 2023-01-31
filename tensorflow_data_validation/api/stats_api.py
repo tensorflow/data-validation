@@ -48,7 +48,7 @@ from typing import Generator, Text, Optional
 
 import apache_beam as beam
 import pyarrow as pa
-from tensorflow_data_validation.utils import statistics_io_impl
+from tensorflow_data_validation.utils import artifacts_io_impl
 from tensorflow_data_validation.statistics import stats_impl
 from tensorflow_data_validation.statistics import stats_options
 from tfx_bsl.statistics import merge_util
@@ -197,7 +197,7 @@ class WriteStatisticsToRecordsAndBinaryFile(beam.PTransform):
     """
     self._binary_proto_path = binary_proto_path
     self._records_path_prefix = records_path_prefix
-    self._io_provider = statistics_io_impl.get_io_provider()
+    self._io_provider = artifacts_io_impl.get_io_provider()
     self._columnar_path_prefix = columnar_path_prefix
 
   def expand(self, stats: beam.PCollection) -> beam.pvalue.PDone:
@@ -206,7 +206,7 @@ class WriteStatisticsToRecordsAndBinaryFile(beam.PTransform):
         stats | 'WriteShardedStats' >> self._io_provider.record_sink_impl(
             output_path_prefix=self._records_path_prefix))
     if self._columnar_path_prefix is not None:
-      columnar_provider = statistics_io_impl.get_default_columnar_provider()
+      columnar_provider = artifacts_io_impl.get_default_columnar_provider()
       if columnar_provider is not None:
         _ = (
             stats | 'WriteColumnarStats' >> columnar_provider.record_sink_impl(
@@ -220,9 +220,9 @@ class WriteStatisticsToRecordsAndBinaryFile(beam.PTransform):
 
 def default_sharded_output_supported() -> bool:
   """True if sharded output is supported by default."""
-  return statistics_io_impl.should_write_sharded()
+  return artifacts_io_impl.should_write_sharded()
 
 
 def default_sharded_output_suffix() -> str:
   """Returns the default sharded output suffix."""
-  return statistics_io_impl.get_io_provider().file_suffix()
+  return artifacts_io_impl.get_io_provider().file_suffix()

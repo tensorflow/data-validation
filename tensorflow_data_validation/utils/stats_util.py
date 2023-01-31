@@ -26,7 +26,7 @@ import tensorflow as tf
 from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
-from tensorflow_data_validation.utils import statistics_io_impl
+from tensorflow_data_validation.utils import artifacts_io_impl
 from tensorflow_data_validation.utils import io_util
 from tfx_bsl import statistics
 from google.protobuf import text_format
@@ -246,7 +246,7 @@ def load_stats_tfrecord(
   Returns:
     A DatasetFeatureStatisticsList proto.
   """
-  it = statistics_io_impl.get_io_provider('tfrecords').record_iterator_impl(
+  it = artifacts_io_impl.get_io_provider('tfrecords').record_iterator_impl(
       [input_path])
   result = next(it)
   try:
@@ -641,7 +641,7 @@ class CrossFeatureView(object):
 def load_sharded_statistics(
     input_path_prefix: Optional[str] = None,
     input_paths: Optional[Iterable[str]] = None,
-    io_provider: Optional[statistics_io_impl.StatisticsIOProvider] = None
+    io_provider: Optional[artifacts_io_impl.StatisticsIOProvider] = None
 ) -> DatasetListView:
   """Read a sharded DatasetFeatureStatisticsList from disk as a DatasetListView.
 
@@ -660,7 +660,7 @@ def load_sharded_statistics(
   if input_path_prefix is None == input_paths is None:
     raise ValueError('Must provide one of input_paths_prefix, input_paths.')
   if io_provider is None:
-    io_provider = statistics_io_impl.get_io_provider()
+    io_provider = artifacts_io_impl.get_io_provider()
   if input_path_prefix is not None:
     input_paths = io_provider.glob(input_path_prefix)
   if not input_paths:
