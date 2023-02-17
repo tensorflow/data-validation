@@ -513,13 +513,23 @@ class StatsOptionsTest(parameterized.TestCase):
           experimental_use_sketch_based_topk_uniques=True,
           use_sketch_based_topk_uniques=True)
 
-  def test_sketch_based_uniques_set_old(self):
+  def test_sketch_based_uniques_construct_old(self):
     opts = stats_options.StatsOptions(
         experimental_use_sketch_based_topk_uniques=True)
     self.assertTrue(opts.use_sketch_based_topk_uniques)
 
-  def test_sketch_based_uniques_set_new(self):
+  def test_sketch_based_uniques_construct_new(self):
     opts = stats_options.StatsOptions(use_sketch_based_topk_uniques=True)
+    self.assertTrue(opts.use_sketch_based_topk_uniques)
+
+  def test_sketch_based_uniques_set_old(self):
+    opts = stats_options.StatsOptions()
+    opts.experimental_use_sketch_based_topk_uniques = True
+    self.assertTrue(opts.use_sketch_based_topk_uniques)
+
+  def test_sketch_based_uniques_set_new(self):
+    opts = stats_options.StatsOptions()
+    opts.use_sketch_based_topk_uniques = True
     self.assertTrue(opts.use_sketch_based_topk_uniques)
 
 

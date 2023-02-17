@@ -236,15 +236,18 @@ class StatsOptions(object):
       raise ValueError(
           'Must set at most one of use_sketch_based_topk_uniques and'
           ' experimental_use_sketch_based_topk_uniques')
-    if experimental_use_sketch_based_topk_uniques is not None:
-      use_sketch_based_topk_uniques = experimental_use_sketch_based_topk_uniques
-    if use_sketch_based_topk_uniques is None:
-      # TODO(b/239609486): Use True.
-      use_sketch_based_topk_uniques = False
-    self.use_sketch_based_topk_uniques = (
-        use_sketch_based_topk_uniques)
+    # TODO(b/239609486): Change the None default to True.
+    if (
+        experimental_use_sketch_based_topk_uniques
+        or use_sketch_based_topk_uniques
+    ):
+      self.use_sketch_based_topk_uniques = True
+    else:
+      self.use_sketch_based_topk_uniques = False
     self.experimental_slice_sqls = experimental_slice_sqls
-    self.experimental_num_feature_partitions = experimental_num_feature_partitions
+    self.experimental_num_feature_partitions = (
+        experimental_num_feature_partitions
+    )
     self.experimental_result_partitions = experimental_result_partitions
     self.slicing_config = slicing_config
     self.experimental_filter_read_paths = experimental_filter_read_paths
@@ -540,6 +543,17 @@ class StatsOptions(object):
       raise ValueError('Categorical float features set in schema require '
                        'use_sketch_based_topk_uniques')
     self._use_sketch_based_topk_uniques = use_sketch_based_topk_uniques
+
+  # TODO(b/239609486): Deprecate this alias.
+  @property
+  def experimental_use_sketch_based_topk_uniques(self) -> bool:
+    return self.use_sketch_based_topk_uniques
+
+  @experimental_use_sketch_based_topk_uniques.setter
+  def experimental_use_sketch_based_topk_uniques(
+      self, use_sketch_based_topk_uniques: bool
+  ) -> None:
+    self.use_sketch_based_topk_uniques = use_sketch_based_topk_uniques
 
   @property
   def experimental_result_partitions(self) -> int:
