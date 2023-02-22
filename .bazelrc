@@ -1,10 +1,8 @@
 # Needed to work with ZetaSQL dependency.
 build --cxxopt="-std=c++17"
 
-# Due to the invalid escape sequence in rules_foreign_cc
-# (e.g. "\(" in windows_commands.bzl) and the bazel 4.0.0 updates
-# (https://github.com/bazelbuild/bazel/commit/73402fa4aa5b9de46c9a4042b75e6fb332ad4a7f).
-build --incompatible_restrict_string_escapes=false
+# Needed to avoid zetasql proto error.
+build --protocopt=--experimental_allow_proto3_optional
 
 # icu@: In create_linking_context: in call to create_linking_context(),
 # parameter 'user_link_flags' is deprecated and will be removed soon.

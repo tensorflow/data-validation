@@ -1,5 +1,22 @@
 workspace(name = "tensorflow_data_validation")
 
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+# Install version 0.9.0 of rules_foreign_cc, as default version causes an
+# invalid escape sequence error to be raised, which can't be avoided with
+# the --incompatible_restrict_string_escapes=false flag (flag was removed in
+# Bazel 5.0).
+RULES_FOREIGN_CC_VERSION = "0.9.0"
+http_archive(
+    name = "rules_foreign_cc",
+    sha256 = "2a4d07cd64b0719b39a7c12218a3e507672b82a97b98c6a89d38565894cf7c51",
+    strip_prefix = "rules_foreign_cc-%s" % RULES_FOREIGN_CC_VERSION,
+    url = "https://github.com/bazelbuild/rules_foreign_cc/archive/refs/tags/%s.tar.gz" % RULES_FOREIGN_CC_VERSION,
+)
+
+load("@rules_foreign_cc//foreign_cc:repositories.bzl", "rules_foreign_cc_dependencies")
+rules_foreign_cc_dependencies()
+
 # To update TensorFlow to a new revision.
 # TODO(b/177694034): Follow the new format for tensorflow import.
 # 1. Update the '_TENSORFLOW_GIT_COMMIT' var below to include the new git hash.
@@ -8,8 +25,6 @@ workspace(name = "tensorflow_data_validation")
 #    and update the 'sha256' arg with the result.
 # 3. Request the new archive to be mirrored on mirror.bazel.build for more
 #    reliable downloads.
-
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 # TF 1.15.2
 # LINT.IfChange(tf_commit)
@@ -90,20 +105,20 @@ http_archive(
     build_file = "//third_party:six.BUILD"
 )
 
-ABSL_COMMIT = "e1d388e7e74803050423d035e4374131b9b57919"  # lts_20210324.1
+COM_GOOGLE_ABSL_COMMIT = "9aa7d0bd2079f287162d4fd0722a1b9032e39a6a" # 2022-01-19
 http_archive(
-    name = "com_google_absl",
-    urls = ["https://github.com/abseil/abseil-cpp/archive/%s.zip" % ABSL_COMMIT],
-    sha256 = "baebd1536bec56ae7d7c060c20c01af89ecba2c0b1bc8992b652520655395f94",
-    strip_prefix = "abseil-cpp-%s" % ABSL_COMMIT,
+  name = "com_google_absl",
+  url = "https://github.com/abseil/abseil-cpp/archive/%s.tar.gz" % COM_GOOGLE_ABSL_COMMIT,
+  sha256 = "1a924c31174f5e5812537b7e4c94d380355c06cb9a18c258de99a3e90b32b98c",
+  strip_prefix = "abseil-cpp-%s" % COM_GOOGLE_ABSL_COMMIT
 )
 
-ZETASQL_COMMIT = "5ccb05880e72ab9ff75dd6b05d7b0acce53f1ea2"  # 04/22/2021
+ZETASQL_COMMIT = "ac37cf5c0d80b5605176fc0f29e87b12f00be693"  # 08/10/2022
 http_archive(
     name = "com_google_zetasql",
     urls = ["https://github.com/google/zetasql/archive/%s.zip" % ZETASQL_COMMIT],
     strip_prefix = "zetasql-%s" % ZETASQL_COMMIT,
-    sha256 = "4ca4e45f457926484822701ec15ca4d0172b01d7ce43c0b34c6f3ab98c95b241",
+    sha256 = "651a768cd51627f58aa6de7039aba9ddab22f4b0450521169800555269447840",
 )
 
 load("@com_google_zetasql//bazel:zetasql_deps_step_1.bzl", "zetasql_deps_step_1")
@@ -120,6 +135,12 @@ zetasql_deps_step_2(
     testing_deps = False,
 )
 
+# This is part of what zetasql_deps_step_3() does.
+load("@com_google_googleapis//:repository_rules.bzl", "switched_rules_by_language")
+switched_rules_by_language(
+    name = "com_google_googleapis_imports",
+    cc = True,
+)
 
 # Please add all new TensorFlow Data Validation dependencies in workspace.bzl.
 load("//tensorflow_data_validation:workspace.bzl", "tf_data_validation_workspace")
@@ -128,4 +149,4 @@ tf_data_validation_workspace()
 
 # Specify the minimum required bazel version.
 load("@bazel_skylib//lib:versions.bzl", "versions")
-versions.check("3.7.2")
+versions.check("5.3.0")
