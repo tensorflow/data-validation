@@ -13,6 +13,9 @@
 
 ## Breaking Changes
 
+* Jensen-Shannon divergence now treats NaN values as always contributing to
+  higher drift score.
+
 ## Deprecations
 
 *   Deprecated python 3.7 support.

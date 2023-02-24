@@ -49,15 +49,6 @@ std::pair<string, double> GetLInftyNorm(const std::map<string, double>& vec) {
   return best_so_far;
 }
 
-// Appends a bucket representing nans to `histogram`.
-void AddNanBucket(Histogram& histogram) {
-  const double nan_count = histogram.num_nan();
-  Histogram::Bucket* nan_bucket = histogram.add_buckets();
-  nan_bucket->set_low_value(std::numeric_limits<double>::quiet_NaN());
-  nan_bucket->set_high_value(std::numeric_limits<double>::quiet_NaN());
-  nan_bucket->set_sample_count(nan_count);
-}
-
 // Returns a set of all of the bucket boundaries in the input histogram.
 std::set<double> GetHistogramBoundaries(const Histogram& histogram) {
   std::set<double> boundaries;
@@ -66,20 +57,6 @@ std::set<double> GetHistogramBoundaries(const Histogram& histogram) {
     boundaries.insert(bucket.high_value());
   }
   return boundaries;
-}
-
-// When a histogram contains only a single value, adds that value again
-// to the boundaries vector.
-void AddSingleValueBoundary(const std::set<double>& histogram_boundaries,
-                            const Histogram& histogram,
-                            std::vector<double>& boundaries) {
-  if (histogram_boundaries.size() != 1) {
-    return;
-  }
-  double bucket_value = histogram.buckets().at(0).low_value();
-  auto it =
-      std::upper_bound(boundaries.begin(), boundaries.end(), bucket_value);
-  boundaries.insert(it, bucket_value);
 }
 
 // Adds new buckets to the histogram that are specified by the
@@ -106,7 +83,14 @@ void AddBucketsToHistogram(std::vector<double> bucket_boundaries,
 // Rebuckets `histogram` so that its value counts are redistributed into new
 // buckets that are defined by the specified boundaries. This function assumes a
 // uniform distribution of values within a given bucket in the original
-// histogram.
+// histogram, and assumes that each distinct low or high value in histogram
+// appears in boundaries.
+// TODO(zwestrick): This function works because the bucket boundaries contain
+// all of the histogram boundaries, so there is never a partial overlap between
+// new and old buckets. Concretely, low_value > boundaries[index] implies that
+// low_value >= boundaries[index + 1]. We may want to replace this code to be
+// robust to changes in how bucket boundaries are determined, but this is not
+// currently a problem.
 void RebucketHistogram(
     const std::vector<double>& boundaries, Histogram& histogram) {
   Histogram rebucketed_histogram;
@@ -160,32 +144,117 @@ void RebucketHistogram(
   }
   histogram = std::move(rebucketed_histogram);
 }
+// Removes point buckets and buckets with infinite bounds from histogram.
+// Returns a stripped histogram, a map from point boundary to mass, and the
+// total mass across buckets with infinite bounds.
+std::tuple<Histogram, std::map<double, double>, double>
+StripPointAndInfiniteBuckets(const Histogram& histogram) {
+  Histogram result;
+  result.set_num_nan(histogram.num_nan());
+  std::map<double, double> point_buckets;
+  double infinite_mass = 0;
+  for (const auto& bucket : histogram.buckets()) {
+    if (!std::isfinite(bucket.low_value()) ||
+        !std::isfinite(bucket.high_value())) {
+      infinite_mass += bucket.sample_count();
+    } else if (bucket.low_value() == bucket.high_value()) {
+      point_buckets[bucket.low_value()] += bucket.sample_count();
+    } else {
+      auto* new_bucket = result.add_buckets();
+      new_bucket->set_low_value(bucket.low_value());
+      new_bucket->set_high_value(bucket.high_value());
+      new_bucket->set_sample_count(bucket.sample_count());
+    }
+  }
+  return {result, point_buckets, infinite_mass};
+}
+
+// Adds buckets corresponding to zero width point masses from the original
+// histograms.
+void AddPointMasses(std::map<double, double> histogram_1_point,
+                    std::map<double, double> histogram_2_point,
+                    Histogram& histogram1, Histogram& histogram2) {
+  std::set<double> point_boundaries;
+  for (const auto& point_map : {histogram_1_point, histogram_2_point}) {
+    for (const auto& kv : point_map) {
+      point_boundaries.insert(kv.first);
+    }
+  }
+  auto value_or_zero =
+      [](const std::map<double, double>& point_count,
+         double boundary) {
+        auto val = point_count.find(boundary);
+        if (val != point_count.end()) {
+          return val->second;
+        }
+        return 0.0;
+      };
+  for (const auto& boundary : point_boundaries) {
+    histogram1.add_buckets()->set_sample_count(
+        value_or_zero(histogram_1_point, boundary));
+    histogram2.add_buckets()->set_sample_count(
+        value_or_zero(histogram_2_point, boundary));
+  }
+}
 
 // Aligns histogram_1 and histogram_2 so that they have the same bucket
 // boundaries. This function assumes a uniform distribution of values within a
 // given bucket in the original histogram.
 void AlignHistograms(Histogram& histogram_1, Histogram& histogram_2) {
+  // TODO(zwestrick): Figure out why structured bindings breaks windows kokoro
+  // tests herre.
+  auto result1 =
+      StripPointAndInfiniteBuckets(histogram_1);
+  auto histogram_1_stripped = std::get<0>(result1);
+  auto histogram_1_point = std::get<1>(result1);
+  auto histogram_1_inf = std::get<2>(result1);
+
+  auto result2 =
+      StripPointAndInfiniteBuckets(histogram_2);
+  auto histogram_2_stripped = std::get<0>(result2);
+  auto histogram_2_point = std::get<1>(result2);
+  auto histogram_2_inf = std::get<2>(result2);
+  histogram_1 = std::move(histogram_1_stripped);
+  histogram_2 = std::move(histogram_2_stripped);
+
   const std::set<double> histogram_1_boundaries =
       GetHistogramBoundaries(histogram_1);
   const std::set<double> histogram_2_boundaries =
       GetHistogramBoundaries(histogram_2);
   // If the histograms have the same bucket boundaries, there is no need to
-  // rebucket them. Just return the original histograms.
-  if (histogram_1_boundaries == histogram_2_boundaries) {
-    return;
+  // rebucket them.
+  if (histogram_1_boundaries != histogram_2_boundaries) {
+    std::set<double> boundaries_set;
+    std::set_union(histogram_1_boundaries.begin(), histogram_1_boundaries.end(),
+                   histogram_2_boundaries.begin(), histogram_2_boundaries.end(),
+                   std::inserter(boundaries_set, boundaries_set.end()));
+    std::vector<double> boundaries(boundaries_set.begin(),
+                                   boundaries_set.end());
+    RebucketHistogram(boundaries, histogram_1);
+    RebucketHistogram(boundaries, histogram_2);
   }
-  std::set<double> boundaries_set;
-  std::set_union(histogram_1_boundaries.begin(), histogram_1_boundaries.end(),
-                 histogram_2_boundaries.begin(), histogram_2_boundaries.end(),
-                 std::inserter(boundaries_set, boundaries_set.end()));
-  std::vector<double> boundaries(boundaries_set.begin(), boundaries_set.end());
-  // If a histogram contains only a single value, add that value
-  // to the boundaries vector so that the rebucketing will create a bucket
-  // with that single value.
-  AddSingleValueBoundary(histogram_1_boundaries, histogram_1, boundaries);
-  AddSingleValueBoundary(histogram_2_boundaries, histogram_2, boundaries);
-  RebucketHistogram(boundaries, histogram_1);
-  RebucketHistogram(boundaries, histogram_2);
+  // Now we've rebucketed the histograms excluding point masses and infinite
+  // buckets.
+  // First add back in the point masses.
+  AddPointMasses(histogram_1_point, histogram_2_point, histogram_1,
+                 histogram_2);
+
+  // Now add back infinite values as mismatching additional buckets.
+  if (histogram_1_inf != 0) {
+    histogram_1.add_buckets()->set_sample_count(histogram_1_inf);
+    histogram_2.add_buckets()->set_sample_count(0);
+  }
+  if (histogram_2_inf != 0) {
+    histogram_1.add_buckets()->set_sample_count(0);
+    histogram_2.add_buckets()->set_sample_count(histogram_2_inf);
+  }
+  // If one or more of histograms have NaN values, add a NaN bucket.
+  if (histogram_1.num_nan() > 0 || histogram_2.num_nan() > 0) {
+    histogram_1.add_buckets()->set_sample_count(0);
+    histogram_1.add_buckets()->set_sample_count(histogram_1.num_nan());
+    histogram_2.add_buckets()->set_sample_count(histogram_2.num_nan());
+    histogram_2.add_buckets()->set_sample_count(0);
+  }
 }
 
 // Normalizes `histogram` so that the sum of all sample counts in the histogram
@@ -270,11 +339,6 @@ Status JensenShannonDivergence(Histogram& histogram_1, Histogram& histogram_2,
   }
   // Generate new histograms with the same bucket boundaries.
   AlignHistograms(histogram_1, histogram_2);
-  // If one or more of histograms have NaN values, add a NaN bucket.
-  if (histogram_1.num_nan() > 0 || histogram_2.num_nan() > 0) {
-    AddNanBucket(histogram_1);
-    AddNanBucket(histogram_2);
-  }
   TF_RETURN_IF_ERROR(NormalizeHistogram(histogram_1));
   TF_RETURN_IF_ERROR(NormalizeHistogram(histogram_2));
 
