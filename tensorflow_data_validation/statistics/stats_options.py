@@ -250,6 +250,10 @@ class StatsOptions(object):
     self.slicing_config = slicing_config
     self.experimental_filter_read_paths = experimental_filter_read_paths
 
+  def __repr__(self):
+    return '<{}>'.format(', '.join(
+        '{}={!r}'.format(k, v) for k, v in self.__dict__.items()))
+
   def to_json(self) -> Text:
     """Convert from an object to JSON representation of the __dict__ attribute.
 
