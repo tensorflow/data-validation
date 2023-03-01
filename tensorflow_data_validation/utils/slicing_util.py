@@ -311,9 +311,15 @@ class GenerateSlicesSqlDoFn(beam.DoFn):
 
     def _generate_queries(
         schema: pa.Schema) -> List[sql_util.RecordBatchSQLSliceQuery]:
-      return [
-          sql_util.RecordBatchSQLSliceQuery(sql, schema) for sql in self._sqls
-      ]
+      queries = []
+      for sql in self._sqls:
+        try:
+          queries.append(sql_util.RecordBatchSQLSliceQuery(sql, schema))
+        except RuntimeError:
+          # We can't crash on errors caused by missing features/values.
+          # Instead failed slicing sqls will create a Invalid Slice.
+          queries.append(None)
+      return queries
 
     # A cache for compiled sql queries, keyed by record batch schemas.
     # This way we can work with record batches of different schemas.
@@ -337,6 +343,10 @@ class GenerateSlicesSqlDoFn(beam.DoFn):
       #           [[('feature', 'value_2')]],
       #           []
       #          ]
+      if query is None:
+        yield (constants.INVALID_SLICE_KEY, record_batch)
+        continue
+
       result = query.Execute(record_batch)
       for i, per_row_slices in enumerate(result):
         for slice_tuples in per_row_slices:

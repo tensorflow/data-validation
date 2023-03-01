@@ -353,7 +353,7 @@ class SlicingUtilTest(absltest.TestCase):
 
       util.assert_that(result, check_result)
 
-  # The SQL based slicing uses ZetaSQL which cannot be compiled on Windows.
+    # The SQL based slicing uses ZetaSQL which cannot be compiled on Windows.
   # b/191377114
   @unittest.skipIf(
       sys.platform.startswith('win'),
@@ -416,6 +416,142 @@ class SlicingUtilTest(absltest.TestCase):
               slicing_util.GenerateSlicesSqlDoFn(slice_sqls=[slice_sql])))
 
       # pylint: enable=no-value-for-parameter
+
+      def check_result(got):
+        try:
+          self._check_results(got, expected_result)
+
+        except AssertionError as err:
+          raise util.BeamAssertException(err)
+
+      util.assert_that(result, check_result)
+
+    # The SQL based slicing uses ZetaSQL which cannot be compiled on Windows.
+  # b/191377114
+  @unittest.skipIf(
+      sys.platform.startswith('win'),
+      'SQL based slicing is not supported on Windows.',
+  )
+  def test_generate_slices_sql_invalid_slice(self):
+    input_record_batches = [
+        pa.RecordBatch.from_arrays(
+            [
+                pa.array([[1], [2, 1], [3], [2, 1, 1], [3]]),
+                pa.array(
+                    [[], [], [], [], []]
+                ),
+            ],
+            ['a', 'b'],
+        ),
+    ]
+    slice_sql1 = """
+        SELECT
+          STRUCT(a, b)
+        FROM
+          example.a, example.b
+    """
+
+    expected_result = [
+        (constants.INVALID_SLICE_KEY, input_record_batches[0]),
+        (constants.DEFAULT_SLICE_KEY, input_record_batches[0]),
+    ]
+    with beam.Pipeline() as pipeline:
+      # pylint: disable=no-value-for-parameter
+      result = (
+          pipeline
+          | 'Create' >> beam.Create(input_record_batches, reshuffle=False)
+          | 'GenerateSlicesSql'
+          >> beam.ParDo(
+              slicing_util.GenerateSlicesSqlDoFn(slice_sqls=[slice_sql1])
+          )
+      )
+
+      def check_result(got):
+        try:
+          self._check_results(got, expected_result)
+
+        except AssertionError as err:
+          raise util.BeamAssertException(err)
+
+      util.assert_that(result, check_result)
+
+  @unittest.skipIf(
+      sys.platform.startswith('win'),
+      'SQL based slicing is not supported on Windows.',
+  )
+  def test_generate_slices_sql_multiple_queries(self):
+    input_record_batches = [
+        pa.RecordBatch.from_arrays(
+            [
+                pa.array([[1], [2, 1], [3], [2, 1, 1], [3]]),
+                pa.array(
+                    [[], [], [], [], []]
+                ),
+            ],
+            ['a', 'b'],
+        ),
+    ]
+    slice_sql1 = """
+        SELECT
+          STRUCT(c)
+        FROM
+          example.a, example.b
+    """
+
+    slice_sql2 = """
+        SELECT
+          STRUCT(a)
+        FROM
+          example.a
+    """
+
+    expected_result = [
+        (
+            'a_1',
+            pa.RecordBatch.from_arrays(
+                [
+                    pa.array([[1], [2, 1], [2, 1, 1]]),
+                    pa.array([[], [], []]),
+                ],
+                ['a', 'b'],
+            ),
+        ),
+        (
+            'a_2',
+            pa.RecordBatch.from_arrays(
+                [
+                    pa.array([[2, 1], [2, 1, 1]]),
+                    pa.array([[], []]),
+                ],
+                ['a', 'b'],
+            ),
+        ),
+        (
+            'a_3',
+            pa.RecordBatch.from_arrays(
+                [
+                    pa.array([[3], [3]]),
+                    pa.array([[], []]),
+                ],
+                ['a', 'b'],
+            ),
+        ),
+        (constants.INVALID_SLICE_KEY, input_record_batches[0]),
+        (constants.DEFAULT_SLICE_KEY, input_record_batches[0]),
+    ]
+    with beam.Pipeline() as pipeline:
+      # pylint: disable=no-value-for-parameter
+      result = (
+          pipeline
+          | 'Create' >> beam.Create(input_record_batches, reshuffle=False)
+          | 'GenerateSlicesSql'
+          >> beam.ParDo(
+              slicing_util.GenerateSlicesSqlDoFn(
+                  slice_sqls=[slice_sql1,
+                              slice_sql2]
+              )
+          )
+      )
 
       def check_result(got):
         try:

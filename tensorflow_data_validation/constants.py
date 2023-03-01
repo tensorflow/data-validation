@@ -26,6 +26,9 @@ from tfx_bsl.telemetry import util
 DEFAULT_SLICE_KEY = 'All Examples'
 # LINT.ThenChange(../anomalies/custom_validation.cc)
 
+# Name of the invalid slice containing all examples in the RecordBatch.
+INVALID_SLICE_KEY = 'Invalid Slice'
+
 # Namespace for all TFDV metrics.
 METRICS_NAMESPACE = util.MakeTfxNamespace(['DataValidation'])
 
