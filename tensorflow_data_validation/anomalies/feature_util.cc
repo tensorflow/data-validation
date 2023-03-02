@@ -380,7 +380,8 @@ SingleFeatureComparisonResult UpdateJensenShannonDivergenceComparator(
       comparator->jensen_shannon_divergence().threshold();
   double jensen_shannon_divergence;
   if (JensenShannonDivergence(stats, control_stats,
-                                          jensen_shannon_divergence)
+                              comparator->jensen_shannon_divergence().source(),
+                              jensen_shannon_divergence)
           .ok()) {
     result.measurement.emplace();
     result.measurement->set_value(jensen_shannon_divergence);

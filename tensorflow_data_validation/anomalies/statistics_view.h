@@ -170,9 +170,10 @@ class FeatureStatsView {
   // counts. If there are no string stats, then it returns an empty map.
   std::map<string, double> GetStringValuesWithCounts() const;
 
-  // Returns the (weighted) standard histogram, if it exists for the feature.
-  absl::optional<tensorflow::metadata::v0::Histogram> GetStandardHistogram()
-      const;
+  // Returns the (weighted) histogram with the provided type if it exists for
+  // a feature.
+  absl::optional<tensorflow::metadata::v0::Histogram> GetHistogramType(
+      const tensorflow::metadata::v0::HistogramSelection& type) const;
 
   // Returns the strings that occur in the data.
   // If there are no string stats, then it returns an empty map.

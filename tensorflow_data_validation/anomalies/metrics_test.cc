@@ -25,6 +25,7 @@ limitations under the License.
 #include "tensorflow/core/lib/core/status_test_util.h"
 #include "tensorflow/core/platform/errors.h"
 #include "tensorflow/core/platform/types.h"
+#include "tensorflow_metadata/proto/v0/schema.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
 
 namespace tensorflow {
@@ -35,6 +36,18 @@ namespace {
 using tensorflow::metadata::v0::FeatureNameStatistics;
 using testing::DatasetForTesting;
 using testing::ParseTextProtoOrDie;
+
+tensorflow::metadata::v0::HistogramSelection Standard() {
+  auto result = tensorflow::metadata::v0::HistogramSelection();
+  result.set_type(tensorflow::metadata::v0::HistogramSelection::STANDARD);
+  return result;
+}
+
+tensorflow::metadata::v0::HistogramSelection Quantiles() {
+  auto result = tensorflow::metadata::v0::HistogramSelection();
+  result.set_type(tensorflow::metadata::v0::HistogramSelection::QUANTILES);
+  return result;
+}
 
 tensorflow::metadata::v0::FeatureNameStatistics
 GetFeatureNameStatisticsWithTokens(const std::map<string, double>& tokens) {
@@ -158,12 +171,43 @@ TEST(JensenShannonDivergence, SameStatistics) {
         })"));
   double result;
   TF_ASSERT_OK(JensenShannonDivergence(dataset_1.feature_stats_view(),
-                                       dataset_1.feature_stats_view(), result));
+                                       dataset_1.feature_stats_view(),
+                                       Standard(), result));
   EXPECT_NEAR(result, 0.0, 1e-5);
 
   TF_ASSERT_OK(JensenShannonDivergence(dataset_2.feature_stats_view(),
-                                       dataset_2.feature_stats_view(), result));
+                                       dataset_2.feature_stats_view(),
+                                       Standard(), result));
   EXPECT_NEAR(result, 0.0, 1e-5);
+}
+
+TEST(JensenShannonDivergence, ReadsHistogramSource) {
+  const DatasetForTesting dataset_1(ParseTextProtoOrDie<
+                                    FeatureNameStatistics>(R"pb(
+    name: 'float'
+    type: FLOAT
+    num_stats {
+      common_stats {}
+      histograms {
+        buckets { low_value: 1.0 high_value: 2.3333333 sample_count: 2.9866667 }
+        buckets {
+          low_value: 2.3333333
+          high_value: 3.6666667
+          sample_count: 1.0066667
+        }
+        buckets { low_value: 3.6666667 high_value: 5.0 sample_count: 2.0066667 }
+        type: QUANTILES
+      }
+    })pb"));
+  double result;
+  TF_ASSERT_OK(JensenShannonDivergence(dataset_1.feature_stats_view(),
+                                       dataset_1.feature_stats_view(),
+                                       Quantiles(), result));
+  EXPECT_NEAR(result, 0.0, 1e-5);
+  auto error = JensenShannonDivergence(dataset_1.feature_stats_view(),
+                                       dataset_1.feature_stats_view(),
+                                       Standard(), result);
+  EXPECT_TRUE(tensorflow::errors::IsInvalidArgument(error));
 }
 
 TEST(JensenShannonDivergence, DifferentBucketBoundaries) {
@@ -193,7 +237,8 @@ TEST(JensenShannonDivergence, DifferentBucketBoundaries) {
         })"));
   double result;
   TF_ASSERT_OK(JensenShannonDivergence(dataset_1.feature_stats_view(),
-                                       dataset_2.feature_stats_view(), result));
+                                       dataset_2.feature_stats_view(),
+                                       Standard(), result));
   // Rebucketed and normalized histogram for dataset_1 is:
   // buckets { low_value: 1.0 high_value: 2.0 sample_count: 0.5 }
   // buckets { low_value: 2.0 high_value: 3.0 sample_count: 0.5 }
@@ -241,7 +286,8 @@ TEST(JensenShannonDivergence, NoOverlap) {
         })"));
   double result;
   TF_ASSERT_OK(JensenShannonDivergence(dataset_1.feature_stats_view(),
-                                       dataset_2.feature_stats_view(), result));
+                                       dataset_2.feature_stats_view(),
+                                       Standard(), result));
   EXPECT_NEAR(result, 1, 1e-5);
 }
 
@@ -271,7 +317,8 @@ TEST(JensenShannonDivergence, OneHasAllValuesInOneBucket) {
         })"));
   double result;
   TF_ASSERT_OK(JensenShannonDivergence(dataset_1.feature_stats_view(),
-                                       dataset_2.feature_stats_view(), result));
+                                       dataset_2.feature_stats_view(),
+                                       Standard(), result));
   EXPECT_NEAR(result, 1, 1e-5);
 }
 
@@ -300,7 +347,8 @@ TEST(JensenShannonDivergence, BothHaveAllValuesInOneBucket) {
         })pb"));
   double result;
   TF_ASSERT_OK(JensenShannonDivergence(dataset_1.feature_stats_view(),
-                                       dataset_2.feature_stats_view(), result));
+                                       dataset_2.feature_stats_view(),
+                                       Standard(), result));
   EXPECT_NEAR(result, 1, 1e-5);
 }
 
@@ -331,7 +379,8 @@ TEST(JensenShannonDivergence, OneHasOneBucketTheOtherHasMany) {
         })"));
   double result;
   TF_ASSERT_OK(JensenShannonDivergence(dataset_1.feature_stats_view(),
-                                       dataset_2.feature_stats_view(), result));
+                                       dataset_2.feature_stats_view(),
+                                       Standard(), result));
   EXPECT_NEAR(result, 1, 1e-5);
 }
 
@@ -368,13 +417,14 @@ TEST(JensenShannonDivergence, EmptyHistogram) {
           }
         })"));
   double result;
-  auto error =
-      JensenShannonDivergence(empty_dataset_1.feature_stats_view(),
-                              non_empty_dataset.feature_stats_view(), result);
+  auto error = JensenShannonDivergence(empty_dataset_1.feature_stats_view(),
+                                       non_empty_dataset.feature_stats_view(),
+                                       Standard(), result);
   EXPECT_TRUE(tensorflow::errors::IsInvalidArgument(error));
 
   error = JensenShannonDivergence(non_empty_dataset.feature_stats_view(),
-                                  empty_dataset_2.feature_stats_view(), result);
+                                  empty_dataset_2.feature_stats_view(),
+                                  Standard(), result);
   EXPECT_TRUE(tensorflow::errors::IsInvalidArgument(error));
 }
 
@@ -392,7 +442,8 @@ TEST(JensenShannonDivergence, NaNNotEqualToSelf) {
         })"));
   double result;
   TF_ASSERT_OK(JensenShannonDivergence(dataset_1.feature_stats_view(),
-                                       dataset_1.feature_stats_view(), result));
+                                       dataset_1.feature_stats_view(),
+                                       Standard(), result));
 
   EXPECT_NEAR(result, 1.0, 1e-5);
 }
@@ -423,7 +474,8 @@ TEST(JensenShannonDivergence, WithNaNs) {
         })"));
   double result;
   TF_ASSERT_OK(JensenShannonDivergence(dataset_1.feature_stats_view(),
-                                       dataset_2.feature_stats_view(), result));
+                                       dataset_2.feature_stats_view(),
+                                       Standard(), result));
   // Rebucketed and normalized histogram for dataset_1 is:
   // buckets { low_value: NaN high_value: Nan sample_count: 0.25 }
   // buckets { low_value: 1.0 high_value: 2.0 sample_count: 0.75 }
@@ -464,7 +516,8 @@ TEST(JensenShannonDivergence, RankHistogram) {
         })"));
   double result;
   TF_ASSERT_OK(JensenShannonDivergence(dataset_1.feature_stats_view(),
-                                       dataset_2.feature_stats_view(), result));
+                                       dataset_2.feature_stats_view(),
+                                       Standard(), result));
   EXPECT_NEAR(result, 0.6, 1e-5);
 }
 
@@ -492,7 +545,7 @@ TEST(JensenShannonDivergence, EmptyRankHistogram) {
   double result;
   auto error = JensenShannonDivergence(empty_dataset.feature_stats_view(),
                                        non_empty_dataset.feature_stats_view(),
-                                       result);
+                                       Standard(), result);
   EXPECT_TRUE(tensorflow::errors::IsInvalidArgument(error));
 }
 
@@ -521,7 +574,8 @@ TEST(JensenShannonDivergence, DifferentTypesHistogram) {
         })"));
   double result;
   auto error = JensenShannonDivergence(dataset_1.feature_stats_view(),
-                                       dataset_2.feature_stats_view(), result);
+                                       dataset_2.feature_stats_view(),
+                                       Standard(), result);
   EXPECT_TRUE(tensorflow::errors::IsInvalidArgument(error));
 }
 
@@ -552,7 +606,8 @@ TEST(JensenShannonDivergence, MultiplePointBinsPartialOverlap) {
         })"));
   double result;
   TF_ASSERT_OK(JensenShannonDivergence(dataset_1.feature_stats_view(),
-                                       dataset_2.feature_stats_view(), result));
+                                       dataset_2.feature_stats_view(),
+                                       Standard(), result));
   EXPECT_NEAR(result, 0.5, 1e-5);
 }
 
@@ -583,7 +638,8 @@ TEST(JensenShannonDivergence, MixOfPointAndNonPointBoundaries) {
         })"));
   double result;
   TF_ASSERT_OK(JensenShannonDivergence(dataset_1.feature_stats_view(),
-                                       dataset_2.feature_stats_view(), result));
+                                       dataset_2.feature_stats_view(),
+                                       Standard(), result));
   EXPECT_NEAR(result, 1.0, 1e-5);
 }
 
@@ -614,7 +670,8 @@ TEST(JensenShannonDivergence, InfiniteBinBoundaries) {
         })"));
   double result;
   TF_ASSERT_OK(JensenShannonDivergence(dataset_1.feature_stats_view(),
-                                       dataset_2.feature_stats_view(), result));
+                                       dataset_2.feature_stats_view(),
+                                       Standard(), result));
   EXPECT_NEAR(result, 1.0, 1e-5);
 }
 

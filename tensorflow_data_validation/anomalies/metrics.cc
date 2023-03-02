@@ -26,6 +26,7 @@ limitations under the License.
 #include "tensorflow_data_validation/anomalies/map_util.h"
 #include "tensorflow/core/lib/core/errors.h"
 #include "tensorflow/core/platform/types.h"
+#include "tensorflow_metadata/proto/v0/schema.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
 
 namespace tensorflow {
@@ -33,6 +34,7 @@ namespace data_validation {
 namespace {
 
 using ::tensorflow::metadata::v0::Histogram;
+using ::tensorflow::metadata::v0::HistogramSelection;
 
 // Gets the L-infty norm of a vector, represented as a map.
 // This is the largest absolute value of any value.
@@ -330,12 +332,9 @@ std::pair<string, double> NormalizedAbsoluteDifference(
 
 Status JensenShannonDivergence(Histogram& histogram_1, Histogram& histogram_2,
                                double& result) {
-  if (histogram_1.type() !=
-          Histogram::HistogramType::Histogram_HistogramType_STANDARD ||
-      histogram_2.type() !=
-          Histogram::HistogramType::Histogram_HistogramType_STANDARD) {
+  if (histogram_1.type() !=histogram_2.type()) {
     return errors::InvalidArgument(
-        "Input histograms must be of STANDARD type.");
+        "Input histograms must have same type.");
   }
   // Generate new histograms with the same bucket boundaries.
   AlignHistograms(histogram_1, histogram_2);
@@ -414,14 +413,18 @@ Status JensenShannonDivergence(const std::map<string, double>& map_1,
 }
 
 Status JensenShannonDivergence(const FeatureStatsView& a,
-                               const FeatureStatsView& b, double& result) {
+                               const FeatureStatsView& b,
+                               const HistogramSelection& source,
+                               double& result) {
   std::map<string, double> mapping_1 = a.GetStringValuesWithCounts();
   std::map<string, double> mapping_2 = b.GetStringValuesWithCounts();
   if (!mapping_1.empty() && !mapping_2.empty()) {
     return JensenShannonDivergence(mapping_1, mapping_2, result);
   }
-  const absl::optional<Histogram> maybe_histogram_1 = a.GetStandardHistogram();
-  const absl::optional<Histogram> maybe_histogram_2 = b.GetStandardHistogram();
+  const absl::optional<Histogram> maybe_histogram_1 =
+      a.GetHistogramType(source);
+  const absl::optional<Histogram> maybe_histogram_2 =
+      b.GetHistogramType(source);
   if (maybe_histogram_1 && maybe_histogram_2) {
     Histogram histogram_1 = std::move(maybe_histogram_1.value());
     Histogram histogram_2 = std::move(maybe_histogram_2.value());
@@ -431,7 +434,7 @@ Status JensenShannonDivergence(const FeatureStatsView& a,
   if ((mapping_1.empty() != mapping_2.empty()) &&
       (!maybe_histogram_1 != !maybe_histogram_2)){
     return tensorflow::errors::InvalidArgument(
-      "Both input statistics must have the same type of histogram in order to "
+      "Input statistics must be either both numeric or both string in order to "
       "calculate the Jensen-Shannon divergence.");
   }
   return tensorflow::errors::InvalidArgument(

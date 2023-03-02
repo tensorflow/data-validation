@@ -22,6 +22,7 @@ limitations under the License.
 
 #include "tensorflow_data_validation/anomalies/statistics_view.h"
 #include "tensorflow/core/platform/types.h"
+#include "tensorflow_metadata/proto/v0/schema.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
 
 namespace tensorflow {
@@ -58,9 +59,9 @@ std::pair<string, double> NormalizedAbsoluteDifference(
 // Computes the approximate Jensen-Shannon divergence
 // (https://en.wikipedia.org/wiki/Jensen%E2%80%93Shannon_divergence) between the
 // (weighted) histograms of the features.
-Status JensenShannonDivergence(const FeatureStatsView& a,
-                                           const FeatureStatsView& b,
-                                           double& result);
+Status JensenShannonDivergence(
+    const FeatureStatsView& a, const FeatureStatsView& b,
+    const tensorflow::metadata::v0::HistogramSelection& source, double& result);
 
 Status JensenShannonDivergence(
     ::tensorflow::metadata::v0::Histogram& histogram_1,

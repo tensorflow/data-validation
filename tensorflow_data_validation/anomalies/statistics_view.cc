@@ -25,6 +25,7 @@ limitations under the License.
 #include "tensorflow/core/platform/logging.h"
 #include "tensorflow/core/platform/protobuf.h"
 #include "tensorflow/core/platform/types.h"
+#include "tensorflow_metadata/proto/v0/schema.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
 
 namespace tensorflow {
@@ -484,7 +485,9 @@ std::map<string, double> FeatureStatsView::GetStringValuesWithCounts() const {
   return result;
 }
 
-absl::optional<Histogram> FeatureStatsView::GetStandardHistogram() const {
+absl::optional<Histogram> FeatureStatsView::GetHistogramType(
+    const tensorflow::metadata::v0::HistogramSelection& type)
+    const {
   if (!data().has_num_stats()) {
     return absl::nullopt;
   }
@@ -492,9 +495,13 @@ absl::optional<Histogram> FeatureStatsView::GetStandardHistogram() const {
       (parent_view_.by_weight())
           ? data().num_stats().weighted_numeric_stats().histograms()
           : data().num_stats().histograms();
+  Histogram::HistogramType hist_type = Histogram::STANDARD;
+  if (type.type() ==
+      tensorflow::metadata::v0::HistogramSelection::QUANTILES) {
+    hist_type = Histogram::QUANTILES;
+  }
   for (const auto& histogram : histograms) {
-    if (histogram.type() ==
-        Histogram::HistogramType::Histogram_HistogramType_STANDARD) {
+    if (histogram.type() == hist_type) {
       return histogram;
     }
   }

@@ -4,6 +4,9 @@
 
 ## Major Features and Improvements
 
+*   Introduces a Schema option `HistogramSelection` to allow numeric drift/skew
+    calculations to use QUANTILES histograms, which are more robust to outliers.
+
 ## Bug Fixes and Other Changes
 
 *  Rename `statistics_io_impl` and `default_record_sink` (not part of public API).

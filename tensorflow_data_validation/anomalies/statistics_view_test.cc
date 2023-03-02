@@ -24,6 +24,7 @@ limitations under the License.
 #include "tensorflow_data_validation/anomalies/test_util.h"
 #include "tensorflow/core/platform/types.h"
 #include "tensorflow_metadata/proto/v0/derived_feature.pb.h"
+#include "tensorflow_metadata/proto/v0/schema.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
 
 namespace tensorflow {
@@ -33,6 +34,7 @@ using ::tensorflow::data_validation::testing::DatasetForTesting;
 using ::tensorflow::data_validation::testing::ParseTextProtoOrDie;
 using ::tensorflow::metadata::v0::DatasetFeatureStatistics;
 using ::tensorflow::metadata::v0::FeatureNameStatistics;
+using ::tensorflow::metadata::v0::HistogramSelection;
 using ::testing::ContainerEq;
 using ::testing::ElementsAre;
 using ::testing::IsEmpty;
@@ -939,13 +941,13 @@ TEST(FeatureStatsView, GetStandardHistogram) {
 
   ASSERT_EQ(DatasetForTesting(statistics_with_standard_histogram)
                 .feature_stats_view()
-                .GetStandardHistogram()
+                .GetHistogramType(HistogramSelection())
                 ->buckets_size(),
             1);
   tensorflow::metadata::v0::Histogram::Bucket actual_bucket =
       DatasetForTesting(statistics_with_standard_histogram)
           .feature_stats_view()
-          .GetStandardHistogram()
+          .GetHistogramType(HistogramSelection())
           ->buckets()
           .at(0);
   EXPECT_EQ(actual_bucket.low_value(), 1);
@@ -954,13 +956,13 @@ TEST(FeatureStatsView, GetStandardHistogram) {
   ASSERT_EQ(DatasetForTesting(statistics_with_weighted_standard_histogram,
                               /*by_weight=*/true)
                 .feature_stats_view()
-                .GetStandardHistogram()
+                .GetHistogramType(HistogramSelection())
                 ->buckets_size(),
             1);
   actual_bucket = DatasetForTesting(statistics_with_weighted_standard_histogram,
                                     /*by_weight=*/true)
                       .feature_stats_view()
-                      .GetStandardHistogram()
+                      .GetHistogramType(HistogramSelection())
                       ->buckets()
                       .at(0);
   EXPECT_EQ(actual_bucket.low_value(), 2);
@@ -969,8 +971,32 @@ TEST(FeatureStatsView, GetStandardHistogram) {
 
   EXPECT_EQ(DatasetForTesting(statistics_without_standard_histogram)
                 .feature_stats_view()
-                .GetStandardHistogram(),
+                .GetHistogramType(HistogramSelection()),
             absl::nullopt);
+}
+
+TEST(FeatureStatsView, GetsBothHistogramTypes) {
+  const FeatureNameStatistics statistics_with_standard_histogram =
+      ParseTextProtoOrDie<FeatureNameStatistics>(
+          R"pb(name: 'float'
+               type: FLOAT
+               num_stats {
+                 histograms { type: STANDARD }
+                 histograms { type: QUANTILES }
+               }
+          )pb");
+  ASSERT_EQ(DatasetForTesting(statistics_with_standard_histogram)
+                .feature_stats_view()
+                .GetHistogramType(HistogramSelection())
+                ->type(),
+            tensorflow::metadata::v0::Histogram::STANDARD);
+  HistogramSelection quantiles;
+  quantiles.set_type(HistogramSelection::QUANTILES);
+  ASSERT_EQ(DatasetForTesting(statistics_with_standard_histogram)
+                .feature_stats_view()
+                .GetHistogramType(quantiles)
+                ->type(),
+            tensorflow::metadata::v0::Histogram::QUANTILES);
 }
 
 // Return the custom stat by name, or an empty object if no custom stat exists.
