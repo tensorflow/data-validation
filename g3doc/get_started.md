@@ -1,6 +1,6 @@
-# Get started with Tensorflow Data Validation
+# Get started with TensorFlow Data Validation
 
-Tensorflow Data Validation (TFDV) can analyze training and serving data to:
+TensorFlow Data Validation (TFDV) can analyze training and serving data to:
 
 *   compute descriptive
     [statistics](https://github.com/tensorflow/metadata/tree/master/tensorflow_metadata/proto/v0/statistics.proto),
@@ -139,7 +139,7 @@ describes the expected properties of the data. Some of these properties are:
 In short, the schema describes the expectations for "correct" data and can thus
 be used to detect errors in the data (described below). Moreover, the same
 schema can be used to set up
-[Tensorflow Transform](https://github.com/tensorflow/transform) for data
+[TensorFlow Transform](https://github.com/tensorflow/transform) for data
 transformations. Note that the schema is expected to be fairly static, e.g.,
 several datasets can conform to the same schema, whereas statistics (described
 above) can vary per dataset.
