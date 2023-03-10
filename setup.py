@@ -181,7 +181,7 @@ setup(
         # TODO(b/139941423): Consider using multi-processing provided by
         # Beam's DirectRunner.
         'joblib>=1.2.0',  # Dependency for multi-processing.
-        'numpy>=1.16,<2',
+        'numpy~=1.22.0',
         'pandas>=1.0,<2',
         'protobuf>=3.13,<4',
         'pyarrow>=6,<7',

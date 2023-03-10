@@ -11,6 +11,7 @@
 
 *  Rename `statistics_io_impl` and `default_record_sink` (not part of public API).
 *  Update the minimum Bazel version required to build TFDV to 5.3.0.
+*  Depends on `numpy~=1.22.0`.
 
 ## Known Issues
 
