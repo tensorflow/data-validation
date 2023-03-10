@@ -184,7 +184,7 @@ setup(
         'numpy>=1.16,<2',
         'pandas>=1.0,<2',
         'protobuf>=3.13,<4',
-        'pyarrow>=6,<7',
+        'pyarrow>=6',
         'pyfarmhash>=0.2,<0.4',
         'six>=1.12,<2',
         'tensorflow>=2.11,<3',
