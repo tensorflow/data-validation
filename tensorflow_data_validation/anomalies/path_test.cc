@@ -135,7 +135,8 @@ TEST(Path, DeserializeBad) {
   for (const string& bad : bad_serializations) {
     Path dummy;
     tensorflow::Status status = Path::Deserialize(bad, &dummy);
-    EXPECT_EQ(status.code(), tensorflow::error::INVALID_ARGUMENT)
+    EXPECT_EQ(status.code(), static_cast<tsl::errors::Code>(
+                                 absl::StatusCode::kInvalidArgument))
         << "Deserialize did not fail on " << bad;
   }
 }
