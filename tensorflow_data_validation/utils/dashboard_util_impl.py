@@ -11,11 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Dashboard utilities."""
-
-from tensorflow_data_validation.utils import dashboard_util_impl
+"""Dashboard utilities implementation."""
 
 
 def generate_stats_dashboard_link():
   """Generate link for stats dashboard."""
-  return dashboard_util_impl.generate_stats_dashboard_link()
+  return ''
