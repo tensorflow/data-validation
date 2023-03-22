@@ -185,7 +185,7 @@ setup(
         'pandas>=1.0,<2',
         'protobuf>=3.13,<4',
         'pyarrow>=6,<7',
-        'pyfarmhash>=0.2,<0.4',
+        'pyfarmhash>=0.2.2,<0.4',
         'six>=1.12,<2',
         'tensorflow>=2.11,<3',
         'tensorflow-metadata' + select_constraint(
