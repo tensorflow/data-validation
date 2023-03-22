@@ -26,7 +26,7 @@ WORKING_DIR=$PWD
 
 function setup_environment() {
   source scl_source enable devtoolset-8
-  source scl_source enable rh-python36
+  source scl_source enable rh-python38
   if [[ -z "${PYTHON_VERSION}" ]]; then
     echo "Must set PYTHON_VERSION env to 38|39|310"; exit 1;
   fi
@@ -63,7 +63,7 @@ function stamp_wheel() {
   WHEEL_PATH="$(ls "$PWD"/dist/*.whl)"
   WHEEL_DIR=$(dirname "${WHEEL_PATH}")
   TMP_DIR="$(mktemp -d)"
-  auditwheel repair --plat manylinux2010_x86_64 -w "${WHEEL_DIR}" "${WHEEL_PATH}"
+  auditwheel repair --plat manylinux2014_x86_64 -w "${WHEEL_DIR}" "${WHEEL_PATH}"
   rm "${WHEEL_PATH}"
 }
 

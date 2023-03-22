@@ -1,0 +1,32 @@
+diff --git foreign_cc/private/cc_toolchain_util.bzl foreign_cc/private/cc_toolchain_util.bzl
+index 1bd872d..7a7880d 100644
+--- foreign_cc/private/cc_toolchain_util.bzl
++++ foreign_cc/private/cc_toolchain_util.bzl
+@@ -46,6 +46,14 @@ FOREIGN_CC_DISABLED_FEATURES = [
+     "thin_lto",
+ ]
+
++def _maybe_convert_gcc(gcc_path):
++  gcc_path_steps = gcc_path.split("/")
++  if (gcc_path_steps[-1] == "gcc"):
++    gcc_path_steps[-1] = "g++"
++    return "/".join(gcc_path_steps)
++  else:
++    return gcc_path
++
+ def _to_list(element):
+    if element == None:
+        return []
+@@ -270,10 +278,10 @@ def get_tools_info(ctx):
+             feature_configuration = feature_configuration,
+             action_name = ACTION_NAMES.c_compile,
+         ),
+-        cxx = cc_common.get_tool_for_action(
++        cxx = _maybe_convert_gcc(cc_common.get_tool_for_action(
+             feature_configuration = feature_configuration,
+             action_name = ACTION_NAMES.cpp_compile,
+-        ),
++        )),
+         cxx_linker_static = cc_common.get_tool_for_action(
+             feature_configuration = feature_configuration,
+             action_name = ACTION_NAMES.cpp_link_static_library,

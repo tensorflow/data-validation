@@ -12,6 +12,8 @@ http_archive(
     sha256 = "2a4d07cd64b0719b39a7c12218a3e507672b82a97b98c6a89d38565894cf7c51",
     strip_prefix = "rules_foreign_cc-%s" % RULES_FOREIGN_CC_VERSION,
     url = "https://github.com/bazelbuild/rules_foreign_cc/archive/refs/tags/%s.tar.gz" % RULES_FOREIGN_CC_VERSION,
+    patch_tool = "patch",
+    patches = ["//third_party:rules_foreign_cc.patch",],
 )
 
 load("@rules_foreign_cc//foreign_cc:repositories.bzl", "rules_foreign_cc_dependencies")
