@@ -42,9 +42,8 @@ pip install tensorflow-data-validation
 
 ### Nightly Packages
 
-TFDV also hosts nightly packages at https://pypi-nightly.tensorflow.org on
-Google Cloud. To install the latest nightly package, please use the following
-command:
+TFDV also hosts nightly packages on Google Cloud. To install the latest nightly
+package, please use the following command:
 
 ```bash
 export TFX_DEPENDENCY_SELECTOR=NIGHTLY
