@@ -92,7 +92,7 @@ sudo docker-compose build manylinux2010
 sudo docker-compose run -e PYTHON_VERSION=${PYTHON_VERSION} manylinux2010
 ```
 
-where `PYTHON_VERSION` is one of `{37, 38, 39}`.
+where `PYTHON_VERSION` is one of `{38, 39}`.
 
 A wheel will be produced under `dist/`.
 
