@@ -183,11 +183,11 @@ setup(
         'joblib>=1.2.0',  # Dependency for multi-processing.
         'numpy~=1.22.0',
         'pandas>=1.0,<2',
-        'protobuf>=3.13,<4',
+        'protobuf>=3.20.3,<5',
         'pyarrow>=6,<7',
         'pyfarmhash>=0.2.2,<0.4',
         'six>=1.12,<2',
-        'tensorflow>=2.11,<3',
+        'tensorflow>=2.12,<3',
         'tensorflow-metadata' + select_constraint(
             default='>=1.12.0,<1.13',
             nightly='>=1.13.0.dev',

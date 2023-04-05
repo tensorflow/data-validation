@@ -13,6 +13,8 @@
 *  Update the minimum Bazel version required to build TFDV to 5.3.0.
 *  Depends on `numpy~=1.22.0`.
 *  Depends on `pyfarmhash>=0.2.2,<0.4`.
+*  Depends on `tensorflow>=2.12.0,<2.13`.
+*  Depends on `protobuf>=3.20.3,<5`.
 
 ## Known Issues
 
