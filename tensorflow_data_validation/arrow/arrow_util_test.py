@@ -287,6 +287,13 @@ def _Normalize(array: pa.Array) -> pa.Array:
 
 class ArrowUtilTest(parameterized.TestCase):
 
+  def testIsListLike(self):
+    for t in (pa.list_(pa.int64()), pa.large_list(pa.int64())):
+      self.assertTrue(arrow_util.is_list_like(t))
+
+    for t in (pa.binary(), pa.int64(), pa.large_string()):
+      self.assertFalse(arrow_util.is_list_like(t))
+
   def testIsBinaryLike(self):
     for t in (pa.binary(), pa.large_binary(), pa.string(), pa.large_string()):
       self.assertTrue(arrow_util.is_binary_like(t))
@@ -332,6 +339,108 @@ class ArrowUtilTest(parameterized.TestCase):
               [pa.array([[1], [2, 3]]),
                pa.array([[1], [2, 2]])], ["v", "w"]),
           weight_column="w")
+
+  def testGetArrayEmptyPath(self):
+    with self.assertRaisesRegex(
+        KeyError,
+        r"query_path must be non-empty.*"):
+      arrow_util.get_array(
+          pa.RecordBatch.from_arrays([pa.array([[1], [2, 3]])], ["v"]),
+          query_path=types.FeaturePath([]),
+          return_example_indices=False)
+
+  def testGetArrayColumnMissing(self):
+    with self.assertRaisesRegex(
+        KeyError,
+        r'query_path step 0 "x" not in record batch.*'):
+      arrow_util.get_array(
+          pa.RecordBatch.from_arrays([pa.array([[1], [2]])], ["y"]),
+          query_path=types.FeaturePath(["x"]),
+          return_example_indices=False)
+
+  def testGetArrayStepMissing(self):
+    with self.assertRaisesRegex(KeyError,
+                                r'query_path step "ssf3" not in struct.*'):
+      arrow_util.get_array(
+          _INPUT_RECORD_BATCH,
+          query_path=types.FeaturePath(["f2", "sf2", "ssf3"]),
+          return_example_indices=False)
+
+  def testGetArrayReturnExampleIndices(self):
+    record_batch = pa.RecordBatch.from_arrays([
+        pa.array([[{
+            "sf": [{
+                "ssf": [1]
+            }, {
+                "ssf": [2]
+            }]
+        }], [{
+            "sf": [{
+                "ssf": [3, 4]
+            }]
+        }]]),
+        pa.array([["one"], ["two"]])
+    ], ["f", "w"])
+    feature = types.FeaturePath(["f", "sf", "ssf"])
+    actual_arr, actual_indices = arrow_util.get_array(
+        record_batch, feature, return_example_indices=True)
+    expected_arr = pa.array([[1], [2], [3, 4]])
+    expected_indices = np.array([0, 0, 1])
+    self.assertTrue(
+        actual_arr.equals(expected_arr),
+        "\nfeature: {};\nexpected:\n{};\nactual:\n{}".format(
+            feature, expected_arr, actual_arr))
+    np.testing.assert_array_equal(expected_indices, actual_indices)
+
+  def testGetArraySubpathMissing(self):
+    with self.assertRaisesRegex(
+        KeyError,
+        r'Cannot process .* "sssf" inside .* list<item: int64>.*'):
+      arrow_util.get_array(
+          _INPUT_RECORD_BATCH,
+          query_path=types.FeaturePath(["f2", "sf2", "ssf1", "sssf"]),
+          return_example_indices=False)
+
+  @parameterized.named_parameters(
+      ((str(f), f, expected) for (f, expected) in  _FEATURES_TO_ARRAYS.items()))
+  def testGetArray(self, feature, expected):
+    actual_arr, actual_indices = arrow_util.get_array(
+        _INPUT_RECORD_BATCH, feature, return_example_indices=True,
+        wrap_flat_struct_in_list=False)
+    expected_arr, expected_indices, _ = expected
+    self.assertTrue(
+        actual_arr.equals(expected_arr),
+        "\nfeature: {};\nexpected:\n{};\nactual:\n{}".format(
+            feature, expected_arr, actual_arr))
+    np.testing.assert_array_equal(expected_indices, actual_indices)
+
+  @parameterized.named_parameters(
+      ((str(f), f, expected) for (f, expected) in  _FEATURES_TO_ARRAYS.items()))
+  def testGetArrayNoBroadcast(self, feature, expected):
+    actual_arr, actual_indices = arrow_util.get_array(
+        _INPUT_RECORD_BATCH, feature, return_example_indices=False,
+        wrap_flat_struct_in_list=False)
+    expected_arr, _, _ = expected
+    self.assertTrue(
+        actual_arr.equals(expected_arr),
+        "\nfeature: {};\nexpected:\n{};\nactual:\n{}".format(
+            feature, expected_arr, actual_arr))
+    self.assertIsNone(actual_indices)
+
+  @parameterized.named_parameters(
+      ((str(f), f, expected) for (f, expected) in  _FEATURES_TO_ARRAYS.items()))
+  def testGetArrayWrapFlatStructArray(self, feature, expected):
+    actual_arr, actual_indices = arrow_util.get_array(
+        _INPUT_RECORD_BATCH, feature, return_example_indices=True,
+        wrap_flat_struct_in_list=True)
+    expected_arr, expected_indices, _ = expected
+    if pa.types.is_struct(expected_arr.type):
+      expected_arr = array_util.ToSingletonListArray(expected_arr)
+    self.assertTrue(
+        actual_arr.equals(expected_arr),
+        "\nfeature: {};\nexpected:\n{};\nactual:\n{}".format(
+            feature, expected_arr, actual_arr))
+    np.testing.assert_array_equal(expected_indices, actual_indices)
 
   def testEnumerateArraysStringWeight(self):
     # The arrow type of a string changes between py2 and py3 so we accept either
@@ -441,6 +550,27 @@ class ArrowUtilTest(parameterized.TestCase):
           actual.equals(v),
           "feature={}; expected: {}; actual: {}; diff: {}".format(
               k, v, actual, actual.diff(v)))
+
+  def testFlattenNested(self):
+    input_array = pa.array([[[1, 2]], None, [None, [3]]])
+    flattened, parent_indices = arrow_util.flatten_nested(
+        input_array, return_parent_indices=False)
+    expected = pa.array([1, 2, 3])
+    expected_parent_indices = [0, 0, 2]
+    self.assertIs(parent_indices, None)
+    self.assertTrue(flattened.equals(expected))
+
+    flattened, parent_indices = arrow_util.flatten_nested(
+        input_array, return_parent_indices=True)
+    self.assertTrue(flattened.equals(expected))
+    np.testing.assert_array_equal(parent_indices, expected_parent_indices)
+
+  def testFlattenNestedNonList(self):
+    input_array = pa.array([1, 2])
+    flattened, parent_indices = arrow_util.flatten_nested(
+        input_array, return_parent_indices=True)
+    self.assertTrue(flattened.equals(pa.array([1, 2])))
+    np.testing.assert_array_equal(parent_indices, [0, 1])
 
   def testGetColumn(self):
     self.assertTrue(

@@ -24,7 +24,6 @@ import pyarrow as pa
 import six
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
-from tfx_bsl.arrow import array_util
 
 
 def DecodedExamplesToRecordBatch(
@@ -67,7 +66,7 @@ def DecodedExamplesToRecordBatch(
   for name, array in six.moves.zip(field_names, value_arrays):
     if pa.types.is_null(array.type):
       continue
-    if not array_util.is_list_like(array.type):
+    if not arrow_util.is_list_like(array.type):
       raise TypeError("Expected list arrays for field {} but got {}".format(
           name, array.type))
     value_type = array.type.value_type

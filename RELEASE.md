@@ -22,7 +22,6 @@
 
 * Jensen-Shannon divergence now treats NaN values as always contributing to
   higher drift score.
-* Moved some non-public arrow_util functions to TFX-BSL.
 
 ## Deprecations
 

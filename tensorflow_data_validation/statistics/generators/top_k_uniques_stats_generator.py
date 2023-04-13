@@ -30,7 +30,6 @@ from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
 from tensorflow_data_validation.utils import top_k_uniques_stats_util
 from tensorflow_data_validation.utils.example_weight_map import ExampleWeightMap
-from tfx_bsl.arrow import array_util
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -106,7 +105,7 @@ def _to_topk_tuples(
       continue
     if not _should_run(categorical_numeric_types, feature_path, feature_type):
       continue
-    flattened_values, parent_indices = array_util.flatten_nested(
+    flattened_values, parent_indices = arrow_util.flatten_nested(
         feature_array, weights is not None)
     if weights is not None and flattened_values:
       # Slow path: weighted uniques.
