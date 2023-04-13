@@ -22,12 +22,12 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 from tensorflow_data_validation import types
-from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.statistics.generators import partitioned_stats_generator
 from tensorflow_data_validation.utils import feature_partition_util
 from tensorflow_data_validation.utils import mutual_information_util
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
+from tfx_bsl.arrow import array_util
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -46,7 +46,7 @@ def _get_flattened_feature_values_without_nulls(
   Returns:
     A list containing the flattened feature values with nulls removed.
   """
-  non_missing_values = np.asarray(arrow_util.flatten_nested(feature_array)[0])
+  non_missing_values = np.asarray(array_util.flatten_nested(feature_array)[0])
   return list(non_missing_values[~pd.isnull(non_missing_values)])
 
 
@@ -98,7 +98,7 @@ def _apply_categorical_encoding_to_feature_array(
   if pa.types.is_null(feature_array.type):
     return []
   result = [None for _ in range(len(feature_array))]
-  flattened, non_missing_parent_indices = arrow_util.flatten_nested(
+  flattened, non_missing_parent_indices = array_util.flatten_nested(
       feature_array, True)
   non_missing_values = flattened.to_pylist()
   non_missing_parent_indices = list(non_missing_parent_indices)
@@ -177,7 +177,7 @@ def _apply_numerical_encoding_to_feature_array(
   if pa.types.is_null(feature_array.type):
     return []
   result = [None for _ in range(len(feature_array))]  # type: List
-  flattened, non_missing_parent_indices = arrow_util.flatten_nested(
+  flattened, non_missing_parent_indices = array_util.flatten_nested(
       feature_array, True)
   assert non_missing_parent_indices is not None
   non_missing_values = np.asarray(flattened)
@@ -251,7 +251,7 @@ def _encode_univalent_feature(feature_array: pa.Array) -> List[Any]:
     A list containing the feature values where null values are replaced by None.
   """
   result = [[None] for _ in range(len(feature_array))]
-  flattened, non_missing_parent_indices = arrow_util.flatten_nested(
+  flattened, non_missing_parent_indices = array_util.flatten_nested(
       feature_array, True)
   non_missing_values = np.asarray(flattened)
   nan_mask = pd.isnull(non_missing_values)

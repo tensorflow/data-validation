@@ -25,8 +25,9 @@ import numpy as np
 import pyarrow as pa
 
 from tensorflow_data_validation import types
-from tensorflow_data_validation.arrow import arrow_util
 from tfx_bsl.arrow import array_util
+from tfx_bsl.arrow import path as tfx_bsl_path
+from tfx_bsl.arrow import table_util
 
 
 class InputBatch(object):
@@ -58,8 +59,11 @@ class InputBatch(object):
         mask.
     """
     try:
-      array, _ = arrow_util.get_array(
-          self._record_batch, path, return_example_indices=False)
+      array, _ = table_util.get_array(
+          self._record_batch,
+          tfx_bsl_path.ColumnPath(path.steps()),
+          return_example_indices=False,
+      )
       # GetArrayNullBitmapAsByteArray is only useful for non-null type arrays.
       if pa.types.is_null(array.type):
         return np.full(self._record_batch.num_rows, True)
@@ -118,11 +122,14 @@ class InputBatch(object):
     if key in self._cache:
       return self._cache[key]
     try:
-      array, _ = arrow_util.get_array(
-          self._record_batch, path, return_example_indices=False)
+      array, _ = table_util.get_array(
+          self._record_batch,
+          tfx_bsl_path.ColumnPath(path.steps()),
+          return_example_indices=False,
+      )
       if pa.types.is_null(array.type):
         lengths = np.full(self._record_batch.num_rows, 0)
-      elif not arrow_util.is_list_like(array.type):
+      elif not array_util.is_list_like(array.type):
         raise ValueError('Can only compute list lengths on list arrays, found '
                          '{}'.format(array.type))
       else:

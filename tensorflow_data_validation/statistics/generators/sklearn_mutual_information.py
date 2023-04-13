@@ -88,7 +88,7 @@ def _flatten_and_impute(examples: pa.RecordBatch,
     else:
       # to_pandas returns a readonly array. Create a copy as we will be imputing
       # the NaN values.
-      flattened_array, non_missing_parent_indices = arrow_util.flatten_nested(
+      flattened_array, non_missing_parent_indices = array_util.flatten_nested(
           feature_array, return_parent_indices=True)
       assert non_missing_parent_indices is not None
       non_missing_values = np.copy(np.asarray(flattened_array))

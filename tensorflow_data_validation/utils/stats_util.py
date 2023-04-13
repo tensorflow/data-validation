@@ -29,6 +29,7 @@ from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.utils import artifacts_io_impl
 from tensorflow_data_validation.utils import io_util
 from tfx_bsl import statistics
+from tfx_bsl.arrow import array_util
 from google.protobuf import text_format
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
@@ -96,12 +97,12 @@ def get_feature_type_from_arrow_type(
   """
   if pa.types.is_null(arrow_type):
     return None
-  if not arrow_util.is_list_like(arrow_type):
+  if not array_util.is_list_like(arrow_type):
     raise TypeError('Expected feature column to be a '
                     '(Large)List<primitive|struct> or null, but feature {} '
                     'was {}.'.format(feature_path, arrow_type))
 
-  value_type = arrow_util.get_innermost_nested_type(arrow_type)
+  value_type = array_util.get_innermost_nested_type(arrow_type)
   if pa.types.is_integer(value_type):
     return statistics_pb2.FeatureNameStatistics.INT
   elif pa.types.is_floating(value_type):

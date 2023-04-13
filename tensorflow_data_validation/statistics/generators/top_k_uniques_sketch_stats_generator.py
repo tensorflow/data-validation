@@ -33,6 +33,7 @@ from tensorflow_data_validation.utils import stats_util
 from tensorflow_data_validation.utils import top_k_uniques_stats_util
 from tensorflow_data_validation.utils.example_weight_map import ExampleWeightMap
 
+from tfx_bsl.arrow import array_util
 from tfx_bsl.sketches import KmvSketch
 from tfx_bsl.sketches import MisraGriesSketch
 
@@ -165,7 +166,7 @@ class TopKUniquesSketchStatsGenerator(stats_generator.CombinerStatsGenerator):
       weights: Optional[np.ndarray],
       accumulator: Dict[tfdv_types.FeaturePath, _CombinedSketch]):
     """Updates combined sketch with values (and weights if provided)."""
-    flattened_values, parent_indices = arrow_util.flatten_nested(
+    flattened_values, parent_indices = array_util.flatten_nested(
         values, weights is not None)
 
     combined_sketch = accumulator.get(feature_name, None)
@@ -231,7 +232,7 @@ class TopKUniquesSketchStatsGenerator(stats_generator.CombinerStatsGenerator):
       if np.random.random() > self._length_counter_sampling_rate: return
       if feature_type == statistics_pb2.FeatureNameStatistics.STRING:
         distinct_count = collections.defaultdict(int)
-        values, _ = arrow_util.flatten_nested(leaf_array)
+        values, _ = array_util.flatten_nested(leaf_array)
         for value in values:
           binary_scalar_len = int(np.log2(max(value.as_buffer().size, 1)))
           distinct_count[binary_scalar_len] += 1

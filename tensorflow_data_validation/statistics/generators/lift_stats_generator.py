@@ -32,6 +32,9 @@ from tensorflow_data_validation.utils import bin_util
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
 from tensorflow_data_validation.utils.example_weight_map import ExampleWeightMap
+from tfx_bsl.arrow import array_util
+from tfx_bsl.arrow import path as tfx_bsl_path
+from tfx_bsl.arrow import table_util
 
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
@@ -138,12 +141,15 @@ def _get_example_value_presence(
     A _ValuePresence tuple which contains three numpy arrays: example indices,
     values, and weights.
   """
-  arr, example_indices = arrow_util.get_array(
-      record_batch, path, return_example_indices=True)
+  arr, example_indices = table_util.get_array(
+      record_batch,
+      tfx_bsl_path.ColumnPath(path.steps()),
+      return_example_indices=True,
+  )
   if stats_util.get_feature_type_from_arrow_type(path, arr.type) is None:
     return
 
-  arr_flat, parent_indices = arrow_util.flatten_nested(
+  arr_flat, parent_indices = array_util.flatten_nested(
       arr, return_parent_indices=True)
   is_binary_like = arrow_util.is_binary_like(arr_flat.type)
   assert boundaries is None or not is_binary_like, (
