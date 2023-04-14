@@ -4,6 +4,18 @@
 
 ## Major Features and Improvements
 
+## Bug Fixes and Other Changes
+
+## Known Issues
+
+## Breaking Changes
+
+## Deprecations
+
+# Version 1.13.0
+
+## Major Features and Improvements
+
 *   Introduces a Schema option `HistogramSelection` to allow numeric drift/skew
     calculations to use QUANTILES histograms, which are more robust to outliers.
 
@@ -15,8 +27,12 @@
 *  Depends on `pyfarmhash>=0.2.2,<0.4`.
 *  Depends on `tensorflow>=2.12.0,<2.13`.
 *  Depends on `protobuf>=3.20.3,<5`.
+*  Depends on `tfx-bsl>=1.13.0,<1.14.0`.
+*  Depends on `tensorflow-metadata>=1.13.1,<1.14.0`.
 
 ## Known Issues
+
+*   N/A
 
 ## Breaking Changes
 
