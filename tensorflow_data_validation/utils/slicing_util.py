@@ -35,6 +35,7 @@ from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.utils import stats_util
+from tfx_bsl.arrow import array_util
 from tfx_bsl.arrow import sql_util
 from tfx_bsl.arrow import table_util
 from tfx_bsl.public.proto import slicing_spec_pb2
@@ -149,7 +150,7 @@ def get_feature_value_slicer(
                 'The feature to slice on has integer values but '
                 'the provided slice values are not valid integers.') from e
 
-      flattened, value_parent_indices = arrow_util.flatten_nested(
+      flattened, value_parent_indices = array_util.flatten_nested(
           feature_array, True)
       non_missing_values = np.asarray(flattened)
       # Create dataframe with feature value and parent index.

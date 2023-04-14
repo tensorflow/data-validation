@@ -224,7 +224,7 @@ class _PartialCommonStats(object):
       return
 
     level = 0
-    while arrow_util.is_list_like(feature_array.type):
+    while array_util.is_list_like(feature_array.type):
       presence_mask = ~np.asarray(
           array_util.GetArrayNullBitmapAsByteArray(feature_array)).view(bool)
       num_values = np.asarray(
@@ -320,7 +320,7 @@ class _PartialNumericStats(object):
     if not feature_array:
       return
 
-    flattened_value_array, value_parent_indices = arrow_util.flatten_nested(
+    flattened_value_array, value_parent_indices = array_util.flatten_nested(
         feature_array, weights is not None)
     # Note: to_numpy will fail if flattened_value_array is empty.
     if not flattened_value_array:
@@ -388,7 +388,7 @@ class _PartialStringStats(object):
     if pa.types.is_null(feature_array.type):
       return
     # Iterate through the value array and update the partial stats.
-    flattened_values_array, _ = arrow_util.flatten_nested(feature_array)
+    flattened_values_array, _ = array_util.flatten_nested(feature_array)
     if arrow_util.is_binary_like(flattened_values_array.type):
       # GetBinaryArrayTotalByteSize returns a Python long (to be compatible
       # with Python3). To make sure we do cheaper integer arithemetics in
@@ -432,7 +432,7 @@ class _PartialBytesStats(object):
     if pa.types.is_null(feature_array.type):
       return
     # Iterate through the value array and update the partial stats.'
-    flattened_values_array, _ = arrow_util.flatten_nested(feature_array)
+    flattened_values_array, _ = array_util.flatten_nested(feature_array)
     if (pa.types.is_floating(flattened_values_array.type) or
         pa.types.is_integer(flattened_values_array.type)):
       raise ValueError('Bytes stats cannot be computed on INT/FLOAT features.')

@@ -9,6 +9,7 @@
 ## Known Issues
 
 ## Breaking Changes
+*  Moves some non-public arrow_util functions to TFX-BSL.
 
 ## Deprecations
 
