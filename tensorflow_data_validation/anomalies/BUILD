@@ -445,6 +445,7 @@ cc_library(
         "@com_github_tfx_bsl//tfx_bsl/cc/statistics:sql_util",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/types:optional",
+        "@org_tensorflow//tensorflow/core:framework",
         "@org_tensorflow//tensorflow/core:lib",
     ],
 )

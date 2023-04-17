@@ -19,6 +19,7 @@ limitations under the License.
 #include "tensorflow_data_validation/anomalies/schema_util.h"
 #include "tfx_bsl/cc/statistics/sql_util.h"
 #include "tensorflow/core/lib/core/errors.h"
+#include "tensorflow/core/public/version.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
 #include "tensorflow_metadata/proto/v0/path.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
@@ -286,7 +287,11 @@ Status CustomValidateStatisticsWithSerializedInputs(
                                validations, environment, &anomalies);
   if (!status.ok()) {
     return tensorflow::errors::Internal("Failed to run custom validations: ",
+#if TF_GRAPH_DEF_VERSION < 1467
                                         status.error_message());
+#else
+                                        status.message());
+#endif
   }
   if (!anomalies.SerializeToString(serialized_anomalies_proto)) {
     return tensorflow::errors::Internal(
