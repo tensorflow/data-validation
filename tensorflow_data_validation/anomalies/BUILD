@@ -462,3 +462,31 @@ cc_test(
         "@org_tensorflow//tensorflow/core/platform:errors",
     ],
 )
+
+cc_library(
+    name = "time_series_validator",
+    srcs = ["time_series_validator.cc"],
+    hdrs = ["time_series_validator.h"],
+    visibility = [
+        "//tensorflow_data_validation:__subpackages__",
+    ],
+    deps = [
+        ":metrics",
+        "//tensorflow_data_validation/google/protos:time_series_metrics_cc_proto",
+        "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
+        "@com_google_absl//absl/status:statusor",
+        "@org_tensorflow//tensorflow/core:lib",
+    ],
+)
+
+cc_test(
+    name = "time_series_validator_test",
+    srcs = ["time_series_validator_test.cc"],
+    deps = [
+        ":test_util",
+        ":time_series_validator",
+        "//tensorflow_data_validation/google/protos:time_series_metrics_cc_proto",
+        "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
