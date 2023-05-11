@@ -6,6 +6,9 @@
 
 ## Bug Fixes and Other Changes
 
+*   Bumped the Ubuntu version on which TFX-BSL is tested to 20.04 (previously
+    was 16.04).
+
 ## Known Issues
 
 ## Breaking Changes

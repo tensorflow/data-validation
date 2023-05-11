@@ -148,7 +148,7 @@ pip install dist/*.whl
 TFDV is tested on the following 64-bit operating systems:
 
   * macOS 12.5 (Monterey) or later.
-  * Ubuntu 16.04 or later.
+  * Ubuntu 20.04 or later.
   * Windows 7 or later.
 
 ## Notable Dependencies
