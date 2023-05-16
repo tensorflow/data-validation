@@ -21,6 +21,7 @@ limitations under the License.
 #include "tensorflow_data_validation/anomalies/metrics.h"
 #include "tensorflow_data_validation/google/protos/time_series_metrics.pb.h"
 #include "tensorflow/core/lib/core/errors.h"
+#include "tensorflow/core/lib/gtl/optional.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
 
 using tensorflow::metadata::v0::DatasetFeatureStatisticsList;
@@ -34,11 +35,15 @@ namespace data_validation {
 
 absl::flat_hash_map<std::string,
                     absl::flat_hash_map<std::string, FeatureNameStatistics>>
-BuildNamedStatisticsMap(const DatasetFeatureStatisticsList& statistics) {
+BuildNamedStatisticsMap(
+    const gtl::optional<DatasetFeatureStatisticsList>& statistics) {
   absl::flat_hash_map<std::string,
                       absl::flat_hash_map<std::string, FeatureNameStatistics>>
       named_statistics;
-  for (const auto& dataset : statistics.datasets()) {
+  if (!statistics) {
+    return named_statistics;
+  }
+  for (const auto& dataset : statistics->datasets()) {
     std::string dataset_name;
     if (dataset.name().empty()) {
       dataset_name = kDefaultSlice;
@@ -68,11 +73,10 @@ const CommonStatistics& GetFeatureCommonStats(
   }
 }
 
-// TODO: make the reference_statistics optional and only add the metrics that
-// require comparison if it's present.
 absl::StatusOr<std::vector<ValidationMetrics>> ValidateTimeSeriesStatistics(
     const metadata::v0::DatasetFeatureStatisticsList& statistics,
-    const metadata::v0::DatasetFeatureStatisticsList& reference_statistics,
+    const gtl::optional<metadata::v0::DatasetFeatureStatisticsList>&
+        reference_statistics,
     const SliceComparisonConfig& slice_config) {
   std::vector<ValidationMetrics> validation_metrics_vector;
 
@@ -97,17 +101,20 @@ absl::StatusOr<std::vector<ValidationMetrics>> ValidateTimeSeriesStatistics(
     // Find the statistics from the same slice in reference statistics
     auto reference_slice_statistics =
         named_reference_statistics.find(dataset_name);
-    if (reference_slice_statistics != named_reference_statistics.end()
-      && slice_config.mode_ == SliceComparisonMode::kSame) {
-        compute_drift_metrics = true;
-      }
+    if (reference_slice_statistics != named_reference_statistics.end() &&
+        slice_config.mode_ == SliceComparisonMode::kSame) {
+      compute_drift_metrics = true;
+    }
 
     // Add slice information for source and reference
     validation_metrics.mutable_source()->mutable_slice()->set_slice_name(
         dataset_name);
-    validation_metrics.mutable_reference_source()
-        ->mutable_slice()
-        ->set_slice_name(dataset_name);
+
+    if (compute_drift_metrics) {
+      validation_metrics.mutable_reference_source()
+          ->mutable_slice()
+          ->set_slice_name(dataset_name);
+    }
 
     for (const auto& feature : dataset.features()) {
       FeatureMetric* feature_metric = validation_metrics.add_feature_metric();

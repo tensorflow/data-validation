@@ -488,5 +488,6 @@ cc_test(
         "//tensorflow_data_validation/google/protos:time_series_metrics_cc_proto",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
         "@com_google_googletest//:gtest_main",
+        "@org_tensorflow//tensorflow/core:lib",
     ],
 )

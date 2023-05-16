@@ -21,6 +21,7 @@ limitations under the License.
 #include <gtest/gtest.h>
 #include "tensorflow_data_validation/anomalies/test_util.h"
 #include "tensorflow_data_validation/google/protos/time_series_metrics.pb.h"
+#include "tensorflow/core/lib/gtl/optional.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
 
 using tensorflow::data_validation::SliceComparisonConfig;
@@ -42,7 +43,8 @@ using ::testing::status::IsOkAndHolds;
 struct TestCase {
   std::string test_name;
   metadata::v0::DatasetFeatureStatisticsList test_statistics;
-  metadata::v0::DatasetFeatureStatisticsList test_reference_statistics;
+  gtl::optional<metadata::v0::DatasetFeatureStatisticsList>
+      test_reference_statistics;
   std::vector<ValidationMetrics> expected_validation_metrics;
 };
 
@@ -479,7 +481,6 @@ INSTANTIATE_TEST_SUITE_P(
                     metric { metric_name: "num_not_missing" value: 13 }
                   }
                   source { slice { slice_name: 'All Examples' } }
-                  reference_source { slice { slice_name: 'All Examples' } }
              )pb")}},
         {"NoMatchingFeatureInReferenceStats",
          ParseTextProtoOrDie<metadata::v0::DatasetFeatureStatisticsList>(
@@ -551,6 +552,47 @@ INSTANTIATE_TEST_SUITE_P(
                   }
                   source { slice { slice_name: 'All Examples' } }
                   reference_source { slice { slice_name: 'All Examples' } }
+             )pb")}},
+        {"SingleSliceNoReferenceStats",
+         ParseTextProtoOrDie<metadata::v0::DatasetFeatureStatisticsList>(
+             R"pb(
+               datasets {
+                 name: "All Examples"
+                 num_examples: 15
+                 features {
+                   path { step: 'test_feature1' }
+                   type: INT
+                   num_stats {
+                     num_zeros: 1
+                     max: 25
+                     common_stats {
+                       num_non_missing: 13
+                       num_values_histogram {
+                         buckets { high_value: 0 low_value: 0 sample_count: 1 }
+                         buckets { high_value: 1 low_value: 1 sample_count: 1 }
+                         buckets { high_value: 1 low_value: 1 sample_count: 1 }
+                         buckets { high_value: 1 low_value: 1 sample_count: 1 }
+                         buckets { high_value: 1 low_value: 1 sample_count: 2 }
+                         buckets { high_value: 1 low_value: 1 sample_count: 2 }
+                         buckets { high_value: 1 low_value: 1 sample_count: 2 }
+                         buckets { high_value: 1 low_value: 1 sample_count: 1 }
+                         buckets { high_value: 1 low_value: 1 sample_count: 1 }
+                         buckets { high_value: 25 low_value: 1 sample_count: 1 }
+                         type: QUANTILES
+                       }
+                     }
+                   }
+                 }
+               }
+             )pb"),
+         gtl::nullopt,
+         {ParseTextProtoOrDie<ValidationMetrics>(
+             R"pb(feature_metric {
+                    feature_name { name: 'test_feature1' }
+                    metric { metric_name: 'num_examples' value: 15 }
+                    metric { metric_name: "num_not_missing" value: 13 }
+                  }
+                  source { slice { slice_name: 'All Examples' } }
              )pb")}},
     }),
     [](const ::testing::TestParamInfo<TimeseriesValidationTest::ParamType>&
