@@ -70,9 +70,11 @@ class _PartialCrossFeatureStats(object):
     """Updates partial cross feature statistics."""
     self.sum_x += feature_x.sum()
     self.sum_y += feature_y.sum()
+    # pytype: disable=unsupported-operands  # typed-pandas
     self.sum_square_x += (feature_x ** 2).sum()
     self.sum_square_y += (feature_y ** 2).sum()
     self.sum_xy += (feature_x * feature_y).sum()
+    # pytype: enable=unsupported-operands  # typed-pandas
     self.count += len(feature_x)
 
 
