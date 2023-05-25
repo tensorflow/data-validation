@@ -468,6 +468,7 @@ cc_library(
     srcs = ["time_series_validator.cc"],
     hdrs = ["time_series_validator.h"],
     visibility = [
+        "//learning/tfx/pipeline:__subpackages__",
         "//tensorflow_data_validation:__subpackages__",
     ],
     deps = [
