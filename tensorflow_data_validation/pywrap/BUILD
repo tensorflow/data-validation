@@ -3,9 +3,11 @@
 
 load("@org_tensorflow//tensorflow:tensorflow.bzl", "pybind_extension")
 
-package(default_visibility = [
-    "//tensorflow_data_validation:__subpackages__",
-])
+package(
+    default_visibility = [
+        "//tensorflow_data_validation:__subpackages__",
+    ],
+)
 
 licenses(["notice"])  # Apache 2.0
 

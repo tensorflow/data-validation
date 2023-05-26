@@ -1,8 +1,6 @@
-# Description:
-# Code for anomaly detection: example-based validation, and checks of data statistics.
-# Code for automatically generating and modifying schemas.
-
-package(default_visibility = ["//tensorflow_data_validation:__subpackages__"])
+package(
+    default_visibility = ["//tensorflow_data_validation:__subpackages__"],
+)
 
 licenses(["notice"])  # Apache 2.0
 
