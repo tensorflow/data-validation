@@ -8,6 +8,8 @@
 
 *   Bumped the Ubuntu version on which TFX-BSL is tested to 20.04 (previously
     was 16.04).
+*   Use @platforms instead of @bazel_tools//platforms to specify constraints in
+    OSS build.
 
 ## Known Issues
 
