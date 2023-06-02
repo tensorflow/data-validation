@@ -7,7 +7,7 @@ package(
     ],
 )
 
-licenses(["notice"])  # Apache 2.0
+licenses(["notice"])
 
 tfdv_proto_library(
     name = "feature_statistics_to_proto_proto",
