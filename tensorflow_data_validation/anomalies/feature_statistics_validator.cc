@@ -22,6 +22,7 @@ limitations under the License.
 #include "tensorflow_data_validation/anomalies/schema.h"
 #include "tensorflow_data_validation/anomalies/schema_anomalies.h"
 #include "tensorflow_data_validation/anomalies/statistics_view.h"
+#include "tensorflow_data_validation/anomalies/telemetry.h"
 #include "tensorflow/core/lib/core/errors.h"
 #include "tensorflow/core/lib/core/status.h"
 #include "tensorflow/core/lib/monitoring/counter.h"
@@ -36,9 +37,6 @@ namespace data_validation {
 
 namespace {
 const int64 kDefaultEnumThreshold = 400;
-auto* anomaly_type_counts = tensorflow::monitoring::Counter<1>::New(
-    "/tfx/example_validation/anomaly_type_counts", "Anomaly types found.",
-    "anomaly_type");
 }
 
 FeatureStatisticsToProtoConfig GetDefaultFeatureStatisticsToProtoConfig() {
@@ -172,23 +170,7 @@ tensorflow::Status ValidateFeatureStatistics(
     *result = schema_anomalies.GetSchemaDiff(enable_diff_regions);
   }
 
-  for (const auto& anomaly : result->anomaly_info()) {
-    for (const auto& reason : anomaly.second.reason()) {
-      anomaly_type_counts
-          ->GetCell(metadata::v0::AnomalyInfo::Type_Name(reason.type()))
-          ->IncrementBy(1);
-    }
-  }
-  if (result->has_dataset_anomaly_info()) {
-    for (const auto& reason : result->dataset_anomaly_info().reason()) {
-      anomaly_type_counts
-          ->GetCell(metadata::v0::AnomalyInfo::Type_Name(reason.type()))
-          ->IncrementBy(1);
-    }
-  }
-  if (result->data_missing()) {
-    anomaly_type_counts->GetCell("data_missing")->IncrementBy(1);
-  }
+  UpdateTelemetry(*result);
 
   return tensorflow::Status();
 }
