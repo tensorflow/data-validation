@@ -316,9 +316,10 @@ class GenerateSlicesSqlDoFn(beam.DoFn):
       for sql in self._sqls:
         try:
           queries.append(sql_util.RecordBatchSQLSliceQuery(sql, schema))
-        except RuntimeError:
+        except RuntimeError as error:
           # We can't crash on errors caused by missing features/values.
           # Instead failed slicing sqls will create a Invalid Slice.
+          logging.warning('Failed to parse SQL query %r: %r', sql, error)
           queries.append(None)
       return queries
 
