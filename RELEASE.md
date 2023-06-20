@@ -10,6 +10,8 @@
     was 16.04).
 *   Use @platforms instead of @bazel_tools//platforms to specify constraints in
     OSS build.
+*   Depends on `pyarrow>=10,<11`.
+*   Depends on `apache-beam>=2.47,<3`.
 
 ## Known Issues
 
