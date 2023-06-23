@@ -29,7 +29,7 @@ void DefineValidationSubmodule(py::module main_module) {
         [](const std::string& statistics_proto_string,
            int max_string_domain_size, bool infer_feature_shape) -> py::object {
           std::string schema_proto_string;
-          const tensorflow::Status status =
+          const absl::Status status =
               InferSchema(statistics_proto_string, max_string_domain_size,
                           infer_feature_shape, &schema_proto_string);
           if (!status.ok()) {
@@ -43,7 +43,7 @@ void DefineValidationSubmodule(py::module main_module) {
            const std::string& statistics_proto_string,
            int max_string_domain_size) -> py::object {
           std::string output_schema_proto_string;
-          const tensorflow::Status status =
+          const absl::Status status =
               UpdateSchema(
                   schema_proto_string, statistics_proto_string,
                   max_string_domain_size, &output_schema_proto_string);
@@ -64,7 +64,7 @@ void DefineValidationSubmodule(py::module main_module) {
            const std::string& validation_config_string,
            const bool enable_diff_regions) -> py::object {
           std::string anomalies_proto_string;
-          const tensorflow::Status status = \
+          const absl::Status status = \
               ValidateFeatureStatisticsWithSerializedInputs(
                   statistics_proto_string, schema_proto_string, environment,
                   previous_span_statistics_proto_string,
@@ -83,7 +83,7 @@ void DefineValidationSubmodule(py::module main_module) {
            const std::string& validations_string,
            const std::string& environment_string) -> py::object {
           std::string anomalies_proto_string;
-          const tensorflow::Status status =
+          const absl::Status status =
               CustomValidateStatisticsWithSerializedInputs(
                   test_statistics_string, base_statistics_string,
                   validations_string, environment_string,

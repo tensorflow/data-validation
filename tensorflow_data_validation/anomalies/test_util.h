@@ -27,15 +27,12 @@ limitations under the License.
 #include <string>
 #include <vector>
 
+#include "google/protobuf/text_format.h"
 #include <gmock/gmock.h>
 #include "absl/strings/str_join.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
-#include "tensorflow/core/lib/core/status.h"
-#include "tensorflow/core/platform/logging.h"
-#include "tensorflow/core/platform/protobuf.h"
-#include "tensorflow/core/platform/types.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
 
@@ -43,7 +40,8 @@ namespace tensorflow {
 namespace data_validation {
 namespace testing {
 
-using tensorflow::protobuf::TextFormat;
+using google::protobuf::TextFormat;
+using std::string;
 
 // Simple implementation of a proto matcher comparing string representations.
 //
@@ -55,7 +53,7 @@ using tensorflow::protobuf::TextFormat;
 class ProtoStringMatcher {
  public:
   explicit ProtoStringMatcher(const string& expected);
-  explicit ProtoStringMatcher(const ::tensorflow::protobuf::Message& expected);
+  explicit ProtoStringMatcher(const google::protobuf::Message& expected);
 
   template <typename Message>
   bool MatchAndExplain(const Message& p,
@@ -94,7 +92,7 @@ inline ::testing::PolymorphicMatcher<ProtoStringMatcher> EqualsProto(
 
 // Polymorphic matcher to compare any two protos.
 inline ::testing::PolymorphicMatcher<ProtoStringMatcher> EqualsProto(
-    const ::tensorflow::protobuf::Message& x) {
+    const google::protobuf::Message& x) {
   return ::testing::MakePolymorphicMatcher(ProtoStringMatcher(x));
 }
 

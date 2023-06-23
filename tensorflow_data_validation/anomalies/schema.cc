@@ -21,6 +21,9 @@ limitations under the License.
 #include <string>
 
 #include "absl/algorithm/container.h"
+#include "absl/base/log_severity.h"
+#include "absl/log/check.h"
+#include "absl/log/log.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
 #include "absl/types/optional.h"
@@ -37,11 +40,8 @@ limitations under the License.
 #include "tensorflow_data_validation/anomalies/path.h"
 #include "tensorflow_data_validation/anomalies/schema_util.h"
 #include "tensorflow_data_validation/anomalies/statistics_view.h"
+#include "tensorflow_data_validation/anomalies/status_util.h"
 #include "tensorflow_data_validation/anomalies/string_domain_util.h"
-#include "tensorflow/core/lib/core/errors.h"
-#include "tensorflow/core/platform/logging.h"
-#include "tensorflow/core/platform/protobuf.h"
-#include "tensorflow/core/platform/types.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
@@ -50,9 +50,6 @@ namespace tensorflow {
 namespace data_validation {
 namespace {
 using ::absl::optional;
-using ::tensorflow::Status;
-using ::tensorflow::errors::Internal;
-using ::tensorflow::errors::InvalidArgument;
 using ::tensorflow::metadata::v0::Feature;
 using ::tensorflow::metadata::v0::FeatureNameStatistics;
 using ::tensorflow::metadata::v0::SparseFeature;
@@ -120,7 +117,7 @@ std::set<tensorflow::metadata::v0::FeatureType> AllowedFeatureTypes(
 // Remove all elements from the input array for which the input predicate
 // pred is true. Returns number of erased elements.
 template <typename T, typename Predicate>
-int RemoveIf(::tensorflow::protobuf::RepeatedPtrField<T>* array,
+int RemoveIf(google::protobuf::RepeatedPtrField<T>* array,
              const Predicate& pred) {
   int i = 0, end = array->size();
   while (i < end && !pred(&array->Get(i))) ++i;
@@ -138,7 +135,7 @@ int RemoveIf(::tensorflow::protobuf::RepeatedPtrField<T>* array,
 
 Feature* GetExistingFeatureHelper(
     const string& last_part,
-    tensorflow::protobuf::RepeatedPtrField<Feature>* features) {
+    google::protobuf::RepeatedPtrField<Feature>* features) {
   for (tensorflow::metadata::v0::Feature& feature : *features) {
     if (feature.name() == last_part) {
       return &feature;
@@ -149,7 +146,7 @@ Feature* GetExistingFeatureHelper(
 
 void ClearStringDomainHelper(
     const string& domain_name,
-    tensorflow::protobuf::RepeatedPtrField<Feature>* features) {
+    google::protobuf::RepeatedPtrField<Feature>* features) {
   for (tensorflow::metadata::v0::Feature& feature : *features) {
     if (feature.domain() == domain_name) {
       ::tensorflow::data_validation::ClearDomain(&feature);
@@ -163,7 +160,7 @@ void ClearStringDomainHelper(
 
 SparseFeature* GetExistingSparseFeatureHelper(
     const string& name,
-    tensorflow::protobuf::RepeatedPtrField<
+    google::protobuf::RepeatedPtrField<
         tensorflow::metadata::v0::SparseFeature>* sparse_features) {
   for (SparseFeature& sparse_feature : *sparse_features) {
     if (sparse_feature.name() == name) {
@@ -183,9 +180,9 @@ bool ContainsPath(const absl::optional<std::set<Path>>& paths_to_consider,
 }
 
 absl::string_view GetDomainInfoName(const Feature& feature) {
-  const ::tensorflow::protobuf::OneofDescriptor* oneof =
+  const google::protobuf::OneofDescriptor* oneof =
       feature.GetDescriptor()->FindOneofByName("domain_info");
-  const ::tensorflow::protobuf::FieldDescriptor* domain_info_field =
+  const google::protobuf::FieldDescriptor* domain_info_field =
       feature.GetReflection()->GetOneofFieldDescriptor(feature, oneof);
   if (domain_info_field) {
     return domain_info_field->name();
@@ -195,28 +192,29 @@ absl::string_view GetDomainInfoName(const Feature& feature) {
 
 }  // namespace
 
-Status Schema::Init(const tensorflow::metadata::v0::Schema& input) {
+absl::Status Schema::Init(const tensorflow::metadata::v0::Schema& input) {
   if (!IsEmpty()) {
-    return InvalidArgument("Schema is not empty when Init() called.");
+    return absl::InvalidArgumentError(
+        "Schema is not empty when Init() called.");
   }
   schema_ = input;
-  return Status();
+  return absl::OkStatus();
 }
 
-Status Schema::Update(const DatasetStatsView& dataset_stats,
-                      const FeatureStatisticsToProtoConfig& config) {
+absl::Status Schema::Update(const DatasetStatsView& dataset_stats,
+                          const FeatureStatisticsToProtoConfig& config) {
   return Update(dataset_stats, Updater(config), absl::nullopt);
 }
 
-Status Schema::Update(const DatasetStatsView& dataset_stats,
-                      const FeatureStatisticsToProtoConfig& config,
-                      const std::vector<Path>& paths_to_consider) {
+absl::Status Schema::Update(const DatasetStatsView& dataset_stats,
+                          const FeatureStatisticsToProtoConfig& config,
+                          const std::vector<Path>& paths_to_consider) {
   return Update(
       dataset_stats, Updater(config),
       std::set<Path>(paths_to_consider.begin(), paths_to_consider.end()));
 }
 
-tensorflow::Status Schema::UpdateFeature(
+absl::Status Schema::UpdateFeature(
     const Updater& updater, const FeatureStatsView& feature_stats_view,
     std::vector<Description>* descriptions,
     absl::optional<tensorflow::metadata::v0::DriftSkewInfo>* drift_skew_info,
@@ -244,12 +242,12 @@ tensorflow::Status Schema::UpdateFeature(
         ::tensorflow::data_validation::DeprecateSparseFeature(sparse_feature);
       }
       updater.UpdateSeverityForAnomaly(*descriptions, severity);
-      return Status();
+      return absl::OkStatus();
     } else {
       *descriptions =
           UpdateWeightedFeature(feature_stats_view, weighted_feature);
       updater.UpdateSeverityForAnomaly(*descriptions, severity);
-      return Status();
+      return absl::OkStatus();
     }
   }
 
@@ -264,11 +262,11 @@ tensorflow::Status Schema::UpdateFeature(
       ::tensorflow::data_validation::DeprecateSparseFeature(sparse_feature);
       ::tensorflow::data_validation::DeprecateFeature(feature);
       updater.UpdateSeverityForAnomaly(*descriptions, severity);
-      return Status();
+      return absl::OkStatus();
     } else {
       *descriptions = UpdateSparseFeature(feature_stats_view, sparse_feature);
       updater.UpdateSeverityForAnomaly(*descriptions, severity);
-      return Status();
+      return absl::OkStatus();
     }
   }
 
@@ -276,7 +274,7 @@ tensorflow::Status Schema::UpdateFeature(
     UpdateFeatureInternal(updater, feature_stats_view, feature, descriptions,
                           drift_skew_info);
     updater.UpdateSeverityForAnomaly(*descriptions, severity);
-    return Status();
+    return absl::OkStatus();
   } else {
     const Description description = {
         tensorflow::metadata::v0::AnomalyInfo::SCHEMA_NEW_COLUMN, "New column",
@@ -285,7 +283,7 @@ tensorflow::Status Schema::UpdateFeature(
     updater.UpdateSeverityForAnomaly(*descriptions, severity);
     return updater.CreateColumn(feature_stats_view, this, severity);
   }
-  return Status();
+  return absl::OkStatus();
 }
 
 bool Schema::FeatureIsDeprecated(const Path& path) {
@@ -307,24 +305,24 @@ void Schema::DeprecateFeature(const Path& path) {
       CHECK_NOTNULL(GetExistingFeature(path)));
 }
 
-Status Schema::UpdateRecursively(
+absl::Status Schema::UpdateRecursively(
     const Updater& updater, const FeatureStatsView& feature_stats_view,
     const absl::optional<std::set<Path>>& paths_to_consider,
     std::vector<Description>* descriptions,
     tensorflow::metadata::v0::AnomalyInfo::Severity* severity) {
   *severity = tensorflow::metadata::v0::AnomalyInfo::UNKNOWN;
   if (!ContainsPath(paths_to_consider, feature_stats_view.GetPath())) {
-    return Status();
+    return absl::OkStatus();
   }
   absl::optional<tensorflow::metadata::v0::DriftSkewInfo>
       unused_drift_skew_info;
-  TF_RETURN_IF_ERROR(UpdateFeature(updater, feature_stats_view, descriptions,
+  TFDV_RETURN_IF_ERROR(UpdateFeature(updater, feature_stats_view, descriptions,
                                    &unused_drift_skew_info, severity));
   if (!FeatureIsDeprecated(feature_stats_view.GetPath())) {
     for (const FeatureStatsView& child : feature_stats_view.GetChildren()) {
       std::vector<Description> child_descriptions;
       tensorflow::metadata::v0::AnomalyInfo::Severity child_severity;
-      TF_RETURN_IF_ERROR(UpdateRecursively(updater, child, paths_to_consider,
+      TFDV_RETURN_IF_ERROR(UpdateRecursively(updater, child, paths_to_consider,
                                            &child_descriptions,
                                            &child_severity));
       descriptions->insert(descriptions->end(), child_descriptions.begin(),
@@ -333,7 +331,7 @@ Status Schema::UpdateRecursively(
     }
   }
   updater.UpdateSeverityForAnomaly(*descriptions, severity);
-  return Status();
+  return absl::OkStatus();
 }
 
 Schema::Updater::Updater(const FeatureStatisticsToProtoConfig& config)
@@ -373,12 +371,13 @@ void Schema::Updater::UpdateSeverityForAnomaly(
   }
 }
 
-Status Schema::Updater::CreateColumn(
+absl::Status Schema::Updater::CreateColumn(
     const FeatureStatsView& feature_stats_view, Schema* schema,
     tensorflow::metadata::v0::AnomalyInfo::Severity* severity) const {
   if (schema->GetExistingFeature(feature_stats_view.GetPath()) != nullptr) {
-    return InvalidArgument("Schema already contains \"",
-                           feature_stats_view.GetPath().Serialize(), "\".");
+    return absl::InvalidArgumentError(
+        absl::StrCat("Schema already contains \"",
+                        feature_stats_view.GetPath().Serialize(), "\"."));
   }
 
   Feature* feature = schema->GetNewFeature(feature_stats_view.GetPath());
@@ -389,7 +388,7 @@ Status Schema::Updater::CreateColumn(
   if (ContainsKey(columns_to_ignore_,
                   feature_stats_view.GetPath().Serialize())) {
     ::tensorflow::data_validation::DeprecateFeature(feature);
-    return Status();
+    return absl::OkStatus();
   }
   if (feature_stats_view.HasValidationDerivedSource()) {
     // TODO(b/227478330): Consider setting a lower severity.
@@ -399,7 +398,7 @@ Status Schema::Updater::CreateColumn(
 
   if (BestEffortUpdateCustomDomain(feature_stats_view.custom_stats(),
                                    feature)) {
-    return Status();
+    return absl::OkStatus();
   } else if (ContainsKey(grouped_enums_, feature_stats_view.GetPath())) {
     const string& enum_name = grouped_enums_.at(feature_stats_view.GetPath());
     StringDomain* result = schema->GetExistingStringDomain(enum_name);
@@ -407,29 +406,29 @@ Status Schema::Updater::CreateColumn(
       result = schema->GetNewStringDomain(enum_name);
     }
     UpdateStringDomain(*this, feature_stats_view, 0, result);
-    return Status();
+    return absl::OkStatus();
   } else if (feature_stats_view.HasInvalidUTF8Strings() ||
              feature_stats_view.type() == FeatureNameStatistics::BYTES) {
     // If there are invalid UTF8 strings, or the field should not be further
     // interpreted, add no domain info.
-    return Status();
+    return absl::OkStatus();
   } else if (IsBoolDomainCandidate(feature_stats_view)) {
     *feature->mutable_bool_domain() = BoolDomainFromStats(feature_stats_view);
-    return Status();
+    return absl::OkStatus();
   } else if (IsIntDomainCandidate(feature_stats_view)) {
     // By default don't set any values.
     feature->mutable_int_domain();
-    return Status();
+    return absl::OkStatus();
   } else if (IsStringDomainCandidate(feature_stats_view,
                                      config_.enum_threshold())) {
     StringDomain* string_domain =
         schema->GetNewStringDomain(feature_stats_view.GetPath().Serialize());
     UpdateStringDomain(*this, feature_stats_view, 0, string_domain);
     *feature->mutable_domain() = string_domain->name();
-    return Status();
+    return absl::OkStatus();
   } else {
     // No domain info for this field.
-    return Status();
+    return absl::OkStatus();
   }
 }
 
@@ -502,7 +501,7 @@ std::vector<std::set<string>> Schema::SimilarEnumTypes(
 
 std::vector<Path> Schema::GetAllRequiredFeatures(
     const Path& prefix,
-    const tensorflow::protobuf::RepeatedPtrField<Feature>& features,
+    const google::protobuf::RepeatedPtrField<Feature>& features,
     const absl::optional<string>& environment) const {
   // This recursively walks through the structure. Sometimes, a feature is
   // not required because its parent is deprecated.
@@ -554,30 +553,30 @@ std::map<string, std::set<Path>> Schema::EnumNameToPaths() const {
   return result;
 }
 
-Status Schema::Update(const DatasetStatsView& dataset_stats,
+absl::Status Schema::Update(const DatasetStatsView& dataset_stats,
                       const Updater& updater,
                       const absl::optional<std::set<Path>>& paths_to_consider) {
   std::vector<Description> descriptions;
   tensorflow::metadata::v0::AnomalyInfo::Severity severity;
 
   for (const auto& feature_stats_view : dataset_stats.GetRootFeatures()) {
-    TF_RETURN_IF_ERROR(UpdateRecursively(updater, feature_stats_view,
-                                         paths_to_consider, &descriptions,
-                                         &severity));
+    TFDV_RETURN_IF_ERROR(UpdateRecursively(updater, feature_stats_view,
+                                           paths_to_consider, &descriptions,
+                                           &severity));
   }
   for (const Path& missing_path : GetMissingPaths(dataset_stats)) {
     if (ContainsPath(paths_to_consider, missing_path)) {
       DeprecateFeature(missing_path);
     }
   }
-  return Status();
+  return absl::OkStatus();
 }
 
 // TODO(b/114757721): expose this.
-Status Schema::GetRelatedEnums(const DatasetStatsView& dataset_stats,
+absl::Status Schema::GetRelatedEnums(const DatasetStatsView& dataset_stats,
                                FeatureStatisticsToProtoConfig* config) {
   Schema schema;
-  TF_RETURN_IF_ERROR(schema.Update(dataset_stats, *config));
+  TFDV_RETURN_IF_ERROR(schema.Update(dataset_stats, *config));
 
   std::vector<std::set<string>> similar_enums =
       schema.SimilarEnumTypes(config->enums_similar_config());
@@ -586,7 +585,8 @@ Status Schema::GetRelatedEnums(const DatasetStatsView& dataset_stats,
       schema.EnumNameToPaths();
   for (const std::set<string>& set : similar_enums) {
     if (set.empty()) {
-      return Internal("Schema::SimilarEnumTypes returned an empty set.");
+      return absl::InternalError(
+          "Schema::SimilarEnumTypes returned an empty set.");
     }
     ColumnConstraint* column_constraint = config->add_column_constraint();
     for (const string& enum_name : set) {
@@ -605,7 +605,7 @@ Status Schema::GetRelatedEnums(const DatasetStatsView& dataset_stats,
     }
     *column_constraint->mutable_enum_name() = best_name;
   }
-  return Status();
+  return absl::OkStatus();
 }
 
 tensorflow::metadata::v0::Schema Schema::GetSchema() const { return schema_; }
@@ -1027,14 +1027,14 @@ void Schema::UpdateFeatureInternal(
     // Basically, deprecate the feature. The rest is just getting a meaningful
     // message out.
     ::tensorflow::data_validation::DeprecateFeature(feature);
-    const ::tensorflow::protobuf::EnumValueDescriptor* descriptor =
+    const google::protobuf::EnumValueDescriptor* descriptor =
         tensorflow::metadata::v0::FeatureNameStatistics_Type_descriptor()
             ->FindValueByNumber(view.type());
     string data_type_name = (descriptor == nullptr)
                                 ? absl::StrCat("unknown(", view.type(), ")")
                                 : descriptor->name();
 
-    const ::tensorflow::protobuf::EnumValueDescriptor* schema_descriptor =
+    const google::protobuf::EnumValueDescriptor* schema_descriptor =
         tensorflow::metadata::v0::FeatureType_descriptor()->FindValueByNumber(
             feature->type());
     string schema_type_name =

@@ -12,7 +12,7 @@ cc_library(
         ":path",
         "//tensorflow_data_validation/anomalies/proto:validation_metadata_proto",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
-        "@org_tensorflow//tensorflow/core:lib",
+        "@com_google_absl//absl/status",
     ],
 )
 
@@ -49,7 +49,6 @@ cc_test(
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
         "@com_google_absl//absl/types:optional",
         "@com_google_googletest//:gtest_main",
-        "@org_tensorflow//tensorflow/core:lib",
     ],
 )
 
@@ -62,8 +61,6 @@ cc_test(
         ":test_util",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
         "@com_google_googletest//:gtest_main",
-        "@org_tensorflow//tensorflow/core:lib",
-        "@org_tensorflow//tensorflow/core:test",
     ],
 )
 
@@ -76,8 +73,10 @@ cc_library(
         ":path",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
         "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/base:log_severity",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/types:optional",
-        "@org_tensorflow//tensorflow/core:lib",
     ],
 )
 
@@ -89,8 +88,10 @@ cc_library(
     deps = [
         ":statistics_view",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
+        "@com_google_absl//absl/base:log_severity",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/types:optional",
-        "@org_tensorflow//tensorflow/core:lib",
     ],
 )
 
@@ -99,7 +100,6 @@ cc_library(
     hdrs = ["internal_types.h"],
     deps = [
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
-        "@org_tensorflow//tensorflow/core:lib",
     ],
 )
 
@@ -112,8 +112,10 @@ cc_library(
     deps = [
         ":map_util",
         ":statistics_view",
+        ":status_util",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
-        "@org_tensorflow//tensorflow/core:lib",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status",
     ],
 )
 
@@ -127,7 +129,6 @@ cc_test(
         ":test_util",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
         "@com_google_googletest//:gtest_main",
-        "@org_tensorflow//tensorflow/core:lib",
     ],
 )
 
@@ -140,8 +141,6 @@ cc_test(
         ":test_util",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
         "@com_google_googletest//:gtest_main",
-        "@org_tensorflow//tensorflow/core:lib",
-        "@org_tensorflow//tensorflow/core:test",
     ],
 )
 
@@ -151,8 +150,8 @@ cc_library(
     hdrs = ["diff_util.h"],
     deps = [
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
+        "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/strings",
-        "@org_tensorflow//tensorflow/core:lib",
     ],
 )
 
@@ -194,17 +193,22 @@ cc_library(
         ":metrics",
         ":path",
         ":statistics_view",
+        ":status_util",
         "//tensorflow_data_validation/anomalies/proto:feature_statistics_to_proto_proto",
         "//tensorflow_data_validation/anomalies/proto:validation_config_proto",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
         "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/base:log_severity",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/types:optional",
         "@com_google_absl//absl/types:variant",
         "@com_google_protobuf//:cc_wkt_protos",
-        "@org_tensorflow//tensorflow/core:lib",
+        "@com_google_protobuf//:protobuf",
     ],
 )
 
@@ -234,7 +238,6 @@ cc_test(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:optional",
         "@com_google_googletest//:gtest_main",
-        "@org_tensorflow//tensorflow/core:lib",
     ],
 )
 
@@ -248,7 +251,6 @@ cc_test(
         ":test_util",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
         "@com_google_googletest//:gtest_main",
-        "@org_tensorflow//tensorflow/core:lib",
     ],
 )
 
@@ -262,7 +264,6 @@ cc_test(
         ":test_util",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
         "@com_google_googletest//:gtest_main",
-        "@org_tensorflow//tensorflow/core:lib",
     ],
 )
 
@@ -277,7 +278,6 @@ cc_test(
         "//tensorflow_data_validation/anomalies/proto:feature_statistics_to_proto_proto",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
         "@com_google_googletest//:gtest_main",
-        "@org_tensorflow//tensorflow/core:lib",
     ],
 )
 
@@ -293,7 +293,6 @@ cc_test(
         ":test_util",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
         "@com_google_googletest//:gtest_main",
-        "@org_tensorflow//tensorflow/core:lib",
     ],
 )
 
@@ -312,8 +311,6 @@ cc_test(
         "//tensorflow_data_validation/anomalies/proto:validation_config_proto",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
         "@com_google_googletest//:gtest_main",
-        "@org_tensorflow//tensorflow/core:lib",
-        "@org_tensorflow//tensorflow/core:test",
     ],
 )
 
@@ -327,12 +324,13 @@ cc_library(
         ":path",
         ":schema",
         ":statistics_view",
+        ":status_util",
         ":telemetry",
         "//tensorflow_data_validation/anomalies/proto:feature_statistics_to_proto_proto",
         "//tensorflow_data_validation/anomalies/proto:validation_config_proto",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/types:optional",
-        "@org_tensorflow//tensorflow/core:lib",
     ],
 )
 
@@ -347,8 +345,6 @@ cc_test(
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
         "@com_google_absl//absl/types:optional",
         "@com_google_googletest//:gtest_main",
-        "@org_tensorflow//tensorflow/core:lib",
-        "@org_tensorflow//tensorflow/core:test",
     ],
 )
 
@@ -364,8 +360,7 @@ cc_library(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:optional",
         "@com_google_googletest//:gtest_main",
-        "@org_tensorflow//tensorflow/core:lib",
-        "@org_tensorflow//tensorflow/core:test",
+        "@com_google_protobuf//:protobuf",
     ],
 )
 
@@ -383,10 +378,11 @@ cc_library(
     srcs = ["path.cc"],
     hdrs = ["path.h"],
     deps = [
+        ":status_util",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
         "@com_googlesource_code_re2//:re2",
-        "@org_tensorflow//tensorflow/core:lib",
     ],
 )
 
@@ -398,8 +394,6 @@ cc_test(
         ":test_util",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
         "@com_google_googletest//:gtest_main",
-        "@org_tensorflow//tensorflow/core:lib",
-        "@org_tensorflow//tensorflow/core:test",
     ],
 )
 
@@ -407,9 +401,7 @@ cc_library(
     name = "map_util",
     srcs = ["map_util.cc"],
     hdrs = ["map_util.h"],
-    deps = [
-        "@org_tensorflow//tensorflow/core:lib",
-    ],
+    deps = [],
 )
 
 cc_test(
@@ -418,7 +410,6 @@ cc_test(
     deps = [
         ":map_util",
         "@com_google_googletest//:gtest_main",
-        "@org_tensorflow//tensorflow/core:lib",
     ],
 )
 
@@ -439,13 +430,16 @@ cc_library(
     deps = [
         ":path",
         ":schema",
+        ":status_util",
         "//tensorflow_data_validation/anomalies/proto:custom_validation_config_proto",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
         "@com_github_tfx_bsl//tfx_bsl/cc/statistics:sql_util",
+        "@com_google_absl//absl/base:log_severity",
         "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:optional",
-        "@org_tensorflow//tensorflow/core:framework",
-        "@org_tensorflow//tensorflow/core:lib",
     ],
 )
 
@@ -458,7 +452,6 @@ cc_test(
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
         "@com_google_absl//absl/types:optional",
         "@com_google_googletest//:gtest_main",
-        "@org_tensorflow//tensorflow/core/platform:errors",
     ],
 )
 
@@ -475,7 +468,6 @@ cc_library(
         "//tensorflow_data_validation/google/protos:time_series_metrics_cc_proto",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
         "@com_google_absl//absl/status:statusor",
-        "@org_tensorflow//tensorflow/core:lib",
     ],
 )
 
@@ -502,6 +494,16 @@ cc_test(
         "//tensorflow_data_validation/google/protos:time_series_metrics_cc_proto",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
         "@com_google_googletest//:gtest_main",
-        "@org_tensorflow//tensorflow/core:lib",
+    ],
+)
+
+cc_library(
+    name = "status_util",
+    hdrs = ["status_util.h"],
+    deps = [
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/base:log_severity",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
     ],
 )

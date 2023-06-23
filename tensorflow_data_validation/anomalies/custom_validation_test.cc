@@ -17,7 +17,6 @@ limitations under the License.
 #include <gtest/gtest.h>
 #include "absl/types/optional.h"
 #include "tensorflow_data_validation/anomalies/test_util.h"
-#include "tensorflow/core/platform/errors.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
 
 namespace tensorflow {
@@ -70,7 +69,7 @@ TEST(CustomValidationTest, TestSingleStatisticsDefaultSliceValidation) {
              }
            })pb");
   metadata::v0::Anomalies result;
-  TF_CHECK_OK(CustomValidateStatistics(test_statistics,
+  CHECK_OK(CustomValidateStatistics(test_statistics,
                                        /*base_statistics=*/nullptr, validations,
                                        /*environment=*/absl::nullopt, &result));
   EXPECT_THAT(result, EqualsProto(expected_anomalies));
@@ -128,7 +127,7 @@ TEST(CustomValidationTest, TestSingleStatisticsSpecifiedSliceValidation) {
              }
            })pb");
   metadata::v0::Anomalies result;
-  TF_CHECK_OK(CustomValidateStatistics(test_statistics,
+  CHECK_OK(CustomValidateStatistics(test_statistics,
                                        /*base_statistics=*/nullptr, validations,
                                        /*environment=*/absl::nullopt, &result));
   EXPECT_THAT(result, EqualsProto(expected_anomalies));
@@ -185,7 +184,7 @@ TEST(CustomValidationTest, TestPairValidation) {
              }
            })pb");
   metadata::v0::Anomalies result;
-  TF_CHECK_OK(CustomValidateStatistics(test_statistics, &base_statistics,
+  CHECK_OK(CustomValidateStatistics(test_statistics, &base_statistics,
                                        validations,
                                        /*environment=*/absl::nullopt, &result));
   EXPECT_THAT(result, EqualsProto(expected_anomalies));
@@ -218,7 +217,7 @@ TEST(CustomValidationTest, TestSpecifiedFeatureNotFound) {
       CustomValidateStatistics(test_statistics,
                                /*base_statistics=*/nullptr, validations,
                                /*environment=*/absl::nullopt, &result);
-  EXPECT_TRUE(tensorflow::errors::IsInvalidArgument(error));
+  EXPECT_TRUE(absl::IsInvalidArgument(error));
 }
 
 TEST(CustomValidationTest, TestSpecifiedDatasetNotFound) {
@@ -249,7 +248,7 @@ TEST(CustomValidationTest, TestSpecifiedDatasetNotFound) {
       CustomValidateStatistics(test_statistics,
                                /*base_statistics=*/nullptr, validations,
                                /*environment=*/absl::nullopt, &result);
-  EXPECT_TRUE(tensorflow::errors::IsInvalidArgument(error));
+  EXPECT_TRUE(absl::IsInvalidArgument(error));
 }
 
 TEST(CustomValidationTest, TestMultipleAnomalyReasons) {
@@ -299,7 +298,7 @@ TEST(CustomValidationTest, TestMultipleAnomalyReasons) {
              }
            })pb");
   metadata::v0::Anomalies result;
-  TF_CHECK_OK(CustomValidateStatistics(test_statistics,
+  CHECK_OK(CustomValidateStatistics(test_statistics,
                                        /*base_statistics=*/nullptr, validations,
                                        /*environment=*/absl::nullopt, &result));
   EXPECT_THAT(result, EqualsProto(expected_anomalies));
@@ -335,7 +334,7 @@ TEST(CustomValidationTest, TestPairValidationsConfiguredButNoBaselineStats) {
       CustomValidateStatistics(test_statistics,
                                /*base_statistics=*/nullptr, validations,
                                /*environment=*/absl::nullopt, &result);
-  EXPECT_TRUE(tensorflow::errors::IsInvalidArgument(error));
+  EXPECT_TRUE(absl::IsInvalidArgument(error));
 }
 
 TEST(CustomValidationTest, TestEnvironmentFiltering) {
@@ -398,7 +397,7 @@ TEST(CustomValidationTest, TestEnvironmentFiltering) {
              }
            })pb");
   metadata::v0::Anomalies result;
-  TF_CHECK_OK(CustomValidateStatistics(test_statistics,
+  CHECK_OK(CustomValidateStatistics(test_statistics,
                                        /*base_statistics=*/nullptr, validations,
                                        "some_environment", &result));
   EXPECT_THAT(result, EqualsProto(expected_anomalies));

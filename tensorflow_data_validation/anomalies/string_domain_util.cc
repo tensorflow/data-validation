@@ -16,6 +16,7 @@ limitations under the License.
 #include "tensorflow_data_validation/anomalies/string_domain_util.h"
 
 #include <math.h>
+
 #include <map>
 #include <set>
 #include <string>
@@ -25,14 +26,12 @@ limitations under the License.
 #include "absl/algorithm/container.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
 #include "absl/types/optional.h"
 #include "tensorflow_data_validation/anomalies/map_util.h"
 #include "tensorflow_data_validation/anomalies/proto/feature_statistics_to_proto.pb.h"
 #include "tensorflow_data_validation/anomalies/statistics_view.h"
-#include "tensorflow/core/lib/strings/stringprintf.h"
-#include "tensorflow/core/platform/protobuf.h"
-#include "tensorflow/core/platform/types.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
 
@@ -41,7 +40,6 @@ namespace data_validation {
 
 namespace {
 using ::tensorflow::metadata::v0::StringDomain;
-using ::tensorflow::strings::Printf;
 
 std::set<string> GetStringDomainValues(const StringDomain& string_domain) {
   std::set<string> result;
@@ -86,7 +84,7 @@ string PercentageAsString(double count, absl::optional<double> total) {
   if (percent < 1.0) {
     return "<1%";
   } else {
-    return Printf("~%d%%", static_cast<int>(floor(percent)));
+    return absl::StrFormat("~%d%%", static_cast<int>(floor(percent)));
   }
 }
 
@@ -132,8 +130,7 @@ std::vector<Description> UpdateStringDomainSelf(
   std::set<string> seen_so_far;
 
   std::vector<string> repeats;
-  ::tensorflow::protobuf::RepeatedPtrField<string>* values =
-      string_domain->mutable_value();
+  google::protobuf::RepeatedPtrField<string>* values = string_domain->mutable_value();
   for (auto iter = values->begin(); iter != values->end();) {
     if (!seen_so_far.insert(*iter).second) {
       repeats.push_back(*iter);
@@ -186,10 +183,10 @@ UpdateSummary UpdateStringDomain(const Schema::Updater& updater,
                 missing, ", ",
                 [total_value_count](
                     string* out,
-                    const std::pair<string, int64>& value_and_freq) {
+                    const std::pair<string, int64_t>& value_and_freq) {
                   absl::StrAppend(
                       out,
-                      Printf(
+                      absl::StrFormat(
                           "%s (%s)",
                           absl::Utf8SafeCEscape(value_and_freq.first).c_str(),
                           PercentageAsString(value_and_freq.second,
@@ -207,7 +204,8 @@ UpdateSummary UpdateStringDomain(const Schema::Updater& updater,
     summary.descriptions.push_back(
         {tensorflow::metadata::v0::AnomalyInfo::INVALID_DOMAIN_SPECIFICATION,
          "String domain has too many values",
-         Printf("String domain has too many values (%d).", domain_size)});
+         absl::StrFormat("String domain has too many values (%d).",
+                         domain_size)});
   }
   return summary;
 }

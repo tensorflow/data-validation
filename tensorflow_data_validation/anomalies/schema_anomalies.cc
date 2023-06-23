@@ -24,7 +24,11 @@ limitations under the License.
 #include <vector>
 
 #include "tensorflow_data_validation/anomalies/diff_util.h"
+#include "google/protobuf/text_format.h"
+#include "absl/base/log_severity.h"
+#include "absl/log/log.h"
 #include "absl/memory/memory.h"
+#include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
@@ -34,11 +38,7 @@ limitations under the License.
 #include "tensorflow_data_validation/anomalies/schema.h"
 #include "tensorflow_data_validation/anomalies/schema_util.h"
 #include "tensorflow_data_validation/anomalies/statistics_view.h"
-#include "tensorflow/core/lib/core/errors.h"
-#include "tensorflow/core/lib/core/status.h"
-#include "tensorflow/core/platform/logging.h"
-#include "tensorflow/core/platform/protobuf.h"
-#include "tensorflow/core/platform/types.h"
+#include "tensorflow_data_validation/anomalies/status_util.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
 
@@ -46,8 +46,7 @@ namespace tensorflow {
 namespace data_validation {
 
 namespace {
-using ::tensorflow::protobuf::TextFormat;
-using ::tensorflow::Status;
+using google::protobuf::TextFormat;
 
 // LINT.IfChange
 constexpr char kMultipleErrors[] = "Multiple errors";
@@ -137,7 +136,7 @@ SchemaAnomalyBase& SchemaAnomalyBase::operator=(
   return *this;
 }
 
-tensorflow::Status SchemaAnomalyBase::InitSchema(
+absl::Status SchemaAnomalyBase::InitSchema(
     const tensorflow::metadata::v0::Schema& schema) {
   schema_ = absl::make_unique<Schema>();
   return schema_->Init(schema);
@@ -169,7 +168,7 @@ tensorflow::metadata::v0::AnomalyInfo SchemaAnomalyBase::GetAnomalyInfo(
         ComputeDiff(existing_schema_lines, new_schema_lines);
 
     copy(diff_regions_vec.begin(), diff_regions_vec.end(),
-         ::tensorflow::protobuf::RepeatedPtrFieldBackInserter(
+         google::protobuf::RepeatedPtrFieldBackInserter(
              anomaly_info.mutable_diff_regions()));
   }
   const std::vector<Description> filtered_descriptions =
@@ -216,28 +215,28 @@ void SchemaAnomaly::ObserveMissing(const Schema::Updater& updater) {
   schema_->DeprecateFeature(path_);
 }
 
-tensorflow::Status SchemaAnomaly::Update(
+absl::Status SchemaAnomaly::Update(
     const Schema::Updater& updater,
     const FeatureStatsView& feature_stats_view) {
   std::vector<Description> new_descriptions;
   tensorflow::metadata::v0::AnomalyInfo::Severity new_severity;
-  TF_RETURN_IF_ERROR(schema_->UpdateFeature(updater, feature_stats_view,
+  TFDV_RETURN_IF_ERROR(schema_->UpdateFeature(updater, feature_stats_view,
                                             &new_descriptions,
                                             &drift_skew_info_, &new_severity));
   descriptions_.insert(descriptions_.end(), new_descriptions.begin(),
                        new_descriptions.end());
   UpgradeSeverity(new_severity);
-  return tensorflow::Status();
+  return absl::OkStatus();
 }
 
-tensorflow::Status SchemaAnomaly::CreateNewField(
+absl::Status SchemaAnomaly::CreateNewField(
     const Schema::Updater& updater,
     const absl::optional<std::set<Path>>& features_to_update,
     const FeatureStatsView& feature_stats_view) {
   tensorflow::metadata::v0::AnomalyInfo::Severity new_severity;
   std::vector<Description> new_descriptions;
 
-  TF_RETURN_IF_ERROR(schema_->UpdateRecursively(
+  TFDV_RETURN_IF_ERROR(schema_->UpdateRecursively(
       updater, feature_stats_view, features_to_update, &new_descriptions,
       &new_severity));
   UpgradeSeverity(new_severity);
@@ -245,7 +244,7 @@ tensorflow::Status SchemaAnomaly::CreateNewField(
   // Instead, we just push the first one.
   descriptions_.insert(descriptions_.end(), new_descriptions.begin(),
                        new_descriptions.end());
-  return Status();
+  return absl::OkStatus();
 }
 
 void SchemaAnomaly::UpdateSkewComparator(
@@ -301,7 +300,7 @@ tensorflow::metadata::v0::Anomalies SchemaAnomalies::GetSchemaDiff(
   result.set_anomaly_name_format(
       tensorflow::metadata::v0::Anomalies::SERIALIZED_PATH);
   *result.mutable_baseline() = schema_proto;
-  ::tensorflow::protobuf::Map<string, tensorflow::metadata::v0::AnomalyInfo>&
+  google::protobuf::Map<std::string, tensorflow::metadata::v0::AnomalyInfo>&
       result_schemas = *result.mutable_anomaly_info();
   for (const auto& pair : anomalies_) {
     const Path& feature_path = pair.first;
@@ -321,12 +320,12 @@ tensorflow::metadata::v0::Anomalies SchemaAnomalies::GetSchemaDiff(
   return result;
 }
 
-tensorflow::Status SchemaAnomalies::InitSchema(Schema* schema) const {
+absl::Status SchemaAnomalies::InitSchema(Schema* schema) const {
   return schema->Init(serialized_baseline_);
 }
 
-tensorflow::Status SchemaAnomalies::GenericUpdate(
-    const std::function<tensorflow::Status(SchemaAnomaly* anomaly)>& update,
+absl::Status SchemaAnomalies::GenericUpdate(
+    const std::function<absl::Status(SchemaAnomaly* anomaly)>& update,
     const Path& path) {
   auto iter = anomalies_.find(path);
   // schema_anomaly always points to the SchemaAnomaly passed to `update`.
@@ -336,12 +335,12 @@ tensorflow::Status SchemaAnomalies::GenericUpdate(
   SchemaAnomaly new_schema_anomaly;
   if (iter != anomalies_.end()) {
     schema_anomaly = &iter->second;
-    TF_RETURN_IF_ERROR(update(schema_anomaly));
+    TFDV_RETURN_IF_ERROR(update(schema_anomaly));
   } else {
     schema_anomaly = &new_schema_anomaly;
-    TF_RETURN_IF_ERROR(schema_anomaly->InitSchema(serialized_baseline_));
+    TFDV_RETURN_IF_ERROR(schema_anomaly->InitSchema(serialized_baseline_));
     schema_anomaly->set_path(path);
-    TF_RETURN_IF_ERROR(update(schema_anomaly));
+    TFDV_RETURN_IF_ERROR(update(schema_anomaly));
     if (schema_anomaly->is_problem()) {
       auto iter_and_inserted = anomalies_.insert(
           std::make_pair(path, std::move(*schema_anomaly)));
@@ -351,33 +350,33 @@ tensorflow::Status SchemaAnomalies::GenericUpdate(
   if (schema_anomaly->drift_skew_info()) {
     drift_skew_infos_[path].MergeFrom(*schema_anomaly->drift_skew_info());
   }
-  return Status();
+  return absl::OkStatus();
 }
 
-tensorflow::Status SchemaAnomalies::GenericDatasetUpdate(
-    const std::function<tensorflow::Status(DatasetSchemaAnomaly* anomaly)>&
+absl::Status SchemaAnomalies::GenericDatasetUpdate(
+    const std::function<absl::Status(DatasetSchemaAnomaly* anomaly)>&
         update) {
   DatasetSchemaAnomaly dataset_schema_anomaly;
-  TF_RETURN_IF_ERROR(dataset_schema_anomaly.InitSchema(serialized_baseline_));
-  TF_RETURN_IF_ERROR(update(&dataset_schema_anomaly));
+  TFDV_RETURN_IF_ERROR(dataset_schema_anomaly.InitSchema(serialized_baseline_));
+  TFDV_RETURN_IF_ERROR(update(&dataset_schema_anomaly));
   if (dataset_schema_anomaly.is_problem()) {
     dataset_anomalies_ = std::move(dataset_schema_anomaly);
   }
-  return Status();
+  return absl::OkStatus();
 }
 
-tensorflow::Status SchemaAnomalies::FindChangesRecursively(
+absl::Status SchemaAnomalies::FindChangesRecursively(
     const FeatureStatsView& feature_stats_view,
     const absl::optional<std::set<Path>>& features_needed,
     const Schema::Updater& updater) {
   Schema baseline;
-  TF_RETURN_IF_ERROR(InitSchema(&baseline));
+  TFDV_RETURN_IF_ERROR(InitSchema(&baseline));
   if (baseline.FeatureExists(feature_stats_view.GetPath())) {
     // TODO(b/148407751): Treat PLANNED separately.
     if (baseline.FeatureIsDeprecated(feature_stats_view.GetPath())) {
-      return Status();
+      return absl::OkStatus();
     }
-    TF_RETURN_IF_ERROR(GenericUpdate(
+    TFDV_RETURN_IF_ERROR(GenericUpdate(
         [&feature_stats_view, &updater](SchemaAnomaly* schema_anomaly) {
           return schema_anomaly->Update(updater, feature_stats_view);
         },
@@ -385,10 +384,10 @@ tensorflow::Status SchemaAnomalies::FindChangesRecursively(
     if (ContainsKey(anomalies_, feature_stats_view.GetPath()) &&
         anomalies_[feature_stats_view.GetPath()].FeatureIsDeprecated(
             feature_stats_view.GetPath())) {
-      return Status();
+      return absl::OkStatus();
     }
     for (const FeatureStatsView& child : feature_stats_view.GetChildren()) {
-      TF_RETURN_IF_ERROR(
+      TFDV_RETURN_IF_ERROR(
           FindChangesRecursively(child, features_needed, updater));
     }
   } else if (ShouldCreateFeature(features_needed, feature_stats_view)) {
@@ -396,19 +395,20 @@ tensorflow::Status SchemaAnomalies::FindChangesRecursively(
 
     if (!ContainsKey(anomalies_, feature_stats_view.GetPath())) {
       SchemaAnomaly anomaly;
-      TF_RETURN_IF_ERROR(anomaly.InitSchema(serialized_baseline_));
+      TFDV_RETURN_IF_ERROR(anomaly.InitSchema(serialized_baseline_));
       anomaly.set_path(feature_stats_view.GetPath());
       anomalies_[feature_stats_view.GetPath()] = std::move(anomaly);
     }
     // Since these features are all new,
     // features_needed == features_to_update.
-    TF_RETURN_IF_ERROR(anomalies_[feature_stats_view.GetPath()].CreateNewField(
+    TFDV_RETURN_IF_ERROR(
+        anomalies_[feature_stats_view.GetPath()].CreateNewField(
         updater, features_needed, feature_stats_view));
   }
-  return Status();
+  return absl::OkStatus();
 }
 
-tensorflow::Status SchemaAnomalies::FindChanges(
+absl::Status SchemaAnomalies::FindChanges(
     const DatasetStatsView& statistics,
     const absl::optional<FeaturesNeeded>& features_needed,
     const FeatureStatisticsToProtoConfig& feature_statistics_to_proto_config) {
@@ -424,16 +424,16 @@ tensorflow::Status SchemaAnomalies::FindChanges(
 
   for (const FeatureStatsView& feature_stats_view :
        statistics.GetRootFeatures()) {
-    TF_RETURN_IF_ERROR(FindChangesRecursively(feature_stats_view,
+    TFDV_RETURN_IF_ERROR(FindChangesRecursively(feature_stats_view,
                                               feature_set_to_create, updater));
   }
   Schema baseline;
-  TF_RETURN_IF_ERROR(InitSchema(&baseline));
+  TFDV_RETURN_IF_ERROR(InitSchema(&baseline));
   for (const Path& path : baseline.GetMissingPaths(statistics)) {
-    TF_RETURN_IF_ERROR(GenericUpdate(
+    TFDV_RETURN_IF_ERROR(GenericUpdate(
         [&updater](SchemaAnomaly* schema_anomaly) {
           schema_anomaly->ObserveMissing(updater);
-          return Status();
+          return absl::OkStatus();
         },
         path));
   }
@@ -449,35 +449,35 @@ tensorflow::Status SchemaAnomalies::FindChanges(
     }
   }
 
-  TF_RETURN_IF_ERROR(FindDatasetChanges(statistics));
+  TFDV_RETURN_IF_ERROR(FindDatasetChanges(statistics));
 
-  return Status();
+  return absl::OkStatus();
 }
 
-tensorflow::Status SchemaAnomalies::FindSkew(
+absl::Status SchemaAnomalies::FindSkew(
     const DatasetStatsView& dataset_stats_view) {
   for (const FeatureStatsView& feature_stats_view :
        dataset_stats_view.features()) {
     // This is a simplified version of finding skew, that ignores the feature
     // if there is no training data for it.
-    TF_RETURN_IF_ERROR(GenericUpdate(
+    TFDV_RETURN_IF_ERROR(GenericUpdate(
         [&feature_stats_view](SchemaAnomaly* schema_anomaly) {
           schema_anomaly->UpdateSkewComparator(feature_stats_view);
-          return Status();
+          return absl::OkStatus();
         },
         feature_stats_view.GetPath()));
   }
-  return Status();
+  return absl::OkStatus();
 }
 
-tensorflow::Status SchemaAnomalies::FindDatasetChanges(
+absl::Status SchemaAnomalies::FindDatasetChanges(
     const DatasetStatsView& dataset_stats_view) {
-  TF_RETURN_IF_ERROR(GenericDatasetUpdate(
+  TFDV_RETURN_IF_ERROR(GenericDatasetUpdate(
       [&dataset_stats_view](DatasetSchemaAnomaly* dataset_schema_anomaly) {
         dataset_schema_anomaly->Update(dataset_stats_view);
-        return Status();
+        return absl::OkStatus();
       }));
-  return Status();
+  return absl::OkStatus();
 }
 
 }  // namespace data_validation

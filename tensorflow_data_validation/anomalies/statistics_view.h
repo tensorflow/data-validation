@@ -24,7 +24,6 @@ limitations under the License.
 
 #include "absl/types/optional.h"
 #include "tensorflow_data_validation/anomalies/path.h"
-#include "tensorflow/core/platform/types.h"
 #include "tensorflow_metadata/proto/v0/derived_feature.pb.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
@@ -231,7 +230,7 @@ class FeatureStatsView {
 
   // Returns the number of unique values if a string or categorical feature.
   // Otherwise, returns nullopt.
-  const absl::optional<uint64> GetNumUnique() const;
+  absl::optional<uint64_t> GetNumUnique() const;
 
   // Object is assumed to be created from DatasetStatsView::features().
   FeatureStatsView(int index, const DatasetStatsView& parent_view)

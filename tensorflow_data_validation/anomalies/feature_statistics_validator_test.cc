@@ -22,8 +22,6 @@ limitations under the License.
 #include "absl/types/optional.h"
 #include "tensorflow_data_validation/anomalies/proto/validation_config.pb.h"
 #include "tensorflow_data_validation/anomalies/test_util.h"
-#include "tensorflow/core/lib/core/status_test_util.h"
-#include "tensorflow/core/platform/types.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
 #include "tensorflow_data_validation/anomalies/proto/validation_metadata.pb.h"
@@ -43,10 +41,10 @@ void TestSchemaUpdate(const ValidationConfig& config,
                       const DatasetFeatureStatistics& statistics,
                       const Schema& old_schema, const Schema& expected) {
   Schema result;
-  TF_ASSERT_OK(UpdateSchema(GetDefaultFeatureStatisticsToProtoConfig(),
+  ASSERT_OK(UpdateSchema(GetDefaultFeatureStatisticsToProtoConfig(),
                             old_schema, statistics,
-                            /*paths_to_consider=*/tensorflow::gtl::nullopt,
-                            /*environment=*/tensorflow::gtl::nullopt, &result));
+                            /*paths_to_consider=*/absl::nullopt,
+                            /*environment=*/absl::nullopt, &result));
   EXPECT_THAT(result, EqualsProto(expected));
 }
 
@@ -66,14 +64,14 @@ void TestFeatureStatisticsValidator(
     const std::vector<tensorflow::metadata::v0::DriftSkewInfo>&
         expected_drift_skew_infos) {
   tensorflow::metadata::v0::Anomalies result;
-  TF_CHECK_OK(ValidateFeatureStatistics(
+    CHECK_OK(ValidateFeatureStatistics(
       feature_statistics, old_schema, environment, prev_span_feature_statistics,
-      /*serving_feature_statistics=*/gtl::nullopt,
+      /*serving_feature_statistics=*/absl::nullopt,
       prev_version_feature_statistics, features_needed, validation_config,
       /*enable_diff_regions=*/false, &result));
   TestAnomalies(result, old_schema, expected_anomalies,
                 expected_drift_skew_infos);
-  if (expected_dataset_anomalies != gtl::nullopt) {
+  if (expected_dataset_anomalies != absl::nullopt) {
     TestAnomalyInfo(result.dataset_anomaly_info(),
                     expected_dataset_anomalies.value(),
                     "Actual dataset anomalies do not match expected.");
@@ -162,11 +160,11 @@ TEST(FeatureStatisticsValidatorTest, EndToEnd) {
 
   TestFeatureStatisticsValidator(
       schema, ValidationConfig(), statistics,
-      /*prev_span_feature_statistics=*/tensorflow::gtl::nullopt,
-      /*prev_version_feature_statistics=*/tensorflow::gtl::nullopt,
-      /*environment=*/gtl::nullopt,
-      /*features_needed=*/gtl::nullopt, anomalies,
-      /*expected_dataset_anomalies=*/gtl::nullopt,
+      /*prev_span_feature_statistics=*/absl::nullopt,
+      /*prev_version_feature_statistics=*/absl::nullopt,
+      /*environment=*/absl::nullopt,
+      /*features_needed=*/absl::nullopt, anomalies,
+      /*expected_dataset_anomalies=*/absl::nullopt,
       /*expected_drift_skew_infos=*/{});
 }
 
@@ -208,11 +206,11 @@ TEST(FeatureStatisticsValidatorTest, MissingColumn) {
         path { step: "feature" })");
   TestFeatureStatisticsValidator(
       schema, ValidationConfig(), statistics,
-      /*prev_span_feature_statistics=*/tensorflow::gtl::nullopt,
-      /*prev_version_feature_statistics=*/tensorflow::gtl::nullopt,
-      /*environment=*/gtl::nullopt,
-      /*features_needed=*/gtl::nullopt, anomalies,
-      /*expected_dataset_anomalies=*/gtl::nullopt,
+      /*prev_span_feature_statistics=*/absl::nullopt,
+      /*prev_version_feature_statistics=*/absl::nullopt,
+      /*environment=*/absl::nullopt,
+      /*features_needed=*/absl::nullopt, anomalies,
+      /*expected_dataset_anomalies=*/absl::nullopt,
       /*expected_drift_skew_infos=*/{});
 }
 
@@ -285,27 +283,27 @@ TEST(FeatureStatisticsValidatorTest, MissingFeatureAndEnvironments) {
   // 'label' should deprecate the feature.
   TestFeatureStatisticsValidator(
       schema, ValidationConfig(), statistics,
-      /*prev_span_feature_statistics=*/tensorflow::gtl::nullopt,
-      /*prev_version_feature_statistics=*/tensorflow::gtl::nullopt,
-      /*environment=*/gtl::nullopt,
-      /*features_needed=*/gtl::nullopt, anomalies,
-      /*expected_dataset_anomalies=*/gtl::nullopt,
+      /*prev_span_feature_statistics=*/absl::nullopt,
+      /*prev_version_feature_statistics=*/absl::nullopt,
+      /*environment=*/absl::nullopt,
+      /*features_needed=*/absl::nullopt, anomalies,
+      /*expected_dataset_anomalies=*/absl::nullopt,
       /*expected_drift_skew_infos=*/{});
   TestFeatureStatisticsValidator(
       schema, ValidationConfig(), statistics,
-      /*prev_span_feature_statistics=*/tensorflow::gtl::nullopt,
-      /*prev_version_feature_statistics=*/tensorflow::gtl::nullopt, "TRAINING",
-      /*features_needed=*/gtl::nullopt, anomalies,
-      /*expected_dataset_anomalies=*/gtl::nullopt,
+      /*prev_span_feature_statistics=*/absl::nullopt,
+      /*prev_version_feature_statistics=*/absl::nullopt, "TRAINING",
+      /*features_needed=*/absl::nullopt, anomalies,
+      /*expected_dataset_anomalies=*/absl::nullopt,
       /*expected_drift_skew_infos=*/{});
 
   // Running for environment "SERVING" should not generate anomalies.
   TestFeatureStatisticsValidator(
       schema, ValidationConfig(), statistics,
-      /*prev_span_feature_statistics=*/tensorflow::gtl::nullopt,
-      /*prev_version_feature_statistics=*/tensorflow::gtl::nullopt, "SERVING",
-      /*features_needed=*/gtl::nullopt,
-      /*expected_anomalies=*/{}, /*expected_dataset_anomalies=*/gtl::nullopt,
+      /*prev_span_feature_statistics=*/absl::nullopt,
+      /*prev_version_feature_statistics=*/absl::nullopt, "SERVING",
+      /*features_needed=*/absl::nullopt,
+      /*expected_anomalies=*/{}, /*expected_dataset_anomalies=*/absl::nullopt,
       /*expected_drift_skew_infos=*/{});
 }
 
@@ -362,11 +360,11 @@ TEST(FeatureStatisticsValidatorTest, FeaturesNeeded) {
   reason.set_comment("needed");
   TestFeatureStatisticsValidator(
       empty_schema, ValidationConfig(), statistics,
-      /*prev_span_feature_statistics=*/tensorflow::gtl::nullopt,
-      /*prev_version_feature_statistics=*/tensorflow::gtl::nullopt,
-      /*environment=*/gtl::nullopt,
+      /*prev_span_feature_statistics=*/absl::nullopt,
+      /*prev_version_feature_statistics=*/absl::nullopt,
+      /*environment=*/absl::nullopt,
       /*features_needed=*/FeaturesNeeded({{Path({"feature1"}), {reason}}}),
-      anomalies, /*expected_dataset_anomalies=*/gtl::nullopt,
+      anomalies, /*expected_dataset_anomalies=*/absl::nullopt,
       /*expected_drift_skew_infos=*/{});
 }
 
@@ -386,11 +384,11 @@ TEST(FeatureStatisticsValidatorTest, MissingExamples) {
   want.set_data_missing(true);
 
   tensorflow::metadata::v0::Anomalies got;
-  TF_ASSERT_OK(ValidateFeatureStatistics(
-      statistics, schema, /*environment=*/tensorflow::gtl::nullopt,
-      /*prev_span_feature_statistics=*/tensorflow::gtl::nullopt,
-      /*serving_feature_statistics=*/gtl::nullopt,
-      /*prev_version_feature_statistics=*/gtl::nullopt,
+    ASSERT_OK(ValidateFeatureStatistics(
+      statistics, schema, /*environment=*/absl::nullopt,
+      /*prev_span_feature_statistics=*/absl::nullopt,
+      /*serving_feature_statistics=*/absl::nullopt,
+      /*prev_version_feature_statistics=*/absl::nullopt,
       /*features_needed=*/absl::nullopt, ValidationConfig(),
       /*enable_diff_regions=*/false, &got));
   EXPECT_THAT(got, EqualsProto(want));
@@ -526,9 +524,9 @@ TEST(FeatureStatisticsValidatorTest, UpdateSchemaWithColumnsToConsider) {
     string_domain { name: "annotated_enum" value: "E" value: "D" })");
   Schema got;
   std::vector<Path> paths_to_consider = {Path({"annotated_enum"})};
-  TF_EXPECT_OK(UpdateSchema(GetDefaultFeatureStatisticsToProtoConfig(),
+  EXPECT_OK(UpdateSchema(GetDefaultFeatureStatisticsToProtoConfig(),
                             old_schema, statistics, paths_to_consider,
-                            /*environment=*/gtl::nullopt, &got));
+                            /*environment=*/absl::nullopt, &got));
   EXPECT_THAT(got, EqualsProto(want));
 }
 
@@ -642,10 +640,10 @@ TEST(FeatureStatisticsValidatorTest,
   )");
   TestFeatureStatisticsValidator(
       old_schema, ValidationConfig(), statistics, prev_span_statistics,
-      /*prev_version_feature_statistics=*/tensorflow::gtl::nullopt,
-      /*environment=*/gtl::nullopt,
-      /*features_needed=*/gtl::nullopt, anomalies,
-      /*expected_dataset_anomalies=*/gtl::nullopt,
+      /*prev_version_feature_statistics=*/absl::nullopt,
+      /*environment=*/absl::nullopt,
+      /*features_needed=*/absl::nullopt, anomalies,
+      /*expected_dataset_anomalies=*/absl::nullopt,
       /*expected_drift_skew_infos=*/{ParseTextProtoOrDie<DriftSkewInfo>(R"(
         path { step: "annotated_enum" }
         drift_measurements { type: L_INFTY value: 0.25 threshold: 0.01 }
@@ -725,10 +723,10 @@ TEST(FeatureStatisticsValidatorTest,
   )");
   TestFeatureStatisticsValidator(
       old_schema, ValidationConfig(), statistics, prev_span_statistics,
-      /*prev_version_feature_statistics=*/tensorflow::gtl::nullopt,
-      /*environment=*/gtl::nullopt,
-      /*features_needed=*/gtl::nullopt, anomalies,
-      /*expected_dataset_anomalies=*/gtl::nullopt,
+      /*prev_version_feature_statistics=*/absl::nullopt,
+      /*environment=*/absl::nullopt,
+      /*features_needed=*/absl::nullopt, anomalies,
+      /*expected_dataset_anomalies=*/absl::nullopt,
       /*expected_drift_skew_infos=*/{ParseTextProtoOrDie<DriftSkewInfo>(R"(
         path { step: "annotated_enum" }
         drift_measurements {
@@ -789,10 +787,10 @@ TEST(FeatureStatisticsValidatorTest,
   std::map<std::string, testing::ExpectedAnomalyInfo> anomalies;
   TestFeatureStatisticsValidator(
       schema, ValidationConfig(), statistics, prev_span_statistics,
-      /*prev_version_feature_statistics=*/tensorflow::gtl::nullopt,
-      /*environment=*/gtl::nullopt,
-      /*features_needed=*/gtl::nullopt, anomalies,
-      /*expected_dataset_anomalies=*/gtl::nullopt,
+      /*prev_version_feature_statistics=*/absl::nullopt,
+      /*environment=*/absl::nullopt,
+      /*features_needed=*/absl::nullopt, anomalies,
+      /*expected_dataset_anomalies=*/absl::nullopt,
       /*expected_drift_skew_infos=*/{ParseTextProtoOrDie<DriftSkewInfo>(R"(
         path { step: "annotated_enum" }
         drift_measurements {
@@ -857,14 +855,14 @@ TEST(FeatureStatisticsValidatorTest,
   expected_anomaly_info.new_schema = want_fixed_schema;
   expected_anomaly_info.expected_info_without_diff = expected_info;
   absl::optional<testing::ExpectedAnomalyInfo> dataset_anomalies =
-      gtl::make_optional(expected_anomaly_info);
+      absl::make_optional(expected_anomaly_info);
 
   TestFeatureStatisticsValidator(
       old_schema, ValidationConfig(), statistics,
       /*prev_span_feature_statistics=*/prev_statistics,
       /*prev_version_feature_statistics=*/prev_statistics,
-      /*environment=*/gtl::nullopt,
-      /*features_needed=*/gtl::nullopt,
+      /*environment=*/absl::nullopt,
+      /*features_needed=*/absl::nullopt,
       /*expected_anomalies=*/{}, dataset_anomalies,
       /*expected_drift_skew_infos=*/{});
 }
@@ -906,8 +904,8 @@ TEST(FeatureStatisticsValidatorUpdateSchema, TestLargeStringDomain) {
     })");
   Schema got;
 
-  TF_EXPECT_OK(UpdateSchema(FeatureStatisticsToProtoConfig(), Schema(),
-                            statistics, gtl::nullopt, gtl::nullopt, &got));
+  EXPECT_OK(UpdateSchema(FeatureStatisticsToProtoConfig(), Schema(),
+                            statistics, absl::nullopt, absl::nullopt, &got));
   EXPECT_THAT(got, EqualsProto(want));
 
   TestSchemaUpdate(ValidationConfig(), statistics, Schema(), want);

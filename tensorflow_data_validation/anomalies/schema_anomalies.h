@@ -27,8 +27,6 @@ limitations under the License.
 #include "tensorflow_data_validation/anomalies/proto/feature_statistics_to_proto.pb.h"
 #include "tensorflow_data_validation/anomalies/schema.h"
 #include "tensorflow_data_validation/anomalies/statistics_view.h"
-#include "tensorflow/core/lib/core/status.h"
-#include "tensorflow/core/platform/types.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
 
@@ -48,7 +46,7 @@ class SchemaAnomalyBase {
   SchemaAnomalyBase& operator=(SchemaAnomalyBase&& schema_anomaly_base);
 
   // Initializes schema_.
-  tensorflow::Status InitSchema(const tensorflow::metadata::v0::Schema& schema);
+  absl::Status InitSchema(const tensorflow::metadata::v0::Schema& schema);
 
   // If new_severity is more severe that current severity, increases
   // severity. Otherwise, does nothing.
@@ -93,7 +91,7 @@ class SchemaAnomaly : public SchemaAnomalyBase {
   SchemaAnomaly& operator=(SchemaAnomaly&& schema_anomaly);
 
   // Updates based upon the relevant current feature statistics.
-  tensorflow::Status Update(const Schema::Updater& updater,
+  absl::Status Update(const Schema::Updater& updater,
                             const FeatureStatsView& feature_stats_view);
 
   // Updates recursively upon the relevant current feature statistics.
@@ -101,7 +99,7 @@ class SchemaAnomaly : public SchemaAnomalyBase {
   // in the same anomaly.
   // If features_to_update is not nullopt, only updates fields in
   // features_to_update.
-  tensorflow::Status CreateNewField(
+  absl::Status CreateNewField(
       const Schema::Updater& updater,
       const absl::optional<std::set<Path>>& features_to_update,
       const FeatureStatsView& feature_stats_view);
@@ -154,12 +152,12 @@ class SchemaAnomalies {
   // present in that set.
   // TODO(b/148408297): If a field is in features_needed, but not in statistics
   // or in the schema, then come up with a special kind of anomaly.
-  tensorflow::Status FindChanges(
+  absl::Status FindChanges(
       const DatasetStatsView& statistics,
       const absl::optional<FeaturesNeeded>& features_needed,
       const FeatureStatisticsToProtoConfig& feature_statistics_to_proto_config);
 
-  tensorflow::Status FindSkew(const DatasetStatsView& dataset_stats_view);
+  absl::Status FindSkew(const DatasetStatsView& dataset_stats_view);
 
   // Records current anomalies as a schema diff.
   tensorflow::metadata::v0::Anomalies GetSchemaDiff(
@@ -173,7 +171,7 @@ class SchemaAnomalies {
   //    A. If it is deprecated after repair, do nothing.
   //    B. Otherwise, recursively check all its children, returning separate
   //       anomalies for each child.
-  tensorflow::Status FindChangesRecursively(
+  absl::Status FindChangesRecursively(
       const FeatureStatsView& feature_stats_view,
       const absl::optional<std::set<Path>>& features_needed,
       const Schema::Updater& updater);
@@ -183,24 +181,24 @@ class SchemaAnomalies {
   // initializes it using the serialized_baseline_. Then, it tries the
   // update(...) function. If there is a problem, then the new SchemaAnomaly
   // gets added.
-  tensorflow::Status GenericUpdate(
-      const std::function<tensorflow::Status(SchemaAnomaly* anomaly)>& update,
+  absl::Status GenericUpdate(
+      const std::function<absl::Status(SchemaAnomaly* anomaly)>& update,
       const Path& path);
 
   // Find dataset-level anomalies.
-  tensorflow::Status FindDatasetChanges(
+  absl::Status FindDatasetChanges(
       const DatasetStatsView& dataset_stats_view);
 
   // Creates a new DatasetSchemaAnomaly and initializes it using the
   // serialized_baseline_. Then, it tries the update(...) function. If there is
   // a problem, then the new DatasetSchemaAnomaly gets added to
   // dataset_anomalies_.
-  tensorflow::Status GenericDatasetUpdate(
-      const std::function<tensorflow::Status(DatasetSchemaAnomaly* anomaly)>&
+  absl::Status GenericDatasetUpdate(
+      const std::function<absl::Status(DatasetSchemaAnomaly* anomaly)>&
           update);
 
   // Initialize a schema from the serialized_baseline_.
-  tensorflow::Status InitSchema(Schema* schema) const;
+  absl::Status InitSchema(Schema* schema) const;
 
   // A map from feature columns to anomalies in that column.
   std::map<Path, SchemaAnomaly> anomalies_;

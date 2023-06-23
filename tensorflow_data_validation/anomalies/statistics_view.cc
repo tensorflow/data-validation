@@ -20,11 +20,11 @@ limitations under the License.
 #include <vector>
 
 #include "absl/algorithm/container.h"
+#include "absl/base/log_severity.h"
+#include "absl/log/check.h"
+#include "absl/log/log.h"
 #include "absl/types/optional.h"
 #include "tensorflow_data_validation/anomalies/map_util.h"
-#include "tensorflow/core/platform/logging.h"
-#include "tensorflow/core/platform/protobuf.h"
-#include "tensorflow/core/platform/types.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
 
@@ -35,7 +35,7 @@ namespace {
 using ::tensorflow::metadata::v0::DatasetFeatureStatistics;
 using ::tensorflow::metadata::v0::FeatureNameStatistics;
 using ::tensorflow::metadata::v0::Histogram;
-using ::tensorflow::protobuf::RepeatedPtrField;
+using google::protobuf::RepeatedPtrField;
 
 // Returns true if a is a strict prefix of b.
 const bool IsStrictPrefix(const string& a, const string& b) {
@@ -193,11 +193,12 @@ class DatasetStatsViewImpl {
                                              const Path& path) const {
     auto ref = path_location_.find(path);
     if (ref == path_location_.end()) {
-      VLOG(0) << "DatasetStatsViewImpl::GetByPath() can't find: "
-              << path.Serialize();
+      // VLOG is not yet ready for open source
+      LOG(WARNING) << "DatasetStatsViewImpl::GetByPath() can't find: "
+                   << path.Serialize();
       for (const FeatureStatsView& feature_view : view.features()) {
-        VLOG(0) << "  DatasetStatsViewImpl::GetByPath(): path: "
-                << feature_view.GetPath().Serialize();
+        LOG(WARNING) << "  DatasetStatsViewImpl::GetByPath(): path: "
+                     << feature_view.GetPath().Serialize();
       }
       return absl::nullopt;
     } else {
@@ -607,7 +608,7 @@ const Path& FeatureStatsView::GetPath() const {
   return parent_view_.GetPath(*this);
 }
 
-const absl::optional<uint64> FeatureStatsView::GetNumUnique() const {
+absl::optional<uint64_t> FeatureStatsView::GetNumUnique() const {
   if (data().has_string_stats()) {
     return data().string_stats().unique();
   }

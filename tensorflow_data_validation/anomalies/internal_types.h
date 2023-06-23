@@ -19,11 +19,12 @@ limitations under the License.
 #include <string>
 #include <vector>
 
-#include "tensorflow/core/platform/types.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
 
 namespace tensorflow {
 namespace data_validation {
+
+using std::string;
 
 // Represents the description of an anomaly, in short and long form.
 struct Description {

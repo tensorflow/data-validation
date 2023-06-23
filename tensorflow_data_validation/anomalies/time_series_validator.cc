@@ -20,8 +20,6 @@ limitations under the License.
 #include "absl/status/statusor.h"
 #include "tensorflow_data_validation/anomalies/metrics.h"
 #include "tensorflow_data_validation/google/protos/time_series_metrics.pb.h"
-#include "tensorflow/core/lib/core/errors.h"
-#include "tensorflow/core/lib/gtl/optional.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
 
 using tensorflow::metadata::v0::DatasetFeatureStatisticsList;
@@ -36,7 +34,7 @@ namespace data_validation {
 absl::flat_hash_map<std::string,
                     absl::flat_hash_map<std::string, FeatureNameStatistics>>
 BuildNamedStatisticsMap(
-    const gtl::optional<DatasetFeatureStatisticsList>& statistics) {
+    const absl::optional<DatasetFeatureStatisticsList>& statistics) {
   absl::flat_hash_map<std::string,
                       absl::flat_hash_map<std::string, FeatureNameStatistics>>
       named_statistics;
@@ -75,7 +73,7 @@ const CommonStatistics& GetFeatureCommonStats(
 
 absl::StatusOr<std::vector<ValidationMetrics>> ValidateTimeSeriesStatistics(
     const metadata::v0::DatasetFeatureStatisticsList& statistics,
-    const gtl::optional<metadata::v0::DatasetFeatureStatisticsList>&
+    const absl::optional<metadata::v0::DatasetFeatureStatisticsList>&
         reference_statistics,
     const SliceComparisonConfig& slice_config) {
   std::vector<ValidationMetrics> validation_metrics_vector;
@@ -173,7 +171,7 @@ absl::StatusOr<std::vector<ValidationMetrics>> ValidateTimeSeriesStatistics(
       tensorflow::metadata::v0::Histogram& reference_num_values_histogram =
           *reference_common_stats.mutable_num_values_histogram();
 
-      tensorflow::Status status =
+      absl::Status status =
           tensorflow::data_validation::JensenShannonDivergence(
               num_values_histogram, reference_num_values_histogram, result);
       if (status.ok()) {

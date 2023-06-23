@@ -19,13 +19,13 @@ limitations under the License.
 #include <string>
 #include <vector>
 
+#include "absl/base/log_severity.h"
+#include "absl/log/log.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/types/optional.h"
 #include "absl/types/variant.h"
 #include "tensorflow_data_validation/anomalies/internal_types.h"
-#include "tensorflow/core/platform/logging.h"
-#include "tensorflow/core/platform/types.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
 

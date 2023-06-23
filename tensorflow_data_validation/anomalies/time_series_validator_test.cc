@@ -21,7 +21,6 @@ limitations under the License.
 #include <gtest/gtest.h>
 #include "tensorflow_data_validation/anomalies/test_util.h"
 #include "tensorflow_data_validation/google/protos/time_series_metrics.pb.h"
-#include "tensorflow/core/lib/gtl/optional.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
 
 using tensorflow::data_validation::SliceComparisonConfig;
@@ -43,7 +42,7 @@ using ::testing::status::IsOkAndHolds;
 struct TestCase {
   std::string test_name;
   metadata::v0::DatasetFeatureStatisticsList test_statistics;
-  gtl::optional<metadata::v0::DatasetFeatureStatisticsList>
+  absl::optional<metadata::v0::DatasetFeatureStatisticsList>
       test_reference_statistics;
   std::vector<ValidationMetrics> expected_validation_metrics;
 };
@@ -585,7 +584,7 @@ INSTANTIATE_TEST_SUITE_P(
                  }
                }
              )pb"),
-         gtl::nullopt,
+         absl::nullopt,
          {ParseTextProtoOrDie<ValidationMetrics>(
              R"pb(feature_metric {
                     feature_name { name: 'test_feature1' }

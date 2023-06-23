@@ -23,6 +23,7 @@ namespace data_validation {
 
 namespace {
 
+using std::string;
 using ::tensorflow::metadata::v0::CustomStatistic;
 using ::tensorflow::metadata::v0::Feature;
 using ::testing::Test;

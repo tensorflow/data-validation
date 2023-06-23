@@ -22,6 +22,7 @@ limitations under the License.
 #include <string>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "absl/types/optional.h"
 #include "tensorflow_data_validation/anomalies/feature_util.h"
 #include "tensorflow_data_validation/anomalies/internal_types.h"
@@ -29,9 +30,6 @@ limitations under the License.
 #include "tensorflow_data_validation/anomalies/proto/feature_statistics_to_proto.pb.h"
 #include "tensorflow_data_validation/anomalies/proto/validation_config.pb.h"
 #include "tensorflow_data_validation/anomalies/statistics_view.h"
-#include "tensorflow/core/lib/core/status.h"
-#include "tensorflow/core/platform/protobuf.h"
-#include "tensorflow/core/platform/types.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
@@ -67,7 +65,7 @@ class Schema {
     // Creates a column from the statistics object, based upon the
     // configuration in the factory.
     // Updates the severity of the change.
-    tensorflow::Status CreateColumn(
+    absl::Status CreateColumn(
         const FeatureStatsView& feature_stats_view, Schema* schema,
         tensorflow::metadata::v0::AnomalyInfo::Severity* severity) const;
 
@@ -99,22 +97,22 @@ class Schema {
   // an InvalidArgumentException.
   // If the SchemaProto is not valid, the method will return an
   // InvalidArgumentException.
-  tensorflow::Status Init(const tensorflow::metadata::v0::Schema& input);
+  absl::Status Init(const tensorflow::metadata::v0::Schema& input);
 
   // Updates Schema given new data. If you have a new, previously unseen column,
   // then config is used to create it.
-  tensorflow::Status Update(const DatasetStatsView& dataset_stats,
+  absl::Status Update(const DatasetStatsView& dataset_stats,
                             const FeatureStatisticsToProtoConfig& config);
 
   // Updates Schema given new data, but only on the columns specified.
   // If you have a new, previously unseen column on the list of columns to,
   // consider, then config is used to create it.
-  tensorflow::Status Update(const DatasetStatsView& dataset_stats,
+  absl::Status Update(const DatasetStatsView& dataset_stats,
                             const FeatureStatisticsToProtoConfig& config,
                             const std::vector<Path>& paths_to_consider);
 
   // Check if there are any issues with a path or its children.
-  tensorflow::Status UpdateRecursively(
+  absl::Status UpdateRecursively(
       const Updater& updater, const FeatureStatsView& feature_stats_view,
       const absl::optional<std::set<Path>>& paths_to_consider,
       std::vector<Description>* descriptions,
@@ -137,7 +135,7 @@ class Schema {
   // Populates FeatureStatisticsToProtoConfig with groups of enums that seem
   // similar. config is the original config, and dataset_stats has
   // the relevant data.
-  static tensorflow::Status GetRelatedEnums(
+  static absl::Status GetRelatedEnums(
       const DatasetStatsView& dataset_stats,
       FeatureStatisticsToProtoConfig* config);
 
@@ -145,7 +143,7 @@ class Schema {
   bool IsEmpty() const;
 
   // Check if there are any issues with a single column.
-  tensorflow::Status UpdateFeature(
+  absl::Status UpdateFeature(
       const Updater& updater, const FeatureStatsView& feature_stats_view,
       std::vector<Description>* descriptions,
       absl::optional<tensorflow::metadata::v0::DriftSkewInfo>* drift_skew_info,
@@ -175,7 +173,7 @@ class Schema {
   // If you have a new, previously unseen column on the list of columns to
   // consider, then config is used to create it.
   // If paths_to_consider is unspecified, then it updates all columns.
-  tensorflow::Status Update(
+  absl::Status Update(
       const DatasetStatsView& dataset_stats, const Updater& updater,
       const absl::optional<std::set<Path>>& paths_to_consider);
 
@@ -199,14 +197,14 @@ class Schema {
   // Finds all names and of features in the environment.
   std::vector<Path> GetAllRequiredFeatures(
       const Path& prefix,
-      const ::tensorflow::protobuf::RepeatedPtrField<Feature>& features,
+      const google::protobuf::RepeatedPtrField<Feature>& features,
       const absl::optional<string>& environment) const;
 
   // Returns the structure of the schema, organized by full name.
   // For each full name, returns an existing feature with that name,
   // and the parent name (or the empty string if there is no parent).
   void GetAllExistingFeaturesByName(
-      tensorflow::protobuf::RepeatedPtrField<Feature>* features,
+      const google::protobuf::RepeatedPtrField<Feature>& features,
       const string& parent,
       std::map<string, std::pair<string, Feature*>>* result);
 

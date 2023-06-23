@@ -23,20 +23,20 @@ limitations under the License.
 #include <string>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "absl/types/optional.h"
 #include "tensorflow_data_validation/anomalies/features_needed.h"
 #include "tensorflow_data_validation/anomalies/path.h"
 #include "tensorflow_data_validation/anomalies/proto/feature_statistics_to_proto.pb.h"
 #include "tensorflow_data_validation/anomalies/proto/validation_config.pb.h"
-#include "tensorflow/core/lib/core/status.h"
-#include "tensorflow/core/lib/gtl/optional.h"
-#include "tensorflow/core/platform/types.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
 
 namespace tensorflow {
 namespace data_validation {
+
+using std::string;
 
 // Gets the default FeatureStatisticsToProtoConfig.
 FeatureStatisticsToProtoConfig GetDefaultFeatureStatisticsToProtoConfig();
@@ -49,7 +49,7 @@ FeatureStatisticsToProtoConfig GetDefaultFeatureStatisticsToProtoConfig();
 // a string feature in order to be interpreted as a categorical feature.
 // if `infer_feature_shape` is true, then it will try inferring a fixed shape
 // from a feature's statistics.
-Status InferSchema(const string& feature_statistics_proto_string,
+absl::Status InferSchema(const string& feature_statistics_proto_string,
                    int max_string_domain_size, bool infer_feature_shape,
                    string* schema_proto_string);
 
@@ -59,10 +59,10 @@ Status InferSchema(const string& feature_statistics_proto_string,
 // the serialized updated schema proto string.
 // max_string_domain_size argument refers to the maximum size of the domain of
 // a string feature in order to be interpreted as a categorical feature.
-Status UpdateSchema(const string& schema_proto_string,
-                    const string& feature_statistics_proto_string,
-                    const int max_string_domain_size,
-                    string* output_schema_proto_string);
+absl::Status UpdateSchema(const string& schema_proto_string,
+                          const string& feature_statistics_proto_string,
+                          const int max_string_domain_size,
+                          string* output_schema_proto_string);
 
 // Validates the statistics in <feature_statistics> with respect to the
 // <schema_proto> and returns a schema diff proto which captures the
@@ -78,7 +78,7 @@ Status UpdateSchema(const string& schema_proto_string,
 // there are changes in num examples beyond the specified thresholds. If an
 // environment is specified, only validate the feature statistics of the fields
 // in that environment. Otherwise, validate all fields.
-Status ValidateFeatureStatistics(
+absl::Status ValidateFeatureStatistics(
     const metadata::v0::DatasetFeatureStatistics& feature_statistics,
     const metadata::v0::Schema& schema_proto,
     const absl::optional<string>& environment,
@@ -94,7 +94,7 @@ Status ValidateFeatureStatistics(
 
 // Similar to the above, but takes all the proto parameters as serialized
 // strings. This method is called by the Python code using PyBind11.
-Status ValidateFeatureStatisticsWithSerializedInputs(
+absl::Status ValidateFeatureStatisticsWithSerializedInputs(
     const string& feature_statistics_proto_string,
     const string& schema_proto_string, const string& environment,
     const string& previous_span_statistics_proto_string,
@@ -112,7 +112,7 @@ Status ValidateFeatureStatisticsWithSerializedInputs(
 // If ValidationConfig is updated, this function should be revisited.
 // Note: paths_to_consider only currently supports paths that have exactly
 // one step (eg path.size() == 1).
-Status UpdateSchema(
+absl::Status UpdateSchema(
     const FeatureStatisticsToProtoConfig& feature_statistics_to_proto_config,
     const metadata::v0::Schema& schema_to_update,
     const metadata::v0::DatasetFeatureStatistics&

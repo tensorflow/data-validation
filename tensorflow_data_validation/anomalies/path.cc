@@ -17,17 +17,20 @@ limitations under the License.
 
 #include <algorithm>
 
+#include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/str_replace.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
+#include "tensorflow_data_validation/anomalies/status_util.h"
 #include "re2/re2.h"
-#include "tensorflow/core/lib/core/errors.h"
-#include "tensorflow/core/lib/core/status.h"
 
 namespace tensorflow {
 namespace data_validation {
+
+using std::string;
+
 namespace {
 
 // This matches a standard step.
@@ -66,15 +69,16 @@ string SerializeStep(const string& str) {
 // If the step is in the standard format, do nothing.
 // Otherwise, remove beginning and ending quote and replace pairs of single
 // quotes with single quotes.
-tensorflow::Status DeserializeStep(string* to_modify) {
+absl::Status DeserializeStep(string* to_modify) {
   if (IsStandardStep(*to_modify)) {
-    return Status();
+    return absl::OkStatus();
   }
 
   // A legal serialized string here begins and ends with a single quote and
   // has had all interior single quotes replaced with double quotes.
   if (!RE2::FullMatch(*to_modify, *kSerializedWithQuotes)) {
-    return errors::InvalidArgument("Not a valid serialized step: ", *to_modify);
+    return absl::InvalidArgumentError(
+        absl::StrCat("Not a valid serialized step: ", *to_modify));
   }
   // Remove the first and last quote
   const absl::string_view quotes_removed(to_modify->data() + 1,
@@ -82,7 +86,7 @@ tensorflow::Status DeserializeStep(string* to_modify) {
 
   // Replace each pair of quotes remaining with a single quote.
   *to_modify = absl::StrReplaceAll(quotes_removed, {{"''", "'"}});
-  return Status();
+  return absl::OkStatus();
 }
 
 // Find the next step delimiter.
@@ -170,16 +174,16 @@ tensorflow::metadata::v0::Path Path::AsProto() const {
 // Deserializes a string created with Serialize().
 // Note: for any path p:
 // p==Path::Deserialize(p.Serialize())
-tensorflow::Status Path::Deserialize(absl::string_view str, Path* result) {
+absl::Status Path::Deserialize(absl::string_view str, Path* result) {
   result->step_.clear();
   if (str.empty()) {
-    return Status();
+    return absl::OkStatus();
   }
   result->step_ = absl::StrSplit(str, StepDelimiter());
   for (string& step : result->step_) {
-    TF_RETURN_IF_ERROR(DeserializeStep(&step));
+    TFDV_RETURN_IF_ERROR(DeserializeStep(&step));
   }
-  return Status();
+  return absl::OkStatus();
 }
 
 Path Path::GetChild(absl::string_view last_step) const {

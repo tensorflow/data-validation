@@ -21,14 +21,14 @@ limitations under the License.
 #include <vector>
 
 #include "google/protobuf/any.pb.h"
+#include "absl/base/log_severity.h"
+#include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/types/variant.h"
 #include "tensorflow_data_validation/anomalies/internal_types.h"
 #include "tensorflow_data_validation/anomalies/map_util.h"
 #include "tensorflow_data_validation/anomalies/statistics_view.h"
-#include "tensorflow/core/platform/logging.h"
-#include "tensorflow/core/platform/types.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
@@ -179,7 +179,7 @@ std::vector<Description> UpdateNaturalLanguageDomain(
 
   VerifyCoverageConstraints(nl_stats, nl_domain, &result);
 
-  std::map<absl::variant<std::string, int64>,
+  std::map<absl::variant<std::string, int64_t>,
            const NaturalLanguageStatistics::TokenStatistics&>
       token_stats_map;
 
@@ -195,7 +195,7 @@ std::vector<Description> UpdateNaturalLanguageDomain(
   }
 
   for (auto& constraint : *nl_domain->mutable_token_constraints()) {
-    absl::variant<string, int64> constraint_name;
+    absl::variant<string, int64_t> constraint_name;
     std::string token_string;
     if (constraint.has_int_value()) {
       constraint_name = constraint.int_value();

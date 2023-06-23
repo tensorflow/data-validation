@@ -28,7 +28,6 @@ limitations under the License.
 #include "tensorflow_data_validation/anomalies/proto/feature_statistics_to_proto.pb.h"
 #include "tensorflow_data_validation/anomalies/statistics_view_test_util.h"
 #include "tensorflow_data_validation/anomalies/test_util.h"
-#include "tensorflow/core/platform/types.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
 

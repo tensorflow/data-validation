@@ -17,12 +17,15 @@ limitations under the License.
 
 #include <string>
 
-#include "tensorflow/core/platform/logging.h"
-#include "tensorflow/core/platform/protobuf.h"
+#include "google/protobuf/text_format.h"
+#include "absl/base/log_severity.h"
+#include "absl/log/log.h"
 
 namespace tensorflow {
 namespace data_validation {
 namespace {
+
+using std::string;
 
 // LINT.IfChange
 constexpr char kDomainInfo[] = "domain_info";
@@ -32,12 +35,12 @@ bool ParseCustomDomainInfo(const string& domain_info,
                            tensorflow::metadata::v0::Feature* feature) {
   // Temporary feature for parsing domain_info.
   tensorflow::metadata::v0::Feature domain_info_feature;
-  if (!::tensorflow::protobuf::TextFormat::ParseFromString(
+  if (!google::protobuf::TextFormat::ParseFromString(
           domain_info, &domain_info_feature)) {
     return false;
   }
   // Ensure only one field is set
-  std::vector<const ::tensorflow::protobuf::FieldDescriptor*> fields_set;
+  std::vector<const google::protobuf::FieldDescriptor*> fields_set;
   feature->GetReflection()->ListFields(domain_info_feature, &fields_set);
   // Ensure only one field is set, which is part of the domain_info oneof.
   if (fields_set.size() != 1 || fields_set[0]->containing_oneof() == nullptr ||
@@ -80,7 +83,7 @@ bool BestEffortUpdateCustomDomain(
   if (!ParseCustomDomainInfo(domain_info, feature)) {
     LOG(ERROR) << "Could not parse 'domain_info' custom_stat: " << domain_info
                << ". It is expected to contain exactly one field of the "
-               << "Feature.domain_info oneof, e.g: 'mid_domain {}'.";
+               << "Feature.domain_info oneof, e.g.: 'mid_domain {}'.";
     return false;
   }
   return true;

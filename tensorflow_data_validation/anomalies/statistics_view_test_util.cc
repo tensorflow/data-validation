@@ -18,10 +18,11 @@ limitations under the License.
 #include <string>
 #include <vector>
 
+#include "absl/base/log_severity.h"
+#include "absl/log/check.h"
+#include "absl/log/log.h"
 #include "absl/types/optional.h"
 #include "tensorflow_data_validation/anomalies/statistics_view.h"
-#include "tensorflow/core/platform/logging.h"
-#include "tensorflow/core/platform/types.h"
 
 namespace tensorflow {
 namespace data_validation {

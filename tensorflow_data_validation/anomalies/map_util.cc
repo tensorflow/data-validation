@@ -21,10 +21,10 @@ limitations under the License.
 #include <utility>
 #include <vector>
 
-#include "tensorflow/core/platform/types.h"
 
 namespace tensorflow {
 namespace data_validation {
+using std::string;
 
 double SumValues(const std::map<string, double>& input) {
   std::vector<double> values = GetValuesFromMap(input);
@@ -108,7 +108,7 @@ std::map<string, double> MapValues(const std::map<string, double>& input,
 }
 
 std::map<string, double> IntMapToDoubleMap(
-    const std::map<string, int64>& int_map) {
+    const std::map<string, int64_t>& int_map) {
   std::map<string, double> result;
   for (const auto& pair : int_map) {
     result[pair.first] = pair.second;

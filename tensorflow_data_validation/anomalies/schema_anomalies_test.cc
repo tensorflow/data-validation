@@ -17,12 +17,11 @@ limitations under the License.
 
 #include <string>
 #include <vector>
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include "tensorflow_data_validation/anomalies/feature_util.h"
 #include "tensorflow_data_validation/anomalies/statistics_view_test_util.h"
 #include "tensorflow_data_validation/anomalies/test_util.h"
-#include "tensorflow/core/lib/core/status_test_util.h"
-#include "tensorflow/core/platform/types.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
 
@@ -40,7 +39,7 @@ void TestFindChanges(const Schema& schema, const DatasetStatsView& stats_view,
                      const std::map<std::string, testing::ExpectedAnomalyInfo>&
                          expected_anomalies) {
   SchemaAnomalies anomalies(schema);
-  TF_CHECK_OK(anomalies.FindChanges(stats_view, absl::nullopt, config));
+  ASSERT_OK(anomalies.FindChanges(stats_view, absl::nullopt, config));
   TestAnomalies(anomalies.GetSchemaDiff(/*enable_diff_regions=*/false),
                 schema, expected_anomalies);
 }
@@ -1034,7 +1033,7 @@ TEST(SchemaAnomalies, FindChangesDatasetLevelChanges) {
 
   SchemaAnomalies anomalies(schema_proto);
   for (const auto& config : GetFeatureStatisticsToProtoConfigs()) {
-    TF_CHECK_OK(anomalies.FindChanges(stats_view, absl::nullopt, config));
+    ASSERT_OK(anomalies.FindChanges(stats_view, absl::nullopt, config));
     tensorflow::metadata::v0::Anomalies actual_anomalies =
         anomalies.GetSchemaDiff(/*enable_diff_regions=*/false);
 
@@ -1202,7 +1201,7 @@ TEST(SchemaAnomalies, FindSkewStringFeature) {
           /* previous_version= */ std::shared_ptr<DatasetStatsView>());
 
   SchemaAnomalies skew(schema_proto);
-  TF_CHECK_OK(skew.FindSkew(*training_view));
+  ASSERT_OK(skew.FindSkew(*training_view));
   std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
   expected_anomalies["foo"].expected_info_without_diff = ParseTextProtoOrDie<
       tensorflow::metadata::v0::AnomalyInfo>(R"(
@@ -1291,7 +1290,7 @@ TEST(SchemaAnomalies, FindSkewNumericFeature) {
           /* previous_version= */ std::shared_ptr<DatasetStatsView>());
 
   SchemaAnomalies skew(schema_proto);
-  TF_CHECK_OK(skew.FindSkew(*training_view));
+  ASSERT_OK(skew.FindSkew(*training_view));
   std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
   expected_anomalies["foo"].expected_info_without_diff = ParseTextProtoOrDie<
       tensorflow::metadata::v0::AnomalyInfo>(R"(
@@ -1383,7 +1382,7 @@ TEST(SchemaAnomalies,
           /* previous_version= */ std::shared_ptr<DatasetStatsView>());
 
   SchemaAnomalies skew(schema_proto);
-  TF_CHECK_OK(skew.FindSkew(*training_view));
+  ASSERT_OK(skew.FindSkew(*training_view));
   // No anomalies are expected.
   std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
   const std::vector<tensorflow::metadata::v0::DriftSkewInfo>
@@ -1765,15 +1764,15 @@ TEST(GetSchemaDiff, FindSelectedChanges) {
   // The next line creates a feature that is needed without a reason.
   features[Path({"foo"})];
   SchemaAnomalies anomalies(initial);
-  TF_CHECK_OK(anomalies.FindChanges(DatasetStatsView(statistics), features,
-                                    FeatureStatisticsToProtoConfig()));
+  ASSERT_OK(anomalies.FindChanges(DatasetStatsView(statistics), features,
+                                  FeatureStatisticsToProtoConfig()));
   auto result = anomalies.GetSchemaDiff(/*enable_diff_regions=*/false);
 
   TestAnomalies(result, initial, expected_anomalies);
 
   // Test that severity overrides affect severity in output anomalies.
   SchemaAnomalies anomalies_with_overrides(initial);
-  TF_CHECK_OK(anomalies_with_overrides.FindChanges(
+  ASSERT_OK(anomalies_with_overrides.FindChanges(
       DatasetStatsView(statistics), features,
       ParseTextProtoOrDie<FeatureStatisticsToProtoConfig>(
           R"pb(severity_overrides: {
@@ -1974,9 +1973,9 @@ TEST(SchemaAnomalyTest, CreateNewField) {
 
   DatasetStatsView view(stats);
   SchemaAnomaly anomaly;
-  TF_ASSERT_OK(anomaly.InitSchema(baseline));
+  ASSERT_OK(anomaly.InitSchema(baseline));
 
-  TF_ASSERT_OK(
+  ASSERT_OK(
       anomaly.CreateNewField(::tensorflow::data_validation::Schema::Updater(
                                  FeatureStatisticsToProtoConfig()),
                              absl::nullopt, *view.GetByPath(Path({"struct"}))));
@@ -2041,9 +2040,9 @@ TEST(SchemaAnomalyTest, CreateNewFieldSome) {
 
   DatasetStatsView view(stats);
   SchemaAnomaly anomaly;
-  TF_ASSERT_OK(anomaly.InitSchema(baseline));
+  ASSERT_OK(anomaly.InitSchema(baseline));
 
-  TF_ASSERT_OK(anomaly.CreateNewField(
+  ASSERT_OK(anomaly.CreateNewField(
       ::tensorflow::data_validation::Schema::Updater(
           FeatureStatisticsToProtoConfig()),
       std::set<Path>({Path({"struct"}), Path({"struct", "foo"})}),
@@ -2287,7 +2286,7 @@ TEST(SchemaAnomalyTest, FeatureIsDeprecated) {
 
   DatasetStatsView view(stats);
   SchemaAnomaly anomaly;
-  TF_ASSERT_OK(anomaly.InitSchema(baseline));
+  ASSERT_OK(anomaly.InitSchema(baseline));
   EXPECT_TRUE(anomaly.FeatureIsDeprecated(Path({"struct", "foo"})));
   EXPECT_FALSE(anomaly.FeatureIsDeprecated(Path({"struct"})));
   EXPECT_FALSE(anomaly.FeatureIsDeprecated(Path({"struct", "bar.baz"})));
@@ -2498,8 +2497,8 @@ TEST(SchemaAnomalies, GetSchemaDiffTwoReasons) {
   DatasetStatsView stats_view(statistics, false);
   DatasetStatsView stats_view_2(statistics_2, false);
   SchemaAnomalies anomalies(initial);
-  TF_CHECK_OK(anomalies.FindChanges(stats_view, absl::nullopt, config));
-  TF_CHECK_OK(anomalies.FindChanges(stats_view_2, absl::nullopt, config));
+  ASSERT_OK(anomalies.FindChanges(stats_view, absl::nullopt, config));
+  ASSERT_OK(anomalies.FindChanges(stats_view_2, absl::nullopt, config));
   std::map<std::string, testing::ExpectedAnomalyInfo> expected_anomalies;
 
   expected_anomalies["bar"].expected_info_without_diff = ParseTextProtoOrDie<

@@ -17,9 +17,6 @@ limitations under the License.
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include "tensorflow_data_validation/anomalies/test_util.h"
-#include "tensorflow/core/lib/core/errors.h"
-#include "tensorflow/core/lib/core/status.h"
-#include "tensorflow/core/lib/core/status_test_util.h"
 #include "tensorflow_metadata/proto/v0/path.pb.h"
 
 namespace tensorflow {
@@ -113,7 +110,7 @@ TEST(Path, Deserialize) {
                                       Path()};
   for (const Path& path : paths_to_check) {
     Path result;
-    TF_ASSERT_OK(Path::Deserialize(path.Serialize(), &result))
+    ASSERT_OK(Path::Deserialize(path.Serialize(), &result))
         << "Failed on " << path.Serialize() << "!=" << result.Serialize();
     EXPECT_THAT(result, EqualsPath(path)) << "result: " << result.Serialize();
   }
@@ -123,7 +120,7 @@ TEST(Path, Deserialize) {
 // Deserialize works anyway.
 TEST(Path, DeserializeSillyQuotes) {
   Path no_silly_quotes;
-  TF_ASSERT_OK(Path::Deserialize("'a'.'b'.'(c'')'", &no_silly_quotes));
+  ASSERT_OK(Path::Deserialize("'a'.'b'.'(c'')'", &no_silly_quotes));
   EXPECT_EQ("a.b.(c')", no_silly_quotes.Serialize());
 }
 
@@ -134,9 +131,8 @@ TEST(Path, DeserializeBad) {
       "a'", "'a", "(b", "c'd", "'c'd'", "''cd'", "'c'''d'"};
   for (const string& bad : bad_serializations) {
     Path dummy;
-    tensorflow::Status status = Path::Deserialize(bad, &dummy);
-    EXPECT_EQ(status.code(), static_cast<tsl::errors::Code>(
-                                 absl::StatusCode::kInvalidArgument))
+    absl::Status status = Path::Deserialize(bad, &dummy);
+    EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument)
         << "Deserialize did not fail on " << bad;
   }
 }

@@ -14,12 +14,15 @@ limitations under the License.
 ==============================================================================*/
 #include "tensorflow_data_validation/anomalies/custom_validation.h"
 
+#include "absl/base/log_severity.h"
 #include "absl/container/flat_hash_map.h"
+#include "absl/log/log.h"
+#include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "tensorflow_data_validation/anomalies/path.h"
 #include "tensorflow_data_validation/anomalies/schema_util.h"
+#include "tensorflow_data_validation/anomalies/status_util.h"
 #include "tfx_bsl/cc/statistics/sql_util.h"
-#include "tensorflow/core/lib/core/errors.h"
-#include "tensorflow/core/public/version.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
 #include "tensorflow_metadata/proto/v0/path.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
@@ -57,7 +60,7 @@ BuildNamedStatisticsMap(const DatasetFeatureStatisticsList& statistics) {
   return named_statistics;
 }
 
-Status GetFeatureStatistics(
+absl::Status GetFeatureStatistics(
     const absl::flat_hash_map<
         SliceKey, absl::flat_hash_map<std::string, FeatureNameStatistics>>&
         named_statistics,
@@ -71,7 +74,7 @@ Status GetFeatureStatistics(
       named_feature_statistics = named_statistics.find(kDefaultSlice);
     }
     if (named_feature_statistics == named_statistics.end()) {
-      return tensorflow::errors::InvalidArgument(absl::StrCat(
+      return absl::InvalidArgumentError(absl::StrCat(
           "Dataset ", dataset_name,
           " specified in validation config not found in statistics."));
     }
@@ -80,20 +83,20 @@ Status GetFeatureStatistics(
   const auto& feature_statistics =
       named_feature_statistics->second.find(serialized_feature_path);
   if (feature_statistics == named_feature_statistics->second.end()) {
-    return tensorflow::errors::InvalidArgument(absl::StrCat(
+    return absl::InvalidArgumentError(absl::StrCat(
         "Feature ", serialized_feature_path,
         " specified in validation config not found in statistics."));
   }
   *statistics = feature_statistics->second;
-  return tensorflow::Status();
+  return absl::OkStatus();
 }
 
-Status MergeAnomalyInfos(const AnomalyInfo& anomaly_info,
+absl::Status MergeAnomalyInfos(const AnomalyInfo& anomaly_info,
                          const std::string& key,
                          AnomalyInfo* existing_anomaly_info) {
   if (Path(anomaly_info.path()).Compare(Path(existing_anomaly_info->path())) !=
       0) {
-    return tensorflow::errors::AlreadyExists(
+    return absl::AlreadyExistsError(
         absl::StrCat("Anomaly info map includes entries for ", key,
                      " which do not have the same path."));
   }
@@ -108,16 +111,16 @@ Status MergeAnomalyInfos(const AnomalyInfo& anomaly_info,
     AnomalyInfo::Reason* new_reason = existing_anomaly_info->add_reason();
     new_reason->CopyFrom(reason);
   }
-  return tensorflow::Status();
+  return absl::OkStatus();
 }
 
 // TODO(b/239095455): Populate top-level descriptions if needed for
 // visualization.
-Status UpdateAnomalyResults(const metadata::v0::Path& path,
-                            const std::string& test_dataset,
-                            const absl::optional<std::string> base_dataset,
-                            const absl::optional<metadata::v0::Path> base_path,
-                            const Validation& validation, Anomalies* results) {
+absl::Status UpdateAnomalyResults(
+    const metadata::v0::Path& path, const std::string& test_dataset,
+    const absl::optional<std::string> base_dataset,
+    const absl::optional<metadata::v0::Path> base_path,
+    const Validation& validation, Anomalies* results) {
   AnomalyInfo anomaly_info;
   AnomalyInfo::Reason reason;
   reason.set_type(AnomalyInfo::CUSTOM_VALIDATION);
@@ -149,13 +152,13 @@ Status UpdateAnomalyResults(const metadata::v0::Path& path,
   if (insert_result.second == false) {
     AnomalyInfo existing_anomaly_info =
         results->anomaly_info().at(feature_name);
-    TF_RETURN_IF_ERROR(
+    TFDV_RETURN_IF_ERROR(
         MergeAnomalyInfos(anomaly_info, feature_name, &existing_anomaly_info));
     results->mutable_anomaly_info()
         ->at(feature_name)
         .CopyFrom(existing_anomaly_info);
   }
-  return tensorflow::Status();
+  return absl::OkStatus();
 }
 
 bool InCurrentEnvironment(Validation validation,
@@ -176,17 +179,18 @@ bool InCurrentEnvironment(Validation validation,
 
 }  // namespace
 
-Status CustomValidateStatistics(
+absl::Status CustomValidateStatistics(
     const metadata::v0::DatasetFeatureStatisticsList& test_statistics,
     const metadata::v0::DatasetFeatureStatisticsList* base_statistics,
     const CustomValidationConfig& validations,
-    const absl::optional<string> environment, metadata::v0::Anomalies* result) {
+    const absl::optional<std::string> environment,
+    metadata::v0::Anomalies* result) {
   absl::flat_hash_map<SliceKey,
                       absl::flat_hash_map<std::string, FeatureNameStatistics>>
       named_test_statistics = BuildNamedStatisticsMap(test_statistics);
   for (const auto& feature_validation : validations.feature_validations()) {
     FeatureNameStatistics test_statistics;
-    TF_RETURN_IF_ERROR(GetFeatureStatistics(
+    TFDV_RETURN_IF_ERROR(GetFeatureStatistics(
         named_test_statistics, feature_validation.dataset_name(),
         feature_validation.feature_path(), &test_statistics));
     for (const auto& validation : feature_validation.validations()) {
@@ -195,12 +199,12 @@ Status CustomValidateStatistics(
             tfx_bsl::statistics::EvaluatePredicate(test_statistics,
                                                    validation.sql_expression());
         if (!query_result.ok()) {
-          return tensorflow::errors::Internal(absl::StrCat(
+          return absl::InternalError(absl::StrCat(
               "Attempt to run query '", validation.sql_expression(),
               "' failed with error: ", query_result.status().ToString()));
         } else if (!query_result.value()) {
           // If the sql_expression evaluates to False, there is an anomaly.
-          TF_RETURN_IF_ERROR(UpdateAnomalyResults(
+          TFDV_RETURN_IF_ERROR(UpdateAnomalyResults(
               feature_validation.feature_path(),
               feature_validation.dataset_name(), absl::nullopt, absl::nullopt,
               validation, result));
@@ -210,7 +214,7 @@ Status CustomValidateStatistics(
   }
   if (validations.feature_pair_validations_size() > 0) {
     if (base_statistics == nullptr) {
-      return tensorflow::errors::InvalidArgument(
+      return absl::InvalidArgumentError(
           "Feature pair validations are included in the CustomValidationConfig "
           "but base_statistics have not been specified.");
     }
@@ -221,10 +225,10 @@ Status CustomValidateStatistics(
          validations.feature_pair_validations()) {
       FeatureNameStatistics test_statistics;
       FeatureNameStatistics base_statistics;
-      TF_RETURN_IF_ERROR(GetFeatureStatistics(
+      TFDV_RETURN_IF_ERROR(GetFeatureStatistics(
           named_test_statistics, feature_pair_validation.dataset_name(),
           feature_pair_validation.feature_test_path(), &test_statistics));
-      TF_RETURN_IF_ERROR(GetFeatureStatistics(
+      TFDV_RETURN_IF_ERROR(GetFeatureStatistics(
           named_base_statistics, feature_pair_validation.base_dataset_name(),
           feature_pair_validation.feature_base_path(), &base_statistics));
       for (const auto& validation : feature_pair_validation.validations()) {
@@ -234,13 +238,13 @@ Status CustomValidateStatistics(
                   base_statistics, test_statistics,
                   validation.sql_expression());
           if (!query_result.ok()) {
-            return tensorflow::errors::Internal(absl::StrCat(
+            return absl::InternalError(absl::StrCat(
                 "Attempt to run query: ", validation.sql_expression(),
                 " failed with the following error: ",
                 query_result.status().ToString()));
           }
           // If the sql_expression evaluates to False, there is an anomaly.
-          TF_RETURN_IF_ERROR(UpdateAnomalyResults(
+          TFDV_RETURN_IF_ERROR(UpdateAnomalyResults(
               feature_pair_validation.feature_test_path(),
               feature_pair_validation.dataset_name(),
               feature_pair_validation.base_dataset_name(),
@@ -249,10 +253,10 @@ Status CustomValidateStatistics(
       }
     }
   }
-  return tensorflow::Status();
+  return absl::OkStatus();
 }
 
-Status CustomValidateStatisticsWithSerializedInputs(
+absl::Status CustomValidateStatisticsWithSerializedInputs(
     const std::string& serialized_test_statistics,
     const std::string& serialized_base_statistics,
     const std::string& serialized_validations,
@@ -262,19 +266,19 @@ Status CustomValidateStatisticsWithSerializedInputs(
   metadata::v0::DatasetFeatureStatisticsList base_statistics;
   metadata::v0::DatasetFeatureStatisticsList* base_statistics_ptr = nullptr;
   if (!test_statistics.ParseFromString(serialized_test_statistics)) {
-    return tensorflow::errors::InvalidArgument(
+    return absl::InvalidArgumentError(
         "Failed to parse DatasetFeatureStatistics proto.");
   }
   if (!serialized_base_statistics.empty()) {
     if (!base_statistics.ParseFromString(serialized_base_statistics)) {
-      return tensorflow::errors::InvalidArgument(
+      return absl::InvalidArgumentError(
           "Failed to parse DatasetFeatureStatistics proto.");
     }
     base_statistics_ptr = &base_statistics;
   }
   CustomValidationConfig validations;
   if (!validations.ParseFromString(serialized_validations)) {
-    return tensorflow::errors::InvalidArgument(
+    return absl::InvalidArgumentError(
         "Failed to parse CustomValidationConfig proto.");
   }
   absl::optional<std::string> environment = absl::nullopt;
@@ -282,22 +286,18 @@ Status CustomValidateStatisticsWithSerializedInputs(
     environment = serialized_environment;
   }
   metadata::v0::Anomalies anomalies;
-  const tensorflow::Status status =
+  const absl::Status status =
       CustomValidateStatistics(test_statistics, base_statistics_ptr,
                                validations, environment, &anomalies);
   if (!status.ok()) {
-    return tensorflow::errors::Internal("Failed to run custom validations: ",
-#if TF_GRAPH_DEF_VERSION < 1467
-                                        status.error_message());
-#else
-                                        status.message());
-#endif
+    return absl::InternalError(
+        absl::StrCat("Failed to run custom validations: ", status.message()));
   }
   if (!anomalies.SerializeToString(serialized_anomalies_proto)) {
-    return tensorflow::errors::Internal(
+    return absl::InternalError(
         "Failed to serialize Anomalies output proto to string.");
   }
-  return tensorflow::Status();
+  return absl::OkStatus();
 }
 
 }  // namespace data_validation

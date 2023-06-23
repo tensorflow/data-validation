@@ -18,25 +18,23 @@ limitations under the License.
 #include <memory>
 #include <string>
 
+#include "absl/status/status.h"
 #include "absl/types/optional.h"
 #include "tensorflow_data_validation/anomalies/schema.h"
 #include "tensorflow_data_validation/anomalies/schema_anomalies.h"
 #include "tensorflow_data_validation/anomalies/statistics_view.h"
 #include "tensorflow_data_validation/anomalies/telemetry.h"
-#include "tensorflow/core/lib/core/errors.h"
-#include "tensorflow/core/lib/core/status.h"
-#include "tensorflow/core/lib/monitoring/counter.h"
-#include "tensorflow/core/platform/logging.h"
-#include "tensorflow/core/platform/types.h"
+#include "tensorflow_data_validation/anomalies/status_util.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
 
 using tensorflow::metadata::v0::DatasetFeatureStatistics;
+using std::string;
 
 namespace tensorflow {
 namespace data_validation {
 
 namespace {
-const int64 kDefaultEnumThreshold = 400;
+const int64_t kDefaultEnumThreshold = 400;
 }
 
 FeatureStatisticsToProtoConfig GetDefaultFeatureStatisticsToProtoConfig() {
@@ -46,13 +44,13 @@ FeatureStatisticsToProtoConfig GetDefaultFeatureStatisticsToProtoConfig() {
 }
 
 
-tensorflow::Status InferSchema(const string& feature_statistics_proto_string,
+absl::Status InferSchema(const string& feature_statistics_proto_string,
                                const int max_string_domain_size,
                                const bool infer_feature_shape,
                                string* schema_proto_string) {
   tensorflow::metadata::v0::DatasetFeatureStatistics feature_statistics;
   if (!feature_statistics.ParseFromString(feature_statistics_proto_string)) {
-    return tensorflow::errors::InvalidArgument(
+    return absl::InvalidArgumentError(
         "Failed to parse DatasetFeatureStatistics proto.");
   }
   FeatureStatisticsToProtoConfig feature_statistics_to_proto_config;
@@ -60,47 +58,47 @@ tensorflow::Status InferSchema(const string& feature_statistics_proto_string,
   feature_statistics_to_proto_config.set_infer_feature_shape(
       infer_feature_shape);
   tensorflow::metadata::v0::Schema schema;
-  TF_RETURN_IF_ERROR(
+  TFDV_RETURN_IF_ERROR(
       UpdateSchema(feature_statistics_to_proto_config,
                    schema, feature_statistics,
-                   /* paths_to_consider= */ gtl::nullopt,
-                   /* environment= */ gtl::nullopt, &schema));
+                   /* paths_to_consider= */ absl::nullopt,
+                   /* environment= */ absl::nullopt, &schema));
   if (!schema.SerializeToString(schema_proto_string)) {
-    return tensorflow::errors::Internal(
+    return absl::InternalError(
         "Could not serialize Schema output proto to string.");
   }
-  return tensorflow::Status();
+  return absl::OkStatus();
 }
 
-tensorflow::Status UpdateSchema(const string& schema_proto_string,
+absl::Status UpdateSchema(const string& schema_proto_string,
                                 const string& feature_statistics_proto_string,
                                 const int max_string_domain_size,
                                 string* output_schema_proto_string) {
   tensorflow::metadata::v0::Schema schema;
   if (!schema.ParseFromString(schema_proto_string)) {
-    return tensorflow::errors::InvalidArgument("Failed to parse Schema proto.");
+    return absl::InvalidArgumentError("Failed to parse Schema proto.");
   }
   tensorflow::metadata::v0::DatasetFeatureStatistics feature_statistics;
   if (!feature_statistics.ParseFromString(feature_statistics_proto_string)) {
-    return tensorflow::errors::InvalidArgument(
+    return absl::InvalidArgumentError(
         "Failed to parse DatasetFeatureStatistics proto.");
   }
   FeatureStatisticsToProtoConfig feature_statistics_to_proto_config;
   feature_statistics_to_proto_config.set_enum_threshold(max_string_domain_size);
   tensorflow::metadata::v0::Schema output_schema;
-  TF_RETURN_IF_ERROR(
+  TFDV_RETURN_IF_ERROR(
       UpdateSchema(feature_statistics_to_proto_config,
                    schema, feature_statistics,
-                   /* paths_to_consider= */ gtl::nullopt,
-                   /* environment= */ gtl::nullopt, &output_schema));
+                   /* paths_to_consider= */ absl::nullopt,
+                   /* environment= */ absl::nullopt, &output_schema));
   if (!output_schema.SerializeToString(output_schema_proto_string)) {
-    return tensorflow::errors::Internal(
+    return absl::InternalError(
         "Could not serialize Schema output proto to string.");
   }
-  return tensorflow::Status();
+  return absl::OkStatus();
 }
 
-tensorflow::Status ValidateFeatureStatistics(
+absl::Status ValidateFeatureStatistics(
     const tensorflow::metadata::v0::DatasetFeatureStatistics&
         feature_statistics,
     const tensorflow::metadata::v0::Schema& schema_proto,
@@ -164,7 +162,7 @@ tensorflow::Status ValidateFeatureStatistics(
     const DatasetStatsView training =
         DatasetStatsView(feature_statistics, by_weight, maybe_environment,
                          previous_span, serving, previous_version);
-    TF_RETURN_IF_ERROR(
+    TFDV_RETURN_IF_ERROR(
         schema_anomalies.FindChanges(training, features_needed,
                                      feature_statistics_to_proto_config));
     *result = schema_anomalies.GetSchemaDiff(enable_diff_regions);
@@ -172,10 +170,10 @@ tensorflow::Status ValidateFeatureStatistics(
 
   UpdateTelemetry(*result);
 
-  return tensorflow::Status();
+  return absl::OkStatus();
 }
 
-tensorflow::Status ValidateFeatureStatisticsWithSerializedInputs(
+absl::Status ValidateFeatureStatisticsWithSerializedInputs(
     const string& feature_statistics_proto_string,
     const string& schema_proto_string, const string& environment,
     const string& previous_span_statistics_proto_string,
@@ -186,64 +184,62 @@ tensorflow::Status ValidateFeatureStatisticsWithSerializedInputs(
     string* anomalies_proto_string) {
   tensorflow::metadata::v0::Schema schema;
   if (!schema.ParseFromString(schema_proto_string)) {
-    return tensorflow::errors::InvalidArgument("Failed to parse Schema proto.");
+    return absl::InvalidArgumentError("Failed to parse Schema proto.");
   }
 
   tensorflow::metadata::v0::DatasetFeatureStatistics feature_statistics;
   if (!feature_statistics.ParseFromString(feature_statistics_proto_string)) {
-    return tensorflow::errors::InvalidArgument(
+    return absl::InvalidArgumentError(
         "Failed to parse DatasetFeatureStatistics proto.");
   }
 
   absl::optional<tensorflow::metadata::v0::DatasetFeatureStatistics>
-      previous_span_statistics = tensorflow::gtl::nullopt;
+      previous_span_statistics = absl::nullopt;
   if (!previous_span_statistics_proto_string.empty()) {
     tensorflow::metadata::v0::DatasetFeatureStatistics tmp_stats;
     if (!tmp_stats.ParseFromString(previous_span_statistics_proto_string)) {
-      return tensorflow::errors::InvalidArgument(
+      return absl::InvalidArgumentError(
           "Failed to parse DatasetFeatureStatistics proto.");
     }
     previous_span_statistics = tmp_stats;
   }
 
   absl::optional<tensorflow::metadata::v0::DatasetFeatureStatistics>
-      serving_statistics = tensorflow::gtl::nullopt;
+      serving_statistics = absl::nullopt;
   if (!serving_statistics_proto_string.empty()) {
     tensorflow::metadata::v0::DatasetFeatureStatistics tmp_stats;
     if (!tmp_stats.ParseFromString(serving_statistics_proto_string)) {
-      return tensorflow::errors::InvalidArgument(
+      return absl::InvalidArgumentError(
           "Failed to parse DatasetFeatureStatistics proto.");
     }
     serving_statistics = tmp_stats;
   }
 
   absl::optional<tensorflow::metadata::v0::DatasetFeatureStatistics>
-      previous_version_statistics = tensorflow::gtl::nullopt;
+      previous_version_statistics = absl::nullopt;
   if (!previous_version_statistics_proto_string.empty()) {
     tensorflow::metadata::v0::DatasetFeatureStatistics tmp_stats;
     if (!tmp_stats.ParseFromString(previous_version_statistics_proto_string)) {
-      return tensorflow::errors::InvalidArgument(
+      return absl::InvalidArgumentError(
           "Failed to parse DatasetFeatureStatistics proto.");
     }
     previous_version_statistics = tmp_stats;
   }
 
-  absl::optional<string> may_be_environment =
-      tensorflow::gtl::nullopt;
+  absl::optional<string> may_be_environment = absl::nullopt;
   if (!environment.empty()) {
     may_be_environment = environment;
   }
 
-  absl::optional<FeaturesNeeded> features_needed = gtl::nullopt;
+  absl::optional<FeaturesNeeded> features_needed = absl::nullopt;
   if (!features_needed_string.empty()) {
     FeaturesNeededProto parsed_proto;
     if (!parsed_proto.ParseFromString(features_needed_string)) {
-      return tensorflow::errors::InvalidArgument(
-          "Failed to parse FeaturesNeeded");
+      return absl::InvalidArgumentError("Failed to parse FeaturesNeeded");
     }
 
     FeaturesNeeded parsed_feature_needed;
-    TF_RETURN_IF_ERROR(
+    TFDV_RETURN_IF_ERROR(
         FromFeaturesNeededProto(parsed_proto, &parsed_feature_needed));
     if (!parsed_feature_needed.empty()) {
       features_needed = parsed_feature_needed;
@@ -252,24 +248,23 @@ tensorflow::Status ValidateFeatureStatisticsWithSerializedInputs(
 
   data_validation::ValidationConfig validation_config;
   if (!validation_config.ParseFromString(validation_config_string)) {
-    return tensorflow::errors::InvalidArgument(
-        "Failed to parse ValidationConfig");
+    return absl::InvalidArgumentError("Failed to parse ValidationConfig");
   }
 
   tensorflow::metadata::v0::Anomalies anomalies;
-  TF_RETURN_IF_ERROR(ValidateFeatureStatistics(
+  TFDV_RETURN_IF_ERROR(ValidateFeatureStatistics(
       feature_statistics, schema, may_be_environment, previous_span_statistics,
       serving_statistics, previous_version_statistics, features_needed,
       validation_config, enable_diff_regions, &anomalies));
 
   if (!anomalies.SerializeToString(anomalies_proto_string)) {
-    return tensorflow::errors::Internal(
+    return absl::InternalError(
         "Could not serialize Anomalies output proto to string.");
   }
-  return tensorflow::Status();
+  return absl::OkStatus();
 }
 
-tensorflow::Status UpdateSchema(
+absl::Status UpdateSchema(
     const FeatureStatisticsToProtoConfig& feature_statistics_to_proto_config,
     const tensorflow::metadata::v0::Schema& schema_to_update,
     const tensorflow::metadata::v0::DatasetFeatureStatistics&
@@ -294,16 +289,16 @@ tensorflow::Status UpdateSchema(
   const bool by_weight =
       DatasetStatsView(feature_statistics).WeightedStatisticsExist();
   Schema schema;
-  TF_RETURN_IF_ERROR(schema.Init(schema_to_update));
+  TFDV_RETURN_IF_ERROR(schema.Init(schema_to_update));
   if (paths_to_consider) {
-    TF_RETURN_IF_ERROR(schema.Update(
+    TFDV_RETURN_IF_ERROR(schema.Update(
         DatasetStatsView(feature_statistics, by_weight, maybe_environment,
                          /* previous_span= */ nullptr,
                          /* serving= */ nullptr,
                          /* previous_version= */ nullptr),
         feature_statistics_to_proto_config, *paths_to_consider));
   } else {
-    TF_RETURN_IF_ERROR(schema.Update(
+    TFDV_RETURN_IF_ERROR(schema.Update(
         DatasetStatsView(feature_statistics, by_weight, maybe_environment,
                          /* previous_span= */ nullptr,
                          /* serving= */ nullptr,
@@ -311,7 +306,7 @@ tensorflow::Status UpdateSchema(
         feature_statistics_to_proto_config));
   }
   *result = schema.GetSchema();
-  return tensorflow::Status();
+  return absl::OkStatus();
 }
 
 }  // namespace data_validation

@@ -21,10 +21,10 @@ limitations under the License.
 #include <string>
 #include <vector>
 
-#include "tensorflow/core/platform/types.h"
 
 namespace tensorflow {
 namespace data_validation {
+using std::string;
 
 // Returns true if and only if the given container contains the given key.
 template <typename Container, typename Key>
@@ -74,7 +74,7 @@ std::map<string, double> MapValues(const std::map<string, double>& input,
 // Cast the values from int64 to double. Notice that this might lose some
 // information.
 std::map<string, double> IntMapToDoubleMap(
-    const std::map<string, int64>& int_map);
+    const std::map<string, int64_t>& int_map);
 
 }  // namespace data_validation
 }  // namespace tensorflow

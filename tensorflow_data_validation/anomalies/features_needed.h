@@ -16,9 +16,9 @@ limitations under the License.
 #ifndef TENSORFLOW_DATA_VALIDATION_ANOMALIES_FEATURES_NEEDED_H_
 #define TENSORFLOW_DATA_VALIDATION_ANOMALIES_FEATURES_NEEDED_H_
 
+#include "absl/status/status.h"
 #include "tensorflow_data_validation/anomalies/path.h"
 #include "tensorflow_data_validation/anomalies/proto/validation_metadata.pb.h"
-#include "tensorflow/core/lib/core/status.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
 
 namespace tensorflow {
@@ -26,11 +26,11 @@ namespace data_validation {
 
 using FeaturesNeeded = std::map<Path, std::vector<ReasonFeatureNeeded>>;
 
-Status ToFeaturesNeededProto(const FeaturesNeeded& feature_needed,
-                             FeaturesNeededProto* result);
+absl::Status ToFeaturesNeededProto(const FeaturesNeeded& feature_needed,
+                                   FeaturesNeededProto* result);
 
-Status FromFeaturesNeededProto(const FeaturesNeededProto& feature_needed_proto,
-                               FeaturesNeeded* result);
+absl::Status FromFeaturesNeededProto(
+    const FeaturesNeededProto& feature_needed_proto, FeaturesNeeded* result);
 
 }  // namespace data_validation
 }  // namespace tensorflow

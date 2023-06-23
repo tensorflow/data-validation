@@ -15,9 +15,9 @@ limitations under the License.
 #ifndef THIRD_PARTY_PY_TENSORFLOW_DATA_VALIDATION_ANOMALIES_CUSTOM_VALIDATION_H_
 #define THIRD_PARTY_PY_TENSORFLOW_DATA_VALIDATION_ANOMALIES_CUSTOM_VALIDATION_H_
 
+#include "absl/status/status.h"
 #include "absl/types/optional.h"
 #include "tensorflow_data_validation/anomalies/proto/custom_validation_config.pb.h"
-#include "tensorflow/core/lib/core/status.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
 
@@ -28,15 +28,16 @@ namespace data_validation {
 // `base_statistics`) by running the SQL queries specified in `validations`. If
 // a validation query returns False, a corresponding anomaly is added to
 // `result`.
-Status CustomValidateStatistics(
+absl::Status CustomValidateStatistics(
     const metadata::v0::DatasetFeatureStatisticsList& test_statistics,
     const metadata::v0::DatasetFeatureStatisticsList* base_statistics,
     const CustomValidationConfig& validations,
-    const absl::optional<string> environment, metadata::v0::Anomalies* result);
+    const absl::optional<std::string> environment,
+    metadata::v0::Anomalies* result);
 
 // Like CustomValidateStatistics but with serialized inputs. Used for doing
 // custom validation in Python.
-Status CustomValidateStatisticsWithSerializedInputs(
+absl::Status CustomValidateStatisticsWithSerializedInputs(
     const std::string& serialized_test_statistics,
     const std::string& serialized_base_statistics,
     const std::string& serialized_validations,

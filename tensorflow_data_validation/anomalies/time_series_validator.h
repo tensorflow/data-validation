@@ -25,7 +25,6 @@ limitations under the License.
 
 #include "absl/status/statusor.h"
 #include "tensorflow_data_validation/google/protos/time_series_metrics.pb.h"
-#include "tensorflow/core/lib/gtl/optional.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
 
 namespace tensorflow {
@@ -50,7 +49,7 @@ class SliceComparisonConfig {
 
 absl::StatusOr<std::vector<ValidationMetrics>> ValidateTimeSeriesStatistics(
     const metadata::v0::DatasetFeatureStatisticsList& statistics,
-    const gtl::optional<metadata::v0::DatasetFeatureStatisticsList>&
+    const absl::optional<metadata::v0::DatasetFeatureStatisticsList>&
         reference_statistics,
     const SliceComparisonConfig& slice_config);
 

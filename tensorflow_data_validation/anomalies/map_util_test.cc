@@ -22,7 +22,6 @@ limitations under the License.
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include "tensorflow/core/platform/types.h"
 
 namespace tensorflow {
 namespace data_validation {

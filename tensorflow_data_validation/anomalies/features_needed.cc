@@ -17,15 +17,15 @@ limitations under the License.
 
 #include <vector>
 
+#include "absl/status/status.h"
 #include "tensorflow_data_validation/anomalies/path.h"
 #include "tensorflow_data_validation/anomalies/proto/validation_metadata.pb.h"
-#include "tensorflow/core/lib/core/status.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
 
 namespace tensorflow {
 namespace data_validation {
 
-Status ToFeaturesNeededProto(const FeaturesNeeded& feature_needed,
+absl::Status ToFeaturesNeededProto(const FeaturesNeeded& feature_needed,
                              FeaturesNeededProto* result) {
   for (const auto& entry : feature_needed) {
     PathAndReasonFeatureNeeded path_and_reason_feature_need;
@@ -37,11 +37,11 @@ Status ToFeaturesNeededProto(const FeaturesNeeded& feature_needed,
     *result->add_path_and_reason_feature_need() = path_and_reason_feature_need;
   }
 
-  return Status();
+  return absl::OkStatus();
 }
 
-Status FromFeaturesNeededProto(const FeaturesNeededProto& feature_needed_proto,
-                               FeaturesNeeded* result) {
+absl::Status FromFeaturesNeededProto(
+    const FeaturesNeededProto& feature_needed_proto, FeaturesNeeded* result) {
   for (const auto& entry :
        feature_needed_proto.path_and_reason_feature_need()) {
     Path key(entry.path());
@@ -51,7 +51,7 @@ Status FromFeaturesNeededProto(const FeaturesNeededProto& feature_needed_proto,
     (*result)[key] = value;
   }
 
-  return Status();
+  return absl::OkStatus();
 }
 
 }  // namespace data_validation

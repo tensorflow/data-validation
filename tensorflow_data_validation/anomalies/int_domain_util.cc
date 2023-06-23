@@ -20,13 +20,13 @@ limitations under the License.
 #include <string>
 #include <vector>
 
+#include "absl/base/log_severity.h"
+#include "absl/log/log.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/types/optional.h"
 #include "absl/types/variant.h"
 #include "tensorflow_data_validation/anomalies/internal_types.h"
-#include "tensorflow/core/platform/logging.h"
-#include "tensorflow/core/platform/types.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
@@ -47,7 +47,7 @@ typedef string ExampleStringNotInt;
 // An interval of ints.
 struct IntInterval {
   // Min and max values of the interval.
-  int64 min, max;
+  int64_t min, max;
 };
 
 // See GetIntInterval
@@ -88,8 +88,8 @@ IntIntervalResult GetIntInterval(const FeatureStatsView& feature_stats_view) {
           return std::to_string(feature_stats_view.num_stats().max());
         }
         return IntInterval{
-            static_cast<int64>(feature_stats_view.num_stats().min()),
-            static_cast<int64>(feature_stats_view.num_stats().max())};
+            static_cast<int64_t>(feature_stats_view.num_stats().min()),
+            static_cast<int64_t>(feature_stats_view.num_stats().max())};
       }
       // Intentionally fall through BYTES, STRING case for categorical integer
       // features.
@@ -99,7 +99,7 @@ IntIntervalResult GetIntInterval(const FeatureStatsView& feature_stats_view) {
     case FeatureNameStatistics::STRING: {
       absl::optional<IntInterval> interval;
       for (const string& str : string_values) {
-        int64 value;
+        int64_t value;
         if (!absl::SimpleAtoi(str, &value)) {
           return str;
         }

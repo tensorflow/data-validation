@@ -107,11 +107,11 @@ http_archive(
     build_file = "//third_party:six.BUILD"
 )
 
-COM_GOOGLE_ABSL_COMMIT = "9aa7d0bd2079f287162d4fd0722a1b9032e39a6a" # 2022-01-19
+COM_GOOGLE_ABSL_COMMIT = "92fdbfb301f8b301b28ab5c99e7361e775c2fb8a" # 2022-08-25 Abseil Logging library first release
 http_archive(
   name = "com_google_absl",
   url = "https://github.com/abseil/abseil-cpp/archive/%s.tar.gz" % COM_GOOGLE_ABSL_COMMIT,
-  sha256 = "1a924c31174f5e5812537b7e4c94d380355c06cb9a18c258de99a3e90b32b98c",
+  sha256 = "71d38c5f44997a5ccbc338f904c8682b40c25cad60b9cbaf27087a917228d5fa",
   strip_prefix = "abseil-cpp-%s" % COM_GOOGLE_ABSL_COMMIT
 )
 

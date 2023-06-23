@@ -26,8 +26,6 @@ limitations under the License.
 #include "tensorflow_data_validation/anomalies/statistics_view_test_util.h"
 #include "tensorflow_data_validation/anomalies/test_schema_protos.h"
 #include "tensorflow_data_validation/anomalies/test_util.h"
-#include "tensorflow/core/lib/core/status_test_util.h"
-#include "tensorflow/core/platform/types.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
@@ -121,11 +119,11 @@ TEST(SchemaTest, CreateFromSchemaProto) {
         })pb");
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(initial));
+  ASSERT_OK(schema.Init(initial));
   const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
 
   Schema schema_2;
-  TF_ASSERT_OK(schema_2.Init(actual));
+  ASSERT_OK(schema_2.Init(actual));
   const tensorflow::metadata::v0::Schema actual_2 = schema_2.GetSchema();
   EXPECT_THAT(actual, EqualsProto(initial));
   EXPECT_THAT(actual_2, EqualsProto(initial));
@@ -150,7 +148,7 @@ TEST(SchemaTest, StringDomainTooLarge) {
         })");
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(initial));
+  ASSERT_OK(schema.Init(initial));
   FeatureStatisticsToProtoConfig config;
   config.set_enum_threshold(4);
   config.set_enum_delete_threshold(4);
@@ -175,7 +173,7 @@ TEST(SchemaTest, StringDomainTooLarge) {
                 }
               }
             })");
-  TF_ASSERT_OK(schema.Update(DatasetStatsView(stats), config));
+  ASSERT_OK(schema.Update(DatasetStatsView(stats), config));
   const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
   EXPECT_THAT(actual, EqualsProto(R"(
                 feature {
@@ -202,7 +200,7 @@ TEST(SchemaTest, EmbeddedStringDomainTooLarge) {
         })");
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(initial));
+  ASSERT_OK(schema.Init(initial));
   FeatureStatisticsToProtoConfig config;
   config.set_enum_threshold(4);
   config.set_enum_delete_threshold(4);
@@ -227,7 +225,7 @@ TEST(SchemaTest, EmbeddedStringDomainTooLarge) {
                 }
               }
             })");
-  TF_ASSERT_OK(schema.Update(DatasetStatsView(stats), config));
+  ASSERT_OK(schema.Update(DatasetStatsView(stats), config));
   const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
   EXPECT_THAT(actual, EqualsProto(R"(
                 feature {
@@ -283,7 +281,7 @@ TEST(SchemaTest, UpdateSomeColumns) {
       )");
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(initial));
+  ASSERT_OK(schema.Init(initial));
   DatasetFeatureStatistics dataset_statistics = ParseTextProtoOrDie<
       DatasetFeatureStatistics>(R"(
     features {
@@ -320,7 +318,7 @@ TEST(SchemaTest, UpdateSomeColumns) {
       }
     })");
   DatasetStatsView stats(dataset_statistics, false);
-  TF_ASSERT_OK(schema.Update(
+  ASSERT_OK(schema.Update(
       stats, FeatureStatisticsToProtoConfig(),
       {Path({"missing_feature"}), Path({"completely_missing_column"}),
        Path({"standard_update"}), Path({"standard_update_2"}),
@@ -386,7 +384,7 @@ TEST(SchemaTest, CreateFeatureWithSemanticType) {
       tensorflow::metadata::v0::Schema();
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(initial));
+  ASSERT_OK(schema.Init(initial));
   DatasetFeatureStatistics dataset_statistics = ParseTextProtoOrDie<
       DatasetFeatureStatistics>(R"(
     features {
@@ -406,7 +404,7 @@ TEST(SchemaTest, CreateFeatureWithSemanticType) {
       }
     })");
   DatasetStatsView stats(dataset_statistics, false);
-  TF_ASSERT_OK(schema.Update(
+  ASSERT_OK(schema.Update(
       stats, FeatureStatisticsToProtoConfig()));
   const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
 
@@ -469,7 +467,7 @@ TEST(SchemaTest, UpdateFeatureWithSemanticType) {
       )");
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(initial));
+  ASSERT_OK(schema.Init(initial));
   // Try to set url_domain to all features above.
   DatasetFeatureStatistics dataset_statistics = ParseTextProtoOrDie<
       DatasetFeatureStatistics>(R"(
@@ -514,7 +512,7 @@ TEST(SchemaTest, UpdateFeatureWithSemanticType) {
       }
     })");
   DatasetStatsView stats(dataset_statistics, false);
-  TF_ASSERT_OK(schema.Update(
+  ASSERT_OK(schema.Update(
       stats, FeatureStatisticsToProtoConfig()));
   const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
 
@@ -609,13 +607,13 @@ TEST(SchemaTest, UpdateColumnsWithEnvironments) {
          const string& environment,
          const tensorflow::metadata::v0::Schema& result_schema_proto) {
         Schema schema;
-        TF_ASSERT_OK(schema.Init(schema_proto));
+        ASSERT_OK(schema.Init(schema_proto));
         DatasetStatsView stats(statistics_proto,
                                /* by_weight= */ false, environment,
                                /* previous_span= */ nullptr,
                                /* serving= */ nullptr,
                                /* previous_version= */ nullptr);
-        TF_ASSERT_OK(schema.Update(stats, FeatureStatisticsToProtoConfig(),
+        ASSERT_OK(schema.Update(stats, FeatureStatisticsToProtoConfig(),
                                    {Path({"feature"})}));
         EXPECT_THAT(schema.GetSchema(), EqualsProto(result_schema_proto));
       };
@@ -677,7 +675,7 @@ TEST(SchemaTest, UpdateColumnsWithNewEnvironmentDescription) {
           presence: { min_count: 1 min_fraction: 1 }
         })");
   Schema schema;
-  TF_ASSERT_OK(schema.Init(schema_feature));
+  ASSERT_OK(schema.Init(schema_feature));
   const auto statistics_feature =
       ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
         features {
@@ -698,7 +696,7 @@ TEST(SchemaTest, UpdateColumnsWithNewEnvironmentDescription) {
   std::vector<Description> descriptions;
   tensorflow::metadata::v0::AnomalyInfo::Severity severity;
   absl::optional<tensorflow::metadata::v0::DriftSkewInfo> drift_skew_info;
-  TF_ASSERT_OK(
+  ASSERT_OK(
       schema.UpdateFeature(Schema::Updater(FeatureStatisticsToProtoConfig()),
                            *dataset_stats_view.GetByPath(Path({"feature"})),
                            &descriptions, &drift_skew_info, &severity));
@@ -717,7 +715,7 @@ TEST(SchemaTest, DeprecateFeature) {
         })pb");
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(schema_proto));
+  ASSERT_OK(schema.Init(schema_proto));
   schema.DeprecateFeature(Path({"feature_name"}));
   EXPECT_THAT(schema.GetSchema(), EqualsProto(R"pb(
                 feature {
@@ -743,7 +741,7 @@ TEST(SchemaTest, DefaultEnvironments) {
         default_environment: "SERVING")");
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(schema_proto));
+  ASSERT_OK(schema.Init(schema_proto));
   EXPECT_THAT(schema.GetSchema(), EqualsProto(R"(
                 feature {
                   name: "feature_name"
@@ -850,7 +848,7 @@ TEST(SchemaTest, FindSkew) {
       /* previous_version= */ std::shared_ptr<DatasetStatsView>());
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(initial));
+  ASSERT_OK(schema.Init(initial));
   // Update both features in the dataset.
   FeatureComparisonResult string_result =
       schema.UpdateSkewComparator(FeatureStatsView(0, dataset_statistics));
@@ -934,7 +932,7 @@ TEST(SchemaTest, FindDrift) {
                                          /* previous_version= */ nullptr);
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(schema_proto));
+  ASSERT_OK(schema.Init(schema_proto));
 
   tensorflow::metadata::v0::Schema expected_schema =
       ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
@@ -946,7 +944,7 @@ TEST(SchemaTest, FindDrift) {
   std::vector<Description> descriptions;
   tensorflow::metadata::v0::AnomalyInfo::Severity severity;
   absl::optional<tensorflow::metadata::v0::DriftSkewInfo> drift_skew_info;
-  TF_ASSERT_OK(
+  ASSERT_OK(
       schema.UpdateFeature(Schema::Updater(FeatureStatisticsToProtoConfig()),
                            *training_view->GetByPath(Path({"foo"})),
                            &descriptions, &drift_skew_info, &severity));
@@ -994,7 +992,7 @@ TEST(SchemaTest, FindNumExamplesDrift) {
                        /* previous_version= */ nullptr);
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(schema_proto));
+  ASSERT_OK(schema.Init(schema_proto));
 
   tensorflow::metadata::v0::Schema expected_schema =
       ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(
@@ -1035,7 +1033,7 @@ TEST(SchemaTest, FindNumExamplesChangeAcrossVersions) {
       /* serving= */ nullptr, previous_version_view);
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(schema_proto));
+  ASSERT_OK(schema.Init(schema_proto));
 
   tensorflow::metadata::v0::Schema expected_schema =
       ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(
@@ -1067,7 +1065,7 @@ TEST(SchemaTest, FindNumExamplesTooLow) {
       /* serving= */ nullptr, /* previous_version= */ nullptr);
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(schema_proto));
+  ASSERT_OK(schema.Init(schema_proto));
 
   tensorflow::metadata::v0::Schema expected_schema =
       ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(
@@ -1115,7 +1113,7 @@ TEST(SchemaTest, FeatureExists) {
         feature { name: "foo.bar" })pb");
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(initial));
+  ASSERT_OK(schema.Init(initial));
   EXPECT_TRUE(schema.FeatureExists(Path({"foo.bar"})));
   EXPECT_TRUE(schema.FeatureExists(Path({"##SEQUENCE##", "foo"})));
   EXPECT_TRUE(schema.FeatureExists(Path({"(ext.field)", "foo"})));
@@ -1173,7 +1171,7 @@ TEST(SchemaTest, CreateColumnsDeepAll) {
             })pb");
 
   DatasetStatsView view(stats);
-  TF_ASSERT_OK(schema.Update(view, FeatureStatisticsToProtoConfig()));
+  ASSERT_OK(schema.Update(view, FeatureStatisticsToProtoConfig()));
   EXPECT_THAT(schema.GetSchema(), EqualsProto(R"(
                 feature {
                   name: "struct"
@@ -1208,7 +1206,7 @@ TEST(SchemaTest, CreateColumnsDeep) {
         })pb");
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(initial));
+  ASSERT_OK(schema.Init(initial));
   const tensorflow::metadata::v0::DatasetFeatureStatistics stats =
       ParseTextProtoOrDie<tensorflow::metadata::v0::DatasetFeatureStatistics>(
           R"pb(
@@ -1250,7 +1248,7 @@ TEST(SchemaTest, CreateColumnsDeep) {
             })pb");
 
   DatasetStatsView view(stats);
-  TF_ASSERT_OK(schema.Update(view, FeatureStatisticsToProtoConfig()));
+  ASSERT_OK(schema.Update(view, FeatureStatisticsToProtoConfig()));
   EXPECT_THAT(schema.GetSchema(), EqualsProto(R"(
                 feature {
                   name: "struct"
@@ -1285,7 +1283,7 @@ TEST(SchemaTest, CreateColumnsDeepDeprecated) {
         })pb");
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(initial));
+  ASSERT_OK(schema.Init(initial));
   const tensorflow::metadata::v0::DatasetFeatureStatistics stats =
       ParseTextProtoOrDie<tensorflow::metadata::v0::DatasetFeatureStatistics>(
           R"pb(
@@ -1306,7 +1304,7 @@ TEST(SchemaTest, CreateColumnsDeepDeprecated) {
             })pb");
 
   DatasetStatsView view(stats);
-  TF_ASSERT_OK(schema.Update(view, FeatureStatisticsToProtoConfig()));
+  ASSERT_OK(schema.Update(view, FeatureStatisticsToProtoConfig()));
   EXPECT_THAT(schema.GetSchema(), EqualsProto(initial));
 }
 
@@ -1358,7 +1356,7 @@ TEST(SchemaTest, FeatureIsDeprecatedFalse) {
         feature { name: "foo.bar" })pb");
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(initial));
+  ASSERT_OK(schema.Init(initial));
   EXPECT_FALSE(schema.FeatureIsDeprecated(Path({"foo", "bar"})));
   EXPECT_FALSE(schema.FeatureIsDeprecated(Path({"##SEQUENCE##", "foo"})));
   EXPECT_FALSE(schema.FeatureIsDeprecated(Path({"(ext.field)", "foo"})));
@@ -1440,7 +1438,7 @@ TEST(SchemaTest, GetMissingPathsAllMissing) {
         })pb");
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(initial));
+  ASSERT_OK(schema.Init(initial));
   const tensorflow::metadata::v0::DatasetFeatureStatistics stats;
   DatasetStatsView view(stats);
   // "(ext.field).deep_sparse", "shallow_sparse" are sparse and therefore
@@ -1503,7 +1501,7 @@ TEST(SchemaTest, GetMissingPathsAllPresent) {
         feature { name: "foo.bar" })pb");
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(initial));
+  ASSERT_OK(schema.Init(initial));
   const tensorflow::metadata::v0::DatasetFeatureStatistics stats =
       ParseTextProtoOrDie<tensorflow::metadata::v0::DatasetFeatureStatistics>(
           R"pb(
@@ -1540,7 +1538,7 @@ TEST(SchemaTest, CreateDeepFieldUpdateRecursivelyStructFoo) {
         })");
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(initial));
+  ASSERT_OK(schema.Init(initial));
   const tensorflow::metadata::v0::DatasetFeatureStatistics stats =
       ParseTextProtoOrDie<tensorflow::metadata::v0::DatasetFeatureStatistics>(
           R"(
@@ -1574,7 +1572,7 @@ TEST(SchemaTest, CreateDeepFieldUpdateRecursivelyStructFoo) {
   std::vector<Description> descriptions;
   metadata::v0::AnomalyInfo::Severity severity;
 
-  TF_ASSERT_OK(schema.UpdateRecursively(
+  ASSERT_OK(schema.UpdateRecursively(
       Schema::Updater(FeatureStatisticsToProtoConfig()),
       *view.GetByPath(Path({"struct", "foo"})), absl::nullopt, &descriptions,
       &severity));
@@ -1610,7 +1608,7 @@ TEST(SchemaTest, CreateDeepFieldUpdateRecursivelyStruct) {
         })");
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(initial));
+  ASSERT_OK(schema.Init(initial));
   const tensorflow::metadata::v0::DatasetFeatureStatistics stats =
       ParseTextProtoOrDie<tensorflow::metadata::v0::DatasetFeatureStatistics>(
           R"(
@@ -1643,7 +1641,7 @@ TEST(SchemaTest, CreateDeepFieldUpdateRecursivelyStruct) {
   DatasetStatsView view(stats);
   std::vector<Description> descriptions;
   metadata::v0::AnomalyInfo::Severity severity;
-  TF_ASSERT_OK(schema.UpdateRecursively(
+  ASSERT_OK(schema.UpdateRecursively(
       Schema::Updater(FeatureStatisticsToProtoConfig()),
       *view.GetByPath(Path({"struct"})), absl::nullopt, &descriptions,
       &severity));
@@ -1679,7 +1677,7 @@ TEST(SchemaTest, UpdateFeatureStruct) {
           struct_domain { feature: { name: "bar" } }
         })");
   Schema schema;
-  TF_ASSERT_OK(schema.Init(initial));
+  ASSERT_OK(schema.Init(initial));
   const tensorflow::metadata::v0::DatasetFeatureStatistics stats =
       ParseTextProtoOrDie<tensorflow::metadata::v0::DatasetFeatureStatistics>(
           R"(
@@ -1711,7 +1709,7 @@ TEST(SchemaTest, UpdateFeatureStruct) {
   std::vector<Description> descriptions;
   metadata::v0::AnomalyInfo::Severity severity;
   absl::optional<tensorflow::metadata::v0::DriftSkewInfo> drift_skew_info;
-  TF_ASSERT_OK(
+  ASSERT_OK(
       schema.UpdateFeature(Schema::Updater(FeatureStatisticsToProtoConfig()),
                            *view.GetByPath(Path({"struct"})), &descriptions,
                            &drift_skew_info, &severity));
@@ -1732,7 +1730,7 @@ TEST(SchemaTest, CreateDeepFieldWithUpdate) {
         })");
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(initial));
+  ASSERT_OK(schema.Init(initial));
   const tensorflow::metadata::v0::DatasetFeatureStatistics stats =
       ParseTextProtoOrDie<tensorflow::metadata::v0::DatasetFeatureStatistics>(
           R"(
@@ -1764,7 +1762,7 @@ TEST(SchemaTest, CreateDeepFieldWithUpdate) {
 
   DatasetStatsView view(stats);
 
-  TF_ASSERT_OK(schema.Update(view, FeatureStatisticsToProtoConfig()));
+  ASSERT_OK(schema.Update(view, FeatureStatisticsToProtoConfig()));
   EXPECT_THAT(schema.GetSchema(), EqualsProto(R"(
                 feature {
                   name: "struct"
@@ -1826,7 +1824,7 @@ TEST(SchemaTest, FeatureIsDeprecatedTrue) {
         feature { name: "foo.bar" lifecycle_stage: DEPRECATED })pb");
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(initial));
+  ASSERT_OK(schema.Init(initial));
   const tensorflow::metadata::v0::DatasetFeatureStatistics stats =
       ParseTextProtoOrDie<tensorflow::metadata::v0::DatasetFeatureStatistics>(
           R"pb(
@@ -1878,7 +1876,7 @@ TEST(SchemaTest, GetSchemaWithDash) {
   DatasetFeatureStatistics dataset_statistics;
   *dataset_statistics.add_features() = feature_statistics;
   Schema schema;
-  TF_ASSERT_OK(
+  ASSERT_OK(
       schema.Update(DatasetStatsView(dataset_statistics, false), config));
   tensorflow::metadata::v0::Schema result = schema.GetSchema();
   EXPECT_THAT(result, EqualsProto(R"(
@@ -1894,21 +1892,21 @@ TEST(SchemaTest, GetSchema) {
   const tensorflow::metadata::v0::Schema test_schema_alone =
       GetTestSchemaAlone();
   Schema schema;
-  TF_ASSERT_OK(schema.Init(test_schema_alone));
+  ASSERT_OK(schema.Init(test_schema_alone));
   const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
   EXPECT_THAT(actual, EqualsProto(GetTestSchemaAlone()));
 }
 
 TEST(SchemaTest, GetSchemaWithOptions) {
   Schema schema;
-  TF_ASSERT_OK(schema.Init(GetAnnotatedFieldsMessage()));
+  ASSERT_OK(schema.Init(GetAnnotatedFieldsMessage()));
   const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
   EXPECT_THAT(actual, EqualsProto(GetAnnotatedFieldsMessage()));
 }
 
 TEST(SchemaTest, GetSchemaWithValueCounts) {
   Schema schema;
-  TF_ASSERT_OK(schema.Init(tensorflow::metadata::v0::Schema()));
+  ASSERT_OK(schema.Init(tensorflow::metadata::v0::Schema()));
   const DatasetFeatureStatistics statistics =
       ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
         features: {
@@ -1959,7 +1957,7 @@ TEST(SchemaTest, GetSchemaWithValueCounts) {
             }
           }
         })");
-  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, /*by_weight=*/false),
+  ASSERT_OK(schema.Update(DatasetStatsView(statistics, /*by_weight=*/false),
                              FeatureStatisticsToProtoConfig()));
   const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
   EXPECT_THAT(actual, EqualsProto(R"(
@@ -2068,7 +2066,7 @@ TEST(FeatureTypeTest, ConstructFromSchemaStatistics) {
     *dataset_statistics.add_features() = test.statistics;
 
     Schema schema;
-    TF_ASSERT_OK(schema.Update(DatasetStatsView(dataset_statistics), config));
+    ASSERT_OK(schema.Update(DatasetStatsView(dataset_statistics), config));
     tensorflow::metadata::v0::Schema actual = schema.GetSchema();
     EXPECT_THAT(actual, EqualsProto(test.expected)) << "test: " << test.name;
   }
@@ -2274,8 +2272,8 @@ TEST(SchemaTest, Update) {
           }
         })");
   Schema schema;
-  TF_ASSERT_OK(schema.Init(GetTestAllTypesMessage()));
-  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
+  ASSERT_OK(schema.Init(GetTestAllTypesMessage()));
+  ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
                              FeatureStatisticsToProtoConfig()));
   const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
   tensorflow::metadata::v0::Schema expected = GetTestAllTypesMessage();
@@ -2503,8 +2501,8 @@ TEST(SchemaTest, UpdateBadStartingSchema) {
                })pb");
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(initial));
-  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
+  ASSERT_OK(schema.Init(initial));
+  ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
                              FeatureStatisticsToProtoConfig()));
   const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
   EXPECT_THAT(actual, EqualsProto(expected));
@@ -2593,8 +2591,8 @@ TEST(SchemaTest, UpdateDisallowNans) {
       )pb");
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(initial));
-  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
+  ASSERT_OK(schema.Init(initial));
+  ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
                              FeatureStatisticsToProtoConfig()));
   const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
   EXPECT_THAT(actual, EqualsProto(expected));
@@ -2680,8 +2678,8 @@ TEST(SchemaTest, UpdateDisallowInfs) {
       )pb");
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(initial));
-  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
+  ASSERT_OK(schema.Init(initial));
+  ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
                              FeatureStatisticsToProtoConfig()));
   const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
   EXPECT_THAT(actual, EqualsProto(expected));
@@ -2740,8 +2738,8 @@ TEST(SchemaTest, UpdateImageDomain) {
       )pb");
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(initial));
-  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
+  ASSERT_OK(schema.Init(initial));
+  ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
                              FeatureStatisticsToProtoConfig()));
   const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
   EXPECT_THAT(actual, EqualsProto(expected));
@@ -2857,8 +2855,8 @@ TEST(SchemaTest, UpdateBooleanFloat) {
       )pb");
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(initial));
-  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
+  ASSERT_OK(schema.Init(initial));
+  ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
                              FeatureStatisticsToProtoConfig()));
   const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
   EXPECT_THAT(actual, EqualsProto(expected));
@@ -2922,8 +2920,8 @@ TEST(SchemaTest, UpdateAnnotatedFeature) {
       )pb");
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(initial));
-  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
+  ASSERT_OK(schema.Init(initial));
+  ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
                              FeatureStatisticsToProtoConfig()));
   const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
   EXPECT_THAT(actual, EqualsProto(expected));
@@ -3023,7 +3021,7 @@ TEST(SchemaTest, UpdateSkewComparator) {
       /* previous_version= */ std::shared_ptr<DatasetStatsView>());
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(initial));
+  ASSERT_OK(schema.Init(initial));
   // Update both features in the dataset.
   schema.UpdateSkewComparator(FeatureStatsView(0, dataset_statistics));
   schema.UpdateSkewComparator(FeatureStatsView(1, dataset_statistics));
@@ -3049,8 +3047,8 @@ TEST(SchemaTest, UpdateWeightedNoAnomaly) {
           weight_feature { step: 'weight_feature' }
         })");
   Schema schema;
-  TF_ASSERT_OK(schema.Init(original));
-  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
+  ASSERT_OK(schema.Init(original));
+  ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
                              FeatureStatisticsToProtoConfig()));
   const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
   tensorflow::metadata::v0::Schema expected = original;
@@ -3077,8 +3075,8 @@ TEST(SchemaTest, UpdateWeightedNameCollision) {
         feature: { name: 'existing_feature' type: INT })");
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(original));
-  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
+  ASSERT_OK(schema.Init(original));
+  ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
                              FeatureStatisticsToProtoConfig()));
   const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
 
@@ -3144,8 +3142,8 @@ TEST(SchemaTest, UpdateWeightedSparseNameCollision) {
         })");
 
   Schema schema;
-  TF_ASSERT_OK(schema.Init(original));
-  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
+  ASSERT_OK(schema.Init(original));
+  ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
                              FeatureStatisticsToProtoConfig()));
   const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
 
@@ -3212,8 +3210,8 @@ TEST(SchemaTest, UpdateWeightedSparseRegularNameCollision) {
         }
         feature: { name: 'existing_feature' type: INT })");
   Schema schema;
-  TF_ASSERT_OK(schema.Init(original));
-  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
+  ASSERT_OK(schema.Init(original));
+  ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
                              FeatureStatisticsToProtoConfig()));
   const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
 
@@ -3268,8 +3266,8 @@ TEST(SchemaTest, RequiredFeatures) {
           }
         })");
   Schema schema;
-  TF_ASSERT_OK(schema.Init(tensorflow::metadata::v0::Schema()));
-  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
+  ASSERT_OK(schema.Init(tensorflow::metadata::v0::Schema()));
+  ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
                              FeatureStatisticsToProtoConfig()));
   EXPECT_THAT(schema.GetSchema(), EqualsProto(R"(
                 feature {
@@ -3317,8 +3315,8 @@ TEST(SchemaTest, RequiredRepeatedFeatures) {
           }
         })");
   Schema schema;
-  TF_ASSERT_OK(schema.Init(tensorflow::metadata::v0::Schema()));
-  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
+  ASSERT_OK(schema.Init(tensorflow::metadata::v0::Schema()));
+  ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
                              FeatureStatisticsToProtoConfig()));
   EXPECT_THAT(schema.GetSchema(), EqualsProto(R"(
                 feature {
@@ -3352,10 +3350,10 @@ TEST(SchemaTest, InferFeatureShape) {
           }
         })");
   Schema schema;
-  TF_ASSERT_OK(schema.Init(tensorflow::metadata::v0::Schema()));
+  ASSERT_OK(schema.Init(tensorflow::metadata::v0::Schema()));
   FeatureStatisticsToProtoConfig config;
   config.set_infer_feature_shape(true);
-  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false), config));
+  ASSERT_OK(schema.Update(DatasetStatsView(statistics, false), config));
   EXPECT_THAT(schema.GetSchema(), EqualsProto(R"(
                 feature {
                   name: "f1"
@@ -3382,7 +3380,7 @@ TEST(SchemaTest, UpdateFeatureShape) {
           }
         })");
   Schema schema;
-  TF_ASSERT_OK(
+  ASSERT_OK(
       schema.Init(ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
         feature {
           name: "f1"
@@ -3391,7 +3389,7 @@ TEST(SchemaTest, UpdateFeatureShape) {
           presence { min_fraction: 1 min_count: 1 }
         }
       )")));
-  TF_ASSERT_OK(schema.Update(
+  ASSERT_OK(schema.Update(
       DatasetStatsView(statistics, false), FeatureStatisticsToProtoConfig()));
   EXPECT_THAT(schema.GetSchema(), EqualsProto(R"(
                 feature {
@@ -3437,8 +3435,8 @@ TEST(SchemaTest, UpdateFeatureShapeInferLegacyFeatureSpecWithNumMissing) {
   ASSERT_TRUE(schema_proto.GetReflection()->GetBool(schema_proto, field_desc));
   {
     Schema schema;
-    TF_ASSERT_OK(schema.Init(schema_proto));
-    TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
+    ASSERT_OK(schema.Init(schema_proto));
+    ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
                                FeatureStatisticsToProtoConfig()));
     EXPECT_THAT(schema.GetSchema(), EqualsProto(R"(
                   feature {
@@ -3452,8 +3450,8 @@ TEST(SchemaTest, UpdateFeatureShapeInferLegacyFeatureSpecWithNumMissing) {
   schema_proto.GetReflection()->SetBool(&schema_proto, field_desc, false);
   {
     Schema schema;
-    TF_ASSERT_OK(schema.Init(schema_proto));
-    TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
+    ASSERT_OK(schema.Init(schema_proto));
+    ASSERT_OK(schema.Update(DatasetStatsView(statistics, false),
                                FeatureStatisticsToProtoConfig()));
     EXPECT_THAT(schema.GetSchema(), EqualsProto(R"(
                   generate_legacy_feature_spec: false
@@ -3794,7 +3792,7 @@ TEST(SchemaTest, ValidTestAnnotatedFieldsMessage) {
          })"), true}};
   for (const auto& test : tests) {
     Schema schema;
-    TF_ASSERT_OK(schema.Init(GetAnnotatedFieldsMessage()));
+    ASSERT_OK(schema.Init(GetAnnotatedFieldsMessage()));
     DatasetFeatureStatistics statistics =
         GetDatasetFeatureStatisticsForAnnotated();
     for (FeatureNameStatistics& features : *statistics.mutable_features()) {
@@ -3802,7 +3800,7 @@ TEST(SchemaTest, ValidTestAnnotatedFieldsMessage) {
         features = test.statistics;
       }
     }
-    TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics),
+    ASSERT_OK(schema.Update(DatasetStatsView(statistics),
                                FeatureStatisticsToProtoConfig()));
     const tensorflow::metadata::v0::Schema result = schema.GetSchema();
     if (test.expected_is_valid) {
@@ -3845,7 +3843,7 @@ TEST(Schema, GetRelatedEnums) {
       ParseTextProtoOrDie<FeatureStatisticsToProtoConfig>(
           R"(enum_threshold: 400)");
   FeatureStatisticsToProtoConfig actual = proto_config;
-  TF_ASSERT_OK(
+  ASSERT_OK(
       Schema::GetRelatedEnums(DatasetStatsView(statistics, false), &actual));
   EXPECT_THAT(actual, EqualsProto(R"(
                 enum_threshold: 400
@@ -3898,7 +3896,7 @@ TEST(Schema, GetRelatedEnumsFeatureIdIsPath) {
       ParseTextProtoOrDie<FeatureStatisticsToProtoConfig>(
           R"(enum_threshold: 400)");
   FeatureStatisticsToProtoConfig actual = proto_config;
-  TF_ASSERT_OK(
+  ASSERT_OK(
       Schema::GetRelatedEnums(DatasetStatsView(statistics, false), &actual));
   EXPECT_THAT(actual, EqualsProto(R"(
                 enum_threshold: 400
@@ -3957,8 +3955,8 @@ TEST(Schema, MissingColumns) {
           }
         })");
   Schema schema;
-  TF_ASSERT_OK(schema.Init(initial));
-  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false), config));
+  ASSERT_OK(schema.Init(initial));
+  ASSERT_OK(schema.Update(DatasetStatsView(statistics, false), config));
   const tensorflow::metadata::v0::Schema result = schema.GetSchema();
   EXPECT_THAT(result, EqualsProto(R"(
                 feature {
@@ -4023,8 +4021,8 @@ TEST(Schema, UnchangedProto) {
           }
         })");
   Schema schema;
-  TF_ASSERT_OK(schema.Init(initial));
-  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, false), config));
+  ASSERT_OK(schema.Init(initial));
+  ASSERT_OK(schema.Update(DatasetStatsView(statistics, false), config));
   const tensorflow::metadata::v0::Schema result = schema.GetSchema();
   EXPECT_THAT(result, EqualsProto(R"(
                 feature {
@@ -4044,7 +4042,7 @@ TEST(Schema, UnchangedProto) {
 
 TEST(Schema, EmptySchemaProto) {
   Schema schema;
-  TF_EXPECT_OK(schema.Init(tensorflow::metadata::v0::Schema()));
+  EXPECT_OK(schema.Init(tensorflow::metadata::v0::Schema()));
 }
 
 // Converted to a test that the schema does not change.
@@ -4053,14 +4051,14 @@ TEST(SchemaTest, ValidTestAnnotatedFieldsMessageBaseline) {
   Schema schema;
 
   const tensorflow::metadata::v0::Schema original = GetAnnotatedFieldsMessage();
-  TF_ASSERT_OK(schema.Init(original));
-  TF_ASSERT_OK(schema.Update(statistics, FeatureStatisticsToProtoConfig()));
+  ASSERT_OK(schema.Init(original));
+  ASSERT_OK(schema.Update(statistics, FeatureStatisticsToProtoConfig()));
   EXPECT_THAT(original, EqualsProto(schema.GetSchema()));
 }
 
 TEST(SchemaTest, UpdateUniqueConstraints) {
   Schema schema;
-  TF_ASSERT_OK(
+  ASSERT_OK(
       schema.Init(ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"pb(
         feature {
           name: "categorical_feature"
@@ -4113,7 +4111,7 @@ TEST(SchemaTest, UpdateUniqueConstraints) {
         common_stats: { min_num_values: 1 max_num_values: 1 num_non_missing: 1 }
       }
     })pb");
-  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, /*by_weight=*/false),
+  ASSERT_OK(schema.Update(DatasetStatsView(statistics, /*by_weight=*/false),
                              FeatureStatisticsToProtoConfig()));
   const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
   EXPECT_THAT(actual, EqualsProto(R"pb(
@@ -4133,7 +4131,7 @@ TEST(SchemaTest, UpdateUniqueConstraints) {
 
 TEST(SchemaTest, AddsDerivedFeature) {
   Schema schema;
-  TF_ASSERT_OK(
+  ASSERT_OK(
       schema.Init(ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>("")));
   const DatasetFeatureStatistics statistics =
       ParseTextProtoOrDie<DatasetFeatureStatistics>(R"(
@@ -4145,7 +4143,7 @@ TEST(SchemaTest, AddsDerivedFeature) {
             deriver_name: 'deriver_name'
           }
         })");
-  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, /*by_weight=*/false),
+  ASSERT_OK(schema.Update(DatasetStatsView(statistics, /*by_weight=*/false),
                              FeatureStatisticsToProtoConfig()));
   const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
   EXPECT_THAT(actual, EqualsProto(R"(
@@ -4164,7 +4162,7 @@ TEST(SchemaTest, AddsDerivedFeature) {
 
 TEST(SchemaTest, UpdatesDerivedFeatureWithoutSource) {
   Schema schema;
-  TF_ASSERT_OK(
+  ASSERT_OK(
       schema.Init(ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
                 feature {
                   name: "categorical_feature"
@@ -4180,7 +4178,7 @@ TEST(SchemaTest, UpdatesDerivedFeatureWithoutSource) {
             deriver_name: 'deriver_name'
           }
         })");
-  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, /*by_weight=*/false),
+  ASSERT_OK(schema.Update(DatasetStatsView(statistics, /*by_weight=*/false),
                              FeatureStatisticsToProtoConfig()));
   const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
   EXPECT_THAT(actual, EqualsProto(R"(
@@ -4196,7 +4194,7 @@ TEST(SchemaTest, UpdatesDerivedFeatureWithoutSource) {
 
 TEST(SchemaTest, UpdatesDerivedFeatureWithBadLifecycle) {
   Schema schema;
-  TF_ASSERT_OK(
+  ASSERT_OK(
       schema.Init(ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
                 feature {
                   name: "categorical_feature"
@@ -4216,7 +4214,7 @@ TEST(SchemaTest, UpdatesDerivedFeatureWithBadLifecycle) {
             deriver_name: 'deriver_name'
           }
         })");
-  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, /*by_weight=*/false),
+  ASSERT_OK(schema.Update(DatasetStatsView(statistics, /*by_weight=*/false),
                              FeatureStatisticsToProtoConfig()));
   const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
   EXPECT_THAT(actual, EqualsProto(R"(
@@ -4232,7 +4230,7 @@ TEST(SchemaTest, UpdatesDerivedFeatureWithBadLifecycle) {
 
 TEST(SchemaTest, DerivedFeatureWithCorrectLifecycle) {
   Schema schema;
-  TF_ASSERT_OK(
+  ASSERT_OK(
       schema.Init(ParseTextProtoOrDie<tensorflow::metadata::v0::Schema>(R"(
                 feature {
                   name: "categorical_feature"
@@ -4252,7 +4250,7 @@ TEST(SchemaTest, DerivedFeatureWithCorrectLifecycle) {
             deriver_name: 'deriver_name'
           }
         })");
-  TF_ASSERT_OK(schema.Update(DatasetStatsView(statistics, /*by_weight=*/false),
+  ASSERT_OK(schema.Update(DatasetStatsView(statistics, /*by_weight=*/false),
                              FeatureStatisticsToProtoConfig()));
   const tensorflow::metadata::v0::Schema actual = schema.GetSchema();
   EXPECT_THAT(actual, EqualsProto(schema.GetSchema()));

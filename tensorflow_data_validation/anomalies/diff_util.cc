@@ -14,8 +14,7 @@ limitations under the License.
 ==============================================================================*/
 
 #include "tensorflow_data_validation/anomalies/diff_util.h"
-
-#include "tensorflow/core/platform/logging.h"
+#include "absl/log/check.h"
 
 namespace tensorflow {
 namespace data_validation {

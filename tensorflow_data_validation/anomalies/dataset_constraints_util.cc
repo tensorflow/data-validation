@@ -15,6 +15,7 @@ limitations under the License.
 
 #include <string>
 
+#include "absl/log/check.h"
 #include "absl/strings/str_cat.h"
 #include "tensorflow_data_validation/anomalies/feature_util.h"
 

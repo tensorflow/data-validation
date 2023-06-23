@@ -14,7 +14,9 @@ limitations under the License.
 ==============================================================================*/
 
 #include "tensorflow_data_validation/anomalies/schema_util.h"
-#include "tensorflow/core/platform/logging.h"
+
+#include "absl/base/log_severity.h"
+#include "absl/log/log.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
 
 namespace tensorflow {

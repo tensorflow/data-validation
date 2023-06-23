@@ -19,12 +19,15 @@ limitations under the License.
 #include <iosfwd>
 #include <string>
 #include <vector>
+
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
-#include "tensorflow/core/lib/core/status.h"
 #include "tensorflow_metadata/proto/v0/path.pb.h"
 
 namespace tensorflow {
 namespace data_validation {
+
+using std::string;
 
 // This represents a sequence of steps (i.e. strings) in a structured example.
 // The main functionality here is the ability Serialize and Deserialize a
@@ -90,7 +93,7 @@ class Path {
   // Path p2;
   // TF_CHECK_OK(Path::Deserialize(p.Serialize(), &p2));
   // EXPECT_EQ(p, p2);
-  static tensorflow::Status Deserialize(absl::string_view str, Path* result);
+  static absl::Status Deserialize(absl::string_view str, Path* result);
 
   // True if there are no steps.
   bool empty() const { return step_.empty(); }

@@ -23,9 +23,10 @@ limitations under the License.
 #include <string>
 #include <vector>
 
+#include "absl/log/check.h"
+#include "absl/status/status.h"
 #include "tensorflow_data_validation/anomalies/map_util.h"
-#include "tensorflow/core/lib/core/errors.h"
-#include "tensorflow/core/platform/types.h"
+#include "tensorflow_data_validation/anomalies/status_util.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
 
@@ -261,15 +262,14 @@ void AlignHistograms(Histogram& histogram_1, Histogram& histogram_2) {
 
 // Normalizes `histogram` so that the sum of all sample counts in the histogram
 // equals 1.
-Status NormalizeHistogram(Histogram& histogram) {
+absl::Status NormalizeHistogram(Histogram& histogram) {
   Histogram normalized_histogram;
   double total_sample_count = 0;
   for (const auto& bucket : histogram.buckets()) {
     total_sample_count += bucket.sample_count();
   }
   if (total_sample_count == 0) {
-    return tensorflow::errors::InvalidArgument(
-        "Unable to normalize an empty histogram");
+    return absl::InvalidArgumentError("Unable to normalize an empty histogram");
   }
   for (const auto& bucket : histogram.buckets()) {
     Histogram::Bucket* new_bucket = normalized_histogram.add_buckets();
@@ -278,7 +278,7 @@ Status NormalizeHistogram(Histogram& histogram) {
     new_bucket->set_sample_count(bucket.sample_count() / total_sample_count);
   }
   histogram = std::move(normalized_histogram);
-  return Status();
+  return absl::OkStatus();
 }
 
 // Returns an approximate Kullback-Leibler divergence
@@ -330,16 +330,15 @@ std::pair<string, double> NormalizedAbsoluteDifference(
                                  NormalizationMode::kCombinedTotal);
 }
 
-Status JensenShannonDivergence(Histogram& histogram_1, Histogram& histogram_2,
-                               double& result) {
+absl::Status JensenShannonDivergence(Histogram& histogram_1,
+                                     Histogram& histogram_2, double& result) {
   if (histogram_1.type() !=histogram_2.type()) {
-    return errors::InvalidArgument(
-        "Input histograms must have same type.");
+    return absl::InvalidArgumentError("Input histograms must have same type.");
   }
   // Generate new histograms with the same bucket boundaries.
   AlignHistograms(histogram_1, histogram_2);
-  TF_RETURN_IF_ERROR(NormalizeHistogram(histogram_1));
-  TF_RETURN_IF_ERROR(NormalizeHistogram(histogram_2));
+  TFDV_RETURN_IF_ERROR(NormalizeHistogram(histogram_1));
+  TFDV_RETURN_IF_ERROR(NormalizeHistogram(histogram_2));
 
   // JSD(P||Q) = (D(P||M) + D(Q||M))/2
   // where D(P||Q) is the Kullback-Leibler divergence, and M = (P + Q)/2.
@@ -359,15 +358,14 @@ Status JensenShannonDivergence(Histogram& histogram_1, Histogram& histogram_2,
         KullbackLeiblerDivergence(histogram_2,
                                   average_distribution_histogram)) /
        2);
-  return Status();
+  return absl::OkStatus();
 }
 
-
-Status JensenShannonDivergence(const std::map<string, double>& map_1,
-                               const std::map<string, double>& map_2,
-                               double& result) {
+absl::Status JensenShannonDivergence(const std::map<string, double>& map_1,
+                                     const std::map<string, double>& map_2,
+                                     double& result) {
   if (map_1.empty() || map_2.empty()) {
-    return errors::InvalidArgument("Input maps must not be empty.");
+    return absl::InvalidArgumentError("Input maps must not be empty.");
   }
   double a_sum = 0, b_sum = 0;
   std::map<string, std::pair<double, double>> js_values;
@@ -377,14 +375,16 @@ Status JensenShannonDivergence(const std::map<string, double>& map_1,
   // probability/distribution of the values.
   for (const auto& ele : map_1) {
     if (ele.second <= 0){
-      return errors::InvalidArgument("Sample count is a non-positive value.");
+      return absl::InvalidArgumentError(
+          "Sample count is a non-positive value.");
     }
     js_values[ele.first].first += ele.second;
     a_sum += ele.second;
   }
   for (const auto& ele : map_2) {
     if (ele.second <= 0){
-      return errors::InvalidArgument("Sample count is a non-positive value.");
+      return absl::InvalidArgumentError(
+          "Sample count is a non-positive value.");
     }
     js_values[ele.first].second += ele.second;
     b_sum += ele.second;
@@ -409,13 +409,13 @@ Status JensenShannonDivergence(const std::map<string, double>& map_1,
   }
   result = kl_sum/2;
 
-  return Status();
+  return absl::OkStatus();
 }
 
-Status JensenShannonDivergence(const FeatureStatsView& a,
-                               const FeatureStatsView& b,
-                               const HistogramSelection& source,
-                               double& result) {
+absl::Status JensenShannonDivergence(const FeatureStatsView& a,
+                                     const FeatureStatsView& b,
+                                     const HistogramSelection& source,
+                                     double& result) {
   std::map<string, double> mapping_1 = a.GetStringValuesWithCounts();
   std::map<string, double> mapping_2 = b.GetStringValuesWithCounts();
   if (!mapping_1.empty() && !mapping_2.empty()) {
@@ -433,12 +433,11 @@ Status JensenShannonDivergence(const FeatureStatsView& a,
 
   if ((mapping_1.empty() != mapping_2.empty()) &&
       (!maybe_histogram_1 != !maybe_histogram_2)){
-    return tensorflow::errors::InvalidArgument(
-      "Input statistics must be either both numeric or both string in order to "
-      "calculate the Jensen-Shannon divergence.");
+    return absl::InvalidArgumentError(
+        "Input statistics must be either both numeric or both string in order "
+        "to calculate the Jensen-Shannon divergence.");
   }
-  return tensorflow::errors::InvalidArgument(
-    "One or more feature missing data.");
+  return absl::InvalidArgumentError("One or more feature missing data.");
 }
 
 }  // namespace data_validation
