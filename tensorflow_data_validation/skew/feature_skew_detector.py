@@ -259,8 +259,8 @@ def _construct_skew_pair(
     A SkewPair containing examples that exhibit some skew.
   """
   skew_pair = feature_skew_results_pb2.SkewPair()
-  skew_pair.base.CopyFrom(base_example)
-  skew_pair.test.CopyFrom(test_example)
+  skew_pair.base = base_example.SerializeToString()
+  skew_pair.test = test_example.SerializeToString()
 
   for feature_name, skew_result in per_feature_skew:
     if skew_result.match_count == 1:

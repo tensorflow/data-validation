@@ -3379,11 +3379,9 @@ class DetectFeatureSkewTest(absltest.TestCase):
                                                    feature_skew_results)
 
   def test_write_skew_pairs_to_tf_record(self):
-    skew_pairs = [
-        text_format.Parse(
-            """
-            base {
-              features {
+    base_example = text_format.Parse(
+        """
+                                     features {
                 feature {
                   key: 'id'
                   value { bytes_list { value: [ 'id_feature' ] } }
@@ -3392,10 +3390,11 @@ class DetectFeatureSkewTest(absltest.TestCase):
                   key: 'feature_a'
                   value { float_list { value: [ 10.0 ] } }
               }
-             }
-            }
-            test {
-              features {
+             }""",
+        tf.train.Example(),
+    )
+    test_example = text_format.Parse(
+        """features {
                 feature {
                   key: 'id'
                   value { bytes_list { value: [ 'id_feature' ] } }
@@ -3404,35 +3403,15 @@ class DetectFeatureSkewTest(absltest.TestCase):
                   key: 'feature_a'
                   value { float_list { value: [ 11.0 ] } }
                 }
-             }
-           }
-            mismatched_features : [ 'feature_a' ]
-            """, feature_skew_results_pb2.SkewPair()),
-        text_format.Parse(
-            """
-            base {
-              features {
-                feature {
-                  key: 'id'
-                  value { bytes_list { value: [ 'id_feature' ] } }
-                  }
-                feature {
-                    key: 'feature_a'
-                    value { int64_list { value: [ 5 ] } }
-                  }
-               }
-           }
-           test {
-             features {
-                feature {
-                  key: 'id'
-                  value { bytes_list { value: [ 'id_feature' ] } }
-                }
-             }
-           }
-           base_only_features: [ 'feature_a' ]
-               """, feature_skew_results_pb2.SkewPair())
-    ]
+             }""",
+        tf.train.Example(),
+    )
+    skew_pair = feature_skew_results_pb2.SkewPair(
+        base=base_example.SerializeToString(),
+        test=test_example.SerializeToString(),
+        mismatched_features=['feature_a'],
+    )
+    skew_pairs = [skew_pair, skew_pair]
     output_path = os.path.join(tempfile.mkdtemp(), 'skew_pairs')
     with beam.Pipeline() as p:
       _ = (

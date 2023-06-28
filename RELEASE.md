@@ -17,6 +17,7 @@
 
 ## Breaking Changes
 *  Moves some non-public arrow_util functions to TFX-BSL.
+*  Changes SkewPair proto to store tf.Examples in serialized format.
 
 ## Deprecations
 

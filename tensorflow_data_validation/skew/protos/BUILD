@@ -12,7 +12,6 @@ tfdv_proto_library(
     name = "feature_skew_results_proto",
     srcs = ["feature_skew_results.proto"],
     cc_api_version = 2,
-    deps = ["@org_tensorflow//tensorflow/core:protos_all_py"],
 )
 
 tfdv_proto_library_py(

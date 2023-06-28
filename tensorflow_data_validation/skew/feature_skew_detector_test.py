@@ -53,9 +53,16 @@ def _unpack_results(results_dict):
           results_dict[feature_skew_detector.SKEW_PAIRS_KEY])
 
 
+def _remove_fields_from_skew_pair(skew_pair):
+  new_skew_pair = feature_skew_results_pb2.SkewPair()
+  new_skew_pair.CopyFrom(skew_pair)
+  new_skew_pair.ClearField('base')
+  new_skew_pair.ClearField('test')
+  return new_skew_pair
+
+
 def make_sample_equal_fn(test, expected_size, potential_samples):
   """Makes a matcher function for checking SkewPair results."""
-
   def _matcher(actual):
     try:
       test.assertLen(actual, expected_size)
@@ -104,8 +111,8 @@ def get_test_input(include_skewed_features, include_close_floats):
           1)
 
       skew_pair = feature_skew_results_pb2.SkewPair()
-      skew_pair.base.CopyFrom(base_example)
-      skew_pair.test.CopyFrom(test_example)
+      # Because serialization of tf.Examples is not deterministic, we do not add
+      # or compare the base/test fields of the skew pair in this test.
       skew_pair.matched_features.append(_NO_SKEW_FEATURE)
       skew_pair.mismatched_features.append(_SKEW_FEATURE)
       skew_pair.base_only_features.append(_BASE_ONLY_FEATURE)
@@ -227,6 +234,12 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
           (baseline_examples, test_examples)
           | feature_skew_detector.DetectFeatureSkewImpl(
               [_IDENTIFIER1, _IDENTIFIER2], [_IGNORE_FEATURE], sample_size))
+      # Because serialization of tf.Examples is not deterministic, we remove the
+      # base/test fields of the skew pair before comparing them to the expected
+      # samples.
+      skew_sample |= 'RemoveSelectedFields' >> beam.Map(
+          _remove_fields_from_skew_pair
+      )
       util.assert_that(
           skew_sample, make_sample_equal_fn(self, sample_size,
                                             potential_samples))

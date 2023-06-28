@@ -16,8 +16,6 @@ syntax = "proto3";
 
 package tensorflow.data_validation;
 
-import "tensorflow/core/example/example.proto";
-
 // Skew information for a particular feature.
 message FeatureSkew {
   // Name of the feature.
@@ -47,11 +45,12 @@ message FeatureSkew {
 
 // Message to store a pair of tensorflow examples which exhibit some skew.
 message SkewPair {
-  // Example as it appears in baseline data.
-  tensorflow.Example base = 1;
+  // Serialized example as it appears in baseline data.
+  bytes base = 1;
 
-  // Example from test data with the same identifier as that of the baseline.
-  tensorflow.Example test = 2;
+  // Serialized example from test data with the same identifier as that of the
+  // baseline.
+  bytes test = 2;
 
   // Features that appear in the baseline example but not in test.
   repeated string base_only_features = 3;
