@@ -755,6 +755,7 @@
 *   Depends on `tensorflow-metadata>=0.25,<0.26`.
 *   Depends on `tensorflow-transform>=0.25,<0.26`.
 *   Depends on `tfx-bsl>=0.25,<0.26`.
+*   Depends on `scikit-learn>=1.0,<2` (mutual-information installation).
 
 ## Known Issues
 
