@@ -1,7 +1,7 @@
 # Description:
 #   C++ libraries in TFDV.
 
-load("@org_tensorflow//tensorflow:tensorflow.bzl", "pybind_extension")
+load("//tensorflow_data_validation:build_macros.bzl", "tfdv_pybind_extension")
 
 package(
     default_visibility = [
@@ -11,7 +11,7 @@ package(
 
 licenses(["notice"])  # Apache 2.0
 
-pybind_extension(
+tfdv_pybind_extension(
     name = "tensorflow_data_validation_extension",
     srcs = [
         "tensorflow_data_validation_extension.cc",

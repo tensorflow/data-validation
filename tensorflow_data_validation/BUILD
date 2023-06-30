@@ -9,6 +9,21 @@ config_setting(
     ],
 )
 
+config_setting(
+    name = "macos_x86_64",
+    values = {
+        "apple_platform_type": "macos",
+        "cpu": "darwin",
+    },
+)
+
+selects.config_setting_group(
+    name = "macos",
+    match_any = [
+        ":macos_x86_64",
+    ],
+)
+
 sh_binary(
     name = "move_generated_files",
     srcs = ["move_generated_files.sh"],

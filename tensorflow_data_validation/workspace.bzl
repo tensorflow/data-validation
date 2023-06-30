@@ -2,14 +2,9 @@
 """
 
 load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
-load("@org_tensorflow//tensorflow:workspace.bzl", "tf_workspace")
 
 def tf_data_validation_workspace():
     """All TensorFlow Data Validation external dependencies."""
-    tf_workspace(
-        path_prefix = "",
-        tf_repo_name = "org_tensorflow",
-    )
 
     # LINT.IfChange
     # The next line (a comment) is important because it is used to

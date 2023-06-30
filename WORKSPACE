@@ -19,28 +19,16 @@ http_archive(
 load("@rules_foreign_cc//foreign_cc:repositories.bzl", "rules_foreign_cc_dependencies")
 rules_foreign_cc_dependencies()
 
-# To update TensorFlow to a new revision.
-# TODO(b/177694034): Follow the new format for tensorflow import.
-# 1. Update the '_TENSORFLOW_GIT_COMMIT' var below to include the new git hash.
+# To update package to a new revision, for example ABSL
+# 1. Update the 'COM_GOOGLE_ABSL_COMMIT' var below to include the new git hash.
 # 2. Get the sha256 hash of the archive with a command such as...
-#    curl -L https://github.com/tensorflow/tensorflow/archive/<git hash>.tar.gz | sha256sum
+#    curl -L https://github.com/abseil/abseil-cpp/archive/<git hash>.tar.gz | sha256sum
 #    and update the 'sha256' arg with the result.
 # 3. Request the new archive to be mirrored on mirror.bazel.build for more
 #    reliable downloads.
 
-# TF 1.15.2
-# LINT.IfChange(tf_commit)
-_TENSORFLOW_GIT_COMMIT = "5d80e1e8e6ee999be7db39461e0e79c90403a2e4"
-# LINT.ThenChange(:io_bazel_rules_clousure)
-http_archive(
-    name = "org_tensorflow",
-    sha256 = "7e3c893995c221276e17ddbd3a1ff177593d00fc57805da56dcc30fdc4299632",
-    urls = [
-      "https://github.com/tensorflow/tensorflow/archive/%s.tar.gz" % _TENSORFLOW_GIT_COMMIT,
-    ],
-    strip_prefix = "tensorflow-%s" % _TENSORFLOW_GIT_COMMIT,
-)
-
+# TODO(caveness): Clean up dependencies that were needed by TF but are no longer
+# required.
 # Needed by tf_py_wrap_cc rule from Tensorflow.
 # When upgrading tensorflow version, also check tensorflow/WORKSPACE for the
 # version of this -- keep in sync.
@@ -158,6 +146,18 @@ http_archive(
 load("//tensorflow_data_validation:workspace.bzl", "tf_data_validation_workspace")
 
 tf_data_validation_workspace()
+
+load("@com_github_tfx_bsl//third_party:python_configure.bzl", "local_python_configure")
+local_python_configure(name = "local_config_python")
+
+PYBIND11_COMMIT = "f1abf5d9159b805674197f6bc443592e631c9130"
+http_archive(
+  name = "pybind11",
+  build_file = "@com_github_tfx_bsl//third_party:pybind11.BUILD",
+  strip_prefix = "pybind11-%s" % PYBIND11_COMMIT,
+  urls = ["https://github.com/pybind/pybind11/archive/%s.zip" % PYBIND11_COMMIT],
+  sha256 = "4972f216f17f35e19d0afe54b0f30fe80ab1a7e57b65328530388285f36c7533",
+)
 
 # Specify the minimum required bazel version.
 load("@bazel_skylib//lib:versions.bzl", "versions")
