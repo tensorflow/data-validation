@@ -40,6 +40,7 @@ from tensorflow_data_validation.utils import feature_partition_util
 from tensorflow_data_validation.utils import metrics_util
 from tensorflow_data_validation.utils import slicing_util
 
+from tfx_bsl import beam as tfx_bsl_beam
 from tfx_bsl.arrow import table_util
 from tfx_bsl.statistics import merge_util
 from tfx_bsl.telemetry import collection
@@ -47,6 +48,7 @@ from tfx_bsl.telemetry import collection
 from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
+tfx_bsl_beam.fix_code_type_pickling()
 
 _DEFAULT_MG_SKETCH_SIZE = 1024
 _DEFAULT_KMV_SKETCH_SIZE = 16384
