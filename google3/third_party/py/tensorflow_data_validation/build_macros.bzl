@@ -1,12 +1,14 @@
 """BUILD macros."""
 
+load("//third_party/bazel_rules/rules_python/python:py_extension.bzl", "py_extension")
+
 def tfdv_pybind_extension(
         name,
         srcs,
         module_name,
         deps = [],
         visibility = None):
-    native.py_extension(
+    py_extension(
         name = name,
         module_name = module_name,
         srcs = srcs,
