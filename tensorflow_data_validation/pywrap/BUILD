@@ -1,6 +1,7 @@
 # Description:
 #   C++ libraries in TFDV.
 
+load("@rules_python//python:defs.bzl", "py_library")
 load("//tensorflow_data_validation:build_macros.bzl", "tfdv_pybind_extension")
 
 package(
