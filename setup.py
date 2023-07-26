@@ -181,13 +181,13 @@ setup(
         # TODO(b/139941423): Consider using multi-processing provided by
         # Beam's DirectRunner.
         'joblib>=1.2.0',  # Dependency for multi-processing.
-        'numpy~=1.22.0',
+        'numpy>=1.22.0',
         'pandas>=1.0,<2',
         'protobuf>=3.20.3,<5',
         'pyarrow>=10,<11',
         'pyfarmhash>=0.2.2,<0.4',
         'six>=1.12,<2',
-        'tensorflow>=2.12,<3',
+        'tensorflow>=2.13,<3',
         'tensorflow-metadata' + select_constraint(
             default='>=1.13.1,<1.14',
             nightly='>=1.14.0.dev',
