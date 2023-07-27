@@ -9,6 +9,10 @@ following chart lists the anomaly types that TFDV can detect, the schema and
 statistics fields that are used to detect each anomaly type, and the
 condition(s) under which each anomaly type is detected.
 
+<!--
+TODO(kuochuntsai): Fix the typo under Statistics Fields in the followup cl.
+-->
+
 -   `BOOL_TYPE_BIG_INT`
 
     -   Schema Fields:
@@ -82,14 +86,28 @@ condition(s) under which each anomaly type is detected.
         -   `feature.num_stats.histograms.buckets.high_value`
     -   Detection Condition:
         -   `feature.type` == `FLOAT` and
-        -   `feature.bool_domain` is specified and
-        -   `feature.num_stats.min` != 0 and `feature.num_stats.min` != 1 or \
-            `feature.num_stats.max` != 0 and `feature.num_stats.max` != 1 or \
-            `feature.num_stats.histograms.num_nan` > 0 or \
-            `feature.num_stats.histograms.buckets.low_value` < 0 or \
-            `feature.num_stats.histograms.buckets.high_value` > 1 or \
-            `feature.num_stats.histograms.buckets.low_value` > 0 and
-            `high_value` < 1
+        -   `feature.bool_domain` is specified
+            -   `feature.num_stats.min` != 0 or `feature.num_stats.min` != 1 or
+            -   `feature.num_stats.max` != 0 or `feature.num_stats.max` != 1 or
+            -   `feature.num_stats.histograms.num_nan` > 0 or
+            -   (`feature.num_stats.histograms.buckets.low_value` != 0 or \
+                `feature.num_stats.histograms.buckets.high_value` != 1) and \
+                `feature.num_stats.histograms.buckets.sample_count` > 0
+
+-   `BOOL_TYPE_INVALID_CONFIG`
+
+    -   Schema Fields:
+        -   `feature.bool_domain`
+        -   `feature.type`
+    -   Detection Condition:
+        -   `feature.type` == `INT` or `feature.type` == `FLOAT`
+            -   `feature.bool_domain` is specified and
+            -   `feature.bool_domain.true_value` or \
+                `feature.bool_domain.false_value` is specified
+        -   `feature.type` == `STRING`
+            -   `feature.bool_domain` is specified and
+            -   `feature.bool_domain.true_value` and \
+                `feature.bool_domain.false_value` are not specified
 
 -   `ENUM_TYPE_BYTES_NOT_STRING`
 
