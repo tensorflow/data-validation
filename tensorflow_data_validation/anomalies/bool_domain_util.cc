@@ -36,6 +36,7 @@ namespace data_validation {
 namespace {
 
 constexpr char kNonBooleanValues[] = "Non-boolean values";
+constexpr char InvalidBoolDomain[] = "Invalid BoolDomain";
 
 using ::tensorflow::metadata::v0::BoolDomain;
 using ::tensorflow::metadata::v0::Feature;
@@ -92,20 +93,20 @@ std::vector<Description> UpdateBoolDomainSelf(
 }
 BoolDomain BoolDomainFromStats(const FeatureStatsView& stats) {
   switch (stats.type()) {
-    case FeatureNameStatistics::FLOAT:
-      // Schema::Create(...) will never cause this code to be reached, because
-      // BoolType::IsCandidate(...) will return false.
-      LOG(ERROR) << "Cannot infer FLOAT as BoolType.";
-      DCHECK(false);
-      return BoolDomain();
-      break;
     case FeatureNameStatistics::BYTES:
     case FeatureNameStatistics::STRING:
       return BoolDomainFromStringField(stats);
     case FeatureNameStatistics::INT:
       DCHECK_GE(stats.num_stats().min(), 0.0)
           << "Cannot have integers less than 0.";
-      DCHECK_GE(stats.num_stats().max(), 1.0) << "maximum value must be 1.";
+      DCHECK_EQ(stats.num_stats().max(), 1.0)
+          << "The largest integer must be 1.";
+      return BoolDomain();
+    case FeatureNameStatistics::FLOAT:
+      // Schema::Create(...) will never cause this code to be reached, because
+      // BoolType::IsCandidate(...) will return false.
+      LOG(ERROR) << "Cannot infer FLOAT as BoolType.";
+      DCHECK(false);
       return BoolDomain();
     default:
       LOG(ERROR) << "Unknown type: " << stats.type();
@@ -127,10 +128,16 @@ bool IsBoolDomainCandidate(const FeatureStatsView& feature_stats) {
     return false;
   }
 
-  const std::vector<string> tokens = feature_stats.GetStringValues();
-  if (tokens.size() > 2 || tokens.empty()) {
+  // Can only contain one or two unique values.
+  if (feature_stats.GetNumUnique() > 2) {
     return false;
   }
+
+  const std::vector<string> tokens = feature_stats.GetStringValues();
+  if (tokens.empty()) {
+    return false;
+  }
+
   // Can only have one feature that represents true,
   // and one that represents false.
   std::set<string> valid_true = GetTrueValues();
@@ -187,61 +194,90 @@ std::vector<Description> UpdateBoolDomain(const FeatureStatsView& feature_stats,
       DCHECK(false);
       return {};
     case FeatureNameStatistics::INT: {
-      const NumericStatistics& numeric_statistics = feature_stats.num_stats();
-      if (numeric_statistics.min() < 0.0) {
+      auto set_int_domain = [](const NumericStatistics& numeric_statistics,
+                               Feature* feature) -> void {
         IntDomain* int_domain = feature->mutable_int_domain();
         int_domain->set_max(numeric_statistics.max());
         int_domain->set_min(numeric_statistics.min());
+      };
+
+      const NumericStatistics& numeric_statistics = feature_stats.num_stats();
+      const BoolDomain& bool_domain = feature->bool_domain();
+      if (bool_domain.has_true_value() || bool_domain.has_false_value()) {
+        set_int_domain(numeric_statistics, feature);
+        return {
+            {tensorflow::metadata::v0::AnomalyInfo::BOOL_TYPE_INVALID_CONFIG,
+             InvalidBoolDomain,
+             absl::StrCat("User-defined boolean values are not permitted for "
+                          "features of INT type.")}};
+      }
+
+      if (numeric_statistics.min() < 0.0) {
+        set_int_domain(numeric_statistics, feature);
         return {{tensorflow::metadata::v0::AnomalyInfo::BOOL_TYPE_SMALL_INT,
                  kNonBooleanValues,
                  absl::StrCat("Integers (such as ",
                               absl::SixDigits(numeric_statistics.min()),
-                              ") not in {0, 1}: converting to an integer.")}};
-      }
-      if (numeric_statistics.max() > 1.0) {
-        IntDomain* int_domain = feature->mutable_int_domain();
-        int_domain->set_max(numeric_statistics.max());
-        int_domain->set_min(numeric_statistics.min());
+                              ") not 0 or 1: converting to an integer.")}};
+      } else if (numeric_statistics.max() > 1.0) {
+        set_int_domain(numeric_statistics, feature);
         return {{tensorflow::metadata::v0::AnomalyInfo::BOOL_TYPE_BIG_INT,
                  kNonBooleanValues,
                  absl::StrCat("Integers (such as ",
                               absl::SixDigits(numeric_statistics.max()),
-                              ") not in {0, 1}: converting to an integer.")}};
+                              ") not 0 or 1: converting to an integer.")}};
       }
       return {};
     }
     case FeatureNameStatistics::FLOAT: {
-      const NumericStatistics& numeric_statistics = feature_stats.num_stats();
       auto set_float_domain = [](const NumericStatistics& numeric_statistics,
                                  Feature* feature) -> void {
         FloatDomain* float_domain = feature->mutable_float_domain();
         float_domain->set_max(numeric_statistics.max());
         float_domain->set_min(numeric_statistics.min());
       };
+
+      const NumericStatistics& numeric_statistics = feature_stats.num_stats();
+      const BoolDomain& bool_domain = feature->bool_domain();
+      if (bool_domain.has_true_value() || bool_domain.has_false_value()) {
+        set_float_domain(numeric_statistics, feature);
+        return {
+            {tensorflow::metadata::v0::AnomalyInfo::BOOL_TYPE_INVALID_CONFIG,
+             InvalidBoolDomain,
+             absl::StrCat(
+                 "User-defined boolean values are not permitted for "
+                 "features of FLOAT type: converting to float_domain.")}};
+      }
+
+      double invalid_value = 0;
       if (numeric_statistics.min() != 0.0 && numeric_statistics.min() != 1.0) {
+        invalid_value = numeric_statistics.min();
+      } else if (numeric_statistics.max() != 0.0 &&
+                 numeric_statistics.max() != 1.0) {
+        invalid_value = numeric_statistics.max();
+      }
+
+      if (invalid_value != 0) {
         set_float_domain(numeric_statistics, feature);
         return {
             {tensorflow::metadata::v0::AnomalyInfo::BOOL_TYPE_UNEXPECTED_FLOAT,
              kNonBooleanValues,
-             absl::StrCat("Floats (such as ",
-                          absl::SixDigits(numeric_statistics.min()),
+             absl::StrCat("Floats (such as ", absl::SixDigits(invalid_value),
                           ") not in {0, 1}: converting to float_domain.")}};
       }
-      if (numeric_statistics.max() != 0.0 && numeric_statistics.max() != 1.0) {
-        set_float_domain(numeric_statistics, feature);
-        return {
-            {tensorflow::metadata::v0::AnomalyInfo::BOOL_TYPE_UNEXPECTED_FLOAT,
-             kNonBooleanValues,
-             absl::StrCat("Floats (such as ",
-                          absl::SixDigits(numeric_statistics.max()),
-                          ") not in {0, 1}: converting to float_domain.")}};
-      }
+
       for (const auto& histogram : numeric_statistics.histograms()) {
-        // Any non-empty boundary should include 0 or 1, otherwise the feature
-        // must not be boolean. Note: if histograms are not computed, or there
-        // are values inside the range 0 to 1, invalid bool_domain values will
-        // not be detected.
+        // With the quantiles histogram, the boundary must be set with the
+        // values in the dataset. Therefore, the lower bound should be either 0
+        // or 1and so as the upper bound. Note: if the quantile histogram is not
+        // computed, or if there is only one bucket in the quantile histogram
+        // and the min is 0 and max is 1, invalid bool_domain values will not be
+        // detected.
+        if (histogram.type() != metadata::v0::Histogram::QUANTILES) {
+          continue;
+        }
         if (histogram.num_nan() > 0) {
+          // Note: num_nam is computed only for FLOAT features.
           set_float_domain(numeric_statistics, feature);
           return {{tensorflow::metadata::v0::AnomalyInfo::
                        BOOL_TYPE_UNEXPECTED_FLOAT,
@@ -250,31 +286,15 @@ std::vector<Description> UpdateBoolDomain(const FeatureStatsView& feature_stats,
                                 "converting to float_domain.")}};
         }
         for (const auto& bucket : histogram.buckets()) {
-          if (bucket.sample_count() <= 0) {
-            continue;
-          }
-          if (bucket.high_value() < 0) {
+          if ((bucket.low_value() != 0.0 && bucket.low_value()  != 1.0) ||
+              (bucket.high_value() != 0.0 && bucket.high_value()  != 1.0)) {
             set_float_domain(numeric_statistics, feature);
             return {{tensorflow::metadata::v0::AnomalyInfo::
-                         BOOL_TYPE_UNEXPECTED_FLOAT,
-                     kNonBooleanValues,
-                     absl::StrCat("Float values < 0 not in {0, 1}: converting "
-                                  "to float_domain.")}};
-          } else if (bucket.low_value() > 1) {
-            set_float_domain(numeric_statistics, feature);
-            return {{tensorflow::metadata::v0::AnomalyInfo::
-                         BOOL_TYPE_UNEXPECTED_FLOAT,
-                     kNonBooleanValues,
-                     absl::StrCat("Float values > 1 not in {0, 1}: converting "
-                                  "to float_domain.")}};
-          } else if (histogram.type() == metadata::v0::Histogram::QUANTILES &&
-                     bucket.high_value() < 1 && bucket.low_value() > 0) {
-            set_float_domain(numeric_statistics, feature);
-            return {{tensorflow::metadata::v0::AnomalyInfo::
-                         BOOL_TYPE_UNEXPECTED_FLOAT,
-                     kNonBooleanValues,
-                     absl::StrCat("Float values falling between 0 and 1: "
-                                  "converting to float_domain.")}};
+                          BOOL_TYPE_UNEXPECTED_FLOAT,
+                      kNonBooleanValues,
+                      absl::StrCat(
+                          "Float values falling between 0 and 1: converting to "
+                          "float_domain.")}};
           }
         }
       }
@@ -285,6 +305,16 @@ std::vector<Description> UpdateBoolDomain(const FeatureStatsView& feature_stats,
       const std::set<string> valid_strings =
           BoolDomainValidStrings(bool_domain);
       const std::vector<string> string_values = feature_stats.GetStringValues();
+
+      if (valid_strings.size() != 2) {
+        // Note that this clears the oneof field domain_info.
+        feature->clear_bool_domain();
+        return {
+            {tensorflow::metadata::v0::AnomalyInfo::BOOL_TYPE_INVALID_CONFIG,
+             InvalidBoolDomain,
+             "BoolDomain missing true and/or false values."}};
+      }
+
       for (const string& str : string_values) {
         if (!ContainsKey(valid_strings, str)) {
           // We might be able to replace this with an enum, but since it is
