@@ -12,13 +12,8 @@
     OSS build.
 *   Depends on `pyarrow>=10,<11`.
 *   Depends on `apache-beam>=2.47,<3`.
-*   Depends on `numpy>=1.22.0`.
-*   Depends on `tensorflow>=2.13.0,<3`.
-*   Added `BOOL_TYPE_INVALID_CONFIG` anomaly type. This anomaly will be raised
-    in two conditions. First, if the statistic type is STRING and if either the
-    user does not specifies both true and false values or specify the same value
-    for true and false values. Second, if the statistic type is INT or FLOAT and
-    the user specifies either true or false values.
+*  Depends on `numpy>=1.22.0`.
+*  Depends on `tensorflow>=2.13.0,<3`.
 
 ## Known Issues
 

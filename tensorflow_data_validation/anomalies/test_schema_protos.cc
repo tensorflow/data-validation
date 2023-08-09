@@ -235,11 +235,17 @@ Schema GetAnnotatedFieldsMessage() {
         name: "bool_with_false"
         presence: {min_count: 1} value_count {min: 1 max: 1}
         type: BYTES
+        bool_domain {
+          false_value: "my_false"
+        }
       }
       feature {
         name: "bool_with_true"
         presence: {min_count: 1} value_count {min: 1 max: 1}
         type: BYTES
+        bool_domain {
+          true_value: "my_true"
+        }
       }
       feature {
         name: "bool_with_true_false"

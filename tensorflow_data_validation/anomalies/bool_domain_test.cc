@@ -13,11 +13,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
+#include "tensorflow_data_validation/anomalies/bool_domain_util.h"
+
 #include <string>
 #include <vector>
 
 #include <gtest/gtest.h>
-#include "tensorflow_data_validation/anomalies/bool_domain_util.h"
 #include "tensorflow_data_validation/anomalies/internal_types.h"
 #include "tensorflow_data_validation/anomalies/statistics_view_test_util.h"
 #include "tensorflow_data_validation/anomalies/test_util.h"
@@ -45,31 +46,24 @@ struct BoolTypeBoolTypeFeatureNameStatisticsTest {
 
 TEST_F(BoolTypeTest, BoolTypeFeatureNameStatistics) {
   const std::vector<BoolTypeBoolTypeFeatureNameStatisticsTest> tests = {
-      {"true_false_string", ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
+      {"true_false", ParseTextProtoOrDie<FeatureNameStatistics>(R"(
          name: 'bar'
          type: STRING
          string_stats: {
-           common_stats: { num_missing: 3 max_num_values: 2 }
+           common_stats: {
+             num_missing: 3
+             max_num_values: 2
+           }
            unique: 3
            rank_histogram: {
-             buckets: { label: "true" }
-             buckets: { label: "false" }
-           }
-         })pb"),
-       ParseTextProtoOrDie<BoolDomain>(R"pb(
-         true_value: "true"
-         false_value: "false")pb")},
-      {"true_false_int", ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: INT
-         num_stats: {
-           common_stats: { num_missing: 3 max_num_values: 2 }
-           min: 0.0
-           max: 1.0
-         }
-       )pb"),
-       BoolDomain()},
-  };
+             buckets: {
+               label: "true"
+             }
+             buckets: {
+               label: "false"}}})"),
+       ParseTextProtoOrDie<BoolDomain>(R"(
+             true_value: "true"
+             false_value: "false")")}};
   for (const auto& test : tests) {
     const BoolDomain result = BoolDomainFromStats(
         testing::DatasetForTesting(test.input).feature_stats_view());
@@ -86,114 +80,100 @@ struct BoolTypeIsValidTest {
 
 TEST_F(BoolTypeTest, IsValid) {
   const std::vector<BoolTypeIsValidTest> tests = {
-      {"string_true_false",
+      {"true_false",
        ParseTextProtoOrDie<BoolDomain>(
            "true_value: 'true' false_value: 'false'"),
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: STRING
-         string_stats: {
-           common_stats: { num_missing: 3 max_num_values: 2 }
-           unique: 2
-           rank_histogram: {
-             buckets: { label: "true" }
-             buckets: { label: "false" }
-           }
-         })pb"),
+       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'bar'
+        type: STRING
+        string_stats: {
+          common_stats: {
+            num_missing: 3
+            max_num_values: 2
+          }
+          unique: 3
+          rank_histogram: {
+            buckets: {
+              label: "true"
+            }
+            buckets: {
+              label: "false"
+            }}})"),
        true},
-      {"string_true_only",
+      {"true_false with wacky value",
        ParseTextProtoOrDie<BoolDomain>(
            "true_value: 'true' false_value: 'false'"),
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: STRING
-         string_stats: {
-           common_stats: { num_missing: 3 max_num_values: 2 }
-           unique: 1
-           rank_histogram: { buckets: { label: "true" } }
-         })pb"),
+       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'bar'
+        type: STRING
+        string_stats: {
+          common_stats: {
+            num_missing: 3
+            max_num_values: 2
+          }
+          unique: 3
+          rank_histogram: {
+            buckets: {
+              label: "true"
+            }
+            buckets: {
+              label: "wacky"
+            }}})"),
+       false},
+      {"false_only", ParseTextProtoOrDie<BoolDomain>("false_value: 'false'"),
+       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'bar'
+        type: STRING
+        string_stats: {
+          common_stats: {
+            num_missing: 3
+            max_num_values: 2
+          }
+          unique: 3
+          rank_histogram: {
+            buckets: {
+              label: "false"
+            }}})"),
        true},
-      {"string_false_only",
-       ParseTextProtoOrDie<BoolDomain>(
-           "true_value: 'true' false_value: 'false'"),
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: STRING
-         string_stats: {
-           common_stats: { num_missing: 3 max_num_values: 2 }
-           unique: 1
-           rank_histogram: { buckets: { label: "false" } }
-         })pb"),
-       true},
-      {"float_valid_stats_and_domain_config", BoolDomain(),
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         type: FLOAT
-         num_stats: {
-           min: 0.0
-           max: 1.0
-           histograms: {
-             buckets: { sample_count: 1.5 low_value: 0.0 high_value: 0.0 }
-             buckets: { sample_count: 1.5 low_value: 0.0 high_value: 0.0 }
-             buckets: { sample_count: 0 low_value: 0.0 high_value: 1.0 }
-             buckets: { sample_count: 2 low_value: 1.0 high_value: 1.0 }
-             type: QUANTILES
-           }
-         }
-       )pb"),
-       true},
-      {"float_valid_stats_only_0s", BoolDomain(),
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: FLOAT
-         num_stats: {
-           min: 0.0
-           max: 0.0
-           histograms: {
-             buckets: { sample_count: 2 low_value: 0.0 high_value: 0.0 }
-             type: QUANTILES
-           }
-         }
-       )pb"),
-       true},
-      {"float_valid_stats_only_1s", BoolDomain(),
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: FLOAT
-         num_stats: {
-           min: 1.0
-           max: 1.0
-           histograms: {
-             buckets: { sample_count: 2  low_value: 1.0 high_value: 1.0 }
-             type: QUANTILES
-           }
-         }
-       )pb"),
+      {"true_only", ParseTextProtoOrDie<BoolDomain>("true_value: 'true'"),
+       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'bar'
+        type: STRING
+        string_stats: {
+          common_stats: {
+            num_missing: 3
+            max_num_values: 2
+          }
+          unique: 3
+          rank_histogram: {
+            buckets: {
+              label: "true"
+            }}})"),
        true},
       {"int_value", BoolDomain(),
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: INT
-         num_stats: {
-           common_stats: { num_missing: 3 max_num_values: 2 }
-           min: 0.0
-           max: 1.0
-         })pb"),
+       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'bar'
+        type: INT
+        num_stats: {
+          common_stats: {
+            num_missing: 3
+            max_num_values: 2
+          }
+          min: 0.0
+          max: 1.0})"),
        true},
-      {"int_valid_stats_only_0s", BoolDomain(),
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: INT
-         num_stats: { min: 0.0 max: 0.0 }
-       )pb"),
-       true},
-      {"int_valid_stats_only_1s", BoolDomain(),
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: INT
-         num_stats: { min: 1.0 max: 1.0 }
-       )pb"),
-       true},
-  };
+      {"int_value_big_range", BoolDomain(),
+       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'bar'
+        type: INT
+        num_stats: {
+          common_stats: {
+            num_missing: 3
+            max_num_values: 2
+          }
+          min: 0.0
+          max: 2.0})"),
+       false}};
   for (const auto& test : tests) {
     Feature feature;
     *feature.mutable_bool_domain() = test.original;
@@ -221,269 +201,65 @@ struct BoolTypeUpdateTest {
 
 TEST_F(BoolTypeTest, Update) {
   const std::vector<BoolTypeUpdateTest> tests = {
-      {"string_invalid_missing_true_config", ParseTextProtoOrDie<Feature>(R"pb(
-         type: BYTES
-         bool_domain { false_value: "false_val" }
-       )pb"),
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: STRING
-         string_stats: {
-           common_stats: { num_missing: 3 max_num_values: 2 }
-           unique: 2
-           rank_histogram: {
-             buckets: { label: "true_val" }
-             buckets: { label: "false_val" }
-           }
-         }
-       )pb"),
-       ParseTextProtoOrDie<Feature>(R"pb(
-         type: BYTES
-       )pb"),
+      {"true_false", ParseTextProtoOrDie<Feature>(R"(
+           type: BYTES
+           bool_domain {
+               true_value: "true"
+               false_value: "false"})"),
+       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'bar'
+        type: STRING
+        string_stats: {
+          common_stats: {
+            num_missing: 3
+            max_num_values: 2
+          }
+          unique: 3
+          rank_histogram: {
+            buckets: {
+              label: "true"
+            }
+            buckets: {
+              label: "false"
+            }}})"),
+       ParseTextProtoOrDie<Feature>(R"(
+           type: BYTES
+           bool_domain {
+               true_value: "true"
+               false_value: "false"})"),
        false},
-      {"string_invalid_missing_false_config", ParseTextProtoOrDie<Feature>(R"pb(
-         type: BYTES
-         bool_domain { true_value: "true_val" }
-       )pb"),
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: STRING
-         string_stats: {
-           common_stats: { num_missing: 3 max_num_values: 2 }
-           unique: 2
-           rank_histogram: {
-             buckets: { label: "true_val" }
-             buckets: { label: "false_val" }
-           }
-         }
-       )pb"),
-       ParseTextProtoOrDie<Feature>(R"pb(
-         type: BYTES
-       )pb"),
-       false},
-      {"string_invalid_missing_domain_config",
-       ParseTextProtoOrDie<Feature>(R"pb(
-         type: BYTES
-         bool_domain {}
-       )pb"),
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: STRING
-         string_stats: {
-           common_stats: { num_missing: 3 max_num_values: 2 }
-           unique: 2
-           rank_histogram: {
-             buckets: { label: "true_val" }
-             buckets: { label: "false_val" }
-           }
-         }
-       )pb"),
-       ParseTextProtoOrDie<Feature>(R"pb(
-         type: BYTES
-       )pb"),
-       false},
-      {"string_invalid_unexpected_string", ParseTextProtoOrDie<Feature>(R"pb(
-         type: BYTES
-         bool_domain { true_value: "true_val" false_value: "false_val" }
-       )pb"),
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: STRING
-         string_stats: {
-           common_stats: { num_missing: 3 max_num_values: 2 }
-           unique: 2
-           rank_histogram: {
-             buckets: { label: "true_val" }
-             buckets: { label: "dummy_val" }
-           }
-         }
-       )pb"),
-       ParseTextProtoOrDie<Feature>(R"pb(
-         type: BYTES
-       )pb"),
-       false},
-      {"float_invalid_domain_config_has_true_value",
-       ParseTextProtoOrDie<Feature>(R"pb(
-         type: FLOAT
-         bool_domain { true_value: 'dummy_val' }
-       )pb"),
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: FLOAT
-         num_stats: {
-           min: 0.0
-           max: 1.0
-           histograms: {
-             buckets: { low_value: 0.0 high_value: 1.0 }
-             type: QUANTILES
-           }
-         }
-       )pb"),
-       ParseTextProtoOrDie<Feature>(R"pb(
-         type: FLOAT
-         float_domain: { min: 0.0 max: 1.0 }
-       )pb"),
-       false},
-      {"float_invalid_domain_config_has_false_value",
-       ParseTextProtoOrDie<Feature>(R"pb(
-         type: FLOAT
-         bool_domain { false_value: 'dummy_val' }
-       )pb"),
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: FLOAT
-         num_stats: {
-           min: 0.0
-           max: 1.0
-           histograms: {
-             buckets: { low_value: 0.0 high_value: 1.0 }
-             type: QUANTILES
-           }
-         }
-       )pb"),
-       ParseTextProtoOrDie<Feature>(R"pb(
-         type: FLOAT
-         float_domain: { min: 0.0 max: 1.0 }
-       )pb"),
-       false},
-      {"float_invalid_stats_small_min", ParseTextProtoOrDie<Feature>(R"pb(
-         type: FLOAT
-         bool_domain {}
-       )pb"),
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: FLOAT
-         num_stats: { min: -1.0 max: 1.0 }
-       )pb"),
-       ParseTextProtoOrDie<Feature>(R"pb(
-         type: FLOAT
-         float_domain: { min: -1.0 max: 1 }
-       )pb"),
-       false},
-      {"float_invalid_stats_large_max", ParseTextProtoOrDie<Feature>(R"pb(
-         type: FLOAT
-         bool_domain {}
-       )pb"),
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: FLOAT
-         num_stats: { min: 0.0 max: 2.0 }
-       )pb"),
-       ParseTextProtoOrDie<Feature>(R"pb(
-         type: FLOAT
-         float_domain: { min: 0.0 max: 2.0 }
-       )pb"),
-       false},
-      {"float_invalid_stats_has_nan", ParseTextProtoOrDie<Feature>(R"pb(
-         type: FLOAT
-         bool_domain {}
-       )pb"),
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: FLOAT
-         num_stats: {
-           min: 0.0
-           max: 1.0
-           histograms: {
-             num_nan: 1
-             buckets: { low_value: 0.0 high_value: 1.0 }
-             type: QUANTILES
-           }
-         }
-       )pb"),
-       ParseTextProtoOrDie<Feature>(R"pb(
-         type: FLOAT
-         float_domain: { min: 0.0 max: 1.0 }
-       )pb"),
-       false},
-      {"float_invalid_stats_unexpected_value",
-       ParseTextProtoOrDie<Feature>(R"pb(
-         type: FLOAT
-         bool_domain {}
-       )pb"),
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: FLOAT
-         num_stats: {
-           min: 0.0
-           max: 1.0
-           histograms: {
-             buckets: { sample_count: 1 low_value: 0.0 high_value: 0.5 }
-             buckets: { sample_count: 1 low_value: 0.5 high_value: 1.0 }
-             type: QUANTILES
-           }
-         }
-       )pb"),
-       ParseTextProtoOrDie<Feature>(R"pb(
-         type: FLOAT
-         float_domain: { min: 0.0 max: 1.0 }
-       )pb"),
-       false},
-      {"invalid_domain_config_has_true_value",
-       ParseTextProtoOrDie<Feature>(R"pb(
-         type: INT
-         bool_domain { true_value: 'dummy_val' }
-       )pb"),
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: INT
-         num_stats: { min: 0.0 max: 1.0 }
-       )pb"),
-       ParseTextProtoOrDie<Feature>(R"pb(
-         type: INT
-         int_domain: { min: 0 max: 1 }
-       )pb"),
-       false},
-      {"invalid_domain_config_has_false_value",
-       ParseTextProtoOrDie<Feature>(R"pb(
-         type: INT
-         bool_domain { false_value: 'dummy_val' }
-       )pb"),
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: INT
-         num_stats: { min: 0.0 max: 1.0 }
-       )pb"),
-       ParseTextProtoOrDie<Feature>(R"pb(
-         type: INT
-         int_domain: { min: 0 max: 1 }
-       )pb"),
-       false},
-      {"invalid_stats_small_min", ParseTextProtoOrDie<Feature>(R"pb(
-         type: INT
-         bool_domain {}
-       )pb"),
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: INT
-         num_stats: { min: -1.0 max: 1.0 }
-       )pb"),
-       ParseTextProtoOrDie<Feature>(R"pb(
-         type: INT
-         int_domain: { min: -1 max: 1 }
-       )pb"),
-       false},
-      {"invalid_stats_large_max", ParseTextProtoOrDie<Feature>(R"pb(
-         type: INT
-         bool_domain {}
-       )pb"),
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: INT
-         num_stats: { min: 0.0 max: 2.0 }
-       )pb"),
-       ParseTextProtoOrDie<Feature>(R"pb(
-         type: INT
-         int_domain: { min: 0 max: 2 }
-       )pb"),
-       false},
-  };
+      {"true_false", ParseTextProtoOrDie<Feature>(R"(
+           type: BYTES
+           bool_domain {
+               true_value: "true"
+               false_value: "false"})"),
+       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'bar'
+        type: STRING
+        string_stats: {
+          common_stats: {
+            num_missing: 3
+            max_num_values: 2
+          }
+          unique: 3
+          rank_histogram: {
+            buckets: {
+              label: "true"
+            }
+            buckets: {
+              label: "false"
+            }}})"),
+       ParseTextProtoOrDie<Feature>(R"(
+           type: BYTES
+           bool_domain {
+               true_value: "true"
+               false_value: "false"})"),
+       false}};
   for (const auto& test : tests) {
     Feature to_modify = test.original;
-    const std::vector<Description> description = UpdateBoolDomain(
+    const std::vector<Description> descriptions = UpdateBoolDomain(
         testing::DatasetForTesting(test.input).feature_stats_view(),
         &to_modify);
-    EXPECT_EQ(description.empty(), test.expected_deprecated);
     EXPECT_THAT(to_modify, EqualsProto(test.expected));
   }
 }
@@ -496,137 +272,122 @@ struct BoolTypeIsCandidateTest {
 
 TEST_F(BoolTypeTest, IsCandidate) {
   const std::vector<BoolTypeIsCandidateTest> tests = {
-      {"string valid unique values count",
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: STRING
-         string_stats: {
-           common_stats: { num_missing: 3 max_num_values: 2 }
-           unique: 2
-           rank_histogram: {
-             buckets: { label: "true" }
-             buckets: { label: "false" }
-           }
-         })pb"),
+      {"true_false", ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'bar'
+        type: STRING
+        string_stats: {
+          common_stats: {
+            num_missing: 3
+            max_num_values: 2
+          }
+          unique: 3
+          rank_histogram: {
+            buckets: {
+              label: "true"
+            }
+            buckets: {
+              label: "false"
+            }}})"),
        true},
       {"true_1 (can't have two positive values, make enum instead)",
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: STRING
-         string_stats: {
-           common_stats: { num_missing: 3 max_num_values: 2 }
-           unique: 2
-           rank_histogram: {
-             buckets: { label: "true" }
-             buckets: { label: "1" }
-           }
-         })pb"),
+       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'bar'
+        type: STRING
+        string_stats: {
+          common_stats: {
+            num_missing: 3
+            max_num_values: 2
+          }
+          unique: 3
+          rank_histogram: {
+            buckets: {
+              label: "true"
+            }
+            buckets: {
+              label: "1"
+            }}})"),
        false},
       {"true_false with wacky value",
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: STRING
-         string_stats: {
-           common_stats: { num_missing: 3 max_num_values: 2 }
-           unique: 3
-           rank_histogram: {
-             buckets: { label: "true" }
-             buckets: { label: "wacky" }
-           }
-         })pb"),
+       ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'bar'
+        type: STRING
+        string_stats: {
+          common_stats: {
+            num_missing: 3
+            max_num_values: 2
+          }
+          unique: 3
+          rank_histogram: {
+            buckets: {
+              label: "true"
+            }
+            buckets: {
+              label: "wacky"
+            }}})"),
        false},
-      {"false_only", ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: STRING
-         string_stats: {
-           common_stats: { num_missing: 3 max_num_values: 2 }
-           unique: 1
-           rank_histogram: { buckets: { label: "false" } }
-         })pb"),
+      {"false_only", ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'bar'
+        type: STRING
+        string_stats: {
+          common_stats: {
+            num_missing: 3
+            max_num_values: 2
+          }
+          unique: 3
+          rank_histogram: {
+            buckets: {
+              label: "false"
+            }}})"),
        true},
-      {"true_only", ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: STRING
-         string_stats: {
-           common_stats: { num_missing: 3 max_num_values: 2 }
-           unique: 1
-           rank_histogram: { buckets: { label: "true" } }
-         })pb"),
+      {"true_only", ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'bar'
+        type: STRING
+        string_stats: {
+          common_stats: {
+            num_missing: 3
+            max_num_values: 2
+          }
+          unique: 3
+          rank_histogram: {
+            buckets: {
+              label: "true"
+            }}})"),
        true},
-      {"int_value", ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: INT
-         num_stats: {
-           common_stats: { num_missing: 3 max_num_values: 2 }
-           min: 0.0
-           max: 1.0
-         })pb"),
+      {"int_value", ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'bar'
+        type: INT
+        num_stats: {
+          common_stats: {
+            num_missing: 3
+            max_num_values: 2
+          }
+          min: 0.0
+          max: 1.0})"),
        true},
-      {"int_value_big_range", ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: INT
-         num_stats: {
-           common_stats: { num_missing: 3 max_num_values: 2 }
-           min: 0.0
-           max: 2.0
-         })pb"),
+      {"int_value_big_range", ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+        name: 'bar'
+        type: INT
+        num_stats: {
+          common_stats: {
+            num_missing: 3
+            max_num_values: 2
+          }
+          min: 0.0
+          max: 2.0})"),
        false},
-      {"int valid min max equal to 1",
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: INT
-         num_stats: { min: 1.0 max: 1.0 }
-       )pb"),
-       true},
-      {"int invalid min", ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: INT
-         num_stats: { num_zeros: 2 min: -1.0 max: 1.0 }
-       )pb"),
-       false},
-      {"int invalid max not equal 1",
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: INT
-         num_stats: { num_zeros: 2 min: 0.0 max: 0.0 }
-       )pb"),
-       false},
-      {"int invalid missing max",
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: INT
-         num_stats: { num_zeros: 2 min: 0.0 }
-       )pb"),
-       false},
-      {"int missing min max without zeros count",
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: INT
-         num_stats: {}
-       )pb"),
-       false},
-      {"never infer bool domain for stats with FLOAT type",
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: FLOAT
-         num_stats: { num_zeros: 2 min: 0.0 max: 1.0 }
-       )pb"),
-       false},
-      {"never infer bool domain for stats with BYTES type",
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: BYTES
-         bytes_stats: {}
-       )pb"),
-       false},
-      {"never infer bool domain for stats with STRUCT type",
-       ParseTextProtoOrDie<FeatureNameStatistics>(R"pb(
-         name: 'bar'
-         type: STRUCT
-         struct_stats: {}
-       )pb"),
-       false},
-  };
+      {"query_tokens", ParseTextProtoOrDie<FeatureNameStatistics>(R"(
+          name: "query_tokens"
+          type: STRING
+          string_stats {
+            common_stats {
+              num_non_missing: 90
+              num_missing: 10
+              min_num_values: 1
+              max_num_values: 10
+              avg_num_values: 3.4
+            }
+            unique: 10037})"),
+       false}};
   for (const auto& test : tests) {
     EXPECT_EQ(IsBoolDomainCandidate(
                   testing::DatasetForTesting(test.input).feature_stats_view()),
