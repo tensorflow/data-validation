@@ -10,7 +10,7 @@ package(
     ],
 )
 
-licenses(["notice"])  # Apache 2.0
+licenses(["notice"])
 
 tfdv_pybind_extension(
     name = "tensorflow_data_validation_extension",
