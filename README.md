@@ -89,7 +89,7 @@ Then, run the following at the project root:
 sudo docker-compose build manylinux2010
 sudo docker-compose run -e PYTHON_VERSION=${PYTHON_VERSION} manylinux2010
 ```
-where `PYTHON_VERSION` is one of `{38, 39}`.
+where `PYTHON_VERSION` is one of `{38, 39, 310}`.
 
 A wheel will be produced under `dist/`.
 
@@ -173,7 +173,8 @@ other *untested* combinations may also work.
 
 tensorflow-data-validation                                                            | apache-beam[gcp] | pyarrow | tensorflow        | tensorflow-metadata | tensorflow-transform | tfx-bsl
 ------------------------------------------------------------------------------------- | ---------------- | ------- | ----------------- | ------------------- | -------------------- | -------
-[GitHub master](https://github.com/tensorflow/data-validation/blob/master/RELEASE.md) | 2.40.0           | 6.0.0   | nightly (2.x)     | 1.13.1              | n/a                  | 1.13.0
+[GitHub master](https://github.com/tensorflow/data-validation/blob/master/RELEASE.md) | 2.47.0           | 10.0.0  | nightly (2.x)     | 1.14.0              | n/a                  | 1.14.0
+[1.14.0](https://github.com/tensorflow/data-validation/blob/v1.14.0/RELEASE.md)       | 2.47.0           | 10.0.0  | 2.13              | 1.14.0              | n/a                  | 1.14.0
 [1.13.0](https://github.com/tensorflow/data-validation/blob/v1.13.0/RELEASE.md)       | 2.40.0           | 6.0.0   | 2.12              | 1.13.1              | n/a                  | 1.13.0
 [1.12.0](https://github.com/tensorflow/data-validation/blob/v1.12.0/RELEASE.md)       | 2.40.0           | 6.0.0   | 2.11              | 1.12.0              | n/a                  | 1.12.0
 [1.11.0](https://github.com/tensorflow/data-validation/blob/v1.11.0/RELEASE.md)       | 2.40.0           | 6.0.0   | 1.15 / 2.10       | 1.11.0              | n/a                  | 1.11.0
