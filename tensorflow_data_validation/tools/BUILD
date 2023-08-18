@@ -2,7 +2,7 @@
 
 load("//third_party/bazel_rules/rules_python/python:py_binary.bzl", "py_binary")
 
-licenses(["notice"])  # Apache 2.0
+licenses(["notice"])
 
 package(default_visibility = ["//tensorflow_data_validation:__subpackages__"])
 
