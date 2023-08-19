@@ -456,22 +456,6 @@ cc_test(
 )
 
 cc_library(
-    name = "time_series_validator",
-    srcs = ["time_series_validator.cc"],
-    hdrs = ["time_series_validator.h"],
-    visibility = [
-        "//learning/tfx/pipeline:__subpackages__",
-        "//tensorflow_data_validation:__subpackages__",
-    ],
-    deps = [
-        ":metrics",
-        "//tensorflow_data_validation/google/protos:time_series_metrics_cc_proto",
-        "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
-        "@com_google_absl//absl/status:statusor",
-    ],
-)
-
-cc_library(
     name = "telemetry",
     srcs = ["telemetry.cc"],
     hdrs = ["telemetry.h"],
@@ -484,18 +468,6 @@ cc_library(
 exports_files([
     "telemetry.h",
 ])
-
-cc_test(
-    name = "time_series_validator_test",
-    srcs = ["time_series_validator_test.cc"],
-    deps = [
-        ":test_util",
-        ":time_series_validator",
-        "//tensorflow_data_validation/google/protos:time_series_metrics_cc_proto",
-        "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
-        "@com_google_googletest//:gtest_main",
-    ],
-)
 
 cc_library(
     name = "status_util",
