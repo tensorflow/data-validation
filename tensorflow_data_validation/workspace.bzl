@@ -17,7 +17,7 @@ def tf_data_validation_workspace():
         branch = "master",
         remote = "https://github.com/tensorflow/metadata.git",
     )
-    # LINT.ThenChange(//third_party/py/tensorflow_data_validation/google/copy.bara.sky)
+    # LINT.ThenChange(//tensorflow_data_validation/placeholder/files)
 
     git_repository(
         name = "com_github_tfx_bsl",
