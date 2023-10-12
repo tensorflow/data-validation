@@ -57,7 +57,7 @@ def _weighted_unique(values: np.ndarray, weights: np.ndarray
       'weight': weights,
   })
   gb = df.groupby(
-      'value', as_index=False, sort=False)['count', 'weight'].sum()
+      'value', as_index=False, sort=False)[['count', 'weight']].sum()
   return zip(gb['value'].tolist(), gb['count'].tolist(), gb['weight'].tolist())
 
 
