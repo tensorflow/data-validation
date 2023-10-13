@@ -2,7 +2,7 @@
 
 # TensorFlow Data Validation
 
-[![Python](https://img.shields.io/badge/python%20-3.8%7C3.9-blue)](https://github.com/tensorflow/data-validation)
+[![Python](https://img.shields.io/badge/python%7C3.9-blue)](https://github.com/tensorflow/data-validation)
 [![PyPI](https://badge.fury.io/py/tensorflow-data-validation.svg)](https://badge.fury.io/py/tensorflow-data-validation)
 [![Documentation](https://img.shields.io/badge/api-reference-blue.svg)](https://www.tensorflow.org/tfx/data_validation/api_docs/python/tfdv)
 
@@ -89,7 +89,7 @@ Then, run the following at the project root:
 sudo docker-compose build manylinux2010
 sudo docker-compose run -e PYTHON_VERSION=${PYTHON_VERSION} manylinux2010
 ```
-where `PYTHON_VERSION` is one of `{38, 39, 310}`.
+where `PYTHON_VERSION` is one of `{39, 310}`.
 
 A wheel will be produced under `dist/`.
 
