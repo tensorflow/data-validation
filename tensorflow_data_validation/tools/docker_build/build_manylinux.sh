@@ -26,19 +26,19 @@ WORKING_DIR=$PWD
 
 function setup_environment() {
   source scl_source enable devtoolset-8
-  source scl_source enable rh-python38
+  source scl_source enable rh-python39
   if [[ -z "${PYTHON_VERSION}" ]]; then
-    echo "Must set PYTHON_VERSION env to 38|39|310"; exit 1;
+    echo "Must set PYTHON_VERSION env to 39|310|311"; exit 1;
   fi
   # Bazel will use PYTHON_BIN_PATH to determine the right python library.
-  if [[ "${PYTHON_VERSION}" == 38 ]]; then
-    PYTHON_DIR=/opt/python/cp38-cp38
-  elif [[ "${PYTHON_VERSION}" == 39 ]]; then
+  if [[ "${PYTHON_VERSION}" == 39 ]]; then
     PYTHON_DIR=/opt/python/cp39-cp39
   elif [[ "${PYTHON_VERSION}" == 310 ]]; then
     PYTHON_DIR=/opt/python/cp310-cp310
+  elif [[ "${PYTHON_VERSION}" == 311 ]]; then
+    PYTHON_DIR=/opt/python/cp311-cp311
   else
-    echo "Must set PYTHON_VERSION env to 38|39|310"; exit 1;
+    echo "Must set PYTHON_VERSION env to 39|310|311"; exit 1;
   fi
   export PIP_BIN="${PYTHON_DIR}"/bin/pip
   export PYTHON_BIN_PATH="${PYTHON_DIR}"/bin/python
