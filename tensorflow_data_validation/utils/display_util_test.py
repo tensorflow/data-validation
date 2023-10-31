@@ -510,6 +510,44 @@ class DisplayUtilTest(parameterized.TestCase):
     # of the short description and long description.
     self.assertEqual(actual_output.shape, (2, 2))
 
+  def test_get_anomalies_dataframe_with_no_toplevel_description(self):
+    anomalies = text_format.Parse(
+        """
+    anomaly_info {
+     key: "feature_1"
+     value {
+        severity: ERROR
+        reason {
+          type: ENUM_TYPE_BYTES_NOT_STRING
+          short_description: "Bytes not string"
+          description: "Expected bytes but got string."
+        }
+      }
+    }
+    anomaly_info {
+      key: "feature_2"
+      value {
+        severity: ERROR
+        reason {
+          type: ENUM_TYPE_UNEXPECTED_STRING_VALUES
+          short_description: "Unexpected string values"
+          description: "Examples contain values missing from the "
+            "schema."
+        }
+      }
+    }
+    """,
+        anomalies_pb2.Anomalies(),
+    )
+    actual_output = display_util.get_anomalies_dataframe(anomalies)
+    # The resulting DataFrame has a row for each feature and a column for each
+    # of the short description and long description.
+    self.assertEqual(actual_output.shape, (2, 2))
+
+    # Confirm Anomaly short/long description is not empty
+    self.assertNotEmpty(actual_output['Anomaly short description'][0])
+    self.assertNotEmpty(actual_output['Anomaly long description'][0])
+
   def test_get_drift_skew_dataframe(self):
     anomalies = text_format.Parse(
         """

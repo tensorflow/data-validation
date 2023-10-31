@@ -239,16 +239,44 @@ def get_anomalies_dataframe(anomalies: anomalies_pb2.Anomalies) -> pd.DataFrame:
 
   anomaly_rows = []
   for feature_name, anomaly_info in anomalies.anomaly_info.items():
+    if not anomaly_info.short_description:
+      anomaly_info_short_description = ('; ').join(
+          [r.short_description for r in anomaly_info.reason]
+      )
+    else:
+      anomaly_info_short_description = anomaly_info.short_description
+    if not anomaly_info.description:
+      anomaly_info_description = ('; ').join(
+          [r.description for r in anomaly_info.reason]
+      )
+    else:
+      anomaly_info_description = anomaly_info.description
     anomaly_rows.append([
         _add_quotes(feature_name),
-        anomaly_info.short_description,
-        anomaly_info.description,
+        anomaly_info_short_description,
+        anomaly_info_description,
     ])
   if anomalies.HasField('dataset_anomaly_info'):
+    if not anomalies.dataset_anomaly_info.short_description:
+      dataset_anomaly_info_short_description = ('; ').join(
+          [r.short_description for r in anomalies.dataset_anomaly_info.reason]
+      )
+    else:
+      dataset_anomaly_info_short_description = (
+          anomalies.dataset_anomaly_info.short_description
+      )
+    if not anomalies.dataset_anomaly_info.description:
+      dataset_anomaly_info_description = ('; ').join(
+          [r.description for r in anomalies.dataset_anomaly_info.reason]
+      )
+    else:
+      dataset_anomaly_info_description = (
+          anomalies.dataset_anomaly_info.description
+      )
     anomaly_rows.append([
         '[dataset anomaly]',
-        anomalies.dataset_anomaly_info.short_description,
-        anomalies.dataset_anomaly_info.description,
+        dataset_anomaly_info_short_description,
+        dataset_anomaly_info_description,
     ])
 
   # Construct a DataFrame consisting of the anomalies.
