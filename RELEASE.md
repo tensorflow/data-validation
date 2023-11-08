@@ -6,9 +6,6 @@
 
 ## Bug Fixes and Other Changes
 
-*   Bump the macOS version on which TFDV is tested to Ventura (previously was
-    Monterey).
-
 ## Known Issues
 
 ## Breaking Changes
@@ -25,7 +22,7 @@
 
 ## Bug Fixes and Other Changes
 
-*   Bumped the Ubuntu version on which TFDV is tested to 20.04 (previously
+*   Bumped the Ubuntu version on which TFX-BSL is tested to 20.04 (previously
     was 16.04).
 *   Use @platforms instead of @bazel_tools//platforms to specify constraints in
     OSS build.
@@ -540,7 +537,7 @@
 
 *   Fixed bug in `display_schema` that caused domains not to be displayed.
 *   Modified how `get_schema_dataframe` outputs numeric domains.
-*   Anomalies previously (un)classified as UNKNOWN_TYPE now trigger more specific
+*   Anomalies previously (un)classified as UKNOWN_TYPE now trigger more specific
     anomaly types: INVALID_DOMAIN_SPECIFICATION and MULTIPLE_REASONS.
 *   Depends on `tensorflow-metadata>=0.30,<0.31`.
 *   Depends on `tfx-bsl>=0.30,<0.31`.
