@@ -201,7 +201,7 @@ def _apply_numerical_encoding_to_feature_array(
       result[i] = np.bincount(
           np.digitize(result[i], histogram_bin_boundaries) - 1,
           minlength=encoding_length).tolist()
-  return result
+  return result  # pytype: disable=bad-return-type
 
 
 def _encode_multivalent_numeric_feature(
