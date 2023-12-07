@@ -5,7 +5,9 @@
 ## Major Features and Improvements
 
 ## Bug Fixes and Other Changes
-* Bumps the pybind11 version to 2.11.1
+
+*   Bumps the pybind11 version to 2.11.1
+*   Depends on `tensorflow>=2.15.0,<3`.
 
 ## Known Issues
 
