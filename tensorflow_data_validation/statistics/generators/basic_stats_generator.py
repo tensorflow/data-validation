@@ -305,6 +305,7 @@ class _PartialNumericStats(object):
     assert self.has_weights == other.has_weights
     if self.has_weights:
       self.weighted_quantiles_summary.Merge(other.weighted_quantiles_summary)
+      assert self.weighted_mean_var_accumulator is not None
       self.weighted_mean_var_accumulator.merge(
           other.weighted_mean_var_accumulator)
     return self
@@ -357,6 +358,7 @@ class _PartialNumericStats(object):
     if weights is not None:
       flat_weights = weights[value_parent_indices]
       flat_weights_no_nan = flat_weights[non_nan_mask]
+      assert self.weighted_mean_var_accumulator is not None
       self.weighted_mean_var_accumulator.update(values_no_nan_as_double,
                                                 flat_weights_no_nan)
       self.weighted_quantiles_summary.AddValues(

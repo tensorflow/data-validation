@@ -176,6 +176,7 @@ class TfImageDecoder(ImageDecoderInterface):
     """
     if not self._lazy_get_sizes_callable:
       self._initialize_lazy_get_sizes_callable()
+    assert self._lazy_get_sizes_callable is not None
     return self._lazy_get_sizes_callable(values)
 
 
