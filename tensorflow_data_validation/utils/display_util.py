@@ -466,6 +466,12 @@ def get_statistics_html(
       allowlist_features,
       denylist_features,
   )
+  if (
+      len(combined_statistics.datasets) == 1
+      and combined_statistics.datasets[0].num_examples == 0
+  ):
+    return '<p>Empty dataset.</p>'
+
   protostr = base64.b64encode(combined_statistics.SerializeToString()).decode(
       'utf-8'
   )

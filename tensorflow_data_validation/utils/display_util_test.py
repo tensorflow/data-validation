@@ -316,6 +316,15 @@ class DisplayUtilTest(parameterized.TestCase):
 
     self.assertEqual(display_html, expected_output)
 
+  def test_get_statistics_html_with_empty_dataset(self):
+    expected_output = '<p>Empty dataset.</p>'
+    statistics = text_format.Parse(
+        'datasets { num_examples: 0 }',
+        statistics_pb2.DatasetFeatureStatisticsList(),
+    )
+    display_html = display_util.get_statistics_html(statistics)
+    self.assertEqual(display_html, expected_output)
+
   def test_visualize_statistics_invalid_allowlist_denylist(self):
     statistics = text_format.Parse(
         """

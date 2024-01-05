@@ -6,6 +6,8 @@
 
 ## Bug Fixes and Other Changes
 
+*   Modifies get_statistics_html() utility function to return a value indicating
+    a dataset has no examples.
 *   Bumps the pybind11 version to 2.11.1
 *   Depends on `tensorflow>=2.15.0,<3`.
 
