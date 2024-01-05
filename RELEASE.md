@@ -8,6 +8,8 @@
 
 *   Modifies get_statistics_html() utility function to return a value indicating
     a dataset has no examples.
+*   Add a `macos_arm64` config setting to the TFDV build file. NOTE: At this
+    time, any M1 support for TFDV is experimental and untested.
 *   Bumps the pybind11 version to 2.11.1
 *   Depends on `tensorflow>=2.15.0,<3`.
 

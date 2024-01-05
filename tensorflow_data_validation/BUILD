@@ -29,7 +29,7 @@ selects.config_setting_group(
     name = "macos",
     match_any = [
         ":macos_x86_64",
-        ":macos_arm64"
+        ":macos_arm64",
     ],
 )
 
