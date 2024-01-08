@@ -6,6 +6,7 @@
 
 ## Bug Fixes and Other Changes
 
+*   Update the minimum Bazel version required to build TFDV to 6.1.0.
 *   Modifies get_statistics_html() utility function to return a value indicating
     a dataset has no examples.
 *   Add a `macos_arm64` config setting to the TFDV build file. NOTE: At this
