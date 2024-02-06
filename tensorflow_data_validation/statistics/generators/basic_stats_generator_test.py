@@ -186,6 +186,201 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     generator = generator._copy_for_partition_index(0, 2)
     self.assertCombinerOutputEqual(batches, generator, expected_result)
 
+  def test_with_feature_config(self):
+    config = types.PerFeatureStatsConfig(
+        [types.FeaturePath(['a']), types.FeaturePath(['b'])],
+        types.PerFeatureStatsConfig.INCLUDE,
+    )
+    b1 = pa.RecordBatch.from_arrays(
+        [
+            pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]]),
+            pa.array([['abc'], ['xyz']]),
+            pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]]),
+            pa.array([['abc'], ['xyz']]),
+        ],
+        ['a', 'b', 'c', 'd'],
+    )
+    batches = [b1]
+    expected_result = {
+        types.FeaturePath(['a']): text_format.Parse(
+            """
+            type: FLOAT
+            num_stats {
+              common_stats {
+                num_non_missing: 2
+                min_num_values: 2
+                max_num_values: 3
+                avg_num_values: 2.5
+                num_values_histogram {
+                  buckets {
+                    low_value: 2.0
+                    high_value: 2.0
+                    sample_count: 1.0
+                  }
+                  buckets {
+                    low_value: 2.0
+                    high_value: 3.0
+                    sample_count: 0.3333333333333333
+                  }
+                  buckets {
+                    low_value: 3.0
+                    high_value: 3.0
+                    sample_count: 0.3333333333333333
+                  }
+                  buckets {
+                    low_value: 3.0
+                    high_value: 3.0
+                    sample_count: 0.3333333333333333
+                  }
+                  type: QUANTILES
+                }
+                tot_num_values: 5
+              }
+              mean: 3.0
+              std_dev: 1.4142135623730951
+              min: 1.0
+              median: 3.0
+              max: 5.0
+              histograms {
+                buckets {
+                  low_value: 1.0
+                  high_value: 2.333333333333333
+                  sample_count: 2.004166666666662
+                }
+                buckets {
+                  low_value: 2.333333333333333
+                  high_value: 3.6666666666666665
+                  sample_count: 1.0041666666666653
+                }
+                buckets {
+                  low_value: 3.6666666666666665
+                  high_value: 5.0
+                  sample_count: 1.9916666666666696
+                }
+              }
+              histograms {
+                buckets {
+                  low_value: 1.0
+                  high_value: 2.0
+                  sample_count: 2.0
+                }
+                buckets {
+                  low_value: 2.0
+                  high_value: 3.0
+                  sample_count: 1.0
+                }
+                buckets {
+                  low_value: 3.0
+                  high_value: 4.0
+                  sample_count: 1.0
+                }
+                buckets {
+                  low_value: 4.0
+                  high_value: 5.0
+                  sample_count: 1.0
+                }
+                type: QUANTILES
+              }
+            }
+            path {
+              step: "a"
+            }
+            """,
+            statistics_pb2.FeatureNameStatistics(),
+        ),
+        types.FeaturePath(['b']): text_format.Parse(
+            """
+            type: STRING
+            string_stats {
+              common_stats {
+                num_non_missing: 2
+                min_num_values: 1
+                max_num_values: 1
+                avg_num_values: 1.0
+                num_values_histogram {
+                  buckets {
+                    low_value: 1.0
+                    high_value: 1.0
+                    sample_count: 0.5
+                  }
+                  buckets {
+                    low_value: 1.0
+                    high_value: 1.0
+                    sample_count: 0.5
+                  }
+                  buckets {
+                    low_value: 1.0
+                    high_value: 1.0
+                    sample_count: 0.5
+                  }
+                  buckets {
+                    low_value: 1.0
+                    high_value: 1.0
+                    sample_count: 0.5
+                  }
+                  type: QUANTILES
+                }
+                tot_num_values: 2
+              }
+              avg_length: 3.0
+            }
+            path {
+              step: "b"
+            }
+            """,
+            statistics_pb2.FeatureNameStatistics(),
+        ),
+        types.FeaturePath(['c']): text_format.Parse(
+            """
+            type: FLOAT
+            num_stats {
+              common_stats {
+                num_non_missing: 2
+                min_num_values: 2
+                max_num_values: 3
+                avg_num_values: 2.5
+                tot_num_values: 5
+              }
+              mean: 3.0
+              std_dev: 1.4142135623730951
+              min: 1.0
+              median: nan
+              max: 5.0
+            }
+            path {
+              step: "c"
+            }
+            """,
+            statistics_pb2.FeatureNameStatistics(),
+        ),
+        types.FeaturePath(['d']): text_format.Parse(
+            """
+            type: STRING
+            string_stats {
+              common_stats {
+                num_non_missing: 2
+                min_num_values: 1
+                max_num_values: 1
+                avg_num_values: 1.0
+                tot_num_values: 2
+              }
+              avg_length: 3.0
+            }
+            path {
+              step: "d"
+            }
+            """,
+            statistics_pb2.FeatureNameStatistics(),
+        ),
+    }
+    generator = basic_stats_generator.BasicStatsGenerator(
+        num_values_histogram_buckets=4,
+        num_histogram_buckets=3,
+        num_quantiles_histogram_buckets=4,
+        feature_config=config,
+    )
+    self.assertCombinerOutputEqual(batches, generator, expected_result)
+
   def test_two_feature_partitions_with_weights(self):
     # Note: default partitioner assigns a->1, b->0
     b1 = pa.RecordBatch.from_arrays(

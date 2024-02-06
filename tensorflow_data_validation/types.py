@@ -58,6 +58,40 @@ LegacyExample = Dict[FeatureName, Optional[np.ndarray]]
 _ARROW_CODER_IPC_OPTIONS = pa.ipc.IpcWriteOptions(use_threads=False)
 
 
+class PerFeatureStatsConfig:
+  """Supports enabling / disabling stats per-feature. Experimental.
+  
+  NOTE: disabling histograms *also* disables median calculation for numeric
+  features.
+  """
+
+  INCLUDE = "include"
+  EXCLUDE = "exclude"
+  histogram_paths: list[FeaturePath]
+  histogram_mode: str
+
+  def __init__(
+      self,
+      histogram_paths: list[FeaturePath],
+      histogram_mode: str,
+  ):
+    self._histogram_paths = set(histogram_paths)
+    self._histogram_mode = histogram_mode
+
+  @classmethod
+  def default(cls):
+    return cls([], PerFeatureStatsConfig.EXCLUDE)
+
+  def should_compute_histograms(self, p: FeaturePath) -> bool:
+    if self._histogram_mode == self.INCLUDE:
+      return p in self._histogram_paths
+    elif self._histogram_mode == self.EXCLUDE:
+      return p not in self._histogram_paths
+    raise ValueError(
+        f"Unknown quantiles histogram mode: {self._histogram_mode}"
+    )
+
+
 # TODO(b/190756453): Make this into the upstream
 # (preference: Arrow, Beam, tfx_bsl).
 class _ArrowRecordBatchCoder(beam.coders.Coder):

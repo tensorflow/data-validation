@@ -89,9 +89,12 @@ class _PresenceAndValencyStats(object):
       'weighted_total_num_values', 'weighted_num_non_missing',
       'num_values_summary']
 
-  def __init__(self,
-               make_quantiles_sketch_fn: Callable[[],
-                                                  sketches.QuantilesSketch]):
+  def __init__(
+      self,
+      make_quantiles_sketch_fn: Callable[
+          [], Optional[sketches.QuantilesSketch]
+      ],
+  ):
     # The number of examples with at least one value for this feature.
     self.num_non_missing = 0
     # The minimum number of values in a single example for this feature.
@@ -114,7 +117,8 @@ class _PresenceAndValencyStats(object):
     self.total_num_values += other.total_num_values
     self.weighted_num_non_missing += other.weighted_num_non_missing
     self.weighted_total_num_values += other.weighted_total_num_values
-    self.num_values_summary.Merge(other.num_values_summary)
+    if self.num_values_summary is not None:
+      self.num_values_summary.Merge(other.num_values_summary)
 
   def update(self, feature_array: pa.Array, presence_mask: np.ndarray,
              num_values: np.ndarray, num_values_not_none: np.ndarray,
@@ -131,8 +135,10 @@ class _PresenceAndValencyStats(object):
     # reduce the cost in AddValues().
     num_values_grouped = pa.array(num_values_not_none).value_counts()
 
-    self.num_values_summary.AddValues(num_values_grouped.field(0),
-                                      num_values_grouped.field(1))
+    if self.num_values_summary is not None:
+      self.num_values_summary.AddValues(
+          num_values_grouped.field(0), num_values_grouped.field(1)
+      )
 
     if weights is not None:
       if weights.size != num_values.size:
@@ -195,12 +201,16 @@ class _PartialCommonStats(object):
     if self.type is None:
       self.type = other.type
 
-  def update(self,
-             feature_path: types.FeaturePath,
-             feature_array: pa.Array,
-             feature_type: types.FeatureNameStatisticsType,
-             make_quantiles_sketch_fn: Callable[[], sketches.QuantilesSketch],
-             weights: Optional[np.ndarray] = None) -> None:
+  def update(
+      self,
+      feature_path: types.FeaturePath,
+      feature_array: pa.Array,
+      feature_type: types.FeatureNameStatisticsType,
+      make_quantiles_sketch_fn: Callable[
+          [], Optional[sketches.QuantilesSketch]
+      ],
+      weights: Optional[np.ndarray] = None,
+  ) -> None:
     """Update the partial common statistics using the input value."""
     if self.type is None:
       self.type = feature_type  # pytype: disable=annotation-type-mismatch
@@ -254,8 +264,12 @@ class _PartialNumericStats(object):
   ]
 
   def __init__(
-      self, has_weights: bool,
-      make_quantiles_sketch_fn: Callable[[], sketches.QuantilesSketch]):
+      self,
+      has_weights: bool,
+      make_quantiles_sketch_fn: Callable[
+          [], Optional[sketches.QuantilesSketch]
+      ],
+  ):
     # The number of values for this feature that equal 0.
     self.num_zeros = 0
     # The number of NaN values for this feature. This is computed only for
@@ -300,11 +314,13 @@ class _PartialNumericStats(object):
     self.finite_max = max(self.finite_max, other.finite_max)
     self.pos_inf_count += other.pos_inf_count
     self.pos_inf_weighted_count += other.pos_inf_weighted_count
-    self.quantiles_summary.Merge(other.quantiles_summary)
+    if self.quantiles_summary is not None:
+      self.quantiles_summary.Merge(other.quantiles_summary)
     self.mean_var_accumulator.merge(other.mean_var_accumulator)
     assert self.has_weights == other.has_weights
     if self.has_weights:
-      self.weighted_quantiles_summary.Merge(other.weighted_quantiles_summary)
+      if self.weighted_quantiles_summary is not None:
+        self.weighted_quantiles_summary.Merge(other.weighted_quantiles_summary)
       assert self.weighted_mean_var_accumulator is not None
       self.weighted_mean_var_accumulator.merge(
           other.weighted_mean_var_accumulator)
@@ -354,16 +370,18 @@ class _PartialNumericStats(object):
       self.finite_max = max(self.finite_max, curr_max)
     self.pos_inf_count += np.isposinf(values_no_nan).sum()
     self.num_zeros += values_no_nan.size - np.count_nonzero(values_no_nan)
-    self.quantiles_summary.AddValues(pa.array(values_no_nan))
+    if self.quantiles_summary is not None:
+      self.quantiles_summary.AddValues(pa.array(values_no_nan))
     if weights is not None:
       flat_weights = weights[value_parent_indices]
       flat_weights_no_nan = flat_weights[non_nan_mask]
       assert self.weighted_mean_var_accumulator is not None
       self.weighted_mean_var_accumulator.update(values_no_nan_as_double,
                                                 flat_weights_no_nan)
-      self.weighted_quantiles_summary.AddValues(
-          pa.array(values_no_nan),
-          pa.array(flat_weights_no_nan))
+      if self.weighted_quantiles_summary is not None:
+        self.weighted_quantiles_summary.AddValues(
+            pa.array(values_no_nan), pa.array(flat_weights_no_nan)
+        )
       self.pos_inf_weighted_count += flat_weights_no_nan[np.isposinf(
           values_no_nan)].sum()
 
@@ -452,8 +470,12 @@ class _PartialBasicStats(object):
   __slots__ = ['common_stats', 'numeric_stats', 'string_stats', 'bytes_stats']
 
   def __init__(
-      self, has_weights: bool,
-      make_quantiles_sketch_fn: Callable[[], sketches.QuantilesSketch]):
+      self,
+      has_weights: bool,
+      make_quantiles_sketch_fn: Callable[
+          [], Optional[sketches.QuantilesSketch]
+      ],
+  ):
     self.common_stats = _PartialCommonStats(has_weights=has_weights)
     self.numeric_stats = _PartialNumericStats(
         has_weights=has_weights,
@@ -651,35 +673,42 @@ def _make_numeric_stats_proto(
   result.max = float(numeric_stats.max)
 
   # Extract the quantiles from the summary.
-  assert numeric_stats.quantiles_summary is not None
-  # Construct the equi-width histogram from the quantiles and add it to the
-  # numeric stats proto.
-  quantiles, counts = _get_quantiles_counts(
-      numeric_stats.quantiles_summary,
-      _NUM_QUANTILES_FACTOR_FOR_STD_HISTOGRAM * num_quantiles_histogram_buckets)
+  if numeric_stats.quantiles_summary is not None:
+    # Construct the equi-width histogram from the quantiles and add it to the
+    # numeric stats proto.
+    quantiles, counts = _get_quantiles_counts(
+        numeric_stats.quantiles_summary,
+        _NUM_QUANTILES_FACTOR_FOR_STD_HISTOGRAM
+        * num_quantiles_histogram_buckets,
+    )
 
-  # Find the median from the quantiles and update the numeric stats proto.
-  result.median = float(quantiles_util.find_median(quantiles))
+    # Find the median from the quantiles and update the numeric stats proto.
+    result.median = float(quantiles_util.find_median(quantiles))
 
-  std_histogram = quantiles_util.generate_equi_width_histogram(
-      quantiles=quantiles,
-      cumulative_counts=counts,
-      finite_min=numeric_stats.finite_min,
-      finite_max=numeric_stats.finite_max,
-      num_buckets=num_histogram_buckets,
-      num_pos_inf=numeric_stats.pos_inf_count)
-  std_histogram.num_nan = numeric_stats.num_nan
-  new_std_histogram = result.histograms.add()
-  new_std_histogram.CopyFrom(std_histogram)
+    std_histogram = quantiles_util.generate_equi_width_histogram(
+        quantiles=quantiles,
+        cumulative_counts=counts,
+        finite_min=numeric_stats.finite_min,
+        finite_max=numeric_stats.finite_max,
+        num_buckets=num_histogram_buckets,
+        num_pos_inf=numeric_stats.pos_inf_count,
+    )
+    std_histogram.num_nan = numeric_stats.num_nan
+    new_std_histogram = result.histograms.add()
+    new_std_histogram.CopyFrom(std_histogram)
 
-  # Construct the quantiles histogram from the quantiles and add it to the
-  # numeric stats proto.
-  q_histogram = quantiles_util.generate_quantiles_histogram(
-      *quantiles_util.rebin_quantiles(quantiles, counts,
-                                      _NUM_QUANTILES_FACTOR_FOR_STD_HISTOGRAM))
-  q_histogram.num_nan = numeric_stats.num_nan
-  new_q_histogram = result.histograms.add()
-  new_q_histogram.CopyFrom(q_histogram)
+    # Construct the quantiles histogram from the quantiles and add it to the
+    # numeric stats proto.
+    q_histogram = quantiles_util.generate_quantiles_histogram(
+        *quantiles_util.rebin_quantiles(
+            quantiles, counts, _NUM_QUANTILES_FACTOR_FOR_STD_HISTOGRAM
+        )
+    )
+    q_histogram.num_nan = numeric_stats.num_nan
+    new_q_histogram = result.histograms.add()
+    new_q_histogram.CopyFrom(q_histogram)
+  else:
+    result.median = np.nan
 
   # Add weighted numeric stats to the proto.
   if has_weights:
@@ -692,38 +721,44 @@ def _make_numeric_stats_proto(
     weighted_numeric_stats_proto.std_dev = math.sqrt(weighted_variance)
 
     # Extract the weighted quantiles from the summary.
-    assert numeric_stats.weighted_quantiles_summary is not None
+    if numeric_stats.weighted_quantiles_summary is not None:
 
-    weighted_quantiles, weighted_counts = _get_quantiles_counts(
-        numeric_stats.weighted_quantiles_summary,
-        _NUM_QUANTILES_FACTOR_FOR_STD_HISTOGRAM *
-        num_quantiles_histogram_buckets)
+      weighted_quantiles, weighted_counts = _get_quantiles_counts(
+          numeric_stats.weighted_quantiles_summary,
+          _NUM_QUANTILES_FACTOR_FOR_STD_HISTOGRAM
+          * num_quantiles_histogram_buckets,
+      )
 
-    # Find the weighted median from the quantiles and update the proto.
-    weighted_numeric_stats_proto.median = float(
-        quantiles_util.find_median(weighted_quantiles))
+      # Find the weighted median from the quantiles and update the proto.
+      weighted_numeric_stats_proto.median = float(
+          quantiles_util.find_median(weighted_quantiles)
+      )
 
-    # Construct the weighted equi-width histogram from the quantiles and
-    # add it to the numeric stats proto.
-    weighted_std_histogram = quantiles_util.generate_equi_width_histogram(
-        quantiles=weighted_quantiles,
-        cumulative_counts=weighted_counts,
-        finite_min=numeric_stats.finite_min,
-        finite_max=numeric_stats.finite_max,
-        num_buckets=num_histogram_buckets,
-        num_pos_inf=numeric_stats.pos_inf_weighted_count)
-    weighted_std_histogram.num_nan = numeric_stats.num_nan
-    weighted_numeric_stats_proto.histograms.extend([weighted_std_histogram])
+      # Construct the weighted equi-width histogram from the quantiles and
+      # add it to the numeric stats proto.
+      weighted_std_histogram = quantiles_util.generate_equi_width_histogram(
+          quantiles=weighted_quantiles,
+          cumulative_counts=weighted_counts,
+          finite_min=numeric_stats.finite_min,
+          finite_max=numeric_stats.finite_max,
+          num_buckets=num_histogram_buckets,
+          num_pos_inf=numeric_stats.pos_inf_weighted_count,
+      )
+      weighted_std_histogram.num_nan = numeric_stats.num_nan
+      weighted_numeric_stats_proto.histograms.extend([weighted_std_histogram])
 
-    # Construct the weighted quantiles histogram from the quantiles and
-    # add it to the numeric stats proto.
+      # Construct the weighted quantiles histogram from the quantiles and
+      # add it to the numeric stats proto.
 
-    weighted_q_histogram = quantiles_util.generate_quantiles_histogram(
-        *quantiles_util.rebin_quantiles(
-            weighted_quantiles, weighted_counts,
-            _NUM_QUANTILES_FACTOR_FOR_STD_HISTOGRAM))
-    weighted_q_histogram.num_nan = numeric_stats.num_nan
-    weighted_numeric_stats_proto.histograms.extend([weighted_q_histogram])
+      weighted_q_histogram = quantiles_util.generate_quantiles_histogram(
+          *quantiles_util.rebin_quantiles(
+              weighted_quantiles,
+              weighted_counts,
+              _NUM_QUANTILES_FACTOR_FOR_STD_HISTOGRAM,
+          )
+      )
+      weighted_q_histogram.num_nan = numeric_stats.num_nan
+      weighted_numeric_stats_proto.histograms.extend([weighted_q_histogram])
 
     result.weighted_numeric_stats.CopyFrom(
         weighted_numeric_stats_proto)
@@ -783,7 +818,8 @@ def _make_num_values_custom_stats_proto(
   # The top level histogram is included in CommonStats -- skip.
   for level, presence_and_valency in zip(
       itertools.count(2), presence_and_valency_stats[1:]):
-
+    if presence_and_valency.num_values_summary is None:
+      continue
     num_values_quantiles, num_values_counts = (
         _get_quantiles_counts(presence_and_valency.num_values_summary,
                               num_histogram_buckets))
@@ -1023,26 +1059,30 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
       num_values_histogram_buckets: Optional[int] = 10,
       num_histogram_buckets: Optional[int] = 10,
       num_quantiles_histogram_buckets: Optional[int] = 10,
-      epsilon: Optional[float] = 0.01) -> None:
+      epsilon: Optional[float] = 0.01,
+      feature_config: Optional[types.PerFeatureStatsConfig] = None,
+  ) -> None:
     """Initializes basic statistics generator.
 
     Args:
       name: An optional unique name associated with the statistics generator.
       schema: An optional schema for the dataset.
       example_weight_map: an ExampleWeightMap that maps a FeaturePath to its
-          corresponding weight column.
+        corresponding weight column.
       num_values_histogram_buckets: An optional number of buckets in a quantiles
-          histogram for the number of values per Feature, which is stored in
-          CommonStatistics.num_values_histogram.
+        histogram for the number of values per Feature, which is stored in
+        CommonStatistics.num_values_histogram.
       num_histogram_buckets: An optional number of buckets in a standard
-          NumericStatistics.histogram with equal-width buckets.
+        NumericStatistics.histogram with equal-width buckets.
       num_quantiles_histogram_buckets: An optional number of buckets in a
-          quantiles NumericStatistics.histogram.
+        quantiles NumericStatistics.histogram.
       epsilon: An optional error tolerance for the computation of quantiles,
-          typically a small fraction close to zero (e.g. 0.01). Higher values
-          of epsilon increase the quantile approximation, and hence result in
-          more unequal buckets, but could improve performance, and resource
-          consumption.
+        typically a small fraction close to zero (e.g. 0.01). Higher values of
+        epsilon increase the quantile approximation, and hence result in more
+        unequal buckets, but could improve performance, and resource
+        consumption.
+      feature_config: Provides granular control of what stats are computed per-
+        feature. Experimental.
     """
     super(BasicStatsGenerator, self).__init__(name, schema)
 
@@ -1063,6 +1103,9 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
     # Local state to support feature partitioning.
     self._partition_index = -1
     self._column_hasher = None
+    self._feature_config = (
+        feature_config or types.PerFeatureStatsConfig.default()
+    )
 
   def _copy_for_partition_index(
       self, index: int, num_partitions: int) -> stats_generator.StatsGenerator:
@@ -1108,18 +1151,25 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
         example_weight_map=self._example_weight_map,
         enumerate_leaves_only=False,
         column_select_fn=self._column_select_fn()):
+      if not self._feature_config.should_compute_histograms(feature_path):
+        quantiles_sketch_fn = lambda: None
+      else:
+        quantiles_sketch_fn = self._make_quantiles_sketch_fn
       stats_for_feature = accumulator.get(feature_path)
       if stats_for_feature is None:
         stats_for_feature = _PartialBasicStats(
-            weights is not None, self._make_quantiles_sketch_fn)
+            weights is not None, quantiles_sketch_fn
+        )
         accumulator[feature_path] = stats_for_feature
-
       feature_type = stats_util.get_feature_type_from_arrow_type(
           feature_path, feature_array.type)
-      stats_for_feature.common_stats.update(feature_path,
-                                            feature_array, feature_type,
-                                            self._make_quantiles_sketch_fn,
-                                            weights)
+      stats_for_feature.common_stats.update(
+          feature_path,
+          feature_array,
+          feature_type,
+          quantiles_sketch_fn,
+          weights,
+      )
       # The user may make certain claims about a feature's data type
       # (e.g. _bytes_features imply string data type). However we should not
       # trust those claims because TFDV is also responsible for detecting
@@ -1185,12 +1235,17 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
 
   def compact(self, accumulator: _BasicAcctype) -> _BasicAcctype:
     for stats in accumulator.values():
-      stats.numeric_stats.quantiles_summary.Compact()
-      if stats.numeric_stats.has_weights:
+      if stats.numeric_stats.quantiles_summary is not None:
+        stats.numeric_stats.quantiles_summary.Compact()
+      if (
+          stats.numeric_stats.has_weights
+          and stats.numeric_stats.weighted_quantiles_summary is not None
+      ):
         stats.numeric_stats.weighted_quantiles_summary.Compact()
       if stats.common_stats.presence_and_valency_stats is not None:
         for p_and_v_stat in stats.common_stats.presence_and_valency_stats:
-          p_and_v_stat.num_values_summary.Compact()
+          if p_and_v_stat.num_values_summary is not None:
+            p_and_v_stat.num_values_summary.Compact()
     return accumulator
 
   # Return final stats as a DatasetFeatureStatistics proto.

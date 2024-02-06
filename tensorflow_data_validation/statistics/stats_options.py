@@ -72,13 +72,15 @@ class StatsOptions(object):
       desired_batch_size: Optional[int] = None,
       enable_semantic_domain_stats: bool = False,
       semantic_domain_stats_sample_rate: Optional[float] = None,
-      per_feature_weight_override: Optional[Dict[types.FeaturePath,
-                                                 types.FeatureName]] = None,
+      per_feature_weight_override: Optional[
+          Dict[types.FeaturePath, types.FeatureName]
+      ] = None,
       vocab_paths: Optional[Dict[types.VocabName, types.VocabPath]] = None,
       add_default_generators: bool = True,
       # TODO(b/255895499): Support "from schema" for feature_allowlist.
-      feature_allowlist: Optional[Union[List[types.FeatureName],
-                                        List[types.FeaturePath]]] = None,
+      feature_allowlist: Optional[
+          Union[List[types.FeatureName], List[types.FeaturePath]]
+      ] = None,
       experimental_use_sketch_based_topk_uniques: Optional[bool] = None,
       use_sketch_based_topk_uniques: Optional[bool] = None,
       experimental_slice_functions: Optional[List[types.SliceFunction]] = None,
@@ -86,7 +88,9 @@ class StatsOptions(object):
       experimental_result_partitions: int = 1,
       experimental_num_feature_partitions: int = 1,
       slicing_config: Optional[slicing_spec_pb2.SlicingConfig] = None,
-      experimental_filter_read_paths: bool = False):
+      experimental_filter_read_paths: bool = False,
+      per_feature_stats_config: Optional[types.PerFeatureStatsConfig] = None,
+  ):
     """Initializes statistics options.
 
     Args:
@@ -157,8 +161,8 @@ class StatsOptions(object):
         statistics for, or a list of paths.
       experimental_use_sketch_based_topk_uniques: Deprecated, prefer
         use_sketch_based_topk_uniques.
-      use_sketch_based_topk_uniques: if True, use the sketch based
-        top-k and uniques stats generator.
+      use_sketch_based_topk_uniques: if True, use the sketch based top-k and
+        uniques stats generator.
       experimental_slice_functions: An optional list of functions that generate
         slice keys for each example. Each slice function should take
         pyarrow.RecordBatch as input and return an Iterable[Tuple[Text,
@@ -168,24 +172,21 @@ class StatsOptions(object):
         specified.
       experimental_slice_sqls: List of slicing SQL queries. The query must have
         the following pattern: "SELECT STRUCT({feature_name} [AS {slice_key}])
-          [FROM example.feature_name [, example.feature_name, ... ] [WHERE ...
-          ]]" The “example.feature_name” inside the FROM statement is used to
-          flatten the repeated fields. For non-repeated fields, you can directly
-          write the
+        [FROM example.feature_name [, example.feature_name, ... ] [WHERE ... ]]"
+        The “example.feature_name” inside the FROM statement is used to flatten
+        the repeated fields. For non-repeated fields, you can directly write the
         query as follows: “SELECT STRUCT(non_repeated_feature_a,
-          non_repeated_feature_b)” In the query, the “example” is a key word
-          that binds to each input "row". The semantics of this variable will
-          depend on the decoding of the input data to the Arrow representation
-          (e.g., for tf.Example, each key is decoded to a separate column).
-          Thus, structured data can be readily accessed by iterating/unnesting
-          the fields of the "example" variable.
-        Example 1: Slice on each value of a feature "SELECT STRUCT(gender) FROM
-          example.gender"
-        Example 2: Slice on each value of one feature and a specified value of
-          another. "SELECT STRUCT(gender, country) FROM example.gender,
-          example.country WHERE country = 'USA'" Only one of
-          experimental_slice_functions or experimental_slice_sqls must be
-          specified. Note that this option is not supported on Windows.
+        non_repeated_feature_b)” In the query, the “example” is a key word that
+        binds to each input "row". The semantics of this variable will depend on
+        the decoding of the input data to the Arrow representation (e.g., for
+        tf.Example, each key is decoded to a separate column). Thus, structured
+        data can be readily accessed by iterating/unnesting the fields of the
+        "example" variable. Example 1: Slice on each value of a feature "SELECT
+        STRUCT(gender) FROM example.gender" Example 2: Slice on each value of
+        one feature and a specified value of another. "SELECT STRUCT(gender,
+        country) FROM example.gender, example.country WHERE country = 'USA'"
+        Only one of experimental_slice_functions or experimental_slice_sqls must
+        be specified. Note that this option is not supported on Windows.
       experimental_result_partitions: The number of feature partitions to
         combine output DatasetFeatureStatisticsLists into. If set to 1 (default)
         output is globally combined. If set to value greater than one, up to
@@ -196,11 +197,13 @@ class StatsOptions(object):
         number of features in a dataset, and never more than the available beam
         parallelism.
       slicing_config: an optional SlicingConfig. SlicingConfig includes
-        slicing_specs specified with feature keys, feature values or slicing
-        SQL queries.
+        slicing_specs specified with feature keys, feature values or slicing SQL
+        queries.
       experimental_filter_read_paths: If provided, tries to push down either
         paths passed via feature_allowlist or via the schema (in that priority)
         to the underlying read operation. Support depends on the file reader.
+      per_feature_stats_config: Supports granular control of what statistics are
+        enabled per feature. Experimental.
     """
     self.generators = generators
     self.feature_allowlist = feature_allowlist
@@ -251,6 +254,7 @@ class StatsOptions(object):
     self.experimental_result_partitions = experimental_result_partitions
     self.slicing_config = slicing_config
     self.experimental_filter_read_paths = experimental_filter_read_paths
+    self.per_feature_stats_config = per_feature_stats_config
 
   def __repr__(self):
     return '<{}>'.format(', '.join(
@@ -290,6 +294,10 @@ class StatsOptions(object):
       options_dict[_PER_FEATURE_WEIGHT_OVERRIDE_JSON_KEY] = {
           k.to_json(): v for k, v in self._per_feature_weight_override.items()
       }
+    if self._per_feature_stats_config is not None:
+      raise ValueError(
+          'StatsOptions cannot be converted with per_feature_stats_config.'
+      )
     return json.dumps(options_dict)
 
   @classmethod
@@ -590,6 +598,18 @@ class StatsOptions(object):
   @experimental_filter_read_paths.setter
   def experimental_filter_read_paths(self, filter_read: bool) -> None:
     self._experimental_filter_read_paths = filter_read
+
+  @property
+  def per_feature_stats_config(self) -> types.PerFeatureStatsConfig:
+    return (
+        self._per_feature_stats_config or types.PerFeatureStatsConfig.default()
+    )
+
+  @per_feature_stats_config.setter
+  def per_feature_stats_config(
+      self, features_config: types.PerFeatureStatsConfig
+  ) -> None:
+    self._per_feature_stats_config = features_config
 
 
 def _validate_sql(sql_query: Text, schema: schema_pb2.Schema):
