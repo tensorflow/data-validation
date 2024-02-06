@@ -28,6 +28,7 @@ import math
 import random
 
 from typing import Dict, Iterable, List, Optional, Text
+from absl import logging
 import numpy as np
 import pandas as pd
 from pandas import DataFrame, Series  # pylint: disable=g-multiple-import
@@ -166,11 +167,27 @@ class CrossFeatureStatsGenerator(stats_generator.CombinerStatsGenerator):
 
     # Generate crosses of numeric univalent features and update the partial
     # cross stats.
+    feature_crosses = itertools.combinations(
+        sorted(list(features_for_cross.keys())), 2
+    )
     if self._feature_crosses is not None:
-      feature_crosses = self._feature_crosses
-    else:
-      feature_crosses = itertools.combinations(
-          sorted(list(features_for_cross.keys())), 2)
+      # If the config includes a list of feature crosses to compute, limit the
+      # crosses generated to those in that list.
+      configured_crosses = set(self._feature_crosses)
+      valid_crosses = set(feature_crosses)
+      feature_crosses = configured_crosses.intersection(valid_crosses)
+
+      skipped_crosses = configured_crosses.difference(valid_crosses)
+      if skipped_crosses:
+        logging.warn(
+            'Skipping the following configured feature crosses: %s\n Feature'
+            ' crosses can be computed only for univalent numeric features. ',
+            ', '.join(
+                sorted([
+                    '_'.join([cross[0], cross[1]]) for cross in skipped_crosses
+                ])
+            ),
+        )
     for feat_name_x, feat_name_y in feature_crosses:
       feat_cross = (feat_name_x, feat_name_y)
       if feat_cross not in accumulator:

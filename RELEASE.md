@@ -6,6 +6,9 @@
 
 ## Bug Fixes and Other Changes
 
+*   When computing cross feature statistics, skip configured crosses that
+    include features of unsupported types (i.e., are not univalent numeric
+    features).
 *   Update the minimum Bazel version required to build TFDV to 6.1.0.
 *   Modifies get_statistics_html() utility function to return a value indicating
     a dataset has no examples.

@@ -118,6 +118,52 @@ class CrossFeatureStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             """, statistics_pb2.CrossFeatureStatistics())}
     self.assertCombinerOutputEqual(batches, generator, {}, expected_result)
 
+  def test_cross_feature_stats_generator_with_string_crosses_configured(
+      self,
+  ):
+    generator = cross_feature_stats_generator.CrossFeatureStatsGenerator(
+        feature_crosses=[('a', 'b')], sample_rate=1.0
+    )
+    b1 = pa.RecordBatch.from_arrays(
+        [
+            pa.array([['x'], ['y'], ['z']]),
+            pa.array([[2.0], [4.0], [6.0]]),
+        ],
+        ['a', 'b'],
+    )
+    b2 = pa.RecordBatch.from_arrays(
+        [
+            pa.array([['x'], ['y']]),
+            pa.array([[14.0], [16.0]]),
+        ],
+        ['a', 'b'],
+    )
+    batches = [b1, b2]
+    self.assertCombinerOutputEqual(batches, generator, {}, {})
+
+  def test_cross_feature_stats_generator_with_multivalent_crosses_configured(
+      self,
+  ):
+    generator = cross_feature_stats_generator.CrossFeatureStatsGenerator(
+        feature_crosses=[('a', 'b')], sample_rate=1.0
+    )
+    b1 = pa.RecordBatch.from_arrays(
+        [
+            pa.array([[1.0, 1.0], [2.5, 2.5], [3.0, 3.0]]),
+            pa.array([[2.0], [4.0], [6.0]]),
+        ],
+        ['a', 'b'],
+    )
+    b2 = pa.RecordBatch.from_arrays(
+        [
+            pa.array([[1.0, 1.0], [2.5, 2.5]]),
+            pa.array([[14.0], [16.0]]),
+        ],
+        ['a', 'b'],
+    )
+    batches = [b1, b2]
+    self.assertCombinerOutputEqual(batches, generator, {}, {})
+
   def test_cross_feature_stats_generator_multivalent_feature(self):
     generator = cross_feature_stats_generator.CrossFeatureStatsGenerator(
         sample_rate=1.0)
