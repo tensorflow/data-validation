@@ -74,8 +74,6 @@ class _BazelBuildCommand(setuptools.Command):
     self._additional_build_options = []
     if platform.system() == 'Darwin':
       self._additional_build_options = ['--macos_minimum_os=10.14']
-    elif platform.system() == 'Windows':
-      self._additional_build_options = ['--copt=-DWIN32_LEAN_AND_MEAN']
 
   def run(self):
     subprocess.check_call(
@@ -159,7 +157,6 @@ setup(
         'License :: OSI Approved :: Apache Software License',
         'Operating System :: MacOS :: MacOS X',
         'Operating System :: POSIX :: Linux',
-        'Operating System :: Microsoft :: Windows',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.9',

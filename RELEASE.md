@@ -24,6 +24,7 @@
 ## Deprecations
 
 *   Deprecated python 3.8 support.
+*   Deprecated Windows support.
 
 # Version 1.14.0
 
