@@ -204,8 +204,6 @@ void AddPointMasses(std::map<double, double> histogram_1_point,
 // boundaries. This function assumes a uniform distribution of values within a
 // given bucket in the original histogram.
 void AlignHistograms(Histogram& histogram_1, Histogram& histogram_2) {
-  // TODO(zwestrick): Figure out why structured bindings breaks windows kokoro
-  // tests herre.
   auto result1 =
       StripPointAndInfiniteBuckets(histogram_1);
   auto histogram_1_stripped = std::get<0>(result1);

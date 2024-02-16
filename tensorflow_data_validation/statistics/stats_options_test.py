@@ -17,9 +17,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import sys
 from typing import Optional
-import unittest
 from absl.testing import absltest
 from absl.testing import parameterized
 from tensorflow_data_validation import types
@@ -293,11 +291,6 @@ class StatsOptionsTest(parameterized.TestCase):
     with self.assertRaisesRegex(exception_type, error_message):
       stats_options.StatsOptions(**stats_options_kwargs)
 
-  # The SQL based slicing uses ZetaSQL which cannot be compiled on Windows.
-  # b/191377114
-  @unittest.skipIf(
-      sys.platform.startswith('win'),
-      'SQL based slicing is not supported on Windows.')
   def test_stats_options_invalid_slicing_sql_query(self):
     schema = schema_pb2.Schema(
         feature=[schema_pb2.Feature(name='feat1', type=schema_pb2.BYTES),

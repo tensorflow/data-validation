@@ -15,48 +15,22 @@
 
 # Moves the bazel generated files needed for packaging the wheel to the source
 # tree.
-
-function _is_windows() {
-  [[ "$(uname -s | tr 'A-Z' 'a-z')" =~ (cygwin|mingw32|mingw64|msys)_nt* ]]
-}
-
 function tfdv::move_generated_files() {
-  if _is_windows; then
-    # Newer bazel does not create bazel-genfiles any more (
-    # https://github.com/bazelbuild/bazel/issues/6761). It's merged with bazel-bin
-    GENFILES=bazel-genfiles
-    if [[ ! -d ${BUILD_WORKSPACE_DIRECTORY}/${GENFILES} ]]; then
-      GENFILES=bazel-bin
-    fi
-    PYWRAP_TFDV="tensorflow_data_validation/pywrap/tensorflow_data_validation_extension.pyd"
-    cp -f "${BUILD_WORKSPACE_DIRECTORY}/bazel-out/x64_windows-opt/bin/${PYWRAP_TFDV}" \
-      "${BUILD_WORKSPACE_DIRECTORY}/${PYWRAP_TFDV}"
+  PYWRAP_TFDV="tensorflow_data_validation/pywrap/tensorflow_data_validation_extension.so"
+  cp -f "${BUILD_WORKSPACE_DIRECTORY}/bazel-bin/${PYWRAP_TFDV}" \
+    "${BUILD_WORKSPACE_DIRECTORY}/${PYWRAP_TFDV}"
 
-    cp -f ${BUILD_WORKSPACE_DIRECTORY}/${GENFILES}/tensorflow_data_validation/skew/protos/feature_skew_results_pb2.py \
-      ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/skew/protos
-    cp -f ${BUILD_WORKSPACE_DIRECTORY}/${GENFILES}/tensorflow_data_validation/anomalies/proto/custom_validation_config_pb2.py \
-      ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/anomalies/proto
-    cp -f ${BUILD_WORKSPACE_DIRECTORY}/${GENFILES}/tensorflow_data_validation/anomalies/proto/validation_config_pb2.py \
-      ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/anomalies/proto
-    cp -f ${BUILD_WORKSPACE_DIRECTORY}/${GENFILES}/tensorflow_data_validation/anomalies/proto/validation_metadata_pb2.py \
-      ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/anomalies/proto
-  else
-    PYWRAP_TFDV="tensorflow_data_validation/pywrap/tensorflow_data_validation_extension.so"
-    cp -f "${BUILD_WORKSPACE_DIRECTORY}/bazel-bin/${PYWRAP_TFDV}" \
-      "${BUILD_WORKSPACE_DIRECTORY}/${PYWRAP_TFDV}"
-
-    # If run by "bazel run", $(pwd) is the .runfiles dir that contains all the
-    # data dependencies.
-    RUNFILES_DIR=$(pwd)
-    cp -f ${RUNFILES_DIR}/tensorflow_data_validation/skew/protos/feature_skew_results_pb2.py \
-      ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/skew/protos
-    cp -f ${RUNFILES_DIR}/tensorflow_data_validation/anomalies/proto/custom_validation_config_pb2.py \
-      ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/anomalies/proto
-    cp -f ${RUNFILES_DIR}/tensorflow_data_validation/anomalies/proto/validation_config_pb2.py \
-      ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/anomalies/proto
-    cp -f ${RUNFILES_DIR}/tensorflow_data_validation/anomalies/proto/validation_metadata_pb2.py \
-      ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/anomalies/proto
-  fi
+  # If run by "bazel run", $(pwd) is the .runfiles dir that contains all the
+  # data dependencies.
+  RUNFILES_DIR=$(pwd)
+  cp -f ${RUNFILES_DIR}/tensorflow_data_validation/skew/protos/feature_skew_results_pb2.py \
+    ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/skew/protos
+  cp -f ${RUNFILES_DIR}/tensorflow_data_validation/anomalies/proto/custom_validation_config_pb2.py \
+    ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/anomalies/proto
+  cp -f ${RUNFILES_DIR}/tensorflow_data_validation/anomalies/proto/validation_config_pb2.py \
+    ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/anomalies/proto
+  cp -f ${RUNFILES_DIR}/tensorflow_data_validation/anomalies/proto/validation_metadata_pb2.py \
+    ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/anomalies/proto
   chmod +w "${BUILD_WORKSPACE_DIRECTORY}/${PYWRAP_TFDV}"
 }
 

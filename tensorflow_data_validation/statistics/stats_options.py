@@ -186,7 +186,7 @@ class StatsOptions(object):
         one feature and a specified value of another. "SELECT STRUCT(gender,
         country) FROM example.gender, example.country WHERE country = 'USA'"
         Only one of experimental_slice_functions or experimental_slice_sqls must
-        be specified. Note that this option is not supported on Windows.
+        be specified.
       experimental_result_partitions: The number of feature partitions to
         combine output DatasetFeatureStatisticsLists into. If set to 1 (default)
         output is globally combined. If set to value greater than one, up to

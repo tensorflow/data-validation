@@ -59,7 +59,6 @@ def tfdv_pybind_extension(
             "-fno-strict-aliasing",
             "-fexceptions",
         ] + select({
-            "//tensorflow_data_validation:windows": [],
             "//conditions:default": [
                 "-fvisibility=hidden",
             ],
@@ -72,7 +71,6 @@ def tfdv_pybind_extension(
                 "-Wl,-w",
                 "-Wl,-exported_symbols_list,$(location %s)" % exported_symbols_file,
             ],
-            "//tensorflow_data_validation:windows": [],
             "//conditions:default": [
                 "-Wl,--version-script",
                 "$(location %s)" % version_script_file,
@@ -97,7 +95,6 @@ def tfdv_pybind_extension(
     native.py_library(
         name = name,
         data = select({
-            "//tensorflow_data_validation:windows": [pyd_file],
             "//conditions:default": [so_file],
         }),
         srcs_version = "PY3",

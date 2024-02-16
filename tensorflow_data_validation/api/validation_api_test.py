@@ -20,9 +20,7 @@ from __future__ import division
 from __future__ import print_function
 
 import os
-import sys
 import tempfile
-import unittest
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -2087,10 +2085,6 @@ class ValidationApiTest(ValidationTestCase):
           schema,
           previous_version_statistics=previous_version_stats)
 
-  # Custom validation uses ZetaSQL, which cannot be compiled on Windows.
-  @unittest.skipIf(
-      sys.platform.startswith('win'),
-      'Custom validation is not supported on Windows.')
   def test_validate_stats_with_custom_validations(self):
     statistics = text_format.Parse(
         """
@@ -2422,10 +2416,6 @@ class ValidationApiTest(ValidationTestCase):
     self._assert_equal_anomalies(anomalies, expected_anomalies)
   # pylint: enable=line-too-long
 
-  # Custom validation uses ZetaSQL, which cannot be compiled on Windows.
-  @unittest.skipIf(
-      sys.platform.startswith('win'),
-      'Custom validation is not supported on Windows.')
   def test_custom_validate_statistics_single_feature(self):
     statistics = text_format.Parse(
         """
@@ -2478,10 +2468,6 @@ class ValidationApiTest(ValidationTestCase):
     anomalies = validation_api.custom_validate_statistics(statistics, config)
     self._assert_equal_anomalies(anomalies, expected_anomalies)
 
-  # Custom validation uses ZetaSQL, which cannot be compiled on Windows.
-  @unittest.skipIf(
-      sys.platform.startswith('win'),
-      'Custom validation is not supported on Windows.')
   def test_custom_validate_statistics_two_features(self):
     test_statistics = text_format.Parse(
         """
@@ -2561,10 +2547,6 @@ class ValidationApiTest(ValidationTestCase):
         test_statistics, config, base_statistics)
     self._assert_equal_anomalies(anomalies, expected_anomalies)
 
-  # Custom validation uses ZetaSQL, which cannot be compiled on Windows.
-  @unittest.skipIf(
-      sys.platform.startswith('win'),
-      'Custom validation is not supported on Windows.')
   def test_custom_validate_statistics_environment(self):
     statistics = text_format.Parse(
         """

@@ -301,7 +301,7 @@ def validate_statistics(
         feature will come from `statistics` and will be mapped to `feature_test`
         in the SQL query, and the base feature will come from
         `previous_statistics` and will be mapped to `feature_base` in the SQL
-        query. Custom validations are not supported on Windows.
+        query.
 
   Returns:
     An Anomalies protocol buffer.
@@ -406,7 +406,7 @@ def validate_statistics_internal(
         feature will come from `statistics` and will be mapped to `feature_test`
         in the SQL query, and the base feature will come from
         `previous_statistics` and will be mapped to `feature_base` in the SQL
-        query. Custom validations are not supported on Windows.
+        query.
 
   Returns:
     An Anomalies protocol buffer.
@@ -548,8 +548,6 @@ def custom_validate_statistics(
 
   If an optional `environment` is supplied, TFDV will run validations with
   that environment specified and validations with no environment specified.
-
-  NOTE: This function is not supported on Windows.
 
   Args:
     statistics: A DatasetFeatureStatisticsList protocol buffer that holds the

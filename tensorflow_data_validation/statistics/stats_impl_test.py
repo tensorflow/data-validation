@@ -18,9 +18,7 @@ from __future__ import division
 from __future__ import print_function
 
 import copy
-import sys
 from typing import Iterable
-import unittest
 from absl.testing import absltest
 from absl.testing import parameterized
 import apache_beam as beam
@@ -2108,11 +2106,6 @@ class StatsImplTest(parameterized.TestCase):
               check_histograms=False,
           ))
 
-  # The SQL based slicing uses ZetaSQL which cannot be compiled on Windows.
-  # b/191377114
-  @unittest.skipIf(
-      sys.platform.startswith('win'),
-      'SQL based slicing is not supported on Windows.')
   def test_stats_impl_slicing_sql(self):
     record_batches = [
         pa.RecordBatch.from_arrays([
@@ -2159,11 +2152,6 @@ class StatsImplTest(parameterized.TestCase):
           test_util.make_dataset_feature_stats_list_proto_equal_fn(
               self, expected_result, check_histograms=False))
 
-  # The SQL based slicing uses ZetaSQL which cannot be compiled on Windows.
-  # b/191377114
-  @unittest.skipIf(
-      sys.platform.startswith('win'),
-      'SQL based slicing is not supported on Windows.')
   def test_stats_impl_slicing_sql_in_config(self):
     record_batches = [
         pa.RecordBatch.from_arrays([
