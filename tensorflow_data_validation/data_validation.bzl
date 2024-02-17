@@ -1,5 +1,6 @@
-load("@com_google_protobuf//:protobuf.bzl", "cc_proto_library")
-load("@com_google_protobuf//:protobuf.bzl", "py_proto_library")
+"""Open-source versions of TFDV proto build rules."""
+
+load("@com_google_protobuf//:protobuf.bzl", "cc_proto_library", "py_proto_library")
 
 def tfdv_proto_library(
         name,
@@ -39,8 +40,8 @@ def tfdv_proto_library_py(name, proto_library, srcs = [], deps = [], visibility 
     py_proto_library(
         name = name,
         srcs = srcs,
-        srcs_version = "PY2AND3",
-        deps = ["@com_google_protobuf//:protobuf_python"] + deps,
+        srcs_version = "PY3",
+        deps = ["@com_google_protobuf//:well_known_types_py_pb2"] + deps,
         default_runtime = "@com_google_protobuf//:protobuf_python",
         protoc = "@com_google_protobuf//:protoc",
         visibility = visibility,

@@ -72,16 +72,19 @@ rules_proto_toolchains()
 # TODO(b/239095455): Change to using a tfx-bsl workspace macro to load these
 # dependencies.
 # Needed by zetasql.
-PROTOBUF_COMMIT = "fde7cf7358ec7cd69e8db9be4f1fa6a5c431386a" # 3.13.0
+_PROTOBUF_COMMIT = "3.21.9"
+
 http_archive(
     name = "com_google_protobuf",
-    sha256 = "e589e39ef46fb2b3b476b3ca355bd324e5984cbdfac19f0e1625f0042e99c276",
-    strip_prefix = "protobuf-%s" % PROTOBUF_COMMIT,
+    sha256 = "f66073dee0bc159157b0bd7f502d7d1ee0bc76b3c1eac9836927511bdc4b3fc1",
+    strip_prefix = "protobuf-%s" % _PROTOBUF_COMMIT,
     urls = [
-        "https://storage.googleapis.com/grpc-bazel-mirror/github.com/google/protobuf/archive/%s.tar.gz" % PROTOBUF_COMMIT,
-        "https://github.com/google/protobuf/archive/%s.tar.gz" % PROTOBUF_COMMIT,
+        "https://github.com/protocolbuffers/protobuf/archive/v3.21.9.zip"
     ],
 )
+
+load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
+protobuf_deps()
 
 # Needed by abseil-py by zetasql.
 http_archive(
