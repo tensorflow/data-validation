@@ -16,6 +16,8 @@
     time, any M1 support for TFDV is experimental and untested.
 *   Bumps the pybind11 version to 2.11.1
 *   Depends on `tensorflow>=2.15.0,<3`.
+*   Depends on `apache-beam[gcp]>=2.53.0,<3`.
+*   Depends on `protobuf>=4.25.2,<5`.
 
 ## Known Issues
 
