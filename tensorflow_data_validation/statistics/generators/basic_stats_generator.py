@@ -827,8 +827,21 @@ def _make_num_values_custom_stats_proto(
     histogram = quantiles_util.generate_quantiles_histogram(
         num_values_quantiles, num_values_counts)
     proto = statistics_pb2.CustomStatistic()
-    proto.name = 'level_{}_value_list_length'.format(level)
+    proto.name = 'level_{}_value_list_length_quantiles'.format(level)
     proto.histogram.CopyFrom(histogram)
+    result.append(proto)
+
+    standard_histogram = quantiles_util.generate_equi_width_histogram(
+        quantiles=num_values_quantiles,
+        cumulative_counts=num_values_counts,
+        finite_min=presence_and_valency.min_num_values,
+        finite_max=presence_and_valency.max_num_values,
+        num_buckets=num_histogram_buckets,
+        num_pos_inf=0,
+    )
+    proto = statistics_pb2.CustomStatistic()
+    proto.name = 'level_{}_value_list_length_standard'.format(level)
+    proto.histogram.CopyFrom(standard_histogram)
     result.append(proto)
   return result
 

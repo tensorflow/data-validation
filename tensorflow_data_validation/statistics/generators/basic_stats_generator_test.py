@@ -3499,7 +3499,7 @@ _NESTED_TEST_CASES = [
               avg_length: 1.0
             }
             custom_stats {
-              name: "level_2_value_list_length"
+              name: "level_2_value_list_length_quantiles"
               histogram {
                 buckets {
                   high_value: 1.0
@@ -3514,7 +3514,21 @@ _NESTED_TEST_CASES = [
               }
             }
             custom_stats {
-              name: "level_3_value_list_length"
+              name: "level_2_value_list_length_standard"
+              histogram {
+                buckets {
+                  high_value: 1.5
+                  sample_count: 4.5
+                }
+                buckets {
+                  low_value: 1.5
+                  high_value: 3.0
+                  sample_count: 1.5
+                }
+              }
+            }
+            custom_stats {
+              name: "level_3_value_list_length_quantiles"
               histogram {
                 buckets {
                   low_value: 1.0
@@ -3527,6 +3541,21 @@ _NESTED_TEST_CASES = [
                   sample_count: 1.0
                 }
                 type: QUANTILES
+              }
+            }
+            custom_stats {
+              name: "level_3_value_list_length_standard"
+              histogram {
+                buckets {
+                  low_value: 1.0
+                  high_value: 1.5
+                  sample_count: 1.5
+                }
+                buckets {
+                  low_value: 1.5
+                  high_value: 2.0
+                  sample_count: 2.5
+                }
               }
             }
             path {
@@ -3637,7 +3666,7 @@ _NESTED_TEST_CASES = [
               invalid_utf8_count: 1
             }
             custom_stats {
-              name: "level_2_value_list_length"
+              name: "level_2_value_list_length_quantiles"
               histogram {
                 buckets {
                   high_value: 1.0
@@ -3652,7 +3681,21 @@ _NESTED_TEST_CASES = [
               }
             }
             custom_stats {
-              name: "level_3_value_list_length"
+              name: "level_2_value_list_length_standard"
+              histogram {
+                buckets {
+                  high_value: 1.5
+                  sample_count: 3.25
+                }
+                buckets {
+                  low_value: 1.5
+                  high_value: 3.0
+                  sample_count: 0.75
+                }
+              }
+            }
+            custom_stats {
+              name: "level_3_value_list_length_quantiles"
               histogram {
                 buckets {
                   low_value: 1.0
@@ -3665,6 +3708,21 @@ _NESTED_TEST_CASES = [
                   sample_count: 1.0
                 }
                 type: QUANTILES
+              }
+            }
+            custom_stats {
+              name: "level_3_value_list_length_standard"
+              histogram {
+                buckets {
+                  low_value: 1.0
+                  high_value: 1.5
+                  sample_count: 1.5
+                }
+                buckets {
+                  low_value: 1.5
+                  high_value: 2.0
+                  sample_count: 2.5
+                }
               }
             }
             path {

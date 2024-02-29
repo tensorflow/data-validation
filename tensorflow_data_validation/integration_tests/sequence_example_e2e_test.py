@@ -472,7 +472,7 @@ datasets {
       }
     }
     custom_stats {
-      name: "level_2_value_list_length"
+      name: "level_2_value_list_length_quantiles"
       histogram {
         buckets {
           low_value: 2.0
@@ -490,6 +490,16 @@ datasets {
           sample_count: 3.3333333333333335
         }
         type: QUANTILES
+      }
+    }
+    custom_stats {
+      name: "level_2_value_list_length_standard"
+      histogram {
+        buckets {
+          low_value: 2.0
+          high_value: 2.0
+          sample_count: 10.0
+        }
       }
     }
     path {
@@ -578,7 +588,7 @@ datasets {
       }
     }
     custom_stats {
-      name: "level_2_value_list_length"
+      name: "level_2_value_list_length_quantiles"
       histogram {
         buckets {
           high_value: 2.0
@@ -595,6 +605,25 @@ datasets {
           sample_count: 5.0
         }
         type: QUANTILES
+      }
+    }
+    custom_stats {
+      name: "level_2_value_list_length_standard"
+      histogram {
+        buckets {
+          high_value: 1.0
+          sample_count: 10.0
+        }
+        buckets {
+          low_value: 1.0
+          high_value: 2.0
+          sample_count: 10.0
+        }
+        buckets {
+          low_value: 2.0
+          high_value: 3.0
+          sample_count: 10.0
+        }
       }
     }
     path {
@@ -1089,7 +1118,7 @@ datasets {
       }
     }
     custom_stats {
-      name: "level_2_value_list_length"
+      name: "level_2_value_list_length_quantiles"
       histogram {
         buckets {
           low_value: 2.0
@@ -1107,6 +1136,16 @@ datasets {
           sample_count: 3.3333333333333335
         }
         type: QUANTILES
+      }
+    }
+    custom_stats {
+      name: "level_2_value_list_length_standard"
+      histogram {
+        buckets {
+          low_value: 2.0
+          high_value: 2.0
+          sample_count: 10.0
+        }
       }
     }
     path {
@@ -1251,7 +1290,7 @@ datasets {
       }
     }
     custom_stats {
-      name: "level_2_value_list_length"
+      name: "level_2_value_list_length_quantiles"
       histogram {
         buckets {
           high_value: 2.0
@@ -1268,6 +1307,25 @@ datasets {
           sample_count: 5.0
         }
         type: QUANTILES
+      }
+    }
+    custom_stats {
+      name: "level_2_value_list_length_standard"
+      histogram {
+        buckets {
+          high_value: 1.0
+          sample_count: 10.0
+        }
+        buckets {
+          low_value: 1.0
+          high_value: 2.0
+          sample_count: 10.0
+        }
+        buckets {
+          low_value: 2.0
+          high_value: 3.0
+          sample_count: 10.0
+        }
       }
     }
     path {
