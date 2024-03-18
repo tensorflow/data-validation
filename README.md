@@ -1,5 +1,4 @@
 <!-- See: www.tensorflow.org/tfx/data_validation/ -->
-
 # TensorFlow Data Validation
 
 [![Python](https://img.shields.io/badge/python%7C3.9%7C3.10%7C3.11-blue)](https://github.com/tensorflow/data-validation)
@@ -10,7 +9,7 @@
 machine learning data. It is designed to be highly scalable
 and to work well with TensorFlow and [TensorFlow Extended (TFX)](https://www.tensorflow.org/tfx).
 
-TF Data Validation includes:
+TFDV includes:
 
 *    Scalable calculation of summary statistics of training and test data.
 *    Integration with a viewer for data distributions and statistics, as well
