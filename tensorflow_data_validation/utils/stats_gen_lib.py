@@ -52,7 +52,7 @@ from tensorflow_metadata.proto.v0 import statistics_pb2
 
 def generate_statistics_from_tfrecord(
     data_location: Text,
-    output_path: Optional[bytes] = None,
+    output_path: Optional[str] = None,
     stats_options: options.StatsOptions = options.StatsOptions(),
     pipeline_options: Optional[PipelineOptions] = None,
 ) -> statistics_pb2.DatasetFeatureStatisticsList:
@@ -112,7 +112,7 @@ def generate_statistics_from_csv(
     data_location: Text,
     column_names: Optional[List[types.FeatureName]] = None,
     delimiter: Text = ',',
-    output_path: Optional[bytes] = None,
+    output_path: Optional[str] = None,
     stats_options: options.StatsOptions = options.StatsOptions(),
     pipeline_options: Optional[PipelineOptions] = None,
     compression_type: Text = CompressionTypes.AUTO,
