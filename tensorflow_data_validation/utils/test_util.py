@@ -444,28 +444,31 @@ class CombinerFeatureStatsGeneratorTest(absltest.TestCase):
   # output matches the expected result.
   def assertCombinerOutputEqual(
       self,
-      input_batches: List[pa.RecordBatch],
+      input_arrays: List[pa.Array],
       generator: stats_generator.CombinerFeatureStatsGenerator,
       expected_result: statistics_pb2.FeatureNameStatistics,
-      feature_path: types.FeaturePath = types.FeaturePath([''])) -> None:
+      feature_path: types.FeaturePath = types.FeaturePath(['']),
+  ) -> None:
     """Tests a feature combiner statistics generator.
 
     This runs the generator twice to cover different behavior. There must be at
     least two input batches in order to test the generator's merging behavior.
 
     Args:
-      input_batches: A list of batches of test data.
+      input_arrays: A list of batches of test data. Each input represents a a
+        single column or feature's values across a batch.
       generator: The CombinerFeatureStatsGenerator to test.
       expected_result: The FeatureNameStatistics proto that it is expected the
         generator will return.
-      feature_path: The FeaturePath to use, if not specified, will set a
-        default value.
+      feature_path: The FeaturePath to use, if not specified, will set a default
+        value.
     """
+    self.assertIsInstance(input_arrays, list)
     generator.setup()
     # Run generator to check that merge_accumulators() works correctly.
     accumulators = [
-        generator.add_input(generator.create_accumulator(), feature_path,
-                            input_batch) for input_batch in input_batches
+        generator.add_input(generator.create_accumulator(), feature_path, arr)
+        for arr in input_arrays
     ]
     # Assume that generators will never be called with empty inputs.
     accumulators = accumulators or [generator.create_accumulator()]
@@ -477,8 +480,8 @@ class CombinerFeatureStatsGeneratorTest(absltest.TestCase):
     # Run generator to check that compact() works correctly after
     # merging accumulators.
     accumulators = [
-        generator.add_input(generator.create_accumulator(), feature_path,
-                            input_batch) for input_batch in input_batches
+        generator.add_input(generator.create_accumulator(), feature_path, arr)
+        for arr in input_arrays
     ]
     # Assume that generators will never be called with empty inputs.
     accumulators = accumulators or [generator.create_accumulator()]
@@ -491,8 +494,8 @@ class CombinerFeatureStatsGeneratorTest(absltest.TestCase):
     # inputs to a non-empty accumulator.
     accumulator = generator.create_accumulator()
 
-    for input_batch in input_batches:
-      accumulator = generator.add_input(accumulator, feature_path, input_batch)
+    for arr in input_arrays:
+      accumulator = generator.add_input(accumulator, feature_path, arr)
 
     result = generator.extract_output(accumulator)
     compare.assertProtoEqual(

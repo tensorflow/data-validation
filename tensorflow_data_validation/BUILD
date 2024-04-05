@@ -1,6 +1,6 @@
-licenses(["notice"])  # Apache 2.0
-
 load("@bazel_skylib//lib:selects.bzl", "selects")
+
+licenses(["notice"])  # Apache 2.0
 
 config_setting(
     name = "macos_x86_64",
