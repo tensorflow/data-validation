@@ -16,6 +16,7 @@ limitations under the License.
 #include "tensorflow_data_validation/anomalies/test_util.h"
 
 #include <stddef.h>
+
 #include <string>
 #include <utility>
 #include <vector>
@@ -24,6 +25,7 @@ limitations under the License.
 #include "absl/strings/str_cat.h"
 #include "tensorflow_data_validation/anomalies/map_util.h"
 #include "tensorflow_data_validation/anomalies/path.h"
+#include "tensorflow/tsl/platform/protobuf.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
 
@@ -35,7 +37,11 @@ using std::vector;
 ProtoStringMatcher::ProtoStringMatcher(const string& expected)
     : expected_(expected) {}
 ProtoStringMatcher::ProtoStringMatcher(const google::protobuf::Message& expected)
-    : expected_(expected.DebugString()) {}
+    : expected_([&]() -> std::string {
+        std::string result;
+        tsl::protobuf::TextFormat::PrintToString(expected, &result);
+        return result;
+      }()) {}
 
 void TestAnomalies(
     const tensorflow::metadata::v0::Anomalies& actual,

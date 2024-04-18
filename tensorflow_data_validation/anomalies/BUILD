@@ -356,6 +356,7 @@ cc_library(
     deps = [
         ":map_util",
         ":path",
+        "//third_party/tensorflow/tsl/platform:protobuf",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:optional",
