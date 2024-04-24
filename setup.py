@@ -187,13 +187,13 @@ setup(
         'pyarrow>=10,<11',
         'pyfarmhash>=0.2.2,<0.4',
         'six>=1.12,<2',
-        'tensorflow~=2.15',
+        'tensorflow>=2.15,<2.16',
         'tensorflow-metadata' + select_constraint(
             default='>=1.15.0,<1.16',
             nightly='>=1.16.0.dev',
             git_master='@git+https://github.com/tensorflow/metadata@master'),
         'tfx-bsl' + select_constraint(
-            default='>=1.15.0,<1.16',
+            default='>=1.15.1,<1.16',
             nightly='>=1.16.0.dev',
             git_master='@git+https://github.com/tensorflow/tfx-bsl@master'),
     ],
