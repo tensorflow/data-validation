@@ -6,6 +6,20 @@
 
 ## Bug Fixes and Other Changes
 
+## Known Issues
+
+## Breaking Changes
+
+## Deprecations
+
+# Version 1.15.0
+
+## Major Features and Improvements
+
+*   N/A
+
+## Bug Fixes and Other Changes
+
 *   When computing cross feature statistics, skip configured crosses that
     include features of unsupported types (i.e., are not univalent numeric
     features).
@@ -25,7 +39,11 @@
 
 ## Known Issues
 
+*   N/A
+
 ## Breaking Changes
+
+*   N/A
 
 ## Deprecations
 
