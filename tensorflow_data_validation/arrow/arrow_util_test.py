@@ -24,6 +24,7 @@ from typing import Dict, Iterable, NamedTuple
 from absl.testing import absltest
 from absl.testing import parameterized
 import numpy as np
+from numpy import testing as np_testing
 import pyarrow as pa
 import six
 from tensorflow_data_validation import types
@@ -450,6 +451,48 @@ class ArrowUtilTest(parameterized.TestCase):
         arrow_util.get_column(_INPUT_RECORD_BATCH, "xyz", missing_ok=True))
     with self.assertRaises(KeyError):
       arrow_util.get_column(_INPUT_RECORD_BATCH, "xyz")
+
+  @parameterized.named_parameters([
+      dict(
+          testcase_name="all_values_present",
+          array=pa.array([[[1, 2], [3]], [[3], [4]]]),
+          expected_counts=np.array([3, 2]),
+      ),
+      dict(
+          testcase_name="none_in_inner_level",
+          array=pa.array([[[1, 2], None], [[3]], [None]]),
+          expected_counts=np.array([2, 1, 0]),
+      ),
+      dict(
+          testcase_name="none_in_innermost_level",
+          array=pa.array([[[1, 2]], [[3, None]]]),
+          expected_counts=np.array([2, 2]),
+      ),
+      dict(
+          testcase_name="none_in_outermost_level",
+          array=pa.array([[[1, 2]], None]),
+          expected_counts=np.array([2]),
+      ),
+      dict(
+          testcase_name="all_nones",
+          array=pa.array([None, [None, None], [[None]]]),
+          expected_counts=np.array([0, 0]),
+      ),
+      dict(
+          testcase_name="empty_array",
+          array=pa.array([[[]]]),
+          expected_counts=np.array([0]),
+      ),
+      dict(
+          testcase_name="non_nested_array",
+          array=pa.array([1, 2, 3]),
+          expected_counts=np.array([]),
+      ),
+  ])
+  def testGetArriesInnermostLevelValueCounts(self, array, expected_counts):
+    got = arrow_util.get_arries_innermost_level_value_counts(array)
+    np_testing.assert_array_equal(got, expected_counts)
+
 
 if __name__ == "__main__":
   absltest.main()

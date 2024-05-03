@@ -246,3 +246,47 @@ def get_column(record_batch: pa.RecordBatch,
       return None
     raise KeyError('missing column %s' % feature_name)
   return record_batch.column(idx)
+
+
+def get_arries_innermost_level_value_counts(array: pa.array) -> np.ndarray:
+  """Gets the number of values in the innermost level of each example.
+
+  Returns an empty array if the input is not a nested array. However, if the
+  input is a nested array, the function returns a numpy array containing the
+  number of values present in the innermost level of each array within the top
+  level.
+  The handling of null/None values within nested arrays follows a specific logic
+  as the following:
+    - If a null/None is in place of an array at the outermost level, treat it as
+      a missing array and do not compute value counts for it.
+    - If a null/None is in place of a list and not at the outermost level, treat
+      it like an empty list.
+    - If a null/None is in place of a concrete innermost value type (e.g., an
+      int), treat it as a value for counting purposes.
+
+
+  Args:
+    array: A pa.Array.
+
+  Returns:
+    A numpy array containing the number of values in the innermost level of
+    each outmost array.
+  """
+
+  offsets = []
+  non_null = ~np.asarray(array.is_null())
+  while array_util.is_list_like(array.type):
+    offsets.append(np.asarray(array.offsets))
+    array = array.flatten()
+  flattened_arr = array.filter(array.is_valid())
+  offsets = offsets[::-1]
+  if flattened_arr and offsets:
+    example_indices = offsets[0]
+    for offset in offsets[1:]:
+      example_indices = example_indices[offset]
+    return np.diff(example_indices)[non_null]
+  if offsets:
+    # An empty array should have 0 values, whereas null does not contain any
+    # values.
+    return np.array([0] * np.count_nonzero(non_null))
+  return np.array([])
