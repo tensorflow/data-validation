@@ -68,13 +68,13 @@ from tensorflow_data_validation import constants
 from tensorflow_data_validation import types
 from tensorflow_data_validation.arrow import arrow_util
 from tensorflow_data_validation.statistics.generators import stats_generator
+from tensorflow_data_validation.utils import example_weight_map as example_weight_map_util
 from tensorflow_data_validation.utils import feature_partition_util
 from tensorflow_data_validation.utils import quantiles_util
 from tensorflow_data_validation.utils import schema_util
 from tensorflow_data_validation.utils import stats_util
 from tensorflow_data_validation.utils import top_k_uniques_stats_util
 from tensorflow_data_validation.utils import variance_util
-from tensorflow_data_validation.utils.example_weight_map import ExampleWeightMap
 from tfx_bsl import sketches
 from tfx_bsl.arrow import array_util
 
@@ -82,19 +82,33 @@ from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
+ExampleWeightMap = example_weight_map_util.ExampleWeightMap
+
+
 class _PresenceAndValencyStats(object):
   """Contains stats on presence and valency of a feature."""
   __slots__ = [
       'num_non_missing', 'min_num_values', 'max_num_values', 'total_num_values',
       'weighted_total_num_values', 'weighted_num_non_missing',
-      'num_values_summary']
+      'num_values_summary', 'is_top_nested', 'min_innermost_num_values',
+      'max_innermost_num_values', 'innermost_num_values_summary']
 
   def __init__(
       self,
       make_quantiles_sketch_fn: Callable[
           [], Optional[sketches.QuantilesSketch]
       ],
+      is_top_nested: bool = False,
   ):
+    # For nested features we want to keep track of the total number of values
+    # and the min/max number per-example, where value counts are defined with
+    # respect to the innermost nest level. For the total number of values we can
+    # use the last presence and valency stats. For min/max number of values per
+    # example we need to track these quantities separately
+    # (min_innermost_num_values and max_innermost_num_values), but only when
+    # this _PresenceAndValencyStats is the top-level _PresenceAndValencyStats
+    # (corresponding to counting at the example level) of a nested feature.
+
     # The number of examples with at least one value for this feature.
     self.num_non_missing = 0
     # The minimum number of values in a single example for this feature.
@@ -108,9 +122,25 @@ class _PresenceAndValencyStats(object):
     # The sum of weights of all the examples with at least one value for this
     # feature.
     self.weighted_num_non_missing = 0
-    self.num_values_summary = make_quantiles_sketch_fn()
+    # Whether this stats is for the top-level of nested (N > 1) feature.
+    self.is_top_nested = is_top_nested
+    # The minimum number of values in the innermost level of a single example
+    # for this feature.
+    self.min_innermost_num_values = sys.maxsize
+    # The maximum number of values in the innermost level of a single example
+    # for this feature.
+    self.max_innermost_num_values = 0
+
+    self.num_values_summary = None
+    self.innermost_num_values_summary = None
+    if is_top_nested:
+      self.innermost_num_values_summary = make_quantiles_sketch_fn()
+    else:
+      self.num_values_summary = make_quantiles_sketch_fn()
 
   def merge_with(self, other: '_PresenceAndValencyStats') -> None:
+    """Merges two _PresenceAndValencyStats."""
+
     self.num_non_missing += other.num_non_missing
     self.min_num_values = min(self.min_num_values, other.min_num_values)
     self.max_num_values = max(self.max_num_values, other.max_num_values)
@@ -119,26 +149,63 @@ class _PresenceAndValencyStats(object):
     self.weighted_total_num_values += other.weighted_total_num_values
     if self.num_values_summary is not None:
       self.num_values_summary.Merge(other.num_values_summary)
+    if self.innermost_num_values_summary is not None:
+      self.innermost_num_values_summary.Merge(
+          other.innermost_num_values_summary
+      )
+    self.min_innermost_num_values = min(
+        self.min_innermost_num_values, other.min_innermost_num_values
+    )
+    self.max_innermost_num_values = max(
+        self.max_innermost_num_values, other.max_innermost_num_values
+    )
 
-  def update(self, feature_array: pa.Array, presence_mask: np.ndarray,
-             num_values: np.ndarray, num_values_not_none: np.ndarray,
-             weights: Optional[np.ndarray]) -> None:
+  def update(
+      self,
+      feature_array: pa.Array,
+      presence_mask: np.ndarray,
+      num_values: np.ndarray,
+      num_values_not_none: np.ndarray,
+      weights: Optional[np.ndarray],
+  ) -> None:
     """Updates the stats with a feature array."""
     self.num_non_missing += len(feature_array) - feature_array.null_count
 
     self.max_num_values = np.maximum.reduce(
-        num_values_not_none, initial=self.max_num_values)
-    self.min_num_values = np.minimum.reduce(num_values_not_none,
-                                            initial=self.min_num_values)
+        num_values_not_none, initial=self.max_num_values
+    )
+    self.min_num_values = np.minimum.reduce(
+        num_values_not_none, initial=self.min_num_values
+    )
     self.total_num_values += np.sum(num_values_not_none)
-    # num values tends to vary little. pre-aggregate them by values would help
-    # reduce the cost in AddValues().
-    num_values_grouped = pa.array(num_values_not_none).value_counts()
 
     if self.num_values_summary is not None:
+      # num values tends to vary little. pre-aggregate them by values would help
+      # reduce the cost in AddValues().
+      num_values_grouped = pa.array(num_values_not_none).value_counts()
       self.num_values_summary.AddValues(
           num_values_grouped.field(0), num_values_grouped.field(1)
       )
+
+    if self.is_top_nested:
+      num_innermost_values = (
+          arrow_util.get_arries_innermost_level_value_counts(feature_array)
+      )
+      if num_innermost_values.size:
+        self.min_innermost_num_values = min(
+            self.min_innermost_num_values, num_innermost_values.min()
+        )
+        self.max_innermost_num_values = max(
+            self.max_innermost_num_values, num_innermost_values.max()
+        )
+        if self.innermost_num_values_summary is not None:
+          num_innermost_values_grouped = (
+              pa.array(num_innermost_values).value_counts()
+          )
+          self.innermost_num_values_summary.AddValues(
+              num_innermost_values_grouped.field(0),
+              num_innermost_values_grouped.field(1),
+          )
 
     if weights is not None:
       if weights.size != num_values.size:
@@ -221,13 +288,20 @@ class _PartialCommonStats(object):
 
     nest_level = arrow_util.get_nest_level(feature_array.type)
     if self.presence_and_valency_stats is None:
-      self.presence_and_valency_stats = [
-          _PresenceAndValencyStats(make_quantiles_sketch_fn)
-          for _ in range(nest_level)
-      ]
+      self.presence_and_valency_stats = []
+      is_nested = nest_level > 1
+      for level in range(nest_level):
+        self.presence_and_valency_stats.append(
+            _PresenceAndValencyStats(
+                make_quantiles_sketch_fn, is_nested and level == 0
+            )
+        )
     elif nest_level != len(self.presence_and_valency_stats):
-      raise ValueError('Inconsistent nestedness in feature {}: {} vs {}'.format(
-          feature_path, nest_level, len(self.presence_and_valency_stats)))
+      raise ValueError(
+          'Inconsistent nestedness in feature {}: {} vs {}'.format(
+              feature_path, nest_level, len(self.presence_and_valency_stats)
+          )
+      )
 
     # And there's nothing we can collect in this case.
     if not feature_array:
@@ -553,90 +627,110 @@ def _make_common_stats_proto(
     weighted_num_examples: int,
 ) -> statistics_pb2.CommonStatistics:
   """Convert the partial common stats into a CommonStatistics proto."""
+
   result = statistics_pb2.CommonStatistics()
-  parent_presence_and_valency = None
+
+  parent_presence_and_valency_stats = None
   if parent_common_stats is not None:
-    parent_presence_and_valency = (
+    parent_presence_and_valency_stats = (
         _PresenceAndValencyStats(make_quantiles_sketch_fn)
-        if parent_common_stats.presence_and_valency_stats is None else
-        parent_common_stats.presence_and_valency_stats[-1])
+        if parent_common_stats.presence_and_valency_stats is None
+        else parent_common_stats.presence_and_valency_stats[-1]
+    )
 
-  presence_and_valency_stats = common_stats.presence_and_valency_stats
-  # the CommonStatistics already contains the presence and valency
-  # for a 1-nested feature.
-  if (presence_and_valency_stats is not None and
-      len(presence_and_valency_stats) > 1):
-    result.presence_and_valency_stats.extend(
-        _make_presence_and_valency_stats_protos(parent_presence_and_valency,
-                                                presence_and_valency_stats,
-                                                num_examples))
-    if has_weights:
-      result.weighted_presence_and_valency_stats.extend(
-          _make_weighted_presence_and_valency_stats_protos(
-              parent_presence_and_valency,
-              common_stats.presence_and_valency_stats, weighted_num_examples))
+  presence_and_valency_stats_list = common_stats.presence_and_valency_stats
+  # the CommonStatistics already contains the presence and valency for a
+  # 1-nested feature.
 
-  top_level_presence_and_valency = (
-      _PresenceAndValencyStats(make_quantiles_sketch_fn)
-      if common_stats.presence_and_valency_stats is None else
-      common_stats.presence_and_valency_stats[0])
-  result.num_non_missing = top_level_presence_and_valency.num_non_missing
-  if parent_presence_and_valency is not None:
-    result.num_missing = (
-        parent_presence_and_valency.total_num_values -
-        top_level_presence_and_valency.num_non_missing)
-  else:
-    result.num_missing = (
-        num_examples - top_level_presence_and_valency.num_non_missing)
-  result.tot_num_values = top_level_presence_and_valency.total_num_values
+  presence_and_valency_stats_protos = _make_presence_and_valency_stats_protos(
+      parent_presence_and_valency_stats,
+      presence_and_valency_stats_list,
+      num_examples,
+  )
+  if len(presence_and_valency_stats_protos) > 1:
+    # This means the feature is a nested feature
+    result.presence_and_valency_stats.extend(presence_and_valency_stats_protos)
 
-  # TODO(b/79685042): Need to decide on what is the expected values for
-  # statistics like min_num_values, max_num_values, avg_num_values, when
-  # all the values for the feature are missing.
-  if top_level_presence_and_valency.num_non_missing > 0:
-    result.min_num_values = top_level_presence_and_valency.min_num_values
-    result.max_num_values = top_level_presence_and_valency.max_num_values
-    result.avg_num_values = (
-        top_level_presence_and_valency.total_num_values /
-        top_level_presence_and_valency.num_non_missing)
+  top_level_presence_and_valency_proto = presence_and_valency_stats_protos[0]
+  result.num_non_missing = top_level_presence_and_valency_proto.num_non_missing
+  result.num_missing = top_level_presence_and_valency_proto.num_missing
 
-    if top_level_presence_and_valency.num_values_summary is not None:
+  top_level_presence_and_valency = common_stats.presence_and_valency_stats[0]
+  # Setting the total number of values of the common stats proto equal to the
+  # presence and valency stats proto of the innermost level.
+  result.tot_num_values = presence_and_valency_stats_protos[-1].tot_num_values
 
-      # Add num_values_histogram to the common stats proto.
-      num_values_quantiles, num_values_counts = (
-          _get_quantiles_counts(
-              top_level_presence_and_valency.num_values_summary,
-              num_values_histogram_buckets))
+  if result.num_non_missing:
+    # Since the default value of min_innermost_num_values is set to sys.maxsize,
+    # we should verify whether result.num_non_missing surpasses 0 before
+    # assigning the min_num_values.
+    if top_level_presence_and_valency.is_top_nested:
+      result.min_num_values = (
+          top_level_presence_and_valency.min_innermost_num_values
+      )
+      result.max_num_values = (
+          top_level_presence_and_valency.max_innermost_num_values
+      )
+    else:
+      result.min_num_values = top_level_presence_and_valency.min_num_values
+      result.max_num_values = top_level_presence_and_valency.max_num_values
+
+    result.avg_num_values = result.tot_num_values / result.num_non_missing
+
+    num_values_summary = (
+        top_level_presence_and_valency.num_values_summary
+        or top_level_presence_and_valency.innermost_num_values_summary
+    )
+    if num_values_summary is not None:
+      num_values_quantiles, num_values_counts = _get_quantiles_counts(
+          num_values_summary,
+          num_values_histogram_buckets,
+      )
       histogram = quantiles_util.generate_quantiles_histogram(
-          num_values_quantiles, num_values_counts)
+          num_values_quantiles, num_values_counts
+      )
       result.num_values_histogram.CopyFrom(histogram)
 
-  # Add weighted common stats to the proto.
   if has_weights:
+    weighted_presence_and_valency_stats_protos = (
+        _make_weighted_presence_and_valency_stats_protos(
+            parent_presence_and_valency_stats,
+            presence_and_valency_stats_list,
+            weighted_num_examples,
+        )
+    )
+    if len(weighted_presence_and_valency_stats_protos) > 1:
+      result.weighted_presence_and_valency_stats.extend(
+          weighted_presence_and_valency_stats_protos
+      )
+
+    top_level_weighted_presence_and_valency = (
+        weighted_presence_and_valency_stats_protos[0]
+    )
+    leaf_level_weighted_presence_and_valency = (
+        weighted_presence_and_valency_stats_protos[-1]
+    )
+
+    weighted_common_stats_avg_num_values = 0
+    if top_level_weighted_presence_and_valency.num_non_missing:
+      weighted_common_stats_avg_num_values = (
+          leaf_level_weighted_presence_and_valency.tot_num_values
+          / top_level_weighted_presence_and_valency.num_non_missing
+      )
     weighted_common_stats_proto = statistics_pb2.WeightedCommonStatistics(
-        num_non_missing=top_level_presence_and_valency.weighted_num_non_missing,
-        tot_num_values=top_level_presence_and_valency.weighted_total_num_values)
-    if parent_presence_and_valency is not None:
-      weighted_common_stats_proto.num_missing = (
-          parent_presence_and_valency.weighted_total_num_values -
-          top_level_presence_and_valency.weighted_num_non_missing)
-    else:
-      weighted_common_stats_proto.num_missing = (
-          weighted_num_examples -
-          top_level_presence_and_valency.weighted_num_non_missing)
+        num_non_missing=top_level_weighted_presence_and_valency.num_non_missing,
+        num_missing=top_level_weighted_presence_and_valency.num_missing,
+        tot_num_values=leaf_level_weighted_presence_and_valency.tot_num_values,
+        avg_num_values=weighted_common_stats_avg_num_values,
+    )
+    result.weighted_common_stats.CopyFrom(weighted_common_stats_proto)
 
-    if top_level_presence_and_valency.weighted_num_non_missing > 0:
-      weighted_common_stats_proto.avg_num_values = (
-          top_level_presence_and_valency.weighted_total_num_values /
-          top_level_presence_and_valency.weighted_num_non_missing)
-
-    result.weighted_common_stats.CopyFrom(
-        weighted_common_stats_proto)
   return result
 
 
-def _get_quantiles_counts(qs: sketches.QuantilesSketch,
-                          num_buckets: int) -> Tuple[np.ndarray, np.ndarray]:
+def _get_quantiles_counts(
+    qs: sketches.QuantilesSketch, num_buckets: int
+) -> Tuple[np.ndarray, np.ndarray]:
   quantiles, counts = qs.GetQuantilesAndCumulativeWeights(num_buckets)
   quantiles = quantiles.flatten().to_numpy(zero_copy_only=False)
   counts = counts.flatten().to_numpy(zero_copy_only=False)
@@ -963,10 +1057,10 @@ def _update_tfdv_telemetry(accumulator: '_BasicAcctype') -> None:
   """Update TFDV Beam metrics."""
   # Aggregate type specific metrics.
   metrics = {
-      statistics_pb2.FeatureNameStatistics.INT: _TFDVMetrics(),
-      statistics_pb2.FeatureNameStatistics.FLOAT: _TFDVMetrics(),
-      statistics_pb2.FeatureNameStatistics.STRING: _TFDVMetrics(),
-      statistics_pb2.FeatureNameStatistics.STRUCT: _TFDVMetrics(),
+      statistics_pb2.FeatureNameStatistics.INT: _TFDVMetrics(),  # pylint: disable=no-value-for-parameter
+      statistics_pb2.FeatureNameStatistics.FLOAT: _TFDVMetrics(),  # pylint: disable=no-value-for-parameter
+      statistics_pb2.FeatureNameStatistics.STRING: _TFDVMetrics(),  # pylint: disable=no-value-for-parameter
+      statistics_pb2.FeatureNameStatistics.STRUCT: _TFDVMetrics(),  # pylint: disable=no-value-for-parameter
   }
 
   for basic_stats in accumulator.values():
@@ -1101,8 +1195,11 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
 
     self._bytes_features = set(
         schema_util.get_bytes_features(schema) if schema else [])
-    self._categorical_numeric_types = schema_util.get_categorical_numeric_feature_types(
-        schema) if schema else {}
+    self._categorical_numeric_types = (
+        schema_util.get_categorical_numeric_feature_types(schema)
+        if schema
+        else {}
+    )
     self._example_weight_map = example_weight_map
     self._num_values_histogram_buckets = num_values_histogram_buckets
     self._num_histogram_buckets = num_histogram_buckets
@@ -1216,7 +1313,6 @@ class BasicStatsGenerator(stats_generator.CombinerStatsGenerator):
         current_type = basic_stats.common_stats.type
         existing_stats = result.get(feature_path)
         if existing_stats is None:
-          existing_stats = basic_stats
           result[feature_path] = basic_stats
         else:
           # Check if the types from the two partial statistics are not

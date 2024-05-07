@@ -331,7 +331,7 @@ TEST(FeatureStatsView, GetNumMissingNestedMultipleNestednessLevels) {
         type: FLOAT
         num_stats: {
           common_stats {
-            num_missing: 3
+            num_missing: 2
             weighted_common_stats { num_missing: 2 }
             presence_and_valency_stats { num_missing: 2 }
             presence_and_valency_stats { num_missing: 0 }

@@ -416,28 +416,28 @@ datasets {
       common_stats {
         num_non_missing: 10
         num_missing: 10
-        min_num_values: 1
-        max_num_values: 1
-        avg_num_values: 1.0
+        min_num_values: 2
+        max_num_values: 2
+        avg_num_values: 2.0
         num_values_histogram {
           buckets {
-            low_value: 1.0
-            high_value: 1.0
+            low_value: 2.0
+            high_value: 2.0
             sample_count: 3.3333333333333335
           }
           buckets {
-            low_value: 1.0
-            high_value: 1.0
+            low_value: 2.0
+            high_value: 2.0
             sample_count: 3.3333333333333335
           }
           buckets {
-            low_value: 1.0
-            high_value: 1.0
+            low_value: 2.0
+            high_value: 2.0
             sample_count: 3.3333333333333335
           }
           type: QUANTILES
         }
-        tot_num_values: 10
+        tot_num_values: 20
         presence_and_valency_stats {
           num_non_missing: 10
           num_missing: 10
@@ -511,17 +511,17 @@ datasets {
     num_stats {
       common_stats {
         num_non_missing: 20
-        min_num_values: 1
+        min_num_values: 2
         max_num_values: 3
-        avg_num_values: 2.0
+        avg_num_values: 2.5
         num_values_histogram {
           buckets {
-            low_value: 1.0
-            high_value: 1.0
+            low_value: 2.0
+            high_value: 2.0
             sample_count: 10.0
           }
           buckets {
-            low_value: 1.0
+            low_value: 2.0
             high_value: 3.0
             sample_count: 5.0
           }
@@ -532,7 +532,7 @@ datasets {
           }
           type: QUANTILES
         }
-        tot_num_values: 40
+        tot_num_values: 50
         presence_and_valency_stats {
           num_non_missing: 20
           min_num_values: 1
@@ -1026,23 +1026,23 @@ datasets {
       common_stats {
         num_non_missing: 10
         num_missing: 10
-        min_num_values: 1
-        max_num_values: 1
-        avg_num_values: 1.0
+        min_num_values: 2
+        max_num_values: 2
+        avg_num_values: 2.0
         num_values_histogram {
           buckets {
-            low_value: 1.0
-            high_value: 1.0
+            low_value: 2.0
+            high_value: 2.0
             sample_count: 3.3333333333333335
           }
           buckets {
-            low_value: 1.0
-            high_value: 1.0
+            low_value: 2.0
+            high_value: 2.0
             sample_count: 3.3333333333333335
           }
           buckets {
-            low_value: 1.0
-            high_value: 1.0
+            low_value: 2.0
+            high_value: 2.0
             sample_count: 3.3333333333333335
           }
           type: QUANTILES
@@ -1050,10 +1050,10 @@ datasets {
         weighted_common_stats {
           num_non_missing: 50.0
           num_missing: 100.0
-          avg_num_values: 1.0
-          tot_num_values: 50.0
+          avg_num_values: 2.0
+          tot_num_values: 100.0
         }
-        tot_num_values: 10
+        tot_num_values: 20
         presence_and_valency_stats {
           num_non_missing: 10
           num_missing: 10
@@ -1157,17 +1157,17 @@ datasets {
     num_stats {
       common_stats {
         num_non_missing: 20
-        min_num_values: 1
+        min_num_values: 2
         max_num_values: 3
-        avg_num_values: 2.0
+        avg_num_values: 2.5
         num_values_histogram {
           buckets {
-            low_value: 1.0
-            high_value: 1.0
+            low_value: 2.0
+            high_value: 2.0
             sample_count: 10.0
           }
           buckets {
-            low_value: 1.0
+            low_value: 2.0
             high_value: 3.0
             sample_count: 5.0
           }
@@ -1180,10 +1180,10 @@ datasets {
         }
         weighted_common_stats {
           num_non_missing: 150.0
-          avg_num_values: 1.6666666666666667
-          tot_num_values: 250.0
+          avg_num_values: 2.6666666666666667
+          tot_num_values: 400.0
         }
-        tot_num_values: 40
+        tot_num_values: 50
         presence_and_valency_stats {
           num_non_missing: 20
           min_num_values: 1

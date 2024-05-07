@@ -2404,7 +2404,6 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 string_stats {
                   common_stats {
                     num_non_missing: 1
-                    num_missing: 0
                     num_values_histogram {
                       buckets {
                         sample_count: 0.5
@@ -3434,12 +3433,10 @@ _NESTED_TEST_CASES = [
               common_stats {
                 num_non_missing: 3
                 num_missing: 2
-                min_num_values: 2
                 max_num_values: 3
-                avg_num_values: 2.666667
+                avg_num_values: 2.0
                 num_values_histogram {
                   buckets {
-                    low_value: 2.0
                     high_value: 3.0
                     sample_count: 2.0
                   }
@@ -3453,10 +3450,10 @@ _NESTED_TEST_CASES = [
                 weighted_common_stats {
                   num_non_missing: 3.0
                   num_missing: 2.0
-                  avg_num_values: 2.6666667
-                  tot_num_values: 8.0
+                  avg_num_values: 2.0
+                  tot_num_values: 6.0
                 }
-                tot_num_values: 8
+                tot_num_values: 6
                 presence_and_valency_stats {
                   num_non_missing: 3
                   num_missing: 2
@@ -3480,13 +3477,13 @@ _NESTED_TEST_CASES = [
                 weighted_presence_and_valency_stats {
                   num_non_missing: 3.0
                   num_missing: 2.0
-                  avg_num_values: 2.6666667
+                  avg_num_values: 2.6666666666666665
                   tot_num_values: 8.0
                 }
                 weighted_presence_and_valency_stats {
                   num_non_missing: 6.0
                   num_missing: 2.0
-                  avg_num_values: 1.1666667
+                  avg_num_values: 1.1666666666666667
                   tot_num_values: 7.0
                 }
                 weighted_presence_and_valency_stats {
@@ -3578,21 +3575,15 @@ _NESTED_TEST_CASES = [
               common_stats {
                 num_non_missing: 2
                 num_missing: 1
-                max_num_values: 2
-                avg_num_values: 1.0
                 num_values_histogram {
                   buckets {
-                    high_value: 2.0
-                    sample_count: 1.5
+                    sample_count: 1.0
                   }
                   buckets {
-                    low_value: 2.0
-                    high_value: 2.0
-                    sample_count: 0.5
+                    sample_count: 1.0
                   }
                   type: QUANTILES
                 }
-                tot_num_values: 2
                 presence_and_valency_stats {
                   num_non_missing: 2
                   num_missing: 1
@@ -3605,7 +3596,7 @@ _NESTED_TEST_CASES = [
               }
             }
             path {
-            step: "a"
+              step: "a"
             }"""
         }),
     dict(
@@ -3625,23 +3616,23 @@ _NESTED_TEST_CASES = [
             string_stats {
               common_stats {
                 num_non_missing: 2
-                min_num_values: 2
+                min_num_values: 3
                 max_num_values: 3
-                avg_num_values: 2.5
+                avg_num_values: 3
                 num_values_histogram {
                   buckets {
-                    low_value: 2.0
+                    low_value: 3.0
                     high_value: 3.0
-                    sample_count: 1.5
+                    sample_count: 1
                   }
                   buckets {
                     low_value: 3.0
                     high_value: 3.0
-                    sample_count: 0.5
+                    sample_count: 1
                   }
                   type: QUANTILES
                 }
-                tot_num_values: 5
+                tot_num_values: 6
                 presence_and_valency_stats {
                   num_non_missing: 2
                   min_num_values: 2

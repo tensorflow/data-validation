@@ -1933,8 +1933,8 @@ TEST(SchemaTest, GetSchemaWithValueCounts) {
               num_missing: 10
               min_num_values: 1
               max_num_values: 1
-              avg_num_values: 1.0
-              tot_num_values: 10
+              avg_num_values: 1.5
+              tot_num_values: 15
               presence_and_valency_stats {
                 num_non_missing: 10
                 num_missing: 10
@@ -2383,7 +2383,7 @@ TEST(SchemaTest, UpdateBadStartingSchema) {
               num_non_missing: 4
               min_num_values: 1
               max_num_values: 3
-              avg_num_values: 1.5
+              avg_num_values: 2
               presence_and_valency_stats {
                 num_missing: 10
                 num_non_missing: 4

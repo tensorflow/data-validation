@@ -214,7 +214,7 @@ TEST(SchemaAnomalies, SimpleBadSchemaConfigurations) {
               num_non_missing: 4
               min_num_values: 1
               max_num_values: 3
-              avg_num_values: 1.5
+              avg_num_values: 2
               presence_and_valency_stats {
                 num_missing: 10
                 num_non_missing: 4
