@@ -1,10 +1,7 @@
 load("//tensorflow_data_validation:data_validation.bzl", "tfdv_proto_library", "tfdv_proto_library_py")
 
 package(
-    default_visibility = [
-        "//tensorflow_data_validation:__subpackages__",
-        "//third_party/py/tfx:__subpackages__",
-    ],
+    default_visibility = ["//tensorflow_data_validation:__subpackages__"],
 )
 
 licenses(["notice"])

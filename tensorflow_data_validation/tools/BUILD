@@ -12,9 +12,9 @@ py_binary(
     python_version = "PY3",
     srcs_version = "PY3",
     deps = [
+        "# Implicit absl dependency:app",
+        "# Implicit apache_beam dependency.",
+        "# Implicit tensorflow_docs dependency./api_generator",
         "//tensorflow_data_validation",
-        "//third_party/py/absl:app",
-        "//third_party/py/apache_beam",
-        "//third_party/py/tensorflow_docs/api_generator",
     ],
 )
