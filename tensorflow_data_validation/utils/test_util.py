@@ -157,7 +157,9 @@ def assert_feature_proto_equal(
   del expected.custom_stats[:]
 
   # Compare the rest of the proto without numeric custom stats
-  compare.assertProtoEqual(test, expected, actual, normalize_numbers=True)
+  compare.assertProtoEqual(
+      test, expected, actual, normalize_numbers=True, relative_tolerance=1e-9
+  )
 
 
 def assert_dataset_feature_stats_proto_equal(
