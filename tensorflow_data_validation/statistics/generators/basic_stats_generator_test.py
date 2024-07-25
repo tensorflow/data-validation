@@ -826,7 +826,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         pa.array([[1.0], [2.0]])
     ], ['a', 'b', 'w'])
     b2 = pa.RecordBatch.from_arrays([
-        pa.array([[1.0, np.NaN, np.NaN, np.NaN], None]),
+        pa.array([[1.0, np.nan, np.nan, np.nan], None]),
         pa.array([[1], None]),
         pa.array([[3.0], [2.0]])
     ], ['a', 'b', 'w'])
@@ -1269,7 +1269,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
         pa.array([[2.0], [1.0]]),
     ], ['a', 'b', 'w_a', 'w_b'])
     b2 = pa.RecordBatch.from_arrays([
-        pa.array([[1.0, np.NaN, np.NaN, np.NaN], None]),
+        pa.array([[1.0, np.nan, np.nan, np.nan], None]),
         pa.array([[1], None]),
         pa.array([[3.0], [2.0]]),
         pa.array([[2.0], [3.0]]),
@@ -1706,8 +1706,8 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
     # input with two batches: first batch has two examples and second batch
     # has a single example.
     b1 = pa.RecordBatch.from_arrays(
-        [pa.array([[1.0, 2.0], [3.0, 4.0, np.NaN, 5.0]])], ['a'])
-    b2 = pa.RecordBatch.from_arrays([pa.array([[np.NaN, 1.0]])], ['a'])
+        [pa.array([[1.0, 2.0], [3.0, 4.0, np.nan, 5.0]])], ['a'])
+    b2 = pa.RecordBatch.from_arrays([pa.array([[np.nan, 1.0]])], ['a'])
     batches = [b1, b2]
 
     expected_result = {
@@ -2286,7 +2286,7 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
 
   def test_only_nan(self):
     b1 = pa.RecordBatch.from_arrays(
-        [pa.array([[np.NaN]], type=pa.list_(pa.float32()))], ['a'])
+        [pa.array([[np.nan]], type=pa.list_(pa.float32()))], ['a'])
     batches = [b1]
     expected_result = {
         types.FeaturePath(['a']): text_format.Parse(

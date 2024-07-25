@@ -117,7 +117,7 @@ _GENERATE_STATS_TESTS = [
                 pa.array([np.linspace(1, 500, 500, dtype=np.int64)]),
             ], ['a', 'b', 'c']),
             pa.RecordBatch.from_arrays([
-                pa.array([[3.0, 4.0, np.NaN, 5.0]], type=pa.list_(
+                pa.array([[3.0, 4.0, np.nan, 5.0]], type=pa.list_(
                     pa.float32())),
                 pa.array([[b'a', b'c', b'd', b'a']], type=pa.list_(
                     pa.binary())),
@@ -1891,7 +1891,7 @@ _SLICE_TEST_RECORD_BATCHES = [
         pa.array([np.linspace(1, 500, 500, dtype=np.int64)]),
     ], ['a', 'b', 'c']),
     pa.RecordBatch.from_arrays([
-        pa.array([[3.0, 4.0, np.NaN, 5.0]], type=pa.list_(pa.float32())),
+        pa.array([[3.0, 4.0, np.nan, 5.0]], type=pa.list_(pa.float32())),
         pa.array([[b'a', b'b']], type=pa.list_(pa.binary())),
         pa.array([np.linspace(501, 1250, 750, dtype=np.int64)]),
     ], ['a', 'b', 'c']),
@@ -2015,7 +2015,7 @@ _SLICING_SQL_TESTS = [
                 pa.array([np.linspace(1, 500, 500, dtype=np.int64)]),
             ], ['a', 'b', 'c']),
             pa.RecordBatch.from_arrays([
-                pa.array([[3.0, 4.0, np.NaN, 5.0]], type=pa.list_(
+                pa.array([[3.0, 4.0, np.nan, 5.0]], type=pa.list_(
                     pa.float32())),
                 pa.array([[b'a', b'b']], type=pa.list_(pa.binary())),
                 pa.array([np.linspace(501, 1250, 750, dtype=np.int64)]),
@@ -2114,7 +2114,7 @@ class StatsImplTest(parameterized.TestCase):
             pa.array([np.linspace(1, 500, 500, dtype=np.int64)]),
         ], ['a', 'b', 'c']),
         pa.RecordBatch.from_arrays([
-            pa.array([[3.0, 4.0, np.NaN, 5.0]], type=pa.list_(
+            pa.array([[3.0, 4.0, np.nan, 5.0]], type=pa.list_(
                 pa.float32())),
             pa.array([[b'a', b'b']], type=pa.list_(pa.binary())),
             pa.array([np.linspace(501, 1250, 750, dtype=np.int64)]),
@@ -2160,7 +2160,7 @@ class StatsImplTest(parameterized.TestCase):
             pa.array([np.linspace(1, 500, 500, dtype=np.int64)]),
         ], ['a', 'b', 'c']),
         pa.RecordBatch.from_arrays([
-            pa.array([[3.0, 4.0, np.NaN, 5.0]], type=pa.list_(
+            pa.array([[3.0, 4.0, np.nan, 5.0]], type=pa.list_(
                 pa.float32())),
             pa.array([[b'a', b'b']], type=pa.list_(pa.binary())),
             pa.array([np.linspace(501, 1250, 750, dtype=np.int64)]),
@@ -2677,7 +2677,7 @@ class StatsImplTest(parameterized.TestCase):
             pa.array([None]),
         ], ['a', 'b', 'c']),
         pa.RecordBatch.from_arrays([
-            pa.array([[3.0, 4.0, np.NaN, 5.0]]),
+            pa.array([[3.0, 4.0, np.nan, 5.0]]),
             pa.array([['d', 'e', 'f']]),
             pa.array([None]),
         ], ['a', 'b', 'c']),

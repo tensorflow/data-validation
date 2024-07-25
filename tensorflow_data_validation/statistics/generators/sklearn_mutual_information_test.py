@@ -612,7 +612,7 @@ class SkLearnMutualInformationTest(absltest.TestCase):
         [0.1], [0.2], [0.8], [0.7], [0.2], [0.2], [0.3],
         [0.1], [0.2], [0.8], [0.7], [0.2], [0.2], [0.3]])
     feat_array = pa.array([
-        [0.1], [0.2], [0.8], [0.7], [0.2], [np.NaN], None,
+        [0.1], [0.2], [0.8], [0.7], [0.2], [np.nan], None,
         [0.1], [0.2], [0.8], [0.7], [0.2], [0.2], [0.3]])
     batch = pa.RecordBatch.from_arrays([label_array, feat_array],
                                        ["label_key", "fa"])
@@ -716,7 +716,7 @@ class SkLearnMutualInformationTest(absltest.TestCase):
 
   def test_mi_with_imputed_numerical_label(self):
     label_array = pa.array([
-        [0.1], [0.2], [0.8], [0.7], [0.2], [np.NaN], None,
+        [0.1], [0.2], [0.8], [0.7], [0.2], [np.nan], None,
         [0.1], [0.2], [0.8], [0.7], [0.2], [0.2], [0.3]])
     feat_array = pa.array([
         [0.1], [0.2], [0.8], [0.7], [0.2], [0.2], [0.3],

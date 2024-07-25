@@ -51,7 +51,7 @@ class StatsAPITest(absltest.TestCase):
             pa.array([np.linspace(1, 500, 500, dtype=np.int32)]),
         ], ['a', 'b', 'c']),
         pa.RecordBatch.from_arrays([
-            pa.array([[3.0, 4.0, np.NaN, 5.0]]),
+            pa.array([[3.0, 4.0, np.nan, 5.0]]),
             pa.array([['a', 'c', '∞', 'a']]),
             pa.array([np.linspace(501, 1250, 750, dtype=np.int32)]),
         ], ['a', 'b', 'c']),

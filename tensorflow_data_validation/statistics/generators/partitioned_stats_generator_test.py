@@ -567,7 +567,7 @@ class NonStreamingCustomStatsGeneratorTest(test_util.TransformStatsGeneratorTest
             pa.array([['Green']]),
             pa.array([[2.3]]),
             pa.array([[0]]),
-            pa.array([[np.NaN]], type=pa.list_(pa.float64())),
+            pa.array([[np.nan]], type=pa.list_(pa.float64())),
             pa.array([['Label']]),
         ], ['fa', 'fb', 'fc', 'fd', 'label_key']),
         pa.RecordBatch.from_arrays([

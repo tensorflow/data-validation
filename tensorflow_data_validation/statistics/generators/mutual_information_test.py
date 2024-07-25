@@ -81,7 +81,7 @@ class EncodeExamplesTest(absltest.TestCase):
 
   def test_encoder_multivalent_numerical_with_nulls(self):
     batch = pa.RecordBatch.from_arrays(
-        [pa.array([[1.0, 1.0, np.NaN], None, [2.0, 2.0, 1.0], []])], ["fa"])
+        [pa.array([[1.0, 1.0, np.nan], None, [2.0, 2.0, 1.0], []])], ["fa"])
     expected = {
         types.FeaturePath(["fa"]): [[2, 0, 0], [None, None, None], [1, 0, 2],
                                     [None, None, None]]
@@ -92,7 +92,7 @@ class EncodeExamplesTest(absltest.TestCase):
 
   def test_encoder_univalent_with_nulls(self):
     batch = pa.RecordBatch.from_arrays(
-        [pa.array([None, [2.0], [], [None], [np.NaN]])], ["fa"])
+        [pa.array([None, [2.0], [], [None], [np.nan]])], ["fa"])
     expected = {
         types.FeaturePath(["fa"]): [[None], [2], [None], [None], [None]]
     }
@@ -205,7 +205,7 @@ class MutualInformationTest(absltest.TestCase):
     label_array = pa.array([[0.1], [0.2], [0.7], [0.2], None, [0.9], [0.4],
                             [0.8]])
     # Random floats that do not map onto the label
-    terrible_feat_array = pa.array([[0.4], [0.1], [0.4], [np.NaN], [0.8], [0.2],
+    terrible_feat_array = pa.array([[0.4], [0.1], [0.4], [np.nan], [0.8], [0.2],
                                     [0.5], [0.1]])
     batch = pa.RecordBatch.from_arrays(
         [label_array, label_array, terrible_feat_array],
@@ -318,7 +318,7 @@ class MutualInformationTest(absltest.TestCase):
   def test_mi_normalized(self):
     label_array = pa.array([[0.1], [0.2], [0.7], [0.2], None, [0.9], [0.4],
                             [0.8]])
-    terrible_feat_array = pa.array([[0.4], [0.1], [0.4], [np.NaN], [0.8], [0.2],
+    terrible_feat_array = pa.array([[0.4], [0.1], [0.4], [np.nan], [0.8], [0.2],
                                     [0.5], [0.1]])
     batch = pa.RecordBatch.from_arrays(
         [label_array, label_array, terrible_feat_array],
@@ -468,7 +468,7 @@ class MutualInformationTest(absltest.TestCase):
 
   def test_mi_with_univalent_feature_all_null(self):
     label_array = pa.array([[0.1], [0.2], [0.7], [0.7]])
-    null_feat_array = pa.array([[np.NaN], [np.NaN], [np.NaN], [np.NaN]])
+    null_feat_array = pa.array([[np.nan], [np.nan], [np.nan], [np.nan]])
     batch = pa.RecordBatch.from_arrays([label_array, null_feat_array],
                                        ["label_key", "null_feature"])
 
@@ -510,7 +510,7 @@ class MutualInformationTest(absltest.TestCase):
 
   def test_mi_with_multivalent_feature_all_null(self):
     label_array = pa.array([[0.1], [0.2], [0.7], [0.7]])
-    null_feat_array = pa.array([[np.NaN], [np.NaN], [np.NaN], [np.NaN]])
+    null_feat_array = pa.array([[np.nan], [np.nan], [np.nan], [np.nan]])
     batch = pa.RecordBatch.from_arrays([label_array, null_feat_array],
                                        ["label_key", "null_feature"])
 
@@ -551,7 +551,7 @@ class MutualInformationTest(absltest.TestCase):
 
   def test_mi_with_multivalent_feature_all_empty(self):
     label_array = pa.array([[0.1], [0.2], [0.7], [0.7]])
-    empty_feat_array = pa.array([[np.NaN], [], [], []])
+    empty_feat_array = pa.array([[np.nan], [], [], []])
     batch = pa.RecordBatch.from_arrays([label_array, empty_feat_array],
                                        ["label_key", "empty_feature"])
 
@@ -633,7 +633,7 @@ class MutualInformationTest(absltest.TestCase):
                                   types.FeaturePath(["label_key"]))
 
   def test_mi_with_multivalent_numeric_feature(self):
-    feat_array = pa.array([[3.1], None, [4.0], [np.NaN], [1.2, 8.5], [2.3],
+    feat_array = pa.array([[3.1], None, [4.0], [np.nan], [1.2, 8.5], [2.3],
                            [1.2, 3.2, 3.9]])
     label_array = pa.array([[3.3], None, [4.0], [2.0, 8.0], [1.3, 8.5], [2.3],
                             [1.0, 3.1, 4]])
@@ -1395,7 +1395,7 @@ class NonStreamingCustomStatsGeneratorTest(
         ], ["fa", "fb", "fc", "fd", "label_key"]),
         pa.RecordBatch.from_arrays([
             pa.array([["1"]]),
-            pa.array([[np.NaN]], type=pa.list_(pa.float64())),
+            pa.array([[np.nan]], type=pa.list_(pa.float64())),
             pa.array([["0", "0"]]),
             pa.array([[0.0, 0.2]]),
             pa.array([["label"]]),
