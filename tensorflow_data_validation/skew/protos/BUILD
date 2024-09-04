@@ -11,7 +11,6 @@ licenses(["notice"])
 tfdv_proto_library(
     name = "feature_skew_results_proto",
     srcs = ["feature_skew_results.proto"],
-    cc_api_version = 2,
 )
 
 tfdv_proto_library_py(

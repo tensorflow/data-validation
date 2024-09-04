@@ -9,10 +9,9 @@ def tfdv_proto_library(
         deps = [],
         visibility = None,
         testonly = 0,
-        cc_grpc_version = None,
-        cc_api_version = 2):
+        cc_grpc_version = None):
     """Opensource cc_proto_library."""
-    _ignore = [has_services, cc_api_version]
+    _ignore = [has_services]
     native.filegroup(
         name = name + "_proto_srcs",
         srcs = srcs,
