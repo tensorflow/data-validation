@@ -92,8 +92,8 @@ absl::Status GetFeatureStatistics(
 }
 
 absl::Status MergeAnomalyInfos(const AnomalyInfo& anomaly_info,
-                         const std::string& key,
-                         AnomalyInfo* existing_anomaly_info) {
+                               const std::string& key,
+                               AnomalyInfo* existing_anomaly_info) {
   if (Path(anomaly_info.path()).Compare(Path(existing_anomaly_info->path())) !=
       0) {
     return absl::AlreadyExistsError(
@@ -242,13 +242,15 @@ absl::Status CustomValidateStatistics(
                 "Attempt to run query: ", validation.sql_expression(),
                 " failed with the following error: ",
                 query_result.status().ToString()));
+          } else if (!query_result.value()) {
+            // If the sql_expression evaluates to False, there is an anomaly.
+            TFDV_RETURN_IF_ERROR(UpdateAnomalyResults(
+                feature_pair_validation.feature_test_path(),
+                feature_pair_validation.dataset_name(),
+                feature_pair_validation.base_dataset_name(),
+                feature_pair_validation.feature_base_path(), validation,
+                result));
           }
-          // If the sql_expression evaluates to False, there is an anomaly.
-          TFDV_RETURN_IF_ERROR(UpdateAnomalyResults(
-              feature_pair_validation.feature_test_path(),
-              feature_pair_validation.dataset_name(),
-              feature_pair_validation.base_dataset_name(),
-              feature_pair_validation.feature_base_path(), validation, result));
         }
       }
     }

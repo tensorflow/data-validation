@@ -168,6 +168,11 @@ TEST(CustomValidationTest, TestPairValidation) {
                severity: ERROR
                description: 'Test feature has too many zeros.'
              }
+             validations {
+               sql_expression: 'feature_test.num_stats.num_zeros > feature_base.num_stats.num_zeros'
+               severity: ERROR
+               description: 'Base feature has too few zeros.'
+             }
            })pb");
   metadata::v0::Anomalies expected_anomalies = ParseTextProtoOrDie<
       metadata::v0::Anomalies>(

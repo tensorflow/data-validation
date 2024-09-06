@@ -20,6 +20,7 @@
 
 ## Bug Fixes and Other Changes
 
+*   Fix bug in implementation of custom validations.
 *   Depends on `tensorflow>=2.15,<2.16`.
 
 ## Known Issues
