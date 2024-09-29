@@ -45,6 +45,7 @@ jobs:
 
     - name: Install built wheel
       run: |
+        pip install twine
         twine check dist/*
         pip install dist/*.whl
 
