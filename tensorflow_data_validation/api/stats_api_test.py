@@ -19,6 +19,7 @@ from __future__ import division
 from __future__ import print_function
 
 import os
+import pytest
 import tempfile
 from absl.testing import absltest
 import apache_beam as beam
