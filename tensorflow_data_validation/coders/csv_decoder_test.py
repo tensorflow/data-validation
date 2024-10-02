@@ -366,7 +366,7 @@ _TEST_CASES = [
 ]
 
 
-@pytest.mark.xfail(run=False, reason="PR XXXX This test fails and needs to be fixed. ")
+@pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed. ")
 class CSVDecoderTest(parameterized.TestCase):
   """Tests for CSV decoder."""
 
