@@ -51,6 +51,7 @@ jobs:
 
     - name: Run Test
       run: |
+        pip install pytest
         # cleanup (interferes with tests)
         rm -rf bazel-*
         # run tests
