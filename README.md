@@ -66,9 +66,9 @@ tested at Google.
 
 ### 1. Install Docker
 
-Please first install `docker` and `docker compose` by following the directions:
+Please first install `docker` and `docker-compose` by following the directions:
 [docker](https://docs.docker.com/install/);
-[docker compose](https://docs.docker.com/compose/install/).
+[docker-compose](https://docs.docker.com/compose/install/).
 
 ### 2. Clone the TFDV repository
 
@@ -86,8 +86,8 @@ branch), pass `-b <branchname>` to the `git clone` command.
 Then, run the following at the project root:
 
 ```bash
-sudo docker compose build manylinux2010
-sudo docker compose run -e PYTHON_VERSION=${PYTHON_VERSION} manylinux2010
+sudo docker-compose build manylinux2010
+sudo docker-compose run -e PYTHON_VERSION=${PYTHON_VERSION} manylinux2010
 ```
 where `PYTHON_VERSION` is one of `{39, 310, 311}`.
 
