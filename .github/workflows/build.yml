@@ -49,17 +49,19 @@ jobs:
         twine check dist/*
         pip install dist/*.whl
 
+    - name: Install test dependencies
+      run: |
+        pip install pytest scikit-learn scipy
+
     - name: Run Test
       run: |
-        pip install pytest
-        # cleanup (interferes with tests)
         rm -rf bazel-*
         # run tests
         pytest -vv
 
-    - name: Debugging with tmate
-      if: failure()
-      uses: mxschmitt/action-tmate@v3.18
+#    - name: Debugging with tmate
+#      if: failure()
+#      uses: mxschmitt/action-tmate@v3.18
 
   upload_to_pypi:
     name: Upload to PyPI
