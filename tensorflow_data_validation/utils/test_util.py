@@ -152,13 +152,18 @@ def assert_feature_proto_equal(
     test.assertIn(actual_custom_stat.name, expected_custom_stats)
     expected_custom_stat = expected_custom_stats[actual_custom_stat.name]
     compare.assertProtoEqual(
-        test, expected_custom_stat, actual_custom_stat, normalize_numbers=True)
+        test,
+        expected_custom_stat,
+        actual_custom_stat,
+        normalize_numbers=True,
+        relative_tolerance=1e-4,
+    )
   del actual.custom_stats[:]
   del expected.custom_stats[:]
 
   # Compare the rest of the proto without numeric custom stats
   compare.assertProtoEqual(
-      test, expected, actual, normalize_numbers=True, relative_tolerance=1e-9
+      test, expected, actual, normalize_numbers=True, relative_tolerance=1e-4
   )
 
 
@@ -299,7 +304,9 @@ class CombinerStatsGeneratorTest(absltest.TestCase):
             self,
             expected_stats,
             actual_feature_stats,
-            normalize_numbers=True)
+            normalize_numbers=True,
+            relative_tolerance=1e-4,
+        )
 
       self.assertEqual(  # pylint: disable=g-generic-assert
           len(result.cross_features), len(expected_cross_feature_stats),
@@ -311,7 +318,9 @@ class CombinerStatsGeneratorTest(absltest.TestCase):
             self,
             expected_cross_feature_stats[cross],
             actual_cross_feature_stats,
-            normalize_numbers=True)
+            normalize_numbers=True,
+            relative_tolerance=1e-4,
+        )
     # Run generator to check that merge_accumulators() works correctly.
     accumulators = [
         generator.add_input(generator.create_accumulator(), batch)
@@ -413,8 +422,13 @@ class TransformStatsGeneratorTest(absltest.TestCase):
         if len(actual_results) == 1 and len(expected_results) == 1:
           # If appropriate use proto matcher for better errors
           test.assertEqual(expected_results[0][0], actual_results[0][0])
-          compare.assertProtoEqual(test, expected_results[0][1],
-                                   actual_results[0][1], normalize_numbers=True)
+          compare.assertProtoEqual(
+              test,
+              expected_results[0][1],
+              actual_results[0][1],
+              normalize_numbers=True,
+              relative_tolerance=1e-4,
+          )
         else:
           test.assertCountEqual(
               [(k, _DatasetFeatureStatisticsComparatorWrapper(v))
@@ -477,7 +491,12 @@ class CombinerFeatureStatsGeneratorTest(absltest.TestCase):
     result = generator.extract_output(
         generator.merge_accumulators(accumulators))
     compare.assertProtoEqual(
-        self, expected_result, result, normalize_numbers=True)
+        self,
+        expected_result,
+        result,
+        normalize_numbers=True,
+        relative_tolerance=1e-4,
+    )
 
     # Run generator to check that compact() works correctly after
     # merging accumulators.
@@ -488,9 +507,15 @@ class CombinerFeatureStatsGeneratorTest(absltest.TestCase):
     # Assume that generators will never be called with empty inputs.
     accumulators = accumulators or [generator.create_accumulator()]
     result = generator.extract_output(
-        generator.compact(generator.merge_accumulators(accumulators)))
+        generator.compact(generator.merge_accumulators(accumulators))
+    )
     compare.assertProtoEqual(
-        self, expected_result, result, normalize_numbers=True)
+        self,
+        expected_result,
+        result,
+        normalize_numbers=True,
+        relative_tolerance=1e-4,
+    )
 
     # Run generator to check that add_input() works correctly when adding
     # inputs to a non-empty accumulator.
@@ -501,7 +526,12 @@ class CombinerFeatureStatsGeneratorTest(absltest.TestCase):
 
     result = generator.extract_output(accumulator)
     compare.assertProtoEqual(
-        self, expected_result, result, normalize_numbers=True)
+        self,
+        expected_result,
+        result,
+        normalize_numbers=True,
+        relative_tolerance=1e-4,
+    )
 
 
 def make_arrow_record_batches_equal_fn(

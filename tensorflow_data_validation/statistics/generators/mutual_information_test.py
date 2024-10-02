@@ -173,12 +173,16 @@ class EncodeExamplesTest(absltest.TestCase):
                                      set([types.FeaturePath(["fa"])]),
                                      EMPTY_SET)
 
-  def test_encoder_multivalent_numeric_too_large(self):
-    batch = pa.RecordBatch.from_arrays([pa.array([2**53 + 1])], ["fa"])
-    expected = {}
-    self.assert_encoder_output_equal(batch, expected,
-                                     set([types.FeaturePath(["fa"])]),
-                                     EMPTY_SET)
+  def test_encoder_multivalent_numeric_too_large_for_numpy_v1(self):
+    # For NumPy version 1.x.x, np.histogram cannot handle values > 2**53 if the
+    # min and max of the examples are the same.
+    # https://github.com/numpy/numpy/issues/8627
+    if np.lib.NumpyVersion(np.__version__) < "2.0.0":
+      batch = pa.RecordBatch.from_arrays([pa.array([2**53 + 1])], ["fa"])
+      expected = {}
+      self.assert_encoder_output_equal(
+          batch, expected, set([types.FeaturePath(["fa"])]), EMPTY_SET
+      )
 
 
 class MutualInformationTest(absltest.TestCase):
@@ -1243,66 +1247,76 @@ class MutualInformationTest(absltest.TestCase):
           types.FeaturePath(["label_key"]), None, TEST_SEED,
           TEST_MAX_ENCODING_LENGTH).compute(batch)
 
-  def test_mi_multivalent_too_large_int_value(self):
-    label_array = pa.array([[0.1], [0.1], [0.1], [0.1], [0.1]])
-    x = 2**53 + 1
-    invalid_feat_array = pa.array([[x], [x], [x], [x], []])
-    valid_feat_array = pa.array([[1], [1], [1], [1], []])
+  def test_mi_multivalent_too_large_int_value_for_numpy_v1(self):
+    # For NumPy version 1.x.x, np.histogram cannot handle values > 2**53 if the
+    # min and max of the examples are the same.
+    # https://github.com/numpy/numpy/issues/8627
+    if np.lib.NumpyVersion(np.__version__) < "2.0.0":
+      label_array = pa.array([[0.1], [0.1], [0.1], [0.1], [0.1]])
+      x = 2**53 + 1
+      invalid_feat_array = pa.array([[x], [x], [x], [x], []])
+      valid_feat_array = pa.array([[1], [1], [1], [1], []])
 
-    batch = pa.RecordBatch.from_arrays(
-        [label_array, invalid_feat_array, valid_feat_array],
-        ["label_key", "invalid_feat_array", "valid_feat_array"])
+      batch = pa.RecordBatch.from_arrays(
+          [label_array, invalid_feat_array, valid_feat_array],
+          ["label_key", "invalid_feat_array", "valid_feat_array"],
+      )
 
-    schema = text_format.Parse(
-        """
-        feature {
-          name: "invalid_feat_array"
-          type: INT
-          value_count {
-            min: 0
-            max: 2
-          }
-        }
-        feature {
-          name: "valid_feat_array"
-          type: INT
-          value_count {
-            min: 0
-            max: 2
-          }
-        }
-        feature {
-          name: "label_key"
-          type: FLOAT
-          shape {
-            dim {
-              size: 1
+      schema = text_format.Parse(
+          """
+          feature {
+            name: "invalid_feat_array"
+            type: INT
+            value_count {
+              min: 0
+              max: 2
             }
           }
-        }
-        """, schema_pb2.Schema())
+          feature {
+            name: "valid_feat_array"
+            type: INT
+            value_count {
+              min: 0
+              max: 2
+            }
+          }
+          feature {
+            name: "label_key"
+            type: FLOAT
+            shape {
+              dim {
+                size: 1
+              }
+            }
+          }
+          """,
+          schema_pb2.Schema(),
+      )
 
-    # The value 2**53 + 1 is too large, and will cause np.histogram to fail.
-    # We skip the feature if it cannot be encoded. We still encode the valid
-    # features.
-    expected = text_format.Parse(
-        """
-        features {
-          custom_stats {
-            name: "adjusted_mutual_information"
-            num: 0.09617966939259784
+      # The value 2**53 + 1 is too large, and will cause np.histogram to fail.
+      # We skip the feature if it cannot be encoded. We still encode the valid
+      # features.
+      expected = text_format.Parse(
+          """
+          features {
+            custom_stats {
+              name: "adjusted_mutual_information"
+              num: 0.09617966939259784
+            }
+            path {
+              step: "valid_feat_array"
+            }
           }
-          path {
-            step: "valid_feat_array"
-          }
-        }
-    """, statistics_pb2.DatasetFeatureStatistics())
-    self._assert_ami_output_equal(
-        batch,
-        expected,
-        schema,
-        types.FeaturePath(["label_key"]),
-        allow_invalid_partitions=True)
+      """,
+          statistics_pb2.DatasetFeatureStatistics(),
+      )
+      self._assert_ami_output_equal(
+          batch,
+          expected,
+          schema,
+          types.FeaturePath(["label_key"]),
+          allow_invalid_partitions=True,
+      )
 
   def test_mi_no_feature(self):
     # Tests if there is no feature provided.

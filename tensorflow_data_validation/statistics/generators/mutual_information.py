@@ -228,8 +228,9 @@ def _encode_multivalent_numeric_feature(
     _, histogram_bin_boundaries = np.histogram(
         flattened_feature_values, bins=encoding_length - 1)
   except IndexError as e:
-    # np.histogram cannot handle values > 2**53 if the min and max of the
-    # examples are the same. https://github.com/numpy/numpy/issues/8627
+    # For NumPy version 1.x.x, np.histogram cannot handle values > 2**53 if the
+    # min and max of the examples are the same.
+    # https://github.com/numpy/numpy/issues/8627
     logging.exception("Unable to encode examples: %s with error: %s",
                       flattened_feature_values, e)
     return None
