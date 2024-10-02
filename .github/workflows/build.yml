@@ -20,7 +20,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Build ml-metadata
+    - name: Build data-validation
       id: build-data-validation
       uses: ./.github/reusable-build
       with:
