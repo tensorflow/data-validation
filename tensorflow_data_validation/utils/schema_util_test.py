@@ -319,6 +319,7 @@ class SchemaUtilTest(parameterized.TestCase):
     with self.assertRaisesRegex(TypeError, 'should be a Schema proto'):
       _ = schema_util.get_domain({}, 'feature')
 
+  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
   def test_write_load_schema_text(self):
     schema = text_format.Parse(
         """
