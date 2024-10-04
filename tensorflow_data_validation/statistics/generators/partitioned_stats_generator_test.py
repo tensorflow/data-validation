@@ -338,7 +338,7 @@ class SampleRecordBatchRows(parameterized.TestCase):
         "test_sample_partition_combine_empty_partition",
         "test_sample_partition_combine_partition_of_empty_rb",
       ]:
-      pytest.skip("PR 260 This test fails and needs to be fixed.")
+        pytest.xfail(reason="PR 260 This test fails and needs to be fixed. ")
     np.random.seed(TEST_SEED)
     p = beam.Pipeline()
     result = (

@@ -3179,7 +3179,7 @@ class IdentifyAnomalousExamplesTest(parameterized.TestCase):
         "test_identify_anomalous_examples_no_anomalies",
         "test_identify_anomalous_examples_different_anomaly_reasons"
     ]:
-      pytest.skip("PR 260 This test fails and needs to be fixed.")
+        pytest.xfail(reason="PR 260 This test fails and needs to be fixed. ")
 
     schema = text_format.Parse(schema_text, schema_pb2.Schema())
     options = stats_options.StatsOptions(schema=schema)
