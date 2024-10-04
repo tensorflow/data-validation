@@ -175,7 +175,8 @@ other *untested* combinations may also work.
 
 tensorflow-data-validation                                                            | apache-beam[gcp] | pyarrow | tensorflow        | tensorflow-metadata | tensorflow-transform | tfx-bsl
 ------------------------------------------------------------------------------------- | ---------------- | ------- | ----------------- | ------------------- | -------------------- | -------
-[GitHub master](https://github.com/tensorflow/data-validation/blob/master/RELEASE.md) | 2.47.0           | 10.0.0  | nightly (1.x/2.x) | 1.15.0              | n/a                  | 1.15.1
+[GitHub master](https://github.com/tensorflow/data-validation/blob/master/RELEASE.md) | 2.59.0           | 10.0.1  | nightly (1.x/2.x) | 1.16.0              | n/a                  | 1.16.0
+[1.16.0](https://github.com/tensorflow/data-validation/blob/v1.16.0/RELEASE.md)       | 2.59.0           | 10.0.1  | 2.16              | 1.16.0              | n/a                  | 1.16.0
 [1.15.1](https://github.com/tensorflow/data-validation/blob/v1.15.1/RELEASE.md)       | 2.47.0           | 10.0.0  | 2.15              | 1.15.0              | n/a                  | 1.15.1
 [1.15.0](https://github.com/tensorflow/data-validation/blob/v1.15.0/RELEASE.md)       | 2.47.0           | 10.0.0  | 2.15              | 1.15.0              | n/a                  | 1.15.0
 [1.14.0](https://github.com/tensorflow/data-validation/blob/v1.14.0/RELEASE.md)       | 2.47.0           | 10.0.0  | 2.13              | 1.14.0              | n/a                  | 1.14.0

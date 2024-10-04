@@ -268,18 +268,18 @@ datasets {
       histograms {
         buckets {
           low_value: 5.0
-          high_value: 6.666666666666667
-          sample_count: 10.0220751
+          high_value: 6.6666665
+          sample_count: 10.0220747
         }
         buckets {
-          low_value: 6.666666666666667
-          high_value: 8.333333333333334
+          low_value: 6.6666665
+          high_value: 8.333333
           sample_count: 0.0220751
         }
         buckets {
-          low_value: 8.333333333333334
+          low_value: 8.333333
           high_value: 10.0
-          sample_count: 9.9558499
+          sample_count: 9.9558363
         }
       }
       histograms {
@@ -341,18 +341,18 @@ datasets {
       histograms {
         buckets {
           low_value: 1.0
-          high_value: 1.3333333333333333
-          sample_count: 10.0220751
+          high_value: 1.3333334
+          sample_count: 10.0220747
         }
         buckets {
-          low_value: 1.3333333333333333
+          low_value: 1.3333334
           high_value: 1.6666666666666665
           sample_count: 0.0220751
         }
         buckets {
           low_value: 1.6666666666666665
           high_value: 2.0
-          sample_count: 9.9558499
+          sample_count: 9.9558363
         }
       }
       histograms {
@@ -788,18 +788,18 @@ datasets {
       histograms {
         buckets {
           low_value: 5.0
-          high_value: 6.666666666666667
-          sample_count: 10.0220751
+          high_value: 6.6666665
+          sample_count: 10.0220747
         }
         buckets {
-          low_value: 6.666666666666667
-          high_value: 8.333333333333334
+          low_value: 6.6666665
+          high_value: 8.333333
           sample_count: 0.0220751
         }
         buckets {
-          low_value: 8.333333333333334
+          low_value: 8.333333
           high_value: 10.0
-          sample_count: 9.9558499
+          sample_count: 9.9558363
         }
       }
       histograms {
@@ -827,18 +827,18 @@ datasets {
         histograms {
           buckets {
             low_value: 5.0
-            high_value: 6.666666666666667
-            sample_count: 50.1658375
+            high_value: 6.6666665
+            sample_count: 50.1658363
           }
           buckets {
-            low_value: 6.666666666666667
-            high_value: 8.333333333333334
+            low_value: 6.6666665
+            high_value: 8.333333
             sample_count: 0.1658375
           }
           buckets {
-            low_value: 8.333333333333334
+            low_value: 8.333333
             high_value: 10.0
-            sample_count: 99.668325
+            sample_count: 99.6683884
           }
         }
         histograms {
@@ -906,18 +906,18 @@ datasets {
       histograms {
         buckets {
           low_value: 1.0
-          high_value: 1.3333333333333333
-          sample_count: 10.0220751
+          high_value: 1.3333334
+          sample_count: 10.0220747
         }
         buckets {
-          low_value: 1.3333333333333333
+          low_value: 1.3333334
           high_value: 1.6666666666666665
           sample_count: 0.0220751
         }
         buckets {
           low_value: 1.6666666666666665
           high_value: 2.0
-          sample_count: 9.9558499
+          sample_count: 9.9558363
         }
       }
       histograms {
@@ -945,18 +945,18 @@ datasets {
         histograms {
           buckets {
             low_value: 1.0
-            high_value: 1.3333333333333333
-            sample_count: 50.1658375
+            high_value: 1.3333334
+            sample_count: 50.1658363
           }
           buckets {
-            low_value: 1.3333333333333333
+            low_value: 1.3333334
             high_value: 1.6666666666666665
             sample_count: 0.1658375
           }
           buckets {
             low_value: 1.6666666666666665
             high_value: 2.0
-            sample_count: 99.668325
+            sample_count: 99.6683884
           }
         }
         histograms {

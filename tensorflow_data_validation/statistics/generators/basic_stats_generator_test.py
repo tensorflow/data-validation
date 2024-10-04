@@ -1864,18 +1864,18 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               histograms {
                 buckets {
                   low_value: 1.0
-                  high_value: 2.3333333
+                  high_value: 2.3333335
                   sample_count: 3.0049751
                 }
                 buckets {
-                  low_value: 2.3333333
+                  low_value: 2.3333335
                   high_value: 3.6666667
-                  sample_count: 1.0049751
+                  sample_count: 1.0049746
                 }
                 buckets {
                   low_value: 3.6666667
                   high_value: 5.0
-                  sample_count: 1.9900498
+                  sample_count: 1.9900484
                 }
                 type: STANDARD
               }
@@ -1903,7 +1903,9 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 type: QUANTILES
               }
             }
-            """, statistics_pb2.FeatureNameStatistics()),
+            """,
+            statistics_pb2.FeatureNameStatistics(),
+        ),
         types.FeaturePath(['b']): text_format.Parse(
             """
             path {
@@ -1938,7 +1940,9 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               }
               avg_length: 1.71428571
             }
-            """, statistics_pb2.FeatureNameStatistics()),
+            """,
+            statistics_pb2.FeatureNameStatistics(),
+        ),
         types.FeaturePath(['c']): text_format.Parse(
             """
             path {
@@ -2018,7 +2022,10 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 type: QUANTILES
               }
             }
-            """, statistics_pb2.FeatureNameStatistics())}
+            """,
+            statistics_pb2.FeatureNameStatistics(),
+        ),
+    }
     generator = basic_stats_generator.BasicStatsGenerator(
         num_values_histogram_buckets=3, num_histogram_buckets=3,
         num_quantiles_histogram_buckets=4, epsilon=0.001)

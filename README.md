@@ -66,9 +66,9 @@ tested at Google.
 
 ### 1. Install Docker
 
-Please first install `docker` and `docker compose` by following the directions:
+Please first install `docker` and `docker-compose` by following the directions:
 [docker](https://docs.docker.com/install/);
-[docker compose](https://docs.docker.com/compose/install/).
+[docker-compose](https://docs.docker.com/compose/install/).
 
 ### 2. Clone the TFDV repository
 
@@ -86,8 +86,8 @@ branch), pass `-b <branchname>` to the `git clone` command.
 Then, run the following at the project root:
 
 ```bash
-sudo docker compose build manylinux2010
-sudo docker compose run -e PYTHON_VERSION=${PYTHON_VERSION} manylinux2010
+sudo docker-compose build manylinux2010
+sudo docker-compose run -e PYTHON_VERSION=${PYTHON_VERSION} manylinux2010
 ```
 where `PYTHON_VERSION` is one of `{39, 310, 311}`.
 
@@ -172,7 +172,8 @@ other *untested* combinations may also work.
 
 tensorflow-data-validation                                                            | apache-beam[gcp] | pyarrow | tensorflow        | tensorflow-metadata | tensorflow-transform | tfx-bsl
 ------------------------------------------------------------------------------------- | ---------------- | ------- | ----------------- | ------------------- | -------------------- | -------
-[GitHub master](https://github.com/tensorflow/data-validation/blob/master/RELEASE.md) | 2.47.0           | 10.0.0  | nightly (2.x)     | 1.15.0              | n/a                  | 1.15.1
+[GitHub master](https://github.com/tensorflow/data-validation/blob/master/RELEASE.md) | 2.59.0           | 10.0.1  | nightly (2.x)     | 1.16.0              | n/a                  | 1.16.0
+[1.16.0](https://github.com/tensorflow/data-validation/blob/v1.16.0/RELEASE.md)       | 2.59.0           | 10.0.1  | 2.16              | 1.16.0              | n/a                  | 1.16.0
 [1.15.1](https://github.com/tensorflow/data-validation/blob/v1.15.1/RELEASE.md)       | 2.47.0           | 10.0.0  | 2.15              | 1.15.0              | n/a                  | 1.15.1
 [1.15.0](https://github.com/tensorflow/data-validation/blob/v1.15.0/RELEASE.md)       | 2.47.0           | 10.0.0  | 2.15              | 1.15.0              | n/a                  | 1.15.0
 [1.14.0](https://github.com/tensorflow/data-validation/blob/v1.14.0/RELEASE.md)       | 2.47.0           | 10.0.0  | 2.13              | 1.14.0              | n/a                  | 1.14.0

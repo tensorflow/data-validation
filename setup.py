@@ -188,16 +188,16 @@ setup(
         'pyfarmhash>=0.2.2,<0.4',
         'six>=1.12,<2',
         'tensorflow' + select_constraint(
-            default='>=2.15,<2.16',
-            nightly='>=2.16.0.dev',
+            default='>=2.16,<2.17',
+            nightly='>=2.17.0.dev',
             git_master='@git+https://github.com/tensorflow/tensorflow@master'),
         'tensorflow-metadata' + select_constraint(
-            default='>=1.15.0,<1.16',
-            nightly='>=1.16.0.dev',
+            default='>=1.16.0,<1.17',
+            nightly='>=1.17.0.dev',
             git_master='@git+https://github.com/tensorflow/metadata@master'),
         'tfx-bsl' + select_constraint(
-            default='>=1.15.1,<1.16',
-            nightly='>=1.16.0.dev',
+            default='>=1.16.0,<1.17',
+            nightly='>=1.17.0.dev',
             git_master='@git+https://github.com/tensorflow/tfx-bsl@master'),
     ],
     extras_require={
