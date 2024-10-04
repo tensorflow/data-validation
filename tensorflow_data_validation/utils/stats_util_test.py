@@ -130,7 +130,7 @@ class StatsUtilTest(absltest.TestCase):
                      stats_util.maybe_get_utf8(b'This is valid.'))
     self.assertIsNone(stats_util.maybe_get_utf8(b'\xF0'))
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
+  @pytest.mark.xfail(run=True, reason="PR 260 This test fails and needs to be fixed.")
   def test_write_load_stats_text(self):
     stats = text_format.Parse("""
       datasets { name: 'abc' }
@@ -140,7 +140,7 @@ class StatsUtilTest(absltest.TestCase):
     self.assertEqual(stats, stats_util.load_stats_text(input_path=stats_path))
     self.assertEqual(stats, stats_util.load_statistics(input_path=stats_path))
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
+  @pytest.mark.xfail(run=True, reason="PR 260 This test fails and needs to be fixed.")
   def test_load_stats_tfrecord(self):
     stats = text_format.Parse("""
       datasets { name: 'abc' }
@@ -152,7 +152,7 @@ class StatsUtilTest(absltest.TestCase):
                      stats_util.load_stats_tfrecord(input_path=stats_path))
     self.assertEqual(stats, stats_util.load_statistics(input_path=stats_path))
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
+  @pytest.mark.xfail(run=True, reason="PR 260 This test fails and needs to be fixed.")
   def test_load_stats_binary(self):
     stats = text_format.Parse("""
       datasets { name: 'abc' }
@@ -431,7 +431,7 @@ class DatasetListViewTest(absltest.TestCase):
 
 class LoadShardedStatisticsTest(absltest.TestCase):
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
+  @pytest.mark.xfail(run=True, reason="PR 260 This test fails and needs to be fixed.")
   def test_load_sharded_paths(self):
     full_stats_proto = statistics_pb2.DatasetFeatureStatisticsList()
     text_format.Parse(_STATS_PROTO, full_stats_proto)
@@ -448,7 +448,7 @@ class LoadShardedStatisticsTest(absltest.TestCase):
         io_provider=artifacts_io_impl.get_io_provider('tfrecords'))
     compare.assertProtoEqual(self, view.proto(), full_stats_proto)
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
+  @pytest.mark.xfail(run=True, reason="PR 260 This test fails and needs to be fixed.")
   def test_load_sharded_pattern(self):
     full_stats_proto = statistics_pb2.DatasetFeatureStatisticsList()
     text_format.Parse(_STATS_PROTO, full_stats_proto)
