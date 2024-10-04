@@ -142,7 +142,7 @@ def _make_ex(identifier: str,
 
 class FeatureSkewDetectorTest(parameterized.TestCase):
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
+  @pytest.mark.xfail(run=True, reason="PR 260 This test fails and needs to be fixed.")
   def test_detect_feature_skew(self):
     baseline_examples, test_examples, _ = get_test_input(
         include_skewed_features=True, include_close_floats=True)
@@ -194,7 +194,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
           skew_result,
           test_util.make_skew_result_equal_fn(self, expected_result))
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
+  @pytest.mark.xfail(run=True, reason="PR 260 This test fails and needs to be fixed.")
   def test_detect_no_skew(self):
     baseline_examples, test_examples, _ = get_test_input(
         include_skewed_features=False, include_close_floats=False)
@@ -224,7 +224,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
       util.assert_that(skew_sample, make_sample_equal_fn(self, 0, []),
                        'CheckSkewSample')
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
+  @pytest.mark.xfail(run=True, reason="PR 260 This test fails and needs to be fixed.")
   def test_obtain_skew_sample(self):
     baseline_examples, test_examples, skew_pairs = get_test_input(
         include_skewed_features=True, include_close_floats=False)
@@ -248,7 +248,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
           skew_sample, make_sample_equal_fn(self, sample_size,
                                             potential_samples))
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
+  @pytest.mark.xfail(run=True, reason="PR 260 This test fails and needs to be fixed.")
   def test_empty_inputs(self):
     baseline_examples, test_examples, _ = get_test_input(
         include_skewed_features=True, include_close_floats=True)
@@ -304,7 +304,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
                        make_sample_equal_fn(self, 0, expected_result),
                        'CheckSkewSample')
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
+  @pytest.mark.xfail(run=True, reason="PR 260 This test fails and needs to be fixed.")
   def test_float_precision_configuration(self):
     baseline_examples, test_examples, _ = get_test_input(
         include_skewed_features=True, include_close_floats=True)
@@ -395,7 +395,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
         _ = ((baseline_examples, test_examples)
              | feature_skew_detector.DetectFeatureSkewImpl([]))
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
+  @pytest.mark.xfail(run=True, reason="PR 260 This test fails and needs to be fixed.")
   def test_duplicate_identifiers_allowed_with_duplicates(self):
     base_example_1 = text_format.Parse(
         """
@@ -469,7 +469,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
           skew_result,
           test_util.make_skew_result_equal_fn(self, expected_result))
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
+  @pytest.mark.xfail(run=True, reason="PR 260 This test fails and needs to be fixed.")
   def test_duplicate_identifiers_not_allowed_with_duplicates(self):
     base_example_1 = text_format.Parse(
         """
@@ -535,7 +535,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
     self.assertLen(actual_counter, 1)
     self.assertEqual(actual_counter[0].committed, 1)
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
+  @pytest.mark.xfail(run=True, reason="PR 260 This test fails and needs to be fixed.")
   def test_skips_missing_identifier_example(self):
     base_example_1 = text_format.Parse(
         """
@@ -576,7 +576,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
     runner = p.run()
     runner.wait_until_finish()
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
+  @pytest.mark.xfail(run=True, reason="PR 260 This test fails and needs to be fixed.")
   def test_empty_features_equivalent(self):
     base_example_1 = text_format.Parse(
         """
@@ -626,7 +626,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
     runner = p.run()
     runner.wait_until_finish()
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
+  @pytest.mark.xfail(run=True, reason="PR 260 This test fails and needs to be fixed.")
   def test_empty_features_not_equivalent_to_missing(self):
     base_example_1 = text_format.Parse(
         """
@@ -699,7 +699,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
     self.assertLen(actual_counter, 1)
     self.assertEqual(actual_counter[0].committed, 1)
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
+  @pytest.mark.xfail(run=True, reason="PR 260 This test fails and needs to be fixed.")
   def test_confusion_analysis(self):
 
     baseline_examples = [
@@ -834,7 +834,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
                     feature_skew_detector.ConfusionConfig(name='val'),
                 ]))[feature_skew_detector.CONFUSION_KEY]
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
+  @pytest.mark.xfail(run=True, reason="PR 260 This test fails and needs to be fixed.")
   def test_match_stats(self):
     baseline_examples = [
         _make_ex('id0'),
