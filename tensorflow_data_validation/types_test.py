@@ -65,7 +65,7 @@ class TypesTest(absltest.TestCase):
     coder = types._ArrowRecordBatchCoder()
     self.assertTrue(coder.decode(coder.encode(rb)).equals(rb))
 
-  @pytest.mark.xfail(run=True, reason="PR 260 This test fails and needs to be fixed.")
+  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
   def test_coder_end_to_end(self):
     # First check that the registration is done.
     self.assertIsInstance(

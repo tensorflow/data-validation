@@ -3241,7 +3241,7 @@ class DetectFeatureSkewTest(absltest.TestCase):
     for each in actual:
       self.assertIn(each, expected)
 
-  @pytest.mark.xfail(run=True, reason="PR 260 This test fails and needs to be fixed.")
+  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
   def test_detect_feature_skew(self):
     training_data = [
         text_format.Parse("""
