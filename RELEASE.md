@@ -6,13 +6,33 @@
 
 ## Bug Fixes and Other Changes
 
-*   Relax dependency on Protobuf to include version 5.x
-
 ## Known Issues
 
 ## Breaking Changes
 
+## Deprecation
+
+# Version 1.16.1
+
+## Major Features and Improvements
+
+*   N/A
+
+## Bug Fixes and Other Changes
+
+*   Relax dependency on Protobuf to include version 5.x
+
+## Known Issues
+
+*   N/A
+
+## Breaking Changes
+
+*   N/A
+
 ## Deprecations
+
+*   N/A
 
 # Version 1.16.0
 
