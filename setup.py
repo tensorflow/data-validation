@@ -182,7 +182,7 @@ setup(
         'joblib>=1.2.0',  # Dependency for multi-processing.
         'numpy>=1.22.0',
         'pandas>=1.0,<2',
-        'protobuf>=4.25.2,<5;python_version>="3.11"',
+        'protobuf>=4.25.2,<6;python_version>="3.11"',
         'protobuf>=3.20.3,<5;python_version<"3.11"',
         'pyarrow>=10,<11',
         'pyfarmhash>=0.2.2,<0.4',
