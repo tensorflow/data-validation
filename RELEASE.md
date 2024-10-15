@@ -6,6 +6,8 @@
 
 ## Bug Fixes and Other Changes
 
+*   Relax dependency on Protobuf to include version 5.x
+
 ## Known Issues
 
 ## Breaking Changes
