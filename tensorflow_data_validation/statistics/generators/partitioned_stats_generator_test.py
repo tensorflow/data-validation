@@ -17,7 +17,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import pytest
 from absl.testing import absltest
 from absl.testing import parameterized
 import apache_beam as beam
@@ -330,15 +329,6 @@ class SampleRecordBatchRows(parameterized.TestCase):
   @parameterized.named_parameters(*(_SAMPLE_PARTITION_TESTS))
   def test_sample_partition_combine(self, partitioned_record_batches, expected,
                                     sample_size, num_compacts):
-    if self._testMethodName in [
-        "test_sample_partition_combine_sample_2_from_4",
-        "test_sample_partition_combine_combine_many_to_one",
-        "test_sample_partition_combine_many_compacts",
-        "test_sample_partition_combine_num_records_smaller_than_max",
-        "test_sample_partition_combine_empty_partition",
-        "test_sample_partition_combine_partition_of_empty_rb",
-      ]:
-        pytest.xfail(reason="PR 260 This test fails and needs to be fixed. ")
     np.random.seed(TEST_SEED)
     p = beam.Pipeline()
     result = (
@@ -636,7 +626,6 @@ class NonStreamingCustomStatsGeneratorTest(test_util.TransformStatsGeneratorTest
           }
         }""", schema_pb2.Schema())
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
   def test_sklearn_mi(self):
     expected_result = [
         _get_test_stats_with_mi([
@@ -663,7 +652,6 @@ class NonStreamingCustomStatsGeneratorTest(test_util.TransformStatsGeneratorTest
         add_default_slice_key_to_input=True,
         add_default_slice_key_to_output=True)
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
   def test_sklearn_mi_with_slicing(self):
     sliced_record_batches = []
     for slice_key in ['slice1', 'slice2']:

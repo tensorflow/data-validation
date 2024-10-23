@@ -17,7 +17,6 @@ from __future__ import division
 from __future__ import print_function
 
 import os
-import pytest
 from absl.testing import absltest
 from absl.testing import parameterized
 import pandas as pd
@@ -32,7 +31,6 @@ from tensorflow_metadata.proto.v0 import schema_pb2
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
 
-@pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
 class ValidationLibTest(parameterized.TestCase):
 
   @parameterized.named_parameters(('no_sampled_examples', 0),
@@ -251,7 +249,6 @@ class ValidationLibTest(parameterized.TestCase):
         self, expected_result)
     compare_fn([actual_result])
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
   def test_validate_examples_in_tfrecord_no_schema(self):
     temp_dir_path = self.create_tempdir().full_path
     input_data_path = os.path.join(temp_dir_path, 'input_data.tfrecord')
@@ -460,7 +457,6 @@ class ValidationLibTest(parameterized.TestCase):
     """, statistics_pb2.DatasetFeatureStatisticsList())
     return (data_location, column_names, options, expected_result)
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
   def test_validate_examples_in_csv(self):
     data_location, _, options, expected_result = (
         self._get_anomalous_csv_test(
@@ -478,7 +474,6 @@ class ValidationLibTest(parameterized.TestCase):
         self, expected_result)
     compare_fn([result])
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
   def test_validate_examples_in_csv_with_examples(self):
     data_location, _, options, expected_result = (
         self._get_anomalous_csv_test(
@@ -510,7 +505,6 @@ class ValidationLibTest(parameterized.TestCase):
         got_df[col] = got_df[col].astype(expected_df[col].dtype)
     self.assertTrue(expected_df.equals(got_df))
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
   def test_validate_examples_in_csv_no_header_in_file(self):
     data_location, column_names, options, expected_result = (
         self._get_anomalous_csv_test(
@@ -529,7 +523,6 @@ class ValidationLibTest(parameterized.TestCase):
         self, expected_result)
     compare_fn([result])
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
   def test_validate_examples_in_csv_no_schema(self):
     data_location, _, options, _ = (
         self._get_anomalous_csv_test(
@@ -546,7 +539,6 @@ class ValidationLibTest(parameterized.TestCase):
           column_names=None,
           delimiter=',')
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
   def test_validate_examples_in_csv_tab_delimiter(self):
     data_location, _, options, expected_result = (
         self._get_anomalous_csv_test(
@@ -564,7 +556,6 @@ class ValidationLibTest(parameterized.TestCase):
         self, expected_result)
     compare_fn([result])
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
   def test_validate_examples_in_csv_multiple_files(self):
     data_location, column_names, options, expected_result = (
         self._get_anomalous_csv_test(

@@ -1032,7 +1032,7 @@ void Schema::UpdateFeatureInternal(
             ->FindValueByNumber(view.type());
     string data_type_name = (descriptor == nullptr)
                                 ? absl::StrCat("unknown(", view.type(), ")")
-                                : descriptor->name();
+                                : std::string(descriptor->name());
 
     const google::protobuf::EnumValueDescriptor* schema_descriptor =
         tensorflow::metadata::v0::FeatureType_descriptor()->FindValueByNumber(
@@ -1040,7 +1040,7 @@ void Schema::UpdateFeatureInternal(
     string schema_type_name =
         (schema_descriptor == nullptr)
             ? absl::StrCat("unknown(", feature->type(), ")")
-            : schema_descriptor->name();
+            : std::string(schema_descriptor->name());
     descriptions->push_back(
         {tensorflow::metadata::v0::AnomalyInfo::UNEXPECTED_DATA_TYPE,
          "Unexpected data type",

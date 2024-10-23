@@ -19,7 +19,6 @@ from __future__ import division
 from __future__ import print_function
 
 import os
-import pytest
 import tempfile
 from absl.testing import absltest
 import apache_beam as beam
@@ -44,7 +43,6 @@ class StatsAPITest(absltest.TestCase):
   def _get_temp_dir(self):
     return tempfile.mkdtemp()
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
   def test_stats_pipeline(self):
     record_batches = [
         pa.RecordBatch.from_arrays([
@@ -203,7 +201,6 @@ class StatsAPITest(absltest.TestCase):
     }
     """, statistics_pb2.DatasetFeatureStatisticsList())
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
   def test_stats_pipeline_with_examples_with_no_values(self):
     record_batches = [
         pa.RecordBatch.from_arrays([
@@ -321,7 +318,6 @@ class StatsAPITest(absltest.TestCase):
           test_util.make_dataset_feature_stats_list_proto_equal_fn(
               self, expected_result, check_histograms=False))
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
   def test_stats_pipeline_with_zero_examples(self):
     expected_result = text_format.Parse(
         """
@@ -343,7 +339,6 @@ class StatsAPITest(absltest.TestCase):
           test_util.make_dataset_feature_stats_list_proto_equal_fn(
               self, expected_result, check_histograms=False))
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
   def test_stats_pipeline_with_sample_rate(self):
     record_batches = [
         pa.RecordBatch.from_arrays(
@@ -493,7 +488,6 @@ class StatsAPITest(absltest.TestCase):
 
 class MergeDatasetFeatureStatisticsListTest(absltest.TestCase):
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
   def test_merges_two_shards(self):
     stats1 = text_format.Parse(
         """

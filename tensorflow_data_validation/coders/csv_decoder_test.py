@@ -21,7 +21,7 @@ from __future__ import division
 from __future__ import print_function
 
 import sys
-import pytest
+from absl.testing import absltest
 from absl.testing import parameterized
 import apache_beam as beam
 from apache_beam.testing import util
@@ -366,7 +366,6 @@ _TEST_CASES = [
 ]
 
 
-@pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed. ")
 class CSVDecoderTest(parameterized.TestCase):
   """Tests for CSV decoder."""
 
@@ -406,3 +405,7 @@ class CSVDecoderTest(parameterized.TestCase):
             | csv_decoder.DecodeCSV(column_names=column_names))
         util.assert_that(
             result, test_util.make_arrow_record_batches_equal_fn(self, None))
+
+
+if __name__ == '__main__':
+  absltest.main()
