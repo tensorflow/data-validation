@@ -263,7 +263,7 @@ class StatsOptions(object):
   def to_json(self) -> Text:
     """Convert from an object to JSON representation of the __dict__ attribute.
 
-    Custom generators and slice_functions cannot being converted. As a result,
+    Custom generators and slice_functions cannot be converted. As a result,
     a ValueError will be raised when these options are specified and TFDV is
     running in a setting where the stats options have been json-serialized,
     first. This will happen in the case where TFDV is run as a TFX component.
