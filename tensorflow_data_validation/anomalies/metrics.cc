@@ -17,15 +17,18 @@ limitations under the License.
 
 #include <algorithm>
 #include <cmath>
-#include <limits>
+#include <iterator>
 #include <map>
-#include <numeric>
-#include <string>
+#include <set>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 #include "absl/log/check.h"
 #include "absl/status/status.h"
+#include "absl/types/optional.h"
 #include "tensorflow_data_validation/anomalies/map_util.h"
+#include "tensorflow_data_validation/anomalies/statistics_view.h"
 #include "tensorflow_data_validation/anomalies/status_util.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
@@ -356,6 +359,8 @@ absl::Status JensenShannonDivergence(Histogram& histogram_1,
         KullbackLeiblerDivergence(histogram_2,
                                   average_distribution_histogram)) /
        2);
+  // Due to precision limitations, the result will be capped at 1.0.
+  result = std::min(result, 1.0);
   return absl::OkStatus();
 }
 
@@ -405,7 +410,7 @@ absl::Status JensenShannonDivergence(const std::map<string, double>& map_1,
       kl_sum += b_ele_prob * std::log2(b_ele_prob / m);
     }
   }
-  result = kl_sum/2;
+  result = std::min(kl_sum / 2, 1.0);
 
   return absl::OkStatus();
 }
