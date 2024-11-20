@@ -57,7 +57,7 @@ class ValidationOptions(object):
 
   @property
   def new_features_are_warnings(self) -> bool:
-    return self._new_features_are_warnings
+    return self._new_features_are_warnings  # pytype: disable=bad-return-type
 
   @property
   def severity_overrides(self) -> List[validation_config_pb2.SeverityOverride]:
