@@ -133,7 +133,7 @@ TEST(DatasetConstraintsUtilTest, UpdateWithLargeNumExamples) {
       ParseTextProtoOrDie<DatasetFeatureStatistics>(R"pb(num_examples: 4)pb");
   DatasetStatsView previous_span_stats_view =
       DatasetStatsView(previous_span_statistics, /*by_weight=*/false);
-  uint64 large_num_examples = pow(2, 33);
+  uint64_t large_num_examples = pow(2, 33);
   DatasetFeatureStatistics current_statistics =
       ParseTextProtoOrDie<DatasetFeatureStatistics>(
           absl::Substitute(R"(num_examples: $0)", large_num_examples));
