@@ -665,7 +665,7 @@ class ValidationApiTest(ValidationTestCase):
     self.assertEqual(actual_schema, expected_schema)
 
   def test_infer_schema_invalid_statistics_input(self):
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         TypeError, '.*should be a DatasetFeatureStatisticsList proto.*'):
       _ = validation_api.infer_schema({})
 
@@ -675,7 +675,7 @@ class ValidationApiTest(ValidationTestCase):
         statistics_pb2.DatasetFeatureStatistics(),
         statistics_pb2.DatasetFeatureStatistics()
     ])
-    with self.assertRaisesRegexp(ValueError,
+    with self.assertRaisesRegex(ValueError,
                                  '.*statistics proto with one dataset.*'):
       _ = validation_api.infer_schema(statistics)
 
@@ -999,13 +999,13 @@ class ValidationApiTest(ValidationTestCase):
   def test_update_schema_invalid_schema_input(self):
     statistics = statistics_pb2.DatasetFeatureStatisticsList()
     statistics.datasets.extend([statistics_pb2.DatasetFeatureStatistics()])
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         TypeError, 'schema is of type.*'):
       _ = validation_api.update_schema({}, statistics)
 
   def test_update_schema_invalid_statistics_input(self):
     schema = schema_pb2.Schema()
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         TypeError, 'statistics is of type.*'):
       _ = validation_api.update_schema(schema, {})
 
@@ -1016,7 +1016,7 @@ class ValidationApiTest(ValidationTestCase):
         statistics_pb2.DatasetFeatureStatistics(),
         statistics_pb2.DatasetFeatureStatistics()
     ])
-    with self.assertRaisesRegexp(ValueError,
+    with self.assertRaisesRegex(ValueError,
                                  '.*statistics proto with one dataset.*'):
       _ = validation_api.update_schema(schema, statistics)
 
@@ -1956,7 +1956,7 @@ class ValidationApiTest(ValidationTestCase):
 
   def test_validate_stats_invalid_statistics_input(self):
     schema = schema_pb2.Schema()
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         TypeError, 'statistics is of type.*'):
       _ = validation_api.validate_statistics({}, schema)
 
@@ -1964,7 +1964,7 @@ class ValidationApiTest(ValidationTestCase):
     statistics = statistics_pb2.DatasetFeatureStatisticsList()
     statistics.datasets.extend([statistics_pb2.DatasetFeatureStatistics()])
     schema = schema_pb2.Schema()
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         TypeError, 'previous_statistics is of type.*'):
       _ = validation_api.validate_statistics(statistics, schema,
                                              previous_statistics='test')
@@ -1973,7 +1973,7 @@ class ValidationApiTest(ValidationTestCase):
     statistics = statistics_pb2.DatasetFeatureStatisticsList()
     statistics.datasets.extend([statistics_pb2.DatasetFeatureStatistics()])
     schema = schema_pb2.Schema()
-    with self.assertRaisesRegexp(TypeError,
+    with self.assertRaisesRegex(TypeError,
                                  'previous_span_statistics is of type.*'):
       _ = validation_api.validate_statistics_internal(
           statistics, schema, previous_span_statistics='test')
@@ -1982,7 +1982,7 @@ class ValidationApiTest(ValidationTestCase):
     statistics = statistics_pb2.DatasetFeatureStatisticsList()
     statistics.datasets.extend([statistics_pb2.DatasetFeatureStatistics()])
     schema = schema_pb2.Schema()
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         TypeError, 'serving_statistics is of type.*'):
       _ = validation_api.validate_statistics(statistics, schema,
                                              serving_statistics='test')
@@ -1991,7 +1991,7 @@ class ValidationApiTest(ValidationTestCase):
     statistics = statistics_pb2.DatasetFeatureStatisticsList()
     statistics.datasets.extend([statistics_pb2.DatasetFeatureStatistics()])
     schema = schema_pb2.Schema()
-    with self.assertRaisesRegexp(TypeError,
+    with self.assertRaisesRegex(TypeError,
                                  'previous_version_statistics is of type.*'):
       _ = validation_api.validate_statistics_internal(
           statistics, schema, previous_version_statistics='test')
@@ -1999,7 +1999,7 @@ class ValidationApiTest(ValidationTestCase):
   def test_validate_stats_invalid_schema_input(self):
     statistics = statistics_pb2.DatasetFeatureStatisticsList()
     statistics.datasets.extend([statistics_pb2.DatasetFeatureStatistics()])
-    with self.assertRaisesRegexp(TypeError, '.*should be a Schema proto.*'):
+    with self.assertRaisesRegex(TypeError, '.*should be a Schema proto.*'):
       _ = validation_api.validate_statistics(statistics, {})
 
   def test_validate_stats_invalid_environment(self):
@@ -2017,7 +2017,7 @@ class ValidationApiTest(ValidationTestCase):
           type: BYTES
         }
         """, schema_pb2.Schema())
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError, 'Environment.*not found in the schema.*'):
       _ = validation_api.validate_statistics(statistics, schema,
                                              environment='INVALID')
@@ -2030,7 +2030,7 @@ class ValidationApiTest(ValidationTestCase):
         statistics_pb2.DatasetFeatureStatistics()
     ])
     schema = schema_pb2.Schema()
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError, 'Only statistics proto with one dataset or the default.*'):
       _ = validation_api.validate_statistics(statistics, schema)
 
@@ -2045,7 +2045,7 @@ class ValidationApiTest(ValidationTestCase):
         statistics_pb2.DatasetFeatureStatistics()
     ])
     schema = schema_pb2.Schema()
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError, 'Only statistics proto with one dataset or the default.*'):
       _ = validation_api.validate_statistics(current_stats, schema,
                                              previous_statistics=previous_stats)
@@ -2061,7 +2061,7 @@ class ValidationApiTest(ValidationTestCase):
         statistics_pb2.DatasetFeatureStatistics()
     ])
     schema = schema_pb2.Schema()
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError, 'Only statistics proto with one dataset or the default.*'):
       _ = validation_api.validate_statistics(current_stats, schema,
                                              serving_statistics=serving_stats)
@@ -2078,7 +2078,7 @@ class ValidationApiTest(ValidationTestCase):
         statistics_pb2.DatasetFeatureStatistics()
     ])
     schema = schema_pb2.Schema()
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError, 'Only statistics proto with one dataset or the default.*'):
       _ = validation_api.validate_statistics_internal(
           current_stats,
@@ -2789,14 +2789,14 @@ class ValidationApiTest(ValidationTestCase):
         """, schema_pb2.Schema())
     options = stats_options.StatsOptions(schema=schema)
 
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError, 'Environment.*not found in the schema.*'):
       _ = validation_api.validate_instance(
           instance, options, environment='INVALID')
 
   def test_validate_instance_invalid_options(self):
     instance = pa.RecordBatch.from_arrays([pa.array([['A']])], ['feature'])
-    with self.assertRaisesRegexp(ValueError,
+    with self.assertRaisesRegex(ValueError,
                                  'options must be a StatsOptions object.'):
       _ = validation_api.validate_instance(instance, {})
 
@@ -2804,7 +2804,7 @@ class ValidationApiTest(ValidationTestCase):
     instance = pa.RecordBatch.from_arrays([pa.array([['A']])], ['feature'])
     # This instance of StatsOptions has no schema.
     options = stats_options.StatsOptions()
-    with self.assertRaisesRegexp(ValueError, 'options must include a schema.'):
+    with self.assertRaisesRegex(ValueError, 'options must include a schema.'):
       _ = validation_api.validate_instance(instance, options)
 
 
@@ -3201,7 +3201,7 @@ class IdentifyAnomalousExamplesTest(parameterized.TestCase):
   def test_identify_anomalous_examples_options_of_wrong_type(self):
     examples = [{'annotated_enum': np.array(['D'], dtype=object)}]
     options = 1
-    with self.assertRaisesRegexp(ValueError, 'options must be a `StatsOptions` '
+    with self.assertRaisesRegex(ValueError, 'options must be a `StatsOptions` '
                                  'object.'):
       with beam.Pipeline() as p:
         _ = (
@@ -3211,7 +3211,7 @@ class IdentifyAnomalousExamplesTest(parameterized.TestCase):
   def test_identify_anomalous_examples_options_without_schema(self):
     examples = [{'annotated_enum': np.array(['D'], dtype=object)}]
     options = stats_options.StatsOptions()
-    with self.assertRaisesRegexp(ValueError, 'options must include a schema'):
+    with self.assertRaisesRegex(ValueError, 'options must include a schema'):
       with beam.Pipeline() as p:
         _ = (
             p | beam.Create(examples)

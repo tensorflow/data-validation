@@ -254,7 +254,7 @@ class ValidationLibTest(parameterized.TestCase):
     input_data_path = os.path.join(temp_dir_path, 'input_data.tfrecord')
     # By default, StatsOptions does not include a schema.
     options = stats_options.StatsOptions()
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError, 'The specified stats_options must include a schema.'):
       validation_lib.validate_examples_in_tfrecord(
           data_location=input_data_path, stats_options=options)
@@ -532,7 +532,7 @@ class ValidationLibTest(parameterized.TestCase):
             has_schema=False))
 
     assert options.schema is None
-    with self.assertRaisesRegexp(ValueError, 'The specified stats_options.*'):
+    with self.assertRaisesRegex(ValueError, 'The specified stats_options.*'):
       validation_lib.validate_examples_in_csv(
           data_location=data_location,
           stats_options=options,

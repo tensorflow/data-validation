@@ -428,7 +428,7 @@ class StatsGenTest(parameterized.TestCase):
     self._write_records_to_csv(records2, tmp_dir, 'input_data2.csv')
     input_data_path = os.path.join(tmp_dir, 'input_data*')
 
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError, 'Files have different headers.'):
       _ = stats_gen_lib.generate_statistics_from_csv(
           data_location=input_data_path, column_names=None, delimiter=',')
@@ -479,7 +479,7 @@ class StatsGenTest(parameterized.TestCase):
     input_data_path = self._write_records_to_csv([], self._get_temp_dir(),
                                                  'input_data.csv')
 
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError, 'Found empty file when reading the header.*'):
       _ = stats_gen_lib.generate_statistics_from_csv(
           data_location=input_data_path, column_names=None, delimiter=',')
@@ -526,7 +526,7 @@ class StatsGenTest(parameterized.TestCase):
     input_data_path = self._write_records_to_csv(records, self._get_temp_dir(),
                                                  'input_data.csv')
     dataframe = pd.read_csv(input_data_path)
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError, 'Invalid n_jobs parameter.*'):
       _ = stats_gen_lib.generate_statistics_from_dataframe(
           dataframe=dataframe,
@@ -537,7 +537,7 @@ class StatsGenTest(parameterized.TestCase):
     input_data_path = self._write_records_to_csv(records, self._get_temp_dir(),
                                                  'input_data.csv')
     dataframe = pd.read_csv(input_data_path)
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError, 'Invalid n_jobs parameter.*'):
       _ = stats_gen_lib.generate_statistics_from_dataframe(
           dataframe=dataframe,
@@ -557,14 +557,14 @@ class StatsGenTest(parameterized.TestCase):
   def test_get_csv_header_no_file(self):
     data_location = os.path.join(self._get_temp_dir(), 'fileA.csv')
     delimiter = ','
-    with self.assertRaisesRegexp(ValueError, 'No file found.*'):
+    with self.assertRaisesRegex(ValueError, 'No file found.*'):
       _ = stats_gen_lib.get_csv_header(data_location, delimiter)
 
   def test_get_csv_header_empty_file(self):
     empty_file = os.path.join(self._get_temp_dir(), 'empty.csv')
     open(empty_file, 'w+').close()
     delimiter = ','
-    with self.assertRaisesRegexp(ValueError, 'Found empty file.*'):
+    with self.assertRaisesRegex(ValueError, 'Found empty file.*'):
       _ = stats_gen_lib.get_csv_header(empty_file, delimiter)
 
   def test_get_csv_header_different_headers(self):
@@ -575,7 +575,7 @@ class StatsGenTest(parameterized.TestCase):
     self._write_records_to_csv(records_1, temp_directory, 'input_data_1.csv')
     self._write_records_to_csv(records_2, temp_directory, 'input_data_2.csv')
     data_location = os.path.join(temp_directory, 'input_data_*.csv')
-    with self.assertRaisesRegexp(ValueError, 'Files have different headers.'):
+    with self.assertRaisesRegex(ValueError, 'Files have different headers.'):
       _ = stats_gen_lib.get_csv_header(data_location, delimiter)
 
   def test_get_csv_header_gzip(self):

@@ -365,7 +365,7 @@ class StatsAPITest(absltest.TestCase):
 
   def test_invalid_stats_options(self):
     record_batches = [pa.RecordBatch.from_arrays([])]
-    with self.assertRaisesRegexp(TypeError, '.*should be a StatsOptions.'):
+    with self.assertRaisesRegex(TypeError, '.*should be a StatsOptions.'):
       with beam.Pipeline() as p:
         _ = (
             p | beam.Create(record_batches)

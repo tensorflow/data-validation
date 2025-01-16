@@ -76,11 +76,11 @@ class NaturalLanguageStatsGeneratorTest(
 
   def test_nl_generator_bad_initialization(self):
     """Tests bad initialization values."""
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError,
         'NLDomainInferringStatsGenerator expects values_threshold > 0.'):
       nlsg.NLDomainInferringStatsGenerator(values_threshold=0)
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         ValueError,
         r'NLDomainInferringStatsGenerator expects a match_ratio in \[0, 1\].'):
       nlsg.NLDomainInferringStatsGenerator(match_ratio=1.1)
