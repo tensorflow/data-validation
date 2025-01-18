@@ -35,7 +35,7 @@ namespace tensorflow {
 namespace data_validation {
 namespace {
 
-const int64 kDefaultEnumThreshold = 400;
+const int64_t kDefaultEnumThreshold = 400;
 
 FeatureStatisticsToProtoConfig GetDefaultFeatureStatisticsToProtoConfig() {
   FeatureStatisticsToProtoConfig feature_statistics_to_proto_config;
