@@ -9,8 +9,6 @@ package(default_visibility = ["//tensorflow_data_validation:__subpackages__"])
 py_binary(
     name = "build_docs",
     srcs = ["build_docs.py"],
-    python_version = "PY3",
-    srcs_version = "PY3",
     deps = [
         "# Implicit absl dependency:app",
         "# Implicit apache_beam dependency.",
