@@ -445,12 +445,13 @@ class TransformStatsGeneratorTest(absltest.TestCase):
 
     options = beam.options.pipeline_options.PipelineOptions(
         runtime_type_check=True)
-    with beam.Pipeline(options=options) as p:
-      result = p | beam.Create(examples) | generator.ptransform
-      util.assert_that(result, _make_result_matcher(self, expected_results))
-      pipeline_result = p.run()
-      if metrics_verify_fn:
-        metrics_verify_fn(pipeline_result.metrics())
+    p = beam.Pipeline(options=options)
+    result = p | beam.Create(examples) | generator.ptransform
+    util.assert_that(result, _make_result_matcher(self, expected_results))
+    pipeline_result = p.run()
+    pipeline_result.wait_until_finish()
+    if metrics_verify_fn:
+      metrics_verify_fn(pipeline_result.metrics())
 
 
 class CombinerFeatureStatsGeneratorTest(absltest.TestCase):
