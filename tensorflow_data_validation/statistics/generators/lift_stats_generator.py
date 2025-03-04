@@ -434,7 +434,7 @@ def _make_y_rates(
 
 
 def _compute_lifts(
-    join_info: Tuple[_SlicedYKey, Dict[Text, Sequence[Any]]]
+    join_info: Tuple[_SlicedYKey, Dict[Text, Iterable[Any]]]
     # TODO(b/147153346) update dict value list element type annotation to:
     # Sequence[Union[_YRate, _ConditionalYRate]]
 ) -> Iterator[Tuple[_SlicedFeatureKey, _LiftInfo]]:
@@ -461,7 +461,8 @@ def _compute_lifts(
     _LiftInfo(x, y, lift, xy_count, x_count, y_count)).
   """
   (slice_key, y), join_inputs = join_info
-  y_rate = join_inputs['y_rate'][0]
+  # coerce iterable to list for __getitem__
+  y_rate = list(join_inputs['y_rate'])[0]
   for conditional_y_rate in join_inputs['conditional_y_rate']:
     lift = ((float(conditional_y_rate.xy_count) / conditional_y_rate.x_count) /
             (float(y_rate.y_count) / y_rate.example_count))
