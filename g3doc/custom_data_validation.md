@@ -1,7 +1,7 @@
 # Custom Data Validation
 
 <!--*
-freshness: { owner: 'caveness' reviewed: '2022-11-29' }
+freshness: { owner: 'kuochuntsai' reviewed: '2022-11-29' }
 *-->
 
 TFDV supports custom data validation using SQL. You can run custom data
