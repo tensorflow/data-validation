@@ -187,7 +187,7 @@ setup(
         'pyarrow>=10,<11',
         'pyfarmhash>=0.2.2,<0.4',
         'six>=1.12,<2',
-        'tensorflow>=2.16,<2.17',
+        'tensorflow>=2.17,<2.18',
         'tensorflow-metadata'
         + select_constraint(
             default='>=1.16.1,<1.17',
