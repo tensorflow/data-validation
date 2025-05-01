@@ -14,8 +14,8 @@
 """Module that computes statistics for features of image format.
 
 Specifically, the following statistics are computed:
-- Maximum image heigh and width
-- Histogram of value count by image format
+- Maximum image height and width.
+- Histogram of value count by image format.
 - If the rate of recognized formats is high enough and enough values
   have been considered, features get marked with domain_info: image_domain
   used for schema inference.
