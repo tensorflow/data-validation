@@ -19,3 +19,76 @@ requires = [
   # Required for using org_tensorflow bazel repository.
   "numpy~=1.22.0",
 ]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    "W",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+    # pep8 naming
+    "N",
+    # pydocstyle
+    "D",
+    # annotations
+    "ANN",
+    # debugger
+    "T10",
+    # flake8-pytest
+    "PT",
+    # flake8-return
+    "RET",
+    # flake8-unused-arguments
+    "ARG",
+    # flake8-fixme
+    "FIX",
+    # flake8-eradicate
+    "ERA",
+    # pandas-vet
+    "PD",
+    # numpy-specific rules
+    "NPY",
+]
+
+ignore = [
+    "D104", # Missing docstring in public package
+    "D100", # Missing docstring in public module
+    "D211", # No blank line before class
+    "PD901", # Avoid using 'df' for pandas dataframes. Perfectly fine in functions with limited scope
+    "ANN201", # Missing return type annotation for public function (makes no sense for NoneType return types...)
+    "ANN101", # Missing type annotation for `self`
+    "ANN204", # Missing return type annotation for special method
+    "ANN002", # Missing type annotation for `*args`
+    "ANN003", # Missing type annotation for `**kwargs`
+    "D105", # Missing docstring in magic method
+    "D203", # 1 blank line before after class docstring
+    "D204", # 1 blank line required after class docstring
+    "D413", # 1 blank line after parameters
+    "SIM108", # Simplify if/else to one line; not always clearer
+    "D206", # Docstrings should be indented with spaces; unnecessary when running ruff-format
+    "E501", # Line length too long; unnecessary when running ruff-format
+    "W191", # Indentation contains tabs; unnecessary when running ruff-format
+
+    # REMOVE AFTER FIXING
+    "ANN001", # Missing type annotation for function argument `args`
+    "ANN202", # Missing Missing return type annotation for private function
+    "D103", # Missing docstring in public function
+    "D101", # Missing docstring in public class
+]
+
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+
