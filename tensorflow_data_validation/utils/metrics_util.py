@@ -16,24 +16,26 @@
 from typing import Mapping
 
 import apache_beam as beam
+
 from tensorflow_data_validation import constants
 
 
 class IncrementJobCounters(beam.PTransform):
-  """Increments beam counters from values available at graph construction."""
+    """Increments beam counters from values available at graph construction."""
 
-  def __init__(self, values: Mapping[str, int]):
-    self._values = values
+    def __init__(self, values: Mapping[str, int]):
+        self._values = values
 
-  def expand(self, pcoll: beam.PCollection):
+    def expand(self, pcoll: beam.PCollection):
+        def _incr(unused_value):
+            for name, value in self._values.items():
+                beam.metrics.Metrics.counter(constants.METRICS_NAMESPACE, name).inc(
+                    value
+                )
+            return
 
-    def _incr(unused_value):
-      for name, value in self._values.items():
-        beam.metrics.Metrics.counter(constants.METRICS_NAMESPACE,
-                                     name).inc(value)
-      return None
-
-    _ = (
-        pcoll.pipeline
-        | 'CreateSingleton' >> beam.Create([1])
-        | 'IncrementCounters' >> beam.Map(_incr))
+        _ = (
+            pcoll.pipeline
+            | "CreateSingleton" >> beam.Create([1])
+            | "IncrementCounters" >> beam.Map(_incr)
+        )

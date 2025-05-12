@@ -17,8 +17,8 @@
 
 # pylint: disable=unused-argument
 def add_derived_features(pcoll, schema):
-  return pcoll, False
+    return pcoll, False
 
 
 def get_metadata_generator():
-  return None
+    return None

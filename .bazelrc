@@ -8,4 +8,3 @@ build --protocopt=--experimental_allow_proto3_optional
 # parameter 'user_link_flags' is deprecated and will be removed soon.
 # It may be temporarily re-enabled by setting --incompatible_require_linker_input_cc_api=false
 build --incompatible_require_linker_input_cc_api=false
-
