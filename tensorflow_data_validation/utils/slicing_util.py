@@ -150,34 +150,41 @@ def get_feature_value_slicer(
                 'The feature to slice on has integer values but '
                 'the provided slice values are not valid integers.') from e
 
-      flattened, value_parent_indices = array_util.flatten_nested(
-          feature_array, True)
-      non_missing_values = np.asarray(flattened)
-      # Create dataframe with feature value and parent index.
-      df = pd.DataFrame({
-          feature_name: non_missing_values,
-          _PARENT_INDEX_COLUMN: value_parent_indices
-      })
-      df.drop_duplicates(inplace=True)
-      # Filter based on slice values
-      if values is not None:
-        df = df.loc[df[feature_name].isin(values)]
-      per_feature_parent_indices.append(df)
-    # If there are no features to slice on, yield no output.
-    # TODO(b/200081813): Produce output with an appropriate placeholder key.
-    if not per_feature_parent_indices:
-      return
-    # Join dataframes based on parent indices.
-    # Note that we want the parent indices per slice key to be sorted in the
-    # merged dataframe. The individual dataframes have the parent indices in
-    # sorted order. We use "inner" join type to preserve the order of the left
-    # keys (also note that same parent index rows would be consecutive). Hence
-    # we expect the merged dataframe to have sorted parent indices per
-    # slice key.
-    merged_df = functools.reduce(
-        lambda base, update: pd.merge(base, update, how='inner',  # pylint: disable=g-long-lambda
-                                      on=_PARENT_INDEX_COLUMN),
-        per_feature_parent_indices)
+            flattened, value_parent_indices = array_util.flatten_nested(
+                feature_array, True
+            )
+            non_missing_values = np.asarray(flattened)
+            # Create dataframe with feature value and parent index.
+            df = pd.DataFrame(
+                {
+                    feature_name: non_missing_values,
+                    _PARENT_INDEX_COLUMN: value_parent_indices,
+                }
+            )
+            df = df.drop_duplicates()
+            # Filter based on slice values
+            if values is not None:
+                df = df.loc[df[feature_name].isin(values)]
+            per_feature_parent_indices.append(df)
+        # If there are no features to slice on, yield no output.
+        # TODO(b/200081813): Produce output with an appropriate placeholder key.
+        if not per_feature_parent_indices:
+            return
+        # Join dataframes based on parent indices.
+        # Note that we want the parent indices per slice key to be sorted in the
+        # merged dataframe. The individual dataframes have the parent indices in
+        # sorted order. We use "inner" join type to preserve the order of the left
+        # keys (also note that same parent index rows would be consecutive). Hence
+        # we expect the merged dataframe to have sorted parent indices per
+        # slice key.
+        merged_df = functools.reduce(
+            lambda base, update: base.merge(
+                update,
+                how="inner",  # pylint: disable=g-long-lambda
+                on=_PARENT_INDEX_COLUMN,
+            ),
+            per_feature_parent_indices,
+        )
 
     # Construct a new column in the merged dataframe with the slice keys.
     merged_df[_SLICE_KEY_COLUMN] = ''
@@ -207,18 +214,20 @@ def get_feature_value_slicer(
   return feature_value_slicer
 
 
-def _to_slice_key(feature_value: Any):
-  """Decode slice key as UTF-8."""
-  # For bytes features we try decoding it as utf-8 (and throw an error if
-  # fails). This is because in stats proto the slice name (dataset name) is a
-  # string field which can only accept valid unicode.
-  if isinstance(feature_value, six.binary_type):
-    decoded_value = stats_util.maybe_get_utf8(feature_value)
-    if decoded_value is None:
-      raise ValueError('Feature names and slicing feature values must be valid'
-                       ' UTF-8. Found value {}.'.format(feature_value))
-    return decoded_value
-  return str(feature_value)
+def _to_slice_key(feature_value: Any):  # noqa: ANN401
+    """Decode slice key as UTF-8."""
+    # For bytes features we try decoding it as utf-8 (and throw an error if
+    # fails). This is because in stats proto the slice name (dataset name) is a
+    # string field which can only accept valid unicode.
+    if isinstance(feature_value, six.binary_type):
+        decoded_value = stats_util.maybe_get_utf8(feature_value)
+        if decoded_value is None:
+            raise ValueError(
+                "Feature names and slicing feature values must be valid"
+                f" UTF-8. Found value {feature_value}."
+            )
+        return decoded_value
+    return str(feature_value)
 
 
 def generate_slices(
@@ -233,16 +242,18 @@ def generate_slices(
       example (and zero or more kwargs) and returns a list of slice keys.
     **kwargs: Keyword arguments to pass to each of the slice_functions.
 
-  Yields:
-    Sliced record batch (slice_key, record batch).
-  """
-  for slice_fn in slice_functions:
-    try:
-      for sliced_record_batch in slice_fn(record_batch, **kwargs):
-        yield sliced_record_batch
-    except Exception as e:
-      raise ValueError('One of the slice_functions %s raised an exception: %s.'
-                       % (slice_fn.__name__, repr(e)))
+    Yields:
+    ------
+      Sliced record batch (slice_key, record batch).
+    """
+    for slice_fn in slice_functions:
+        try:
+            yield from slice_fn(record_batch, **kwargs)
+        except Exception as e:
+            raise ValueError(
+                "One of the slice_functions %s raised an exception: %s."
+                % (slice_fn.__name__, repr(e))
+            )
 
 
 def format_slice_sql_query(slice_sql_query: Text) -> Text:

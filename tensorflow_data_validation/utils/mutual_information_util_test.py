@@ -323,31 +323,38 @@ class RanklabMutualInformationTest(parameterized.TestCase):
                    seed=20)
       self.assertAlmostEqual(result, 13.15, delta=1e+2)
 
-  def testCategoricalOrdinal(self):
-    np.random.seed(3)
-    # Feature B has PDF 3/4 in [0, 1] vs 1/4 in [1, 2], and differential entropy
-    #   H(B) = - 3/4 * log(3/4) - 1/4 * log(1/4)
-    # while, given A, it has conditional entropy
-    #   H(B | A) = 1/2 * H(B | A == 0) + 1/2 * H(B | A == 1)
-    #   H(B | A) = 1/2 * 0. - 1/2 * log(1/2) = - 1/2 * log(1/2)
-    # hence their mutual information is
-    #   I(A, B) = H(B) - H(B | A) = - 3/4 * log(3/4)
-    # using whatever log base we're using, in this case base 2.
-    a = np.array([i % 2 for i in range(1000)])
-    b = np.array([np.random.random() * (1. + i % 2) for i in range(1000)])
-    filt = np.array([True if i % 2 else False for i in range(1000)])
-    for method in ['smaller_data', 'larger_data']:
-      self.assertAlmostEqual(
-          -0.75 * np.log2(0.75),
-          _MI([a], [b], [True], [False], estimate_method=method, seed=20),
-          delta=2e-2)
-      # If we filter out 1 of the 2 A labels however, no information is left.
-      self.assertEqual(
-          0.,
-          _MI([a], [b], [True], [False],
-              estimate_method=method,
-              seed=20,
-              filter_feature=filt))
+    def testCategoricalOrdinal(self):
+        np.random.seed(3)
+        # Feature B has PDF 3/4 in [0, 1] vs 1/4 in [1, 2], and differential entropy
+        #   H(B) = - 3/4 * log(3/4) - 1/4 * log(1/4)
+        # while, given A, it has conditional entropy
+        #   H(B | A) = 1/2 * H(B | A == 0) + 1/2 * H(B | A == 1)
+        #   H(B | A) = 1/2 * 0. - 1/2 * log(1/2) = - 1/2 * log(1/2)
+        # hence their mutual information is
+        #   I(A, B) = H(B) - H(B | A) = - 3/4 * log(3/4)
+        # using whatever log base we're using, in this case base 2.
+        a = np.array([i % 2 for i in range(1000)])
+        b = np.array([np.random.random() * (1.0 + i % 2) for i in range(1000)])
+        filt = np.array([bool(i % 2) for i in range(1000)])
+        for method in ["smaller_data", "larger_data"]:
+            self.assertAlmostEqual(
+                -0.75 * np.log2(0.75),
+                _MI([a], [b], [True], [False], estimate_method=method, seed=20),
+                delta=2e-2,
+            )
+            # If we filter out 1 of the 2 A labels however, no information is left.
+            self.assertEqual(
+                0.0,
+                _MI(
+                    [a],
+                    [b],
+                    [True],
+                    [False],
+                    estimate_method=method,
+                    seed=20,
+                    filter_feature=filt,
+                ),
+            )
 
   def testAdjustedMutualInformation(self):
     np.random.seed(11)

@@ -63,29 +63,69 @@ select = [
 ]
 
 ignore = [
-    "D104", # Missing docstring in public package
-    "D100", # Missing docstring in public module
-    "D211", # No blank line before class
-    "PD901", # Avoid using 'df' for pandas dataframes. Perfectly fine in functions with limited scope
+    "D104",   # Missing docstring in public package
+    "D100",   # Missing docstring in public module
+    "D211",   # No blank line before class
+    "PD901",  # Avoid using 'df' for pandas dataframes. Perfectly fine in functions with limited scope
     "ANN201", # Missing return type annotation for public function (makes no sense for NoneType return types...)
     "ANN101", # Missing type annotation for `self`
     "ANN204", # Missing return type annotation for special method
     "ANN002", # Missing type annotation for `*args`
     "ANN003", # Missing type annotation for `**kwargs`
-    "D105", # Missing docstring in magic method
-    "D203", # 1 blank line before after class docstring
-    "D204", # 1 blank line required after class docstring
-    "D413", # 1 blank line after parameters
+    "D105",   # Missing docstring in magic method
+    "D203",   # 1 blank line before after class docstring
+    "D204",   # 1 blank line required after class docstring
+    "D413",   # 1 blank line after parameters
     "SIM108", # Simplify if/else to one line; not always clearer
-    "D206", # Docstrings should be indented with spaces; unnecessary when running ruff-format
-    "E501", # Line length too long; unnecessary when running ruff-format
-    "W191", # Indentation contains tabs; unnecessary when running ruff-format
+    "D206",   # Docstrings should be indented with spaces; unnecessary when running ruff-format
+    "E501",   # Line length too long; unnecessary when running ruff-format
+    "W191",   # Indentation contains tabs; unnecessary when running ruff-format
 
     # REMOVE AFTER FIXING
     "ANN001", # Missing type annotation for function argument `args`
     "ANN202", # Missing Missing return type annotation for private function
-    "D103", # Missing docstring in public function
-    "D101", # Missing docstring in public class
+    "D103",   # Missing docstring in public function
+    "D101",   # Missing docstring in public class
+    "PT009",  # Use a regular `assert` instead of unittest-style `assertEqual`
+    "D102",   # Missing docstring in public method
+    "UP031",  # Use format specifiers instead of percent format
+    "D401",   # First line of docstring should be in imperative mood: "Loads the vocabulary from the specified path."
+    "RET505", # Unnecessary `elif` after `return` statement
+    "D107",   # Missing docstring in `__init__`,
+    "PT027",  # Use `pytest.raises` instead of unittest-style `assertRaisesRegex`
+    "SIM101", # Multiple `isinstance` calls for `maybe_collection`, merge into a single call
+    "FIX002", # Line contains TODO, consider resolving the issue
+    "SIM103", # Return the condition directly
+    "UP008",  # Use `super()` instead of `super(__class__, self)`
+    "N802",   # Function name should be lowercase,
+    "B008",   # Do not perform function call in argument defaults; instead, perform the call within the function, or read the default from a module-level singleton variable
+    "E731",   # Do not assign a `lambda` expression, use a `def`
+    "ERA001", # Found commented-out code
+    "B005",   # Using `.strip()` with multi-character strings is misleading
+    "SIM117", # Use a single `with` statement with multiple contexts instead of nested `with` statements
+    "B904",   # Within an `except` clause, raise exceptions with `raise ... from err` or `raise ... from None` to distinguish them from errors in exception handling
+    "ANN401", # Dynamically typed expressions (typing.Any) are disallowed in `domain`
+    "D417",   # Missing argument descriptions in the docstring
+    "NPY002", # Replace legacy
+    "ARG001", # Unused function argument
+    "D404",   # First word of the docstring should not be "This"
+    "SIM102", # Use a single `if` statement instead of nested `if` statements
+    "UP028",  # Replace `yield` over `for` loop with `yield from`
+    "RET504", # Unnecessary assignment to variable before `return` statement
+    "PD011",  # Use `.to_numpy()` instead of `.values`
+    "ANN206", # Missing return type annotation for classmethod
+    "ANN102", # Missing type annotation for `cls` in classmethod
+    "PD015",  # Use `.merge` method instead of `pd.merge` function
+    "PD003",  # `.isna` is preferred to `.isnull`; functionality is equivalent
+    "ANN205", # Missing return type annotation for staticmethod
+    "B007",   # Loop control variable not used within loop body
+    "SIM211", # Use `not ...` instead of `False if ... else True`
+    "ARG002", # Unused method argument
+    "PD002",  # `inplace=True` should be avoided; it has inconsistent behavior
+    "F821",   # Undefined name
+    "SIM105", # Use `contextlib.suppress(...)` instead of `try`-`except`-`pass`
+    "PT018",  # Assertion should be broken down into multiple parts
+    "E741",   # Ambiguous variable name
 ]
 
 
