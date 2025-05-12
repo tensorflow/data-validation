@@ -166,7 +166,7 @@ def get_feature_value_slicer(
                     _PARENT_INDEX_COLUMN: value_parent_indices,
                 }
             )
-            df.drop_duplicates(inplace=True)
+            df = df.drop_duplicates()
             # Filter based on slice values
             if values is not None:
                 df = df.loc[df[feature_name].isin(values)]
@@ -183,8 +183,7 @@ def get_feature_value_slicer(
         # we expect the merged dataframe to have sorted parent indices per
         # slice key.
         merged_df = functools.reduce(
-            lambda base, update: pd.merge(
-                base,
+            lambda base, update: base.merge(
                 update,
                 how="inner",  # pylint: disable=g-long-lambda
                 on=_PARENT_INDEX_COLUMN,
@@ -224,7 +223,7 @@ def get_feature_value_slicer(
     return feature_value_slicer
 
 
-def _to_slice_key(feature_value: Any):
+def _to_slice_key(feature_value: Any):  # noqa: ANN401
     """Decode slice key as UTF-8."""
     # For bytes features we try decoding it as utf-8 (and throw an error if
     # fails). This is because in stats proto the slice name (dataset name) is a
@@ -260,8 +259,7 @@ def generate_slices(
     """
     for slice_fn in slice_functions:
         try:
-            for sliced_record_batch in slice_fn(record_batch, **kwargs):
-                yield sliced_record_batch
+            yield from slice_fn(record_batch, **kwargs)
         except Exception as e:
             raise ValueError(
                 "One of the slice_functions %s raised an exception: %s."

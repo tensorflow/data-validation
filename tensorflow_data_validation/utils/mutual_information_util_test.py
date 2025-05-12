@@ -389,7 +389,7 @@ class RanklabMutualInformationTest(parameterized.TestCase):
         # using whatever log base we're using, in this case base 2.
         a = np.array([i % 2 for i in range(1000)])
         b = np.array([np.random.random() * (1.0 + i % 2) for i in range(1000)])
-        filt = np.array([True if i % 2 else False for i in range(1000)])
+        filt = np.array([bool(i % 2) for i in range(1000)])
         for method in ["smaller_data", "larger_data"]:
             self.assertAlmostEqual(
                 -0.75 * np.log2(0.75),

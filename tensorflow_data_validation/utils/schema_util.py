@@ -177,7 +177,7 @@ def set_domain(
 
     for d_type, d_name in feature_domains.items():
         if isinstance(domain, d_type):
-            if d_type == str:
+            if d_type is str:
                 found_domain = False
                 for global_domain in schema.string_domain:
                     if global_domain.name == domain:
