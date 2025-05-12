@@ -477,7 +477,7 @@ def _compute_lifts(
 
 
 class _WeakRefFrozenMapping(collections.abc.Mapping, object):
-  """A weakly-referencable dict, necessary to allow use with shared.Shared.
+  """A weakly-referenceable dict, necessary to allow use with shared.Shared.
 
   Note that the mapping will not be frozen until freeze() is called.
   """
