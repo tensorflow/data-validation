@@ -13,6 +13,7 @@
 # limitations under the License.
 """Package Setup script for TensorFlow Data Validation."""
 import os
+from pathlib import Path
 import platform
 import shutil
 import subprocess
@@ -114,10 +115,22 @@ def _make_visualization_requirements():
       'ipython>=7,<8',
   ]
 
+def _make_docs_requirements():
+  return [
+      req for req in Path("./requirements-docs.txt")
+      .expanduser()
+      .resolve()
+      .read_text()
+      .splitlines()
+      if req
+  ]
 
 def _make_all_extra_requirements():
-  return (_make_mutual_information_requirements() +
-          _make_visualization_requirements())
+  return (
+      *_make_mutual_information_requirements(),
+      *_make_visualization_requirements(),
+      *_make_docs_requirements(),
+  )
 
 
 def select_constraint(default, nightly=None, git_master=None):
@@ -204,6 +217,7 @@ setup(
     extras_require={
         'mutual-information': _make_mutual_information_requirements(),
         'visualization': _make_visualization_requirements(),
+        'docs': _make_docs_requirements(),
         'all': _make_all_extra_requirements(),
     },
     python_requires='>=3.9,<4',
