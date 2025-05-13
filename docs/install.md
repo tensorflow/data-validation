@@ -1,7 +1,3 @@
-
-{% setvar github_path %}tensorflow/data-validation{% endsetvar %}
-{% include "_templates/github-bug.html" %}
-
 # TensorFlow Data Validation
 
 *TensorFlow Data Validation* (TFDV) is a library for exploring and validating
