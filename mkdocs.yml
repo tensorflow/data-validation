@@ -58,7 +58,7 @@ plugins:
             signature_crossrefs: true
             group_by_category: true
             show_category_heading: true
-            show_submodules: true
+            show_submodules: false
             show_root_full_path: true
             docstring_section_style: "spacy"
             inherited_members: true
@@ -67,6 +67,7 @@ plugins:
               - "!^_"
               - "^__init__$"
               - "^__call__$"
+              - "^__version__$"
               - "!^logger"
               - "!^test_"
               - "!_test$"
@@ -115,3 +116,4 @@ nav:
   - Home: index.md
   - Install: install.md
   - Getting Started: get_started.md
+  - API: api.md
