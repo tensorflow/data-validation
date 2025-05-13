@@ -14,7 +14,7 @@ def tf_data_validation_workspace():
     # Fetch tf.Metadata repo from GitHub.
     git_repository(
         name = "com_github_tensorflow_metadata",
-        branch = "master",
+        tag = "v1.17.0",
         remote = "https://github.com/tensorflow/metadata.git",
     )
     # LINT.ThenChange(//tensorflow_data_validation/placeholder/files)
