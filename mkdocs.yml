@@ -113,4 +113,5 @@ watch:
 
 nav:
   - Home: index.md
-
+  - Install: install.md
+  - Getting Started: get_started.md
