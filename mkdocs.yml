@@ -116,4 +116,5 @@ nav:
   - Home: index.md
   - Install: install.md
   - Getting Started: get_started.md
+  - Anomalies: anomalies.md
   - API: api.md
