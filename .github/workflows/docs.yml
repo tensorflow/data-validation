@@ -8,8 +8,22 @@ on:
 permissions:
   contents: write
 jobs:
+  check-links:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Check links
+        uses: lycheeverse/lychee-action@v2
+        with:
+          fail: true
+          workingDirectory: docs
+          jobSummary: false
+
   deploy:
     runs-on: ubuntu-latest
+    needs: check-links
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
