@@ -20,7 +20,7 @@
 
 ## Bug Fixes and Other Changes
 
-*   Relax dependency on Protobuf to include version 5.x
+*   Relax dependency on Protobuf to include version 6.5
 
 ## Known Issues
 
