@@ -38,4 +38,4 @@ runs:
     run: |
       pip install twine
       twine check dist/*
-      pip install --extra-index-url https://pypi-nightly.tensorflow.org/simple dist/*.whl
+      TFX_DEPENDENCY_SELECTOR="NIGHTLY" pip install --extra-index-url https://pypi-nightly.tensorflow.org/simple dist/*.whl
