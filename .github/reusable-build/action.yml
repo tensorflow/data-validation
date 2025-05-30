@@ -18,6 +18,8 @@ runs:
 
   - name: Build the package for Python ${{ inputs.python-version }}
     shell: bash
+    env:
+      TFX_DEPENDENCY_SELECTOR: "NIGHTLY"
     run: |
       version="${{ matrix.python-version }}"
       docker compose run -e PYTHON_VERSION=$(echo "$version" | sed 's/\.//') manylinux2010
@@ -31,6 +33,8 @@ runs:
 
   - name: Install built wheel
     shell: bash
+    env:
+      TFX_DEPENDENCY_SELECTOR: "NIGHTLY"
     run: |
       pip install twine
       twine check dist/*
