@@ -1,0 +1,33 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11"]
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Build data-validation
+      id: build-data-validation
+      uses: ./.github/reusable-build
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Run Test
+      run: |
+        rm -rf bazel-*
+        # run tests
+        pytest -vv
