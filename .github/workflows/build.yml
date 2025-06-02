@@ -20,30 +20,12 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Set up Python ${{ inputs.python-version }}
-      uses: actions/setup-python@v5
+    - name: Build data-validation
+      id: build-data-validation
+      uses: ./.github/reusable-build
       with:
-        python-version: ${{ inputs.python-version }}
-
-    - name: Build the package for Python ${{ inputs.python-version }}
-      shell: bash
-      run: |
-        version="${{ matrix.python-version }}"
-        docker compose run -e PYTHON_VERSION=$(echo "$version" | sed 's/\.//') manylinux2010
-
-    # - name: Upload wheel artifact for Python ${{ matrix.python-version }}
-    #   if: ${{ inputs.upload-artifact == 'true' }}
-    #   uses: actions/upload-artifact@v3
-    #   with:
-    #     name: data-validation-wheel-py${{ matrix.python-version }}
-    #     path: dist/*.whl
-
-    - name: Install built wheel
-      shell: bash
-      run: |
-        pip install twine
-        twine check dist/*
-        pip install dist/*.whl
+        python-version: ${{ matrix.python-version }}
+        upload-artifact: true
 
   upload_to_pypi:
     name: Upload to PyPI

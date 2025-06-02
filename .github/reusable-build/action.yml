@@ -18,24 +18,20 @@ runs:
 
   - name: Build the package for Python ${{ inputs.python-version }}
     shell: bash
-    env:
-      TFX_DEPENDENCY_SELECTOR: "NIGHTLY"
     run: |
       version="${{ matrix.python-version }}"
       docker compose run -e PYTHON_VERSION=$(echo "$version" | sed 's/\.//') manylinux2010
 
-  # - name: Upload wheel artifact for Python ${{ matrix.python-version }}
-  #   if: ${{ inputs.upload-artifact == 'true' }}
-  #   uses: actions/upload-artifact@v3
-  #   with:
-  #     name: data-validation-wheel-py${{ matrix.python-version }}
-  #     path: dist/*.whl
+  - name: Upload wheel artifact for Python ${{ matrix.python-version }}
+    if: ${{ inputs.upload-artifact == 'true' }}
+    uses: actions/upload-artifact@v3
+    with:
+      name: data-validation-wheel-py${{ matrix.python-version }}
+      path: dist/*.whl
 
   - name: Install built wheel
     shell: bash
-    env:
-      TFX_DEPENDENCY_SELECTOR: "NIGHTLY"
     run: |
       pip install twine
       twine check dist/*
-      TFX_DEPENDENCY_SELECTOR="NIGHTLY" pip install --extra-index-url https://pypi-nightly.tensorflow.org/simple dist/*.whl
+      pip install dist/*.whl
