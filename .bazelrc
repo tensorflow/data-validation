@@ -1,7 +1,11 @@
 # Needed to work with ZetaSQL dependency.
+# Zetasql is removed.
+# This is a candidate for removal
 build --cxxopt="-std=c++17"
 
 # Needed to avoid zetasql proto error.
+# Zetasql is removed.
+# This is a candidate for removal
 build --protocopt=--experimental_allow_proto3_optional
 
 # icu@: In create_linking_context: in call to create_linking_context(),

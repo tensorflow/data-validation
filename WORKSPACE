@@ -71,18 +71,6 @@ http_archive(
     ],
 )
 
-# Needed by abseil-py by zetasql.
-http_archive(
-    name = "six_archive",
-    build_file = "//third_party:six.BUILD",
-    sha256 = "105f8d68616f8248e24bf0e9372ef04d3cc10104f1980f54d57b2ce73a5ad56a",
-    strip_prefix = "six-1.10.0",
-    urls = [
-        "http://mirror.bazel.build/pypi.python.org/packages/source/s/six/six-1.10.0.tar.gz",
-        "https://pypi.python.org/packages/source/s/six/six-1.10.0.tar.gz",
-    ],
-)
-
 load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
 
 protobuf_deps()
@@ -217,46 +205,6 @@ http_archive(
 load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies")  #, "go_repository")
 
 gazelle_dependencies()
-
-################################################################################
-# ZetaSQL                                                                      #
-################################################################################
-
-ZETASQL_COMMIT = "a516c6b26d183efc4f56293256bba92e243b7a61"  # 11/01/2024
-
-http_archive(
-    name = "com_google_zetasql",
-    patch_args = ["-p1"],
-    patches = ["//third_party:zetasql.patch"],
-    sha256 = "1afc2210d4aad371eff0a6bfdd8417ba99e02183a35dff167af2fa6097643f26",
-    strip_prefix = "zetasql-%s" % ZETASQL_COMMIT,
-    urls = ["https://github.com/google/zetasql/archive/%s.tar.gz" % ZETASQL_COMMIT],
-)
-
-load("@com_google_zetasql//bazel:zetasql_deps_step_1.bzl", "zetasql_deps_step_1")
-
-zetasql_deps_step_1()
-
-load("@com_google_zetasql//bazel:zetasql_deps_step_2.bzl", "zetasql_deps_step_2")
-
-zetasql_deps_step_2(
-    analyzer_deps = True,
-    evaluator_deps = True,
-    java_deps = False,
-    testing_deps = False,
-    tools_deps = False,
-)
-
-# No need to run zetasql_deps_step_3 and zetasql_deps_step_4 since all necessary dependencies are
-# already installed.
-
-# load("@com_google_zetasql//bazel:zetasql_deps_step_3.bzl", "zetasql_deps_step_3")
-
-# zetasql_deps_step_3()
-
-# load("@com_google_zetasql//bazel:zetasql_deps_step_4.bzl", "zetasql_deps_step_4")
-
-# zetasql_deps_step_4()
 
 _PLATFORMS_VERSION = "0.0.6"
 
