@@ -251,10 +251,14 @@ def get_anomalies_dataframe(anomalies: anomalies_pb2.Anomalies) -> pd.DataFrame:
       )
     else:
       anomaly_info_description = anomaly_info.description
+    anomaly_types = ('; ').join([
+        anomalies_pb2.AnomalyInfo.Type.Name(r.type) for r in anomaly_info.reason
+    ])
     anomaly_rows.append([
         _add_quotes(feature_name),
         anomaly_info_short_description,
         anomaly_info_description,
+        anomaly_types,
     ])
   if anomalies.HasField('dataset_anomaly_info'):
     if not anomalies.dataset_anomaly_info.short_description:
@@ -286,6 +290,7 @@ def get_anomalies_dataframe(anomalies: anomalies_pb2.Anomalies) -> pd.DataFrame:
           'Feature name',
           'Anomaly short description',
           'Anomaly long description',
+          'Anomaly types',
       ],
   ).set_index('Feature name')
   # Do not truncate columns.

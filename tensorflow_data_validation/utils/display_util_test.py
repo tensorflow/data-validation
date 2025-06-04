@@ -516,8 +516,8 @@ class DisplayUtilTest(parameterized.TestCase):
     )
     actual_output = display_util.get_anomalies_dataframe(anomalies)
     # The resulting DataFrame has a row for each feature and a column for each
-    # of the short description and long description.
-    self.assertEqual(actual_output.shape, (2, 2))
+    # of the short description, long description and anomaly types.
+    self.assertEqual(actual_output.shape, (2, 3))
 
   def test_get_anomalies_dataframe_with_no_toplevel_description(self):
     anomalies = text_format.Parse(
@@ -550,8 +550,8 @@ class DisplayUtilTest(parameterized.TestCase):
     )
     actual_output = display_util.get_anomalies_dataframe(anomalies)
     # The resulting DataFrame has a row for each feature and a column for each
-    # of the short description and long description.
-    self.assertEqual(actual_output.shape, (2, 2))
+    # of the short description, long description and anomaly types.
+    self.assertEqual(actual_output.shape, (2, 3))
 
     # Confirm Anomaly short/long description is not empty
     self.assertNotEmpty(actual_output['Anomaly short description'][0])
@@ -592,7 +592,7 @@ class DisplayUtilTest(parameterized.TestCase):
   def test_get_anomalies_dataframe_no_anomalies(self):
     anomalies = anomalies_pb2.Anomalies()
     actual_output = display_util.get_anomalies_dataframe(anomalies)
-    self.assertEqual(actual_output.shape, (0, 2))
+    self.assertEqual(actual_output.shape, (0, 3))
 
   def test_get_natural_language_statistics_dataframes(self):
     statistics = text_format.Parse(
