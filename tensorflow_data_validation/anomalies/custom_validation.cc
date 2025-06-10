@@ -22,7 +22,6 @@ limitations under the License.
 #include "tensorflow_data_validation/anomalies/path.h"
 #include "tensorflow_data_validation/anomalies/schema_util.h"
 #include "tensorflow_data_validation/anomalies/status_util.h"
-#include "tfx_bsl/cc/statistics/sql_util.h"
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
 #include "tensorflow_metadata/proto/v0/path.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
@@ -193,24 +192,6 @@ absl::Status CustomValidateStatistics(
     TFDV_RETURN_IF_ERROR(GetFeatureStatistics(
         named_test_statistics, feature_validation.dataset_name(),
         feature_validation.feature_path(), &test_statistics));
-    for (const auto& validation : feature_validation.validations()) {
-      if (InCurrentEnvironment(validation, environment)) {
-        absl::StatusOr<bool> query_result =
-            tfx_bsl::statistics::EvaluatePredicate(test_statistics,
-                                                   validation.sql_expression());
-        if (!query_result.ok()) {
-          return absl::InternalError(absl::StrCat(
-              "Attempt to run query '", validation.sql_expression(),
-              "' failed with error: ", query_result.status().ToString()));
-        } else if (!query_result.value()) {
-          // If the sql_expression evaluates to False, there is an anomaly.
-          TFDV_RETURN_IF_ERROR(UpdateAnomalyResults(
-              feature_validation.feature_path(),
-              feature_validation.dataset_name(), absl::nullopt, absl::nullopt,
-              validation, result));
-        }
-      }
-    }
   }
   if (validations.feature_pair_validations_size() > 0) {
     if (base_statistics == nullptr) {
@@ -231,28 +212,6 @@ absl::Status CustomValidateStatistics(
       TFDV_RETURN_IF_ERROR(GetFeatureStatistics(
           named_base_statistics, feature_pair_validation.base_dataset_name(),
           feature_pair_validation.feature_base_path(), &base_statistics));
-      for (const auto& validation : feature_pair_validation.validations()) {
-        if (InCurrentEnvironment(validation, environment)) {
-          absl::StatusOr<bool> query_result =
-              tfx_bsl::statistics::EvaluatePredicate(
-                  base_statistics, test_statistics,
-                  validation.sql_expression());
-          if (!query_result.ok()) {
-            return absl::InternalError(absl::StrCat(
-                "Attempt to run query: ", validation.sql_expression(),
-                " failed with the following error: ",
-                query_result.status().ToString()));
-          } else if (!query_result.value()) {
-            // If the sql_expression evaluates to False, there is an anomaly.
-            TFDV_RETURN_IF_ERROR(UpdateAnomalyResults(
-                feature_pair_validation.feature_test_path(),
-                feature_pair_validation.dataset_name(),
-                feature_pair_validation.base_dataset_name(),
-                feature_pair_validation.feature_base_path(), validation,
-                result));
-          }
-        }
-      }
     }
   }
   return absl::OkStatus();

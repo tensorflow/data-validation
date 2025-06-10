@@ -435,7 +435,6 @@ cc_library(
         ":status_util",
         "//tensorflow_data_validation/anomalies/proto:custom_validation_config_proto_cc_pb2",
         "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
-        "@com_github_tfx_bsl//tfx_bsl/cc/statistics:sql_util",
         "@com_google_absl//absl/base:log_severity",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/log",

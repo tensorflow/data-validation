@@ -100,6 +100,16 @@ http_archive(
     url = "https://github.com/abseil/abseil-cpp/archive/%s.tar.gz" % COM_GOOGLE_ABSL_COMMIT,
 )
 
+
+# re2 required for google tests
+http_archive(
+    name = "com_googlesource_code_re2",
+    #    build_file = "//third_party:re2.BUILD",
+    sha256 = "b90430b2a9240df4459108b3e291be80ae92c68a47bc06ef2dc419c5724de061",
+    strip_prefix = "re2-a276a8c738735a0fe45a6ee590fe2df69bcf4502",
+    urls = ["https://github.com/google/re2/archive/a276a8c738735a0fe45a6ee590fe2df69bcf4502.tar.gz"],
+)
+
 # Will be loaded by workspace.bzl from head
 # TFMD_COMMIT = "404805761e614561cceedc429e67c357c62be26d"  # 1.17.1
 
