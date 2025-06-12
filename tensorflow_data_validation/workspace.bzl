@@ -8,7 +8,8 @@ def tf_data_validation_workspace():
 
     git_repository(
         name = "com_github_tensorflow_metadata",
-        tag = "v1.17.0",
+        branch = "master"
+        # tag = "v1.17.0",
         remote = "https://github.com/tensorflow/metadata.git",
     )
 
