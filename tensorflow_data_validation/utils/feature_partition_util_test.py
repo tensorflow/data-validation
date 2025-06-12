@@ -387,7 +387,7 @@ class KeyAndSplitByFeatureFnTest(parameterized.TestCase):
         "test_splits_statistics_many_partitions",
         "test_splits_statistics_two_partitions"
     ]:
-      pytest.xfail(reason="PR 266 This test fails and needs to be fixed. ")
+      pytest.xfail(reason="This test fails and needs to be fixed. ")
     statistics = list(
         text_format.Parse(s, statistics_pb2.DatasetFeatureStatisticsList())
         for s in statistics)

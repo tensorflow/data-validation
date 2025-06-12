@@ -3179,7 +3179,7 @@ class IdentifyAnomalousExamplesTest(parameterized.TestCase):
         "test_identify_anomalous_examples_no_anomalies",
         "test_identify_anomalous_examples_different_anomaly_reasons"
     ]:
-        pytest.xfail(reason="PR 266 This test fails and needs to be fixed. ")
+        pytest.xfail(reason="This test fails and needs to be fixed. ")
 
     schema = text_format.Parse(schema_text, schema_pb2.Schema())
     options = stats_options.StatsOptions(schema=schema)
@@ -3241,7 +3241,7 @@ class DetectFeatureSkewTest(absltest.TestCase):
     for each in actual:
       self.assertIn(each, expected)
 
-  @pytest.mark.xfail(run=False, reason="PR 266 This test fails and needs to be fixed.")
+  @pytest.mark.xfail(run=False, reason="This test fails and needs to be fixed.")
   def test_detect_feature_skew(self):
     training_data = [
         text_format.Parse("""
