@@ -14,23 +14,18 @@
 
 """Constants used in TensorFlow Data Validation."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 from tfx_bsl.telemetry import util
-
 
 # Name of the default slice containing all examples.
 # LINT.IfChange
-DEFAULT_SLICE_KEY = 'All Examples'
+DEFAULT_SLICE_KEY = "All Examples"
 # LINT.ThenChange(../anomalies/custom_validation.cc)
 
 # Name of the invalid slice containing all examples in the RecordBatch.
-INVALID_SLICE_KEY = 'Invalid Slice'
+INVALID_SLICE_KEY = "Invalid Slice"
 
 # Namespace for all TFDV metrics.
-METRICS_NAMESPACE = util.MakeTfxNamespace(['DataValidation'])
+METRICS_NAMESPACE = util.MakeTfxNamespace(["DataValidation"])
 
 # Default input batch size.
 # This needs to be large enough to allow for efficient TF invocations during
@@ -39,6 +34,6 @@ METRICS_NAMESPACE = util.MakeTfxNamespace(['DataValidation'])
 DEFAULT_DESIRED_INPUT_BATCH_SIZE = 1000
 
 # Placeholder for non-utf8 sequences in top-k results.
-NON_UTF8_PLACEHOLDER = '__BYTES_VALUE__'
+NON_UTF8_PLACEHOLDER = "__BYTES_VALUE__"
 # Placeholder for large sequences in top-k results.
-LARGE_BYTES_PLACEHOLDER = '__LARGE_BYTES__'
+LARGE_BYTES_PLACEHOLDER = "__LARGE_BYTES__"

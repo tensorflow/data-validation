@@ -15,48 +15,49 @@
 
 import tempfile
 
-from absl.testing import absltest
 import apache_beam as beam
+from absl.testing import absltest
+
 from tensorflow_data_validation.utils import io_util
 
 
 class MaterializerTest(absltest.TestCase):
+    def test_write_then_read(self):
+        values = ["abcd", 91, {"x": "y"}]
+        temp_dir = tempfile.mkdtemp()
+        materializer = io_util.Materializer(temp_dir)
+        with beam.Pipeline() as p:
+            _ = p | beam.Create(values) | materializer.writer()
+        got_values = []
+        for val in materializer.reader():
+            got_values.append(val)
+        self.assertCountEqual(values, got_values)
 
-  def test_write_then_read(self):
-    values = ['abcd', 91, {'x': 'y'}]
-    temp_dir = tempfile.mkdtemp()
-    materializer = io_util.Materializer(temp_dir)
-    with beam.Pipeline() as p:
-      _ = p | beam.Create(values) | materializer.writer()
-    got_values = []
-    for val in materializer.reader():
-      got_values.append(val)
-    self.assertCountEqual(values, got_values)
+    def test_cleanup(self):
+        values = ["abcd", 91, {"x": "y"}]
+        temp_dir = tempfile.mkdtemp()
+        materializer = io_util.Materializer(temp_dir)
+        with beam.Pipeline() as p:
+            _ = p | beam.Create(values) | materializer.writer()
+        self.assertNotEmpty(materializer._output_files())
+        materializer.cleanup()
+        self.assertEmpty(materializer._output_files())
+        with self.assertRaisesRegex(
+            ValueError, "Materializer must not be used after cleanup."
+        ):
+            materializer.reader()
 
-  def test_cleanup(self):
-    values = ['abcd', 91, {'x': 'y'}]
-    temp_dir = tempfile.mkdtemp()
-    materializer = io_util.Materializer(temp_dir)
-    with beam.Pipeline() as p:
-      _ = p | beam.Create(values) | materializer.writer()
-    self.assertNotEmpty(materializer._output_files())
-    materializer.cleanup()
-    self.assertEmpty(materializer._output_files())
-    with self.assertRaisesRegex(ValueError,
-                                'Materializer must not be used after cleanup.'):
-      materializer.reader()
-
-  def test_context_manager(self):
-    with io_util.Materializer(tempfile.mkdtemp()) as materializer:
-      values = ['abcd', 91, {'x': 'y'}]
-      with beam.Pipeline() as p:
-        _ = p | beam.Create(values) | materializer.writer()
-      got_values = []
-      for val in materializer.reader():
-        got_values.append(val)
-    self.assertCountEqual(values, got_values)
-    self.assertEmpty(materializer._output_files())
+    def test_context_manager(self):
+        with io_util.Materializer(tempfile.mkdtemp()) as materializer:
+            values = ["abcd", 91, {"x": "y"}]
+            with beam.Pipeline() as p:
+                _ = p | beam.Create(values) | materializer.writer()
+            got_values = []
+            for val in materializer.reader():
+                got_values.append(val)
+        self.assertCountEqual(values, got_values)
+        self.assertEmpty(materializer._output_files())
 
 
-if __name__ == '__main__':
-  absltest.main()
+if __name__ == "__main__":
+    absltest.main()

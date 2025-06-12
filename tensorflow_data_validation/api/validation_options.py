@@ -14,51 +14,53 @@
 # ==============================================================================
 """Validation options."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from typing import List, Optional, Mapping, Text
-from tensorflow_data_validation.anomalies.proto import validation_config_pb2
-from tensorflow_data_validation.types import FeaturePath
+from typing import List, Mapping, Optional
 
 # TODO(https://issues.apache.org/jira/browse/SPARK-22674): Switch to
 # `collections.namedtuple` or `typing.NamedTuple` once the Spark issue is
 # resolved.
 from tfx_bsl.types import tfx_namedtuple  # pylint: disable=g-bad-import-order
 
+from tensorflow_data_validation.anomalies.proto import validation_config_pb2
+from tensorflow_data_validation.types import FeaturePath
+
 
 class ReasonFeatureNeeded(
-    tfx_namedtuple.namedtuple('ReasonFeatureNeeded', ['comment'])):
-  """A named tuple to indicate why a feature is needed for struct2tensor."""
+    tfx_namedtuple.namedtuple("ReasonFeatureNeeded", ["comment"])
+):
+    """A named tuple to indicate why a feature is needed for struct2tensor."""
 
-  def __new__(cls, comment: Text):
-    return super(ReasonFeatureNeeded, cls).__new__(cls, comment=comment)
+    def __new__(cls, comment: str):
+        return super(ReasonFeatureNeeded, cls).__new__(cls, comment=comment)
 
 
-class ValidationOptions(object):
-  """Options for example validation."""
+class ValidationOptions:
+    """Options for example validation."""
 
-  def __init__(
-      self,
-      features_needed: Optional[Mapping[FeaturePath,
-                                        List[ReasonFeatureNeeded]]] = None,
-      new_features_are_warnings: Optional[bool] = False,
-      severity_overrides: Optional[List[
-          validation_config_pb2.SeverityOverride]] = None):
-    self._features_needed = features_needed
-    self._new_features_are_warnings = new_features_are_warnings
-    self._severity_overrides = severity_overrides or []
+    def __init__(
+        self,
+        features_needed: Optional[
+            Mapping[FeaturePath, List[ReasonFeatureNeeded]]
+        ] = None,
+        new_features_are_warnings: Optional[bool] = False,
+        severity_overrides: Optional[
+            List[validation_config_pb2.SeverityOverride]
+        ] = None,
+    ):
+        self._features_needed = features_needed
+        self._new_features_are_warnings = new_features_are_warnings
+        self._severity_overrides = severity_overrides or []
 
-  @property
-  def features_needed(
-      self) -> Optional[Mapping[FeaturePath, List[ReasonFeatureNeeded]]]:
-    return self._features_needed
+    @property
+    def features_needed(
+        self,
+    ) -> Optional[Mapping[FeaturePath, List[ReasonFeatureNeeded]]]:
+        return self._features_needed
 
-  @property
-  def new_features_are_warnings(self) -> bool:
-    return self._new_features_are_warnings  # pytype: disable=bad-return-type
+    @property
+    def new_features_are_warnings(self) -> bool:
+        return self._new_features_are_warnings  # pytype: disable=bad-return-type
 
-  @property
-  def severity_overrides(self) -> List[validation_config_pb2.SeverityOverride]:
-    return self._severity_overrides
+    @property
+    def severity_overrides(self) -> List[validation_config_pb2.SeverityOverride]:
+        return self._severity_overrides

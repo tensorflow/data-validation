@@ -14,58 +14,64 @@
 
 """Tests for the overall statistics pipeline using Beam."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import os
-import pytest
 import tempfile
-from absl.testing import absltest
+
 import apache_beam as beam
-from apache_beam.testing import util
 import numpy as np
 import pyarrow as pa
+import pytest
 import tensorflow as tf
-
-from tensorflow_data_validation.api import stats_api
-from tensorflow_data_validation.utils import artifacts_io_impl
-from tensorflow_data_validation.statistics import stats_options
-from tensorflow_data_validation.utils import io_util
-from tensorflow_data_validation.utils import stats_util
-from tensorflow_data_validation.utils import test_util
-
+from absl.testing import absltest
+from apache_beam.testing import util
 from google.protobuf import text_format
 from tensorflow_metadata.proto.v0 import statistics_pb2
 
+from tensorflow_data_validation.api import stats_api
+from tensorflow_data_validation.statistics import stats_options
+from tensorflow_data_validation.utils import (
+    artifacts_io_impl,
+    io_util,
+    stats_util,
+    test_util,
+)
+
 
 class StatsAPITest(absltest.TestCase):
+    def _get_temp_dir(self):
+        return tempfile.mkdtemp()
 
-  def _get_temp_dir(self):
-    return tempfile.mkdtemp()
+    @pytest.mark.xfail(run=False, reason="This test fails and needs to be fixed.")
+    def test_stats_pipeline(self):
+        record_batches = [
+            pa.RecordBatch.from_arrays(
+                [
+                    pa.array([[1.0, 2.0]]),
+                    pa.array([["a", "b", "c", "d"]]),
+                    pa.array([np.linspace(1, 500, 500, dtype=np.int32)]),
+                ],
+                ["a", "b", "c"],
+            ),
+            pa.RecordBatch.from_arrays(
+                [
+                    pa.array([[3.0, 4.0, np.nan, 5.0]]),
+                    pa.array([["a", "c", "∞", "a"]]),
+                    pa.array([np.linspace(501, 1250, 750, dtype=np.int32)]),
+                ],
+                ["a", "b", "c"],
+            ),
+            pa.RecordBatch.from_arrays(
+                [
+                    pa.array([[1.0]]),
+                    pa.array([["a", "b", "c", "∞"]]),
+                    pa.array([np.linspace(1251, 3000, 1750, dtype=np.int32)]),
+                ],
+                ["a", "b", "c"],
+            ),
+        ]
 
-  @pytest.mark.xfail(run=False, reason="This test fails and needs to be fixed.")
-  def test_stats_pipeline(self):
-    record_batches = [
-        pa.RecordBatch.from_arrays([
-            pa.array([[1.0, 2.0]]),
-            pa.array([['a', 'b', 'c', 'd']]),
-            pa.array([np.linspace(1, 500, 500, dtype=np.int32)]),
-        ], ['a', 'b', 'c']),
-        pa.RecordBatch.from_arrays([
-            pa.array([[3.0, 4.0, np.nan, 5.0]]),
-            pa.array([['a', 'c', '∞', 'a']]),
-            pa.array([np.linspace(501, 1250, 750, dtype=np.int32)]),
-        ], ['a', 'b', 'c']),
-        pa.RecordBatch.from_arrays([
-            pa.array([[1.0]]),
-            pa.array([['a', 'b', 'c', '∞']]),
-            pa.array([np.linspace(1251, 3000, 1750, dtype=np.int32)]),
-        ], ['a', 'b', 'c'])
-    ]
-
-    expected_result = text_format.Parse(
-        """
+        expected_result = text_format.Parse(
+            """
     datasets {
       num_examples: 3
       features {
@@ -157,26 +163,31 @@ class StatsAPITest(absltest.TestCase):
         }
       }
     }
-    """, statistics_pb2.DatasetFeatureStatisticsList())
+    """,
+            statistics_pb2.DatasetFeatureStatisticsList(),
+        )
 
-    with beam.Pipeline() as p:
-      options = stats_options.StatsOptions(
-          num_top_values=2,
-          num_rank_histogram_buckets=3,
-          num_values_histogram_buckets=3,
-          num_histogram_buckets=3,
-          num_quantiles_histogram_buckets=4,
-          epsilon=0.001)
-      result = (
-          p | beam.Create(record_batches)
-          | stats_api.GenerateStatistics(options))
-      util.assert_that(
-          result,
-          test_util.make_dataset_feature_stats_list_proto_equal_fn(
-              self, expected_result, check_histograms=False))
+        with beam.Pipeline() as p:
+            options = stats_options.StatsOptions(
+                num_top_values=2,
+                num_rank_histogram_buckets=3,
+                num_values_histogram_buckets=3,
+                num_histogram_buckets=3,
+                num_quantiles_histogram_buckets=4,
+                epsilon=0.001,
+            )
+            result = (
+                p | beam.Create(record_batches) | stats_api.GenerateStatistics(options)
+            )
+            util.assert_that(
+                result,
+                test_util.make_dataset_feature_stats_list_proto_equal_fn(
+                    self, expected_result, check_histograms=False
+                ),
+            )
 
-  _sampling_test_expected_result = text_format.Parse(
-      """
+    _sampling_test_expected_result = text_format.Parse(
+        """
     datasets {
       num_examples: 1
       features {
@@ -201,33 +212,44 @@ class StatsAPITest(absltest.TestCase):
         }
       }
     }
-    """, statistics_pb2.DatasetFeatureStatisticsList())
+    """,
+        statistics_pb2.DatasetFeatureStatisticsList(),
+    )
 
-  @pytest.mark.xfail(run=False, reason="This test fails and needs to be fixed.")
-  def test_stats_pipeline_with_examples_with_no_values(self):
-    record_batches = [
-        pa.RecordBatch.from_arrays([
-            pa.array([[]], type=pa.list_(pa.float32())),
-            pa.array([[]], type=pa.list_(pa.binary())),
-            pa.array([[]], type=pa.list_(pa.int32())),
-            pa.array([[2]]),
-        ], ['a', 'b', 'c', 'w']),
-        pa.RecordBatch.from_arrays([
-            pa.array([[]], type=pa.list_(pa.float32())),
-            pa.array([[]], type=pa.list_(pa.binary())),
-            pa.array([[]], type=pa.list_(pa.int32())),
-            pa.array([[2]]),
-        ], ['a', 'b', 'c', 'w']),
-        pa.RecordBatch.from_arrays([
-            pa.array([[]], type=pa.list_(pa.float32())),
-            pa.array([[]], type=pa.list_(pa.binary())),
-            pa.array([[]], type=pa.list_(pa.int32())),
-            pa.array([[2]]),
-        ], ['a', 'b', 'c', 'w'])
-    ]
+    @pytest.mark.xfail(run=False, reason="This test fails and needs to be fixed.")
+    def test_stats_pipeline_with_examples_with_no_values(self):
+        record_batches = [
+            pa.RecordBatch.from_arrays(
+                [
+                    pa.array([[]], type=pa.list_(pa.float32())),
+                    pa.array([[]], type=pa.list_(pa.binary())),
+                    pa.array([[]], type=pa.list_(pa.int32())),
+                    pa.array([[2]]),
+                ],
+                ["a", "b", "c", "w"],
+            ),
+            pa.RecordBatch.from_arrays(
+                [
+                    pa.array([[]], type=pa.list_(pa.float32())),
+                    pa.array([[]], type=pa.list_(pa.binary())),
+                    pa.array([[]], type=pa.list_(pa.int32())),
+                    pa.array([[2]]),
+                ],
+                ["a", "b", "c", "w"],
+            ),
+            pa.RecordBatch.from_arrays(
+                [
+                    pa.array([[]], type=pa.list_(pa.float32())),
+                    pa.array([[]], type=pa.list_(pa.binary())),
+                    pa.array([[]], type=pa.list_(pa.int32())),
+                    pa.array([[2]]),
+                ],
+                ["a", "b", "c", "w"],
+            ),
+        ]
 
-    expected_result = text_format.Parse(
-        """
+        expected_result = text_format.Parse(
+            """
       datasets{
         num_examples: 3
         features {
@@ -303,123 +325,145 @@ class StatsAPITest(absltest.TestCase):
         }
       }
     }
-    """, statistics_pb2.DatasetFeatureStatisticsList())
-    with beam.Pipeline() as p:
-      options = stats_options.StatsOptions(
-          weight_feature='w',
-          num_top_values=1,
-          num_rank_histogram_buckets=1,
-          num_values_histogram_buckets=2,
-          num_histogram_buckets=1,
-          num_quantiles_histogram_buckets=1,
-          epsilon=0.001)
-      result = (
-          p | beam.Create(record_batches)
-          | stats_api.GenerateStatistics(options))
-      util.assert_that(
-          result,
-          test_util.make_dataset_feature_stats_list_proto_equal_fn(
-              self, expected_result, check_histograms=False))
+    """,
+            statistics_pb2.DatasetFeatureStatisticsList(),
+        )
+        with beam.Pipeline() as p:
+            options = stats_options.StatsOptions(
+                weight_feature="w",
+                num_top_values=1,
+                num_rank_histogram_buckets=1,
+                num_values_histogram_buckets=2,
+                num_histogram_buckets=1,
+                num_quantiles_histogram_buckets=1,
+                epsilon=0.001,
+            )
+            result = (
+                p | beam.Create(record_batches) | stats_api.GenerateStatistics(options)
+            )
+            util.assert_that(
+                result,
+                test_util.make_dataset_feature_stats_list_proto_equal_fn(
+                    self, expected_result, check_histograms=False
+                ),
+            )
 
-  @pytest.mark.xfail(run=False, reason="This test fails and needs to be fixed.")
-  def test_stats_pipeline_with_zero_examples(self):
-    expected_result = text_format.Parse(
-        """
+    @pytest.mark.xfail(run=False, reason="This test fails and needs to be fixed.")
+    def test_stats_pipeline_with_zero_examples(self):
+        expected_result = text_format.Parse(
+            """
         datasets {
           num_examples: 0
         }
-        """, statistics_pb2.DatasetFeatureStatisticsList())
-    with beam.Pipeline() as p:
-      options = stats_options.StatsOptions(
-          num_top_values=1,
-          num_rank_histogram_buckets=1,
-          num_values_histogram_buckets=2,
-          num_histogram_buckets=1,
-          num_quantiles_histogram_buckets=1,
-          epsilon=0.001)
-      result = (p | beam.Create([]) | stats_api.GenerateStatistics(options))
-      util.assert_that(
-          result,
-          test_util.make_dataset_feature_stats_list_proto_equal_fn(
-              self, expected_result, check_histograms=False))
+        """,
+            statistics_pb2.DatasetFeatureStatisticsList(),
+        )
+        with beam.Pipeline() as p:
+            options = stats_options.StatsOptions(
+                num_top_values=1,
+                num_rank_histogram_buckets=1,
+                num_values_histogram_buckets=2,
+                num_histogram_buckets=1,
+                num_quantiles_histogram_buckets=1,
+                epsilon=0.001,
+            )
+            result = p | beam.Create([]) | stats_api.GenerateStatistics(options)
+            util.assert_that(
+                result,
+                test_util.make_dataset_feature_stats_list_proto_equal_fn(
+                    self, expected_result, check_histograms=False
+                ),
+            )
 
-  @pytest.mark.xfail(run=False, reason="This test fails and needs to be fixed.")
-  def test_stats_pipeline_with_sample_rate(self):
-    record_batches = [
-        pa.RecordBatch.from_arrays(
-            [pa.array([np.linspace(1, 3000, 3000, dtype=np.int32)])], ['c']),
-    ]
+    @pytest.mark.xfail(run=False, reason="This test fails and needs to be fixed.")
+    def test_stats_pipeline_with_sample_rate(self):
+        record_batches = [
+            pa.RecordBatch.from_arrays(
+                [pa.array([np.linspace(1, 3000, 3000, dtype=np.int32)])], ["c"]
+            ),
+        ]
 
-    with beam.Pipeline() as p:
-      options = stats_options.StatsOptions(
-          sample_rate=1.0,
-          num_top_values=2,
-          num_rank_histogram_buckets=2,
-          num_values_histogram_buckets=2,
-          num_histogram_buckets=2,
-          num_quantiles_histogram_buckets=2,
-          epsilon=0.001)
-      result = (
-          p | beam.Create(record_batches)
-          | stats_api.GenerateStatistics(options))
-      util.assert_that(
-          result,
-          test_util.make_dataset_feature_stats_list_proto_equal_fn(
-              self, self._sampling_test_expected_result,
-              check_histograms=False))
+        with beam.Pipeline() as p:
+            options = stats_options.StatsOptions(
+                sample_rate=1.0,
+                num_top_values=2,
+                num_rank_histogram_buckets=2,
+                num_values_histogram_buckets=2,
+                num_histogram_buckets=2,
+                num_quantiles_histogram_buckets=2,
+                epsilon=0.001,
+            )
+            result = (
+                p | beam.Create(record_batches) | stats_api.GenerateStatistics(options)
+            )
+            util.assert_that(
+                result,
+                test_util.make_dataset_feature_stats_list_proto_equal_fn(
+                    self, self._sampling_test_expected_result, check_histograms=False
+                ),
+            )
 
-  def test_invalid_stats_options(self):
-    record_batches = [pa.RecordBatch.from_arrays([])]
-    with self.assertRaisesRegex(TypeError, '.*should be a StatsOptions.'):
-      with beam.Pipeline() as p:
-        _ = (
-            p | beam.Create(record_batches)
-            | stats_api.GenerateStatistics(options={}))
+    def test_invalid_stats_options(self):
+        record_batches = [pa.RecordBatch.from_arrays([])]
+        with self.assertRaisesRegex(TypeError, ".*should be a StatsOptions."):
+            with beam.Pipeline() as p:
+                _ = (
+                    p
+                    | beam.Create(record_batches)
+                    | stats_api.GenerateStatistics(options={})
+                )
 
-  def test_write_stats_to_binary_file(self):
-    stats = text_format.Parse(
-        """
+    def test_write_stats_to_binary_file(self):
+        stats = text_format.Parse(
+            """
         datasets {
           name: 'x'
           num_examples: 100
         }
-        """, statistics_pb2.DatasetFeatureStatisticsList())
-    output_path = os.path.join(self._get_temp_dir(), 'stats')
-    with beam.Pipeline() as p:
-      _ = (p | beam.Create([stats]) | stats_api.WriteStatisticsToBinaryFile(
-          output_path))
-    stats_from_file = statistics_pb2.DatasetFeatureStatisticsList()
-    serialized_stats = io_util.read_file_to_string(
-        output_path, binary_mode=True)
-    stats_from_file.ParseFromString(serialized_stats)
-    self.assertLen(stats_from_file.datasets, 1)
-    test_util.assert_dataset_feature_stats_proto_equal(
-        self,
-        stats_from_file.datasets[0],
-        stats.datasets[0])
+        """,
+            statistics_pb2.DatasetFeatureStatisticsList(),
+        )
+        output_path = os.path.join(self._get_temp_dir(), "stats")
+        with beam.Pipeline() as p:
+            _ = (
+                p
+                | beam.Create([stats])
+                | stats_api.WriteStatisticsToBinaryFile(output_path)
+            )
+        stats_from_file = statistics_pb2.DatasetFeatureStatisticsList()
+        serialized_stats = io_util.read_file_to_string(output_path, binary_mode=True)
+        stats_from_file.ParseFromString(serialized_stats)
+        self.assertLen(stats_from_file.datasets, 1)
+        test_util.assert_dataset_feature_stats_proto_equal(
+            self, stats_from_file.datasets[0], stats.datasets[0]
+        )
 
-  def test_write_stats_to_tfrecrod(self):
-    stats = text_format.Parse(
-        """
+    def test_write_stats_to_tfrecrod(self):
+        stats = text_format.Parse(
+            """
         datasets {
           name: 'x'
           num_examples: 100
         }
-        """, statistics_pb2.DatasetFeatureStatisticsList())
-    output_path = os.path.join(self._get_temp_dir(), 'stats')
-    with beam.Pipeline() as p:
-      _ = (p | beam.Create([stats]) | stats_api.WriteStatisticsToTFRecord(
-          output_path))
-    stats_from_file = stats_util.load_statistics(output_path)
-    self.assertLen(stats_from_file.datasets, 1)
-    test_util.assert_dataset_feature_stats_proto_equal(
-        self,
-        stats_from_file.datasets[0],
-        stats.datasets[0])
+        """,
+            statistics_pb2.DatasetFeatureStatisticsList(),
+        )
+        output_path = os.path.join(self._get_temp_dir(), "stats")
+        with beam.Pipeline() as p:
+            _ = (
+                p
+                | beam.Create([stats])
+                | stats_api.WriteStatisticsToTFRecord(output_path)
+            )
+        stats_from_file = stats_util.load_statistics(output_path)
+        self.assertLen(stats_from_file.datasets, 1)
+        test_util.assert_dataset_feature_stats_proto_equal(
+            self, stats_from_file.datasets[0], stats.datasets[0]
+        )
 
-  def test_write_stats_to_tfrecord_and_binary(self):
-    stats1 = text_format.Parse(
-        """
+    def test_write_stats_to_tfrecord_and_binary(self):
+        stats1 = text_format.Parse(
+            """
         datasets {
           name: 'x'
           num_examples: 100
@@ -429,9 +473,11 @@ class StatsAPITest(absltest.TestCase):
              }
           }
         }
-        """, statistics_pb2.DatasetFeatureStatisticsList())
-    stats2 = text_format.Parse(
-        """
+        """,
+            statistics_pb2.DatasetFeatureStatisticsList(),
+        )
+        stats2 = text_format.Parse(
+            """
         datasets {
           name: 'x'
           num_examples: 100
@@ -441,10 +487,12 @@ class StatsAPITest(absltest.TestCase):
              }
           }
         }
-        """, statistics_pb2.DatasetFeatureStatisticsList())
+        """,
+            statistics_pb2.DatasetFeatureStatisticsList(),
+        )
 
-    stats_combined = text_format.Parse(
-        """
+        stats_combined = text_format.Parse(
+            """
         datasets {
           name: 'x'
           num_examples: 100
@@ -459,44 +507,49 @@ class StatsAPITest(absltest.TestCase):
              }
           }
         }
-        """, statistics_pb2.DatasetFeatureStatisticsList())
+        """,
+            statistics_pb2.DatasetFeatureStatisticsList(),
+        )
 
-    output_path_binary = os.path.join(self._get_temp_dir(), 'stats.pb')
-    output_path_prefix = os.path.join(self._get_temp_dir(), 'stats_shards')
-    columnar_path_prefix = os.path.join(self._get_temp_dir(),
-                                        'columnar_outputs')
-    with beam.Pipeline() as p:
-      _ = (
-          p | beam.Create([stats1, stats2])
-          | stats_api.WriteStatisticsToRecordsAndBinaryFile(
-              output_path_binary, output_path_prefix, columnar_path_prefix))
+        output_path_binary = os.path.join(self._get_temp_dir(), "stats.pb")
+        output_path_prefix = os.path.join(self._get_temp_dir(), "stats_shards")
+        columnar_path_prefix = os.path.join(self._get_temp_dir(), "columnar_outputs")
+        with beam.Pipeline() as p:
+            _ = (
+                p
+                | beam.Create([stats1, stats2])
+                | stats_api.WriteStatisticsToRecordsAndBinaryFile(
+                    output_path_binary, output_path_prefix, columnar_path_prefix
+                )
+            )
 
-    stats_from_pb = statistics_pb2.DatasetFeatureStatisticsList()
-    serialized_stats = io_util.read_file_to_string(
-        output_path_binary, binary_mode=True)
-    stats_from_pb.ParseFromString(serialized_stats)
-    self.assertLen(stats_from_pb.datasets, 1)
-    test_util.assert_dataset_feature_stats_proto_equal(
-        self, stats_from_pb.datasets[0], stats_combined.datasets[0])
+        stats_from_pb = statistics_pb2.DatasetFeatureStatisticsList()
+        serialized_stats = io_util.read_file_to_string(
+            output_path_binary, binary_mode=True
+        )
+        stats_from_pb.ParseFromString(serialized_stats)
+        self.assertLen(stats_from_pb.datasets, 1)
+        test_util.assert_dataset_feature_stats_proto_equal(
+            self, stats_from_pb.datasets[0], stats_combined.datasets[0]
+        )
 
-    stats_from_shards = stats_util.load_sharded_statistics(output_path_prefix +
-                                                           '*').proto()
-    self.assertLen(stats_from_shards.datasets, 1)
-    test_util.assert_dataset_feature_stats_proto_equal(
-        self,
-        stats_from_shards.datasets[0],
-        stats_combined.datasets[0])
+        stats_from_shards = stats_util.load_sharded_statistics(
+            output_path_prefix + "*"
+        ).proto()
+        self.assertLen(stats_from_shards.datasets, 1)
+        test_util.assert_dataset_feature_stats_proto_equal(
+            self, stats_from_shards.datasets[0], stats_combined.datasets[0]
+        )
 
-    if artifacts_io_impl.get_default_columnar_provider():
-      self.assertNotEmpty(tf.io.gfile.glob(columnar_path_prefix + '-*-of-*'))
+        if artifacts_io_impl.get_default_columnar_provider():
+            self.assertNotEmpty(tf.io.gfile.glob(columnar_path_prefix + "-*-of-*"))
 
 
 class MergeDatasetFeatureStatisticsListTest(absltest.TestCase):
-
-  @pytest.mark.xfail(run=False, reason="This test fails and needs to be fixed.")
-  def test_merges_two_shards(self):
-    stats1 = text_format.Parse(
-        """
+    @pytest.mark.xfail(run=False, reason="This test fails and needs to be fixed.")
+    def test_merges_two_shards(self):
+        stats1 = text_format.Parse(
+            """
       datasets {
         name: 'x'
         num_examples: 100
@@ -506,9 +559,11 @@ class MergeDatasetFeatureStatisticsListTest(absltest.TestCase):
            }
         }
       }
-      """, statistics_pb2.DatasetFeatureStatisticsList())
-    stats2 = text_format.Parse(
-        """
+      """,
+            statistics_pb2.DatasetFeatureStatisticsList(),
+        )
+        stats2 = text_format.Parse(
+            """
         datasets {
           name: 'x'
           num_examples: 100
@@ -518,10 +573,12 @@ class MergeDatasetFeatureStatisticsListTest(absltest.TestCase):
              }
           }
         }
-        """, statistics_pb2.DatasetFeatureStatisticsList())
+        """,
+            statistics_pb2.DatasetFeatureStatisticsList(),
+        )
 
-    stats_combined = text_format.Parse(
-        """
+        stats_combined = text_format.Parse(
+            """
         datasets {
           name: 'x'
           num_examples: 100
@@ -536,15 +593,22 @@ class MergeDatasetFeatureStatisticsListTest(absltest.TestCase):
              }
           }
         }
-        """, statistics_pb2.DatasetFeatureStatisticsList())
-    with beam.Pipeline() as p:
-      result = (
-          p | beam.Create([stats1, stats2])
-          | stats_api.MergeDatasetFeatureStatisticsList())
-      util.assert_that(
-          result,
-          test_util.make_dataset_feature_stats_list_proto_equal_fn(
-              self, stats_combined, check_histograms=False))
+        """,
+            statistics_pb2.DatasetFeatureStatisticsList(),
+        )
+        with beam.Pipeline() as p:
+            result = (
+                p
+                | beam.Create([stats1, stats2])
+                | stats_api.MergeDatasetFeatureStatisticsList()
+            )
+            util.assert_that(
+                result,
+                test_util.make_dataset_feature_stats_list_proto_equal_fn(
+                    self, stats_combined, check_histograms=False
+                ),
+            )
 
-if __name__ == '__main__':
-  absltest.main()
+
+if __name__ == "__main__":
+    absltest.main()

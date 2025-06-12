@@ -23,33 +23,35 @@ from tensorflow_data_validation import types
 # want to implement more semantics for nested structures (for example, if
 # an override for path ["x", "y"] if specified, then any children of that path
 # should share the same override).
-class ExampleWeightMap(object):
-  """Maps a feature path to its weight feature.
+class ExampleWeightMap:
+    """Maps a feature path to its weight feature.
 
-  This map can be created with a "global" weight feature and path-specific
-  overrides. For any given FeaturePath, its weight column is the override, if
-  specified, or the "global" one.
-  """
+    This map can be created with a "global" weight feature and path-specific
+    overrides. For any given FeaturePath, its weight column is the override, if
+    specified, or the "global" one.
+    """
 
-  def __init__(
-      self,
-      weight_feature: Optional[types.FeatureName] = None,
-      per_feature_override: Optional[Mapping[types.FeaturePath,
-                                             types.FeatureName]] = None):
-    self._weight_feature = weight_feature
-    self._per_feature_override = per_feature_override
-    all_weight_features = []
-    if self._per_feature_override is not None:
-      all_weight_features.extend(self._per_feature_override.values())
-    if self._weight_feature is not None:
-      all_weight_features.append(self._weight_feature)
-    self._all_weight_features = frozenset(all_weight_features)
+    def __init__(
+        self,
+        weight_feature: Optional[types.FeatureName] = None,
+        per_feature_override: Optional[
+            Mapping[types.FeaturePath, types.FeatureName]
+        ] = None,
+    ):
+        self._weight_feature = weight_feature
+        self._per_feature_override = per_feature_override
+        all_weight_features = []
+        if self._per_feature_override is not None:
+            all_weight_features.extend(self._per_feature_override.values())
+        if self._weight_feature is not None:
+            all_weight_features.append(self._weight_feature)
+        self._all_weight_features = frozenset(all_weight_features)
 
-  def get(self, feature_path: types.FeaturePath) -> Optional[types.FeatureName]:
-    if self._per_feature_override is None:
-      return self._weight_feature
-    override = self._per_feature_override.get(feature_path)
-    return self._weight_feature if override is None else override
+    def get(self, feature_path: types.FeaturePath) -> Optional[types.FeatureName]:
+        if self._per_feature_override is None:
+            return self._weight_feature
+        override = self._per_feature_override.get(feature_path)
+        return self._weight_feature if override is None else override
 
-  def all_weight_features(self) -> FrozenSet[types.FeatureName]:
-    return self._all_weight_features
+    def all_weight_features(self) -> FrozenSet[types.FeatureName]:
+        return self._all_weight_features
