@@ -29,7 +29,7 @@ runs:
       name: data-validation-wheel-py${{ matrix.python-version }}
       path: dist/*.whl
 
-  - name: Install built wheel
+  - name: Check the wheel
     shell: bash
     run: |
       pip install twine
