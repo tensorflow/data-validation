@@ -173,15 +173,6 @@ INVALID_STATS_OPTIONS = [
         ),
     },
     {
-        "testcase_name": "both_slice_fns_and_slice_sqls_specified",
-        "stats_options_kwargs": {
-            "experimental_slice_functions": [lambda x: (None, x)],
-            "experimental_slice_sqls": [""],
-        },
-        "exception_type": ValueError,
-        "error_message": "Only one of experimental_slice_functions or",
-    },
-    {
         "testcase_name": "both_slicing_config_and_slice_fns_specified",
         "stats_options_kwargs": {
             "experimental_slice_functions": [lambda x: (None, x)],
@@ -197,41 +188,6 @@ INVALID_STATS_OPTIONS = [
         "exception_type": ValueError,
         "error_message": "Specify only one of slicing_config or experimental_slice_functions.",
     },
-    {
-        "testcase_name": "both_slicing_config_and_slice_sqls_specified",
-        "stats_options_kwargs": {
-            "experimental_slice_sqls": [""],
-            "slicing_config": text_format.Parse(
-                """
-              slicing_specs {
-                feature_keys: ["country", "city"]
-              }
-              """,
-                slicing_spec_pb2.SlicingConfig(),
-            ),
-        },
-        "exception_type": ValueError,
-        "error_message": "Specify only one of slicing_config or experimental_slice_sqls.",
-    },
-    {
-        "testcase_name": "both_functions_and_sqls_in_slicing_config",
-        "stats_options_kwargs": {
-            "slicing_config": text_format.Parse(
-                """
-            slicing_specs {
-              feature_keys: ["country", "city"]
-            }
-            slicing_specs {
-              slice_keys_sql: "SELECT STRUCT(education) FROM example.education"
-            }
-            """,
-                slicing_spec_pb2.SlicingConfig(),
-            ),
-        },
-        "exception_type": ValueError,
-        "error_message": "Only one of slicing features or slicing sql queries can be "
-        "specified in the slicing config.",
-    },
 ]
 
 
@@ -240,30 +196,6 @@ class StatsOptionsTest(parameterized.TestCase):
     def test_stats_options(self, stats_options_kwargs, exception_type, error_message):
         with self.assertRaisesRegex(exception_type, error_message):
             stats_options.StatsOptions(**stats_options_kwargs)
-
-    def test_stats_options_invalid_slicing_sql_query(self):
-        schema = schema_pb2.Schema(
-            feature=[
-                schema_pb2.Feature(name="feat1", type=schema_pb2.BYTES),
-                schema_pb2.Feature(name="feat3", type=schema_pb2.INT),
-            ],
-        )
-        experimental_slice_sqls = [
-            """
-        SELECT
-          STRUCT(feat1, feat2)
-        FROM
-          example.feat1, example.feat2
-        """
-        ]
-        with self.assertLogs(level="ERROR") as log_output:
-            stats_options.StatsOptions(
-                experimental_slice_sqls=experimental_slice_sqls, schema=schema
-            )
-            self.assertLen(log_output.records, 1)
-            self.assertRegex(
-                log_output.records[0].message, "One of the slice SQL query .*"
-            )
 
     def test_valid_stats_options_json_round_trip(self):
         feature_allowlist = ["a"]
@@ -426,7 +358,6 @@ class StatsOptionsTest(parameterized.TestCase):
       "_per_feature_weight_override": null,
       "_add_default_generators": true,
       "_use_sketch_based_topk_uniques": false,
-      "_slice_sqls": null,
       "_experimental_result_partitions": 1,
       "_experimental_num_feature_partitions": 1,
       "_slicing_config": null,

@@ -31,7 +31,6 @@ sh_binary(
     srcs = ["move_generated_files.sh"],
     data = select({
         "//conditions:default": [
-            "//tensorflow_data_validation/anomalies/proto:custom_validation_config_proto_py_pb2",
             "//tensorflow_data_validation/anomalies/proto:validation_config_proto_py_pb2",
             "//tensorflow_data_validation/anomalies/proto:validation_metadata_proto_py_pb2",
             "//tensorflow_data_validation/pywrap:tensorflow_data_validation_extension.so",

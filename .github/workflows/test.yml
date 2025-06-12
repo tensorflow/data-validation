@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.10", "3.11"]
+        python-version: ["3.9", "3.10", "3.11"]
 
     steps:
     - name: Checkout
@@ -29,7 +29,9 @@ jobs:
     - name: Install built wheel
       shell: bash
       run: |
-        pip install --find-links ./dist tensorflow-data-validation[test]
+        PYTHON_VERSION_TAG="cp$(echo ${{ matrix.python-version }} | sed 's/\.//')"
+        WHEEL_FILE=$(ls dist/*${PYTHON_VERSION_TAG}*.whl)
+        pip install "${WHEEL_FILE}[test]"
 
     - name: Run Test
       run: |

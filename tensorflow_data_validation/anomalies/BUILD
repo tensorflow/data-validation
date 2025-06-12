@@ -426,37 +426,6 @@ cc_test(
 )
 
 cc_library(
-    name = "custom_validation",
-    srcs = ["custom_validation.cc"],
-    hdrs = ["custom_validation.h"],
-    deps = [
-        ":path",
-        ":schema",
-        ":status_util",
-        "//tensorflow_data_validation/anomalies/proto:custom_validation_config_proto_cc_pb2",
-        "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
-        "@com_google_absl//absl/base:log_severity",
-        "@com_google_absl//absl/container:flat_hash_map",
-        "@com_google_absl//absl/log",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/strings",
-        "@com_google_absl//absl/types:optional",
-    ],
-)
-
-cc_test(
-    name = "custom_validation_test",
-    srcs = ["custom_validation_test.cc"],
-    deps = [
-        ":custom_validation",
-        ":test_util",
-        "@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto_cc_pb2",
-        "@com_google_absl//absl/types:optional",
-        "@com_google_googletest//:gtest_main",
-    ],
-)
-
-cc_library(
     name = "telemetry",
     srcs = ["telemetry.cc"],
     hdrs = ["telemetry.h"],
