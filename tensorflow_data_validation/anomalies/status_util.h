@@ -50,5 +50,3 @@ T&& CheckNotNull(const char* file, int line, const char* exprtext, T&& t) {
 }  // namespace tensorflow
 
 #endif  // THIRD_PARTY_PY_TENSORFLOW_DATA_VALIDATION_ANOMALIES_STATUS_UTIL_H_
-
-

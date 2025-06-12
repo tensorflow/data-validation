@@ -13,72 +13,69 @@
 # limitations under the License.
 """Tests for schema utilities."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import os
+
 import pytest
 from absl import flags
-from absl.testing import absltest
-from absl.testing import parameterized
-from tensorflow_data_validation import types
-from tensorflow_data_validation.utils import schema_util
+from absl.testing import absltest, parameterized
 from google.protobuf import text_format
 from tensorflow_metadata.proto.v0 import schema_pb2
+
+from tensorflow_data_validation import types
+from tensorflow_data_validation.utils import schema_util
 
 FLAGS = flags.FLAGS
 
 
 SET_DOMAIN_VALID_TESTS = [
     {
-        'testcase_name': 'int_domain',
-        'input_schema_proto_text': '''feature { name: 'x' }''',
-        'feature_name_or_path': 'x',
-        'domain': schema_pb2.IntDomain(min=1, max=5),
-        'output_schema_proto_text': '''
-          feature { name: 'x' int_domain { min: 1 max: 5 } }'''
+        "testcase_name": "int_domain",
+        "input_schema_proto_text": """feature { name: 'x' }""",
+        "feature_name_or_path": "x",
+        "domain": schema_pb2.IntDomain(min=1, max=5),
+        "output_schema_proto_text": """
+          feature { name: 'x' int_domain { min: 1 max: 5 } }""",
     },
     {
-        'testcase_name': 'float_domain',
-        'input_schema_proto_text': '''feature { name: 'x' }''',
-        'feature_name_or_path': 'x',
-        'domain': schema_pb2.FloatDomain(min=1.1, max=5.1),
-        'output_schema_proto_text': '''
-          feature { name: 'x' float_domain { min: 1.1 max: 5.1 } }'''
+        "testcase_name": "float_domain",
+        "input_schema_proto_text": """feature { name: 'x' }""",
+        "feature_name_or_path": "x",
+        "domain": schema_pb2.FloatDomain(min=1.1, max=5.1),
+        "output_schema_proto_text": """
+          feature { name: 'x' float_domain { min: 1.1 max: 5.1 } }""",
     },
     {
-        'testcase_name': 'string_domain',
-        'input_schema_proto_text': '''feature { name: 'x' }''',
-        'feature_name_or_path': 'x',
-        'domain': schema_pb2.StringDomain(value=['a', 'b']),
-        'output_schema_proto_text': '''
-          feature { name: 'x' string_domain { value: 'a' value: 'b' } }'''
+        "testcase_name": "string_domain",
+        "input_schema_proto_text": """feature { name: 'x' }""",
+        "feature_name_or_path": "x",
+        "domain": schema_pb2.StringDomain(value=["a", "b"]),
+        "output_schema_proto_text": """
+          feature { name: 'x' string_domain { value: 'a' value: 'b' } }""",
     },
     {
-        'testcase_name': 'bool_domain',
-        'input_schema_proto_text': '''feature { name: 'x' }''',
-        'feature_name_or_path': 'x',
-        'domain': schema_pb2.BoolDomain(true_value='T', false_value='F'),
-        'output_schema_proto_text': '''
+        "testcase_name": "bool_domain",
+        "input_schema_proto_text": """feature { name: 'x' }""",
+        "feature_name_or_path": "x",
+        "domain": schema_pb2.BoolDomain(true_value="T", false_value="F"),
+        "output_schema_proto_text": """
           feature { name: 'x' bool_domain { true_value: 'T' false_value: 'F' } }
-        '''
+        """,
     },
     {
-        'testcase_name': 'global_domain',
-        'input_schema_proto_text': '''
+        "testcase_name": "global_domain",
+        "input_schema_proto_text": """
           string_domain { name: 'global_domain' value: 'a' value: 'b' }
-          feature { name: 'x' }''',
-        'feature_name_or_path': 'x',
-        'domain': 'global_domain',
-        'output_schema_proto_text': '''
+          feature { name: 'x' }""",
+        "feature_name_or_path": "x",
+        "domain": "global_domain",
+        "output_schema_proto_text": """
           string_domain { name: 'global_domain' value: 'a' value: 'b' }
           feature { name: 'x' domain: 'global_domain' }
-        '''
+        """,
     },
     {
-        'testcase_name': 'set_domain_using_path',
-        'input_schema_proto_text': '''
+        "testcase_name": "set_domain_using_path",
+        "input_schema_proto_text": """
           feature {
             name: "feature1"
             type: STRUCT
@@ -88,10 +85,10 @@ SET_DOMAIN_VALID_TESTS = [
               }
             }
           }
-          ''',
-        'feature_name_or_path': types.FeaturePath(['feature1', 'sub_feature1']),
-        'domain': schema_pb2.BoolDomain(true_value='T', false_value='F'),
-        'output_schema_proto_text': '''
+          """,
+        "feature_name_or_path": types.FeaturePath(["feature1", "sub_feature1"]),
+        "domain": schema_pb2.BoolDomain(true_value="T", false_value="F"),
+        "output_schema_proto_text": """
           feature {
             name: "feature1"
             type: STRUCT
@@ -105,32 +102,33 @@ SET_DOMAIN_VALID_TESTS = [
               }
             }
           }
-        '''
-    }
+        """,
+    },
 ]
 
 
 class SchemaUtilTest(parameterized.TestCase):
-
-  def test_get_feature(self):
-    schema = text_format.Parse(
-        """
+    def test_get_feature(self):
+        schema = text_format.Parse(
+            """
         feature {
           name: "feature1"
         }
         feature {
           name: "feature2"
         }
-        """, schema_pb2.Schema())
+        """,
+            schema_pb2.Schema(),
+        )
 
-    feature2 = schema_util.get_feature(schema, 'feature2')
-    self.assertEqual(feature2.name, 'feature2')
-    # Check to verify that we are operating on the same feature object.
-    self.assertIs(feature2, schema_util.get_feature(schema, 'feature2'))
+        feature2 = schema_util.get_feature(schema, "feature2")
+        self.assertEqual(feature2.name, "feature2")
+        # Check to verify that we are operating on the same feature object.
+        self.assertIs(feature2, schema_util.get_feature(schema, "feature2"))
 
-  def test_get_feature_using_path(self):
-    schema = text_format.Parse(
-        """
+    def test_get_feature_using_path(self):
+        schema = text_format.Parse(
+            """
         feature {
           name: "feature1"
           type: STRUCT
@@ -140,25 +138,30 @@ class SchemaUtilTest(parameterized.TestCase):
             }
           }
         }
-        """, schema_pb2.Schema())
-    sub_feature1 = schema_util.get_feature(
-        schema, types.FeaturePath(['feature1', 'sub_feature1']))
-    self.assertIs(sub_feature1, schema.feature[0].struct_domain.feature[0])
+        """,
+            schema_pb2.Schema(),
+        )
+        sub_feature1 = schema_util.get_feature(
+            schema, types.FeaturePath(["feature1", "sub_feature1"])
+        )
+        self.assertIs(sub_feature1, schema.feature[0].struct_domain.feature[0])
 
-  def test_get_feature_not_present(self):
-    schema = text_format.Parse(
-        """
+    def test_get_feature_not_present(self):
+        schema = text_format.Parse(
+            """
         feature {
           name: "feature1"
         }
-        """, schema_pb2.Schema())
+        """,
+            schema_pb2.Schema(),
+        )
 
-    with self.assertRaisesRegex(ValueError, 'Feature.*not found in the schema'):
-      _ = schema_util.get_feature(schema, 'feature2')
+        with self.assertRaisesRegex(ValueError, "Feature.*not found in the schema"):
+            _ = schema_util.get_feature(schema, "feature2")
 
-  def test_get_feature_using_path_not_present(self):
-    schema = text_format.Parse(
-        """
+    def test_get_feature_using_path_not_present(self):
+        schema = text_format.Parse(
+            """
         feature {
           name: "feature1"
           type: STRUCT
@@ -168,30 +171,37 @@ class SchemaUtilTest(parameterized.TestCase):
             }
           }
         }
-        """, schema_pb2.Schema())
-    with self.assertRaisesRegex(ValueError, 'Feature.*not found in the schema'):
-      _ = schema_util.get_feature(
-          schema, types.FeaturePath(['feature1', 'sub_feature2']))
+        """,
+            schema_pb2.Schema(),
+        )
+        with self.assertRaisesRegex(ValueError, "Feature.*not found in the schema"):
+            _ = schema_util.get_feature(
+                schema, types.FeaturePath(["feature1", "sub_feature2"])
+            )
 
-  def test_get_feature_internal_step_not_struct(self):
-    schema = text_format.Parse(
-        """
+    def test_get_feature_internal_step_not_struct(self):
+        schema = text_format.Parse(
+            """
         feature {
           name: "feature1"
         }
-        """, schema_pb2.Schema())
-    with self.assertRaisesRegex(ValueError,
-                                'does not refer to a valid STRUCT feature'):
-      _ = schema_util.get_feature(
-          schema, types.FeaturePath(['feature1', 'sub_feature2']))
+        """,
+            schema_pb2.Schema(),
+        )
+        with self.assertRaisesRegex(
+            ValueError, "does not refer to a valid STRUCT feature"
+        ):
+            _ = schema_util.get_feature(
+                schema, types.FeaturePath(["feature1", "sub_feature2"])
+            )
 
-  def test_get_feature_invalid_schema_input(self):
-    with self.assertRaisesRegex(TypeError, 'should be a Schema proto'):
-      _ = schema_util.get_feature({}, 'feature')
+    def test_get_feature_invalid_schema_input(self):
+        with self.assertRaisesRegex(TypeError, "should be a Schema proto"):
+            _ = schema_util.get_feature({}, "feature")
 
-  def test_get_string_domain_schema_level_domain(self):
-    schema = text_format.Parse(
-        """
+    def test_get_string_domain_schema_level_domain(self):
+        schema = text_format.Parse(
+            """
         string_domain {
           name: "domain1"
         }
@@ -202,17 +212,19 @@ class SchemaUtilTest(parameterized.TestCase):
           name: "feature1"
           domain: "domain2"
         }
-        """, schema_pb2.Schema())
+        """,
+            schema_pb2.Schema(),
+        )
 
-    domain2 = schema_util.get_domain(schema, 'feature1')
-    self.assertIsInstance(domain2, schema_pb2.StringDomain)
-    self.assertEqual(domain2.name, 'domain2')
-    # Check to verify that we are operating on the same domain object.
-    self.assertIs(domain2, schema_util.get_domain(schema, 'feature1'))
+        domain2 = schema_util.get_domain(schema, "feature1")
+        self.assertIsInstance(domain2, schema_pb2.StringDomain)
+        self.assertEqual(domain2.name, "domain2")
+        # Check to verify that we are operating on the same domain object.
+        self.assertIs(domain2, schema_util.get_domain(schema, "feature1"))
 
-  def test_get_string_domain_feature_level_domain(self):
-    schema = text_format.Parse(
-        """
+    def test_get_string_domain_feature_level_domain(self):
+        schema = text_format.Parse(
+            """
         string_domain {
           name: "domain2"
         }
@@ -222,68 +234,76 @@ class SchemaUtilTest(parameterized.TestCase):
             name: "domain1"
           }
         }
-        """, schema_pb2.Schema())
+        """,
+            schema_pb2.Schema(),
+        )
 
-    domain1 = schema_util.get_domain(schema, 'feature1')
-    self.assertIsInstance(domain1, schema_pb2.StringDomain)
-    self.assertEqual(domain1.name, 'domain1')
-    # Check to verify that we are operating on the same domain object.
-    self.assertIs(domain1, schema_util.get_domain(schema, 'feature1'))
+        domain1 = schema_util.get_domain(schema, "feature1")
+        self.assertIsInstance(domain1, schema_pb2.StringDomain)
+        self.assertEqual(domain1.name, "domain1")
+        # Check to verify that we are operating on the same domain object.
+        self.assertIs(domain1, schema_util.get_domain(schema, "feature1"))
 
-  def test_get_int_domain_feature_level_domain(self):
-    schema = text_format.Parse(
-        """
+    def test_get_int_domain_feature_level_domain(self):
+        schema = text_format.Parse(
+            """
         feature {
           name: "feature1"
           int_domain {
             name: "domain1"
           }
         }
-        """, schema_pb2.Schema())
+        """,
+            schema_pb2.Schema(),
+        )
 
-    domain1 = schema_util.get_domain(schema, 'feature1')
-    self.assertIsInstance(domain1, schema_pb2.IntDomain)
-    self.assertEqual(domain1.name, 'domain1')
-    # Check to verify that we are operating on the same domain object.
-    self.assertIs(domain1, schema_util.get_domain(schema, 'feature1'))
+        domain1 = schema_util.get_domain(schema, "feature1")
+        self.assertIsInstance(domain1, schema_pb2.IntDomain)
+        self.assertEqual(domain1.name, "domain1")
+        # Check to verify that we are operating on the same domain object.
+        self.assertIs(domain1, schema_util.get_domain(schema, "feature1"))
 
-  def test_get_float_domain_feature_level_domain(self):
-    schema = text_format.Parse(
-        """
+    def test_get_float_domain_feature_level_domain(self):
+        schema = text_format.Parse(
+            """
         feature {
           name: "feature1"
           float_domain {
             name: "domain1"
           }
         }
-        """, schema_pb2.Schema())
+        """,
+            schema_pb2.Schema(),
+        )
 
-    domain1 = schema_util.get_domain(schema, 'feature1')
-    self.assertIsInstance(domain1, schema_pb2.FloatDomain)
-    self.assertEqual(domain1.name, 'domain1')
-    # Check to verify that we are operating on the same domain object.
-    self.assertIs(domain1, schema_util.get_domain(schema, 'feature1'))
+        domain1 = schema_util.get_domain(schema, "feature1")
+        self.assertIsInstance(domain1, schema_pb2.FloatDomain)
+        self.assertEqual(domain1.name, "domain1")
+        # Check to verify that we are operating on the same domain object.
+        self.assertIs(domain1, schema_util.get_domain(schema, "feature1"))
 
-  def test_get_bool_domain_feature_level_domain(self):
-    schema = text_format.Parse(
-        """
+    def test_get_bool_domain_feature_level_domain(self):
+        schema = text_format.Parse(
+            """
         feature {
           name: "feature1"
           bool_domain {
             name: "domain1"
           }
         }
-        """, schema_pb2.Schema())
+        """,
+            schema_pb2.Schema(),
+        )
 
-    domain1 = schema_util.get_domain(schema, 'feature1')
-    self.assertIsInstance(domain1, schema_pb2.BoolDomain)
-    self.assertEqual(domain1.name, 'domain1')
-    # Check to verify that we are operating on the same domain object.
-    self.assertIs(domain1, schema_util.get_domain(schema, 'feature1'))
+        domain1 = schema_util.get_domain(schema, "feature1")
+        self.assertIsInstance(domain1, schema_pb2.BoolDomain)
+        self.assertEqual(domain1.name, "domain1")
+        # Check to verify that we are operating on the same domain object.
+        self.assertIs(domain1, schema_util.get_domain(schema, "feature1"))
 
-  def test_get_domain_using_path(self):
-    schema = text_format.Parse(
-        """
+    def test_get_domain_using_path(self):
+        schema = text_format.Parse(
+            """
         feature {
           name: "feature1"
           type: STRUCT
@@ -296,54 +316,60 @@ class SchemaUtilTest(parameterized.TestCase):
             }
           }
         }
-        """, schema_pb2.Schema())
-    domain1 = schema_util.get_domain(
-        schema, types.FeaturePath(['feature1', 'sub_feature1']))
-    self.assertIs(
-        domain1, schema.feature[0].struct_domain.feature[0].bool_domain)
+        """,
+            schema_pb2.Schema(),
+        )
+        domain1 = schema_util.get_domain(
+            schema, types.FeaturePath(["feature1", "sub_feature1"])
+        )
+        self.assertIs(domain1, schema.feature[0].struct_domain.feature[0].bool_domain)
 
-  def test_get_domain_not_present(self):
-    schema = text_format.Parse(
-        """
+    def test_get_domain_not_present(self):
+        schema = text_format.Parse(
+            """
         string_domain {
           name: "domain1"
         }
         feature {
           name: "feature1"
         }
-        """, schema_pb2.Schema())
+        """,
+            schema_pb2.Schema(),
+        )
 
-    with self.assertRaisesRegex(ValueError, 'has no domain associated'):
-      _ = schema_util.get_domain(schema, 'feature1')
+        with self.assertRaisesRegex(ValueError, "has no domain associated"):
+            _ = schema_util.get_domain(schema, "feature1")
 
-  def test_get_domain_invalid_schema_input(self):
-    with self.assertRaisesRegex(TypeError, 'should be a Schema proto'):
-      _ = schema_util.get_domain({}, 'feature')
+    def test_get_domain_invalid_schema_input(self):
+        with self.assertRaisesRegex(TypeError, "should be a Schema proto"):
+            _ = schema_util.get_domain({}, "feature")
 
-  @pytest.mark.xfail(run=False, reason="This test fails and needs to be fixed.")
-  def test_write_load_schema_text(self):
-    schema = text_format.Parse(
-        """
+    @pytest.mark.xfail(run=False, reason="This test fails and needs to be fixed.")
+    def test_write_load_schema_text(self):
+        schema = text_format.Parse(
+            """
         feature {
           name: "feature1"
         }
         feature {
           name: "feature2"
         }
-        """, schema_pb2.Schema())
+        """,
+            schema_pb2.Schema(),
+        )
 
-    schema_path = os.path.join(FLAGS.test_tmpdir, 'schema.pbtxt')
-    schema_util.write_schema_text(schema=schema, output_path=schema_path)
-    loaded_schema = schema_util.load_schema_text(input_path=schema_path)
-    self.assertEqual(schema, loaded_schema)
+        schema_path = os.path.join(FLAGS.test_tmpdir, "schema.pbtxt")
+        schema_util.write_schema_text(schema=schema, output_path=schema_path)
+        loaded_schema = schema_util.load_schema_text(input_path=schema_path)
+        self.assertEqual(schema, loaded_schema)
 
-  def test_write_schema_text_invalid_schema_input(self):
-    with self.assertRaisesRegex(TypeError, 'should be a Schema proto'):
-      _ = schema_util.write_schema_text({}, 'schema.pbtxt')
+    def test_write_schema_text_invalid_schema_input(self):
+        with self.assertRaisesRegex(TypeError, "should be a Schema proto"):
+            _ = schema_util.write_schema_text({}, "schema.pbtxt")
 
-  def test_get_bytes_features(self):
-    schema = text_format.Parse(
-        """
+    def test_get_bytes_features(self):
+        schema = text_format.Parse(
+            """
         feature {
           name: "fa"
           type: BYTES
@@ -383,16 +409,17 @@ class SchemaUtilTest(parameterized.TestCase):
             }
           }
         }
-        """, schema_pb2.Schema())
-    self.assertEqual(
-        schema_util.get_bytes_features(schema), [
-            types.FeaturePath(['fa']),
-            types.FeaturePath(['ff', 'ff_fa'])
-        ])
+        """,
+            schema_pb2.Schema(),
+        )
+        self.assertEqual(
+            schema_util.get_bytes_features(schema),
+            [types.FeaturePath(["fa"]), types.FeaturePath(["ff", "ff_fa"])],
+        )
 
-  def test_get_bytes_features_categorical_value(self):
-    schema = text_format.Parse(
-        """
+    def test_get_bytes_features_categorical_value(self):
+        schema = text_format.Parse(
+            """
         feature {
           name: "fa"
           type: BYTES
@@ -464,31 +491,25 @@ class SchemaUtilTest(parameterized.TestCase):
             value: "b"
             is_categorical: CATEGORICAL_YES
         }
-        """, schema_pb2.Schema())
-    expect_result = {
-        types.FeaturePath(['fa']):
-            schema_pb2.StringDomain.CATEGORICAL_UNSPECIFIED,
-        types.FeaturePath(['fb']):
-            schema_pb2.StringDomain.CATEGORICAL_YES,
-        types.FeaturePath(['fd']):
-            schema_pb2.StringDomain.CATEGORICAL_NO,
-        types.FeaturePath(['fe']):
-            schema_pb2.StringDomain.CATEGORICAL_UNSPECIFIED,
-        types.FeaturePath(['fg']):
-            schema_pb2.StringDomain.CATEGORICAL_UNSPECIFIED,
-        types.FeaturePath(['fh']):
-            schema_pb2.StringDomain.CATEGORICAL_UNSPECIFIED,
-        types.FeaturePath(['fi']):
-            schema_pb2.StringDomain.CATEGORICAL_YES,
-        types.FeaturePath(['fj']):
-            schema_pb2.StringDomain.CATEGORICAL_YES,
-    }
-    result = schema_util.get_bytes_features_categorical_value(schema)
-    self.assertEqual(result, expect_result)
+        """,
+            schema_pb2.Schema(),
+        )
+        expect_result = {
+            types.FeaturePath(["fa"]): schema_pb2.StringDomain.CATEGORICAL_UNSPECIFIED,
+            types.FeaturePath(["fb"]): schema_pb2.StringDomain.CATEGORICAL_YES,
+            types.FeaturePath(["fd"]): schema_pb2.StringDomain.CATEGORICAL_NO,
+            types.FeaturePath(["fe"]): schema_pb2.StringDomain.CATEGORICAL_UNSPECIFIED,
+            types.FeaturePath(["fg"]): schema_pb2.StringDomain.CATEGORICAL_UNSPECIFIED,
+            types.FeaturePath(["fh"]): schema_pb2.StringDomain.CATEGORICAL_UNSPECIFIED,
+            types.FeaturePath(["fi"]): schema_pb2.StringDomain.CATEGORICAL_YES,
+            types.FeaturePath(["fj"]): schema_pb2.StringDomain.CATEGORICAL_YES,
+        }
+        result = schema_util.get_bytes_features_categorical_value(schema)
+        self.assertEqual(result, expect_result)
 
-  def test_get_categorical_numeric_feature_types(self):
-    schema = text_format.Parse(
-        """
+    def test_get_categorical_numeric_feature_types(self):
+        schema = text_format.Parse(
+            """
         feature {
           name: "fa"
           type: INT
@@ -534,18 +555,22 @@ class SchemaUtilTest(parameterized.TestCase):
              is_categorical: true
           }
         }
-        """, schema_pb2.Schema())
-    self.assertEqual(
-        schema_util.get_categorical_numeric_feature_types(schema), {
-            types.FeaturePath(['fa']): schema_pb2.INT,
-            types.FeaturePath(['fc']): schema_pb2.INT,
-            types.FeaturePath(['fd', 'fd_fa']): schema_pb2.INT,
-            types.FeaturePath(['fg']): schema_pb2.FLOAT,
-        })
+        """,
+            schema_pb2.Schema(),
+        )
+        self.assertEqual(
+            schema_util.get_categorical_numeric_feature_types(schema),
+            {
+                types.FeaturePath(["fa"]): schema_pb2.INT,
+                types.FeaturePath(["fc"]): schema_pb2.INT,
+                types.FeaturePath(["fd", "fd_fa"]): schema_pb2.INT,
+                types.FeaturePath(["fg"]): schema_pb2.FLOAT,
+            },
+        )
 
-  def test_is_categorical_features(self):
-    schema = text_format.Parse(
-        """
+    def test_is_categorical_features(self):
+        schema = text_format.Parse(
+            """
         feature {
           name: "fa"
           type: INT
@@ -565,41 +590,48 @@ class SchemaUtilTest(parameterized.TestCase):
           name: "fa"
           type: INT
         }
-        """, schema_pb2.Schema())
-    expected = [True, True, False, False]
-    self.assertEqual([
-        schema_util.is_categorical_feature(feature)
-        for feature in schema.feature
-    ], expected)
+        """,
+            schema_pb2.Schema(),
+        )
+        expected = [True, True, False, False]
+        self.assertEqual(
+            [schema_util.is_categorical_feature(feature) for feature in schema.feature],
+            expected,
+        )
 
-  @parameterized.named_parameters(*SET_DOMAIN_VALID_TESTS)
-  def test_set_domain(self, input_schema_proto_text, feature_name_or_path,
-                      domain, output_schema_proto_text):
-    actual_schema = schema_pb2.Schema()
-    text_format.Merge(input_schema_proto_text, actual_schema)
-    schema_util.set_domain(actual_schema, feature_name_or_path, domain)
-    expected_schema = schema_pb2.Schema()
-    text_format.Merge(output_schema_proto_text, expected_schema)
-    self.assertEqual(actual_schema, expected_schema)
+    @parameterized.named_parameters(*SET_DOMAIN_VALID_TESTS)
+    def test_set_domain(
+        self,
+        input_schema_proto_text,
+        feature_name_or_path,
+        domain,
+        output_schema_proto_text,
+    ):
+        actual_schema = schema_pb2.Schema()
+        text_format.Merge(input_schema_proto_text, actual_schema)
+        schema_util.set_domain(actual_schema, feature_name_or_path, domain)
+        expected_schema = schema_pb2.Schema()
+        text_format.Merge(output_schema_proto_text, expected_schema)
+        self.assertEqual(actual_schema, expected_schema)
 
-  def test_set_domain_invalid_schema(self):
-    with self.assertRaisesRegex(TypeError, 'should be a Schema proto'):
-      schema_util.set_domain({}, 'feature', schema_pb2.IntDomain())
+    def test_set_domain_invalid_schema(self):
+        with self.assertRaisesRegex(TypeError, "should be a Schema proto"):
+            schema_util.set_domain({}, "feature", schema_pb2.IntDomain())
 
-  def test_set_domain_invalid_domain(self):
-    with self.assertRaisesRegex(TypeError, 'domain is of type'):
-      schema_util.set_domain(schema_pb2.Schema(), 'feature', {})
+    def test_set_domain_invalid_domain(self):
+        with self.assertRaisesRegex(TypeError, "domain is of type"):
+            schema_util.set_domain(schema_pb2.Schema(), "feature", {})
 
-  def test_set_domain_invalid_global_domain(self):
-    schema = schema_pb2.Schema()
-    schema.feature.add(name='feature')
-    schema.string_domain.add(name='domain1', value=['a', 'b'])
-    with self.assertRaisesRegex(ValueError, 'Invalid global string domain'):
-      schema_util.set_domain(schema, 'feature', 'domain2')
+    def test_set_domain_invalid_global_domain(self):
+        schema = schema_pb2.Schema()
+        schema.feature.add(name="feature")
+        schema.string_domain.add(name="domain1", value=["a", "b"])
+        with self.assertRaisesRegex(ValueError, "Invalid global string domain"):
+            schema_util.set_domain(schema, "feature", "domain2")
 
-  def test_get_categorical_features(self):
-    schema = text_format.Parse(
-        """
+    def test_get_categorical_features(self):
+        schema = text_format.Parse(
+            """
         feature {
           name: "fa"
           type: INT
@@ -642,18 +674,22 @@ class SchemaUtilTest(parameterized.TestCase):
             is_categorical: true
           }
         }
-        """, schema_pb2.Schema())
-    expected = set([
-        types.FeaturePath(['fa']),
-        types.FeaturePath(['fb']),
-        types.FeaturePath(['fd', 'fd_fa']),
-        types.FeaturePath(['fe']),
-    ])
-    self.assertEqual(schema_util.get_categorical_features(schema), expected)
+        """,
+            schema_pb2.Schema(),
+        )
+        expected = set(
+            [
+                types.FeaturePath(["fa"]),
+                types.FeaturePath(["fb"]),
+                types.FeaturePath(["fd", "fd_fa"]),
+                types.FeaturePath(["fe"]),
+            ]
+        )
+        self.assertEqual(schema_util.get_categorical_features(schema), expected)
 
-  def test_get_multivalent_features(self):
-    schema = text_format.Parse(
-        """
+    def test_get_multivalent_features(self):
+        schema = text_format.Parse(
+            """
           feature {
             name: "fa"
             shape {
@@ -736,29 +772,33 @@ class SchemaUtilTest(parameterized.TestCase):
               }
             }
           }
-          """, schema_pb2.Schema())
-    expected = set([types.FeaturePath(['fc']),
-                    types.FeaturePath(['fe']),
-                    types.FeaturePath(['ff']),
-                    types.FeaturePath(['fg']),
-                    types.FeaturePath(['fh']),
-                    types.FeaturePath(['fi', 'fi_fb'])])
-    self.assertEqual(schema_util.get_multivalent_features(schema), expected)
+          """,
+            schema_pb2.Schema(),
+        )
+        expected = set(
+            [
+                types.FeaturePath(["fc"]),
+                types.FeaturePath(["fe"]),
+                types.FeaturePath(["ff"]),
+                types.FeaturePath(["fg"]),
+                types.FeaturePath(["fh"]),
+                types.FeaturePath(["fi", "fi_fb"]),
+            ]
+        )
+        self.assertEqual(schema_util.get_multivalent_features(schema), expected)
 
-  def test_look_up_feature(self):
-    feature_1 = text_format.Parse("""name: "feature1" """, schema_pb2.Feature())
-    feature_2 = text_format.Parse("""name: "feature2" """, schema_pb2.Feature())
+    def test_look_up_feature(self):
+        feature_1 = text_format.Parse("""name: "feature1" """, schema_pb2.Feature())
+        feature_2 = text_format.Parse("""name: "feature2" """, schema_pb2.Feature())
 
-    container = [feature_1, feature_2]
-    self.assertEqual(
-        schema_util.look_up_feature('feature1', container), feature_1)
-    self.assertEqual(
-        schema_util.look_up_feature('feature2', container), feature_2)
-    self.assertIsNone(schema_util.look_up_feature('feature3', container), None)
+        container = [feature_1, feature_2]
+        self.assertEqual(schema_util.look_up_feature("feature1", container), feature_1)
+        self.assertEqual(schema_util.look_up_feature("feature2", container), feature_2)
+        self.assertIsNone(schema_util.look_up_feature("feature3", container), None)
 
-  def test_generate_dummy_schema_with_paths(self):
-    schema = text_format.Parse(
-        """
+    def test_generate_dummy_schema_with_paths(self):
+        schema = text_format.Parse(
+            """
     feature {
       name: "foo"
     }
@@ -776,15 +816,21 @@ class SchemaUtilTest(parameterized.TestCase):
         }
       }
     }
-    """, schema_pb2.Schema())
-    self.assertEqual(
-        schema_util.generate_dummy_schema_with_paths([
-            types.FeaturePath(['foo']),
-            types.FeaturePath(['bar']),
-            types.FeaturePath(['baz', 'zip']),
-            types.FeaturePath(['baz', 'zop'])
-        ]), schema)
+    """,
+            schema_pb2.Schema(),
+        )
+        self.assertEqual(
+            schema_util.generate_dummy_schema_with_paths(
+                [
+                    types.FeaturePath(["foo"]),
+                    types.FeaturePath(["bar"]),
+                    types.FeaturePath(["baz", "zip"]),
+                    types.FeaturePath(["baz", "zop"]),
+                ]
+            ),
+            schema,
+        )
 
 
-if __name__ == '__main__':
-  absltest.main()
+if __name__ == "__main__":
+    absltest.main()

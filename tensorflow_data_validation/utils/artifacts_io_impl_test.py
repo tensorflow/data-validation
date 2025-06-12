@@ -12,32 +12,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License
 """Tests for artifacts_io_impl."""
+
 import tempfile
 
-from absl.testing import absltest
 import apache_beam as beam
-from tensorflow_data_validation.utils import artifacts_io_impl
+from absl.testing import absltest
 from tensorflow_metadata.proto.v0 import statistics_pb2
+
+from tensorflow_data_validation.utils import artifacts_io_impl
 
 
 class RecordSinkAndSourceTest(absltest.TestCase):
+    def test_write_and_read_records(self):
+        datasets = [
+            statistics_pb2.DatasetFeatureStatisticsList(
+                datasets=[statistics_pb2.DatasetFeatureStatistics(name="d1")]
+            ),
+            statistics_pb2.DatasetFeatureStatisticsList(
+                datasets=[statistics_pb2.DatasetFeatureStatistics(name="d2")]
+            ),
+        ]
+        output_prefix = tempfile.mkdtemp() + "/statistics"
 
-  def test_write_and_read_records(self):
-    datasets = [
-        statistics_pb2.DatasetFeatureStatisticsList(
-            datasets=[statistics_pb2.DatasetFeatureStatistics(name='d1')]),
-        statistics_pb2.DatasetFeatureStatisticsList(
-            datasets=[statistics_pb2.DatasetFeatureStatistics(name='d2')])
-    ]
-    output_prefix = tempfile.mkdtemp() + '/statistics'
+        with beam.Pipeline() as p:
+            provider = artifacts_io_impl.get_io_provider("tfrecords")
+            _ = p | beam.Create(datasets) | provider.record_sink_impl(output_prefix)
 
-    with beam.Pipeline() as p:
-      provider = artifacts_io_impl.get_io_provider('tfrecords')
-      _ = (p | beam.Create(datasets) | provider.record_sink_impl(output_prefix))
-
-    got = provider.record_iterator_impl(provider.glob(output_prefix))
-    self.assertCountEqual(datasets, got)
+        got = provider.record_iterator_impl(provider.glob(output_prefix))
+        self.assertCountEqual(datasets, got)
 
 
-if __name__ == '__main__':
-  absltest.main()
+if __name__ == "__main__":
+    absltest.main()

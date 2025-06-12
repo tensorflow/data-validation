@@ -15,8 +15,8 @@
 
 import json
 from typing import Iterable, Tuple
-from tensorflow_metadata.proto.v0 import path_pb2
 
+from tensorflow_metadata.proto.v0 import path_pb2
 
 # Type of the feature name we support in the input batch.
 FeatureName = str
@@ -27,72 +27,72 @@ FeatureName = str
 FeaturePathTuple = Tuple[FeatureName, ...]
 
 
-class FeaturePath(object):
-  """Represents the path to a feature in an input example.
+class FeaturePath:
+    """Represents the path to a feature in an input example.
 
-  An input example might contain nested structure. FeaturePath is to identify
-  a node in such a structure.
-  """
+    An input example might contain nested structure. FeaturePath is to identify
+    a node in such a structure.
+    """
 
-  __slot__ = ["_steps"]
+    __slot__ = ["_steps"]
 
-  def __init__(self, steps: Iterable[FeatureName]):
-    self._steps = tuple(steps)
+    def __init__(self, steps: Iterable[FeatureName]):
+        self._steps = tuple(steps)
 
-  def to_proto(self) -> path_pb2.Path:
-    return path_pb2.Path(step=self._steps)
+    def to_proto(self) -> path_pb2.Path:
+        return path_pb2.Path(step=self._steps)
 
-  def to_json(self) -> str:
-    return json.dumps(self._steps)
+    def to_json(self) -> str:
+        return json.dumps(self._steps)
 
-  @staticmethod
-  def from_proto(path_proto: path_pb2.Path):
-    return FeaturePath(path_proto.step)
+    @staticmethod
+    def from_proto(path_proto: path_pb2.Path):
+        return FeaturePath(path_proto.step)
 
-  @staticmethod
-  def from_json(path_json: str):
-    steps = json.loads(path_json)
-    if not isinstance(steps, list):
-      raise TypeError("Invalid FeaturePath json: %s" % path_json)
-    for s in steps:
-      if not isinstance(s, str):
-        raise TypeError("Invalid FeaturePath json: %s" % path_json)
-    return FeaturePath(steps)
+    @staticmethod
+    def from_json(path_json: str):
+        steps = json.loads(path_json)
+        if not isinstance(steps, list):
+            raise TypeError("Invalid FeaturePath json: %s" % path_json)
+        for s in steps:
+            if not isinstance(s, str):
+                raise TypeError("Invalid FeaturePath json: %s" % path_json)
+        return FeaturePath(steps)
 
-  @staticmethod
-  def from_string(path_string: str):
-    steps = path_string.split(".")
-    return FeaturePath(steps)
+    @staticmethod
+    def from_string(path_string: str):
+        steps = path_string.split(".")
+        return FeaturePath(steps)
 
-  def steps(self) -> FeaturePathTuple:
-    return self._steps
+    def steps(self) -> FeaturePathTuple:
+        return self._steps
 
-  def parent(self) -> "FeaturePath":
-    if not self._steps:
-      raise ValueError("Root does not have parent.")
-    return FeaturePath(self._steps[:-1])
+    def parent(self) -> "FeaturePath":
+        if not self._steps:
+            raise ValueError("Root does not have parent.")
+        return FeaturePath(self._steps[:-1])
 
-  def child(self, child_step: FeatureName) -> "FeaturePath":
-    return FeaturePath(self._steps + (child_step,))
+    def child(self, child_step: FeatureName) -> "FeaturePath":
+        return FeaturePath(self._steps + (child_step,))
 
-  def __str__(self) -> str:
-    return ".".join(self._steps)
+    def __str__(self) -> str:
+        return ".".join(self._steps)
 
-  def __repr__(self) -> str:
-    return self._steps.__repr__()
+    def __repr__(self) -> str:
+        return self._steps.__repr__()
 
-  def __eq__(self, other) -> bool:
-    return self._steps == other._steps  # pylint: disable=protected-access
+    def __eq__(self, other) -> bool:
+        return self._steps == other._steps  # pylint: disable=protected-access
 
-  def __lt__(self, other) -> bool:
-    # lexicographic order.
-    return self._steps < other._steps  # pylint: disable=protected-access
+    def __lt__(self, other) -> bool:
+        # lexicographic order.
+        return self._steps < other._steps  # pylint: disable=protected-access
 
-  def __hash__(self) -> int:
-    return hash(self._steps)
+    def __hash__(self) -> int:
+        return hash(self._steps)
 
-  def __len__(self) -> int:
-    return len(self._steps)
+    def __len__(self) -> int:
+        return len(self._steps)
 
-  def __bool__(self) -> bool:
-    return bool(self._steps)
+    def __bool__(self) -> bool:
+        return bool(self._steps)
