@@ -29,7 +29,7 @@ jobs:
     - name: Install built wheel
       shell: bash
       run: |
-        pip install dist/*.whl['test']
+        pip install --find-links ./dist tensorflow-data-validation[test]
 
     - name: Run Test
       run: |
