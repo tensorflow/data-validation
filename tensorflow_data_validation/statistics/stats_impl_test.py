@@ -2070,7 +2070,7 @@ def _merge_shards(
   return merge_util.merge_dataset_feature_statistics(_flatten(shards))
 
 
-# @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
+# @pytest.mark.xfail(run=False, reason="PR 266 This test fails and needs to be fixed.")
 class StatsImplTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
@@ -2117,7 +2117,7 @@ class StatsImplTest(parameterized.TestCase):
         "test_stats_impl_feature_value_slicing_slice_fns",
         "test_stats_impl_custom_feature_generator_partitioned",
     ]:
-      pytest.xfail(reason="PR 260 This test fails and needs to be fixed. ")
+      pytest.xfail(reason="PR 266 This test fails and needs to be fixed. ")
 
     expected_result = text_format.Parse(
         expected_result_proto_text,
@@ -2142,7 +2142,7 @@ class StatsImplTest(parameterized.TestCase):
               check_histograms=False,
           ))
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
+  @pytest.mark.xfail(run=False, reason="PR 266 This test fails and needs to be fixed.")
   def test_stats_impl_slicing_sql(self):
     record_batches = [
         pa.RecordBatch.from_arrays([
@@ -2189,7 +2189,7 @@ class StatsImplTest(parameterized.TestCase):
           test_util.make_dataset_feature_stats_list_proto_equal_fn(
               self, expected_result, check_histograms=False))
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
+  @pytest.mark.xfail(run=False, reason="PR 266 This test fails and needs to be fixed.")
   def test_stats_impl_slicing_sql_in_config(self):
     record_batches = [
         pa.RecordBatch.from_arrays([
@@ -2234,7 +2234,7 @@ class StatsImplTest(parameterized.TestCase):
           test_util.make_dataset_feature_stats_list_proto_equal_fn(
               self, expected_result, check_histograms=False))
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
+  @pytest.mark.xfail(run=False, reason="PR 266 This test fails and needs to be fixed.")
   def test_nld_features(self):
     record_batches = [pa.RecordBatch.from_arrays([pa.array([[1]])], ['f1'])]
     options = stats_options.StatsOptions(
@@ -2299,7 +2299,7 @@ class StatsImplTest(parameterized.TestCase):
           test_util.make_dataset_feature_stats_list_proto_equal_fn(
               self, expected_result, check_histograms=True))
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
+  @pytest.mark.xfail(run=False, reason="PR 266 This test fails and needs to be fixed.")
   def test_generate_sliced_statistics_impl_without_slice_fns(self):
     sliced_record_batches = [
         ('test_slice',
@@ -2396,7 +2396,7 @@ class StatsImplTest(parameterized.TestCase):
         expected_result.datasets[0],
         check_histograms=False)
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
+  @pytest.mark.xfail(run=False, reason="PR 266 This test fails and needs to be fixed.")
   def test_stats_impl_custom_generators(self):
 
     # Dummy PTransform that returns two DatasetFeatureStatistics protos.

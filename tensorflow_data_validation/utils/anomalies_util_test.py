@@ -508,7 +508,7 @@ class AnomaliesUtilTest(parameterized.TestCase):
       actual_slice_keys.append(slice_key)
     self.assertCountEqual(actual_slice_keys, expected_slice_keys)
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
+  @pytest.mark.xfail(run=False, reason="PR 266 This test fails and needs to be fixed.")
   def test_write_load_anomalies_text(self):
     anomalies = text_format.Parse(
         """
@@ -538,7 +538,7 @@ class AnomaliesUtilTest(parameterized.TestCase):
     with self.assertRaisesRegex(TypeError, 'should be an Anomalies proto'):
       anomalies_util.write_anomalies_text({}, 'anomalies.pbtxt')
 
-  @pytest.mark.xfail(run=False, reason="PR 260 This test fails and needs to be fixed.")
+  @pytest.mark.xfail(run=False, reason="PR 266 This test fails and needs to be fixed.")
   def test_load_anomalies_binary(self):
     anomalies = text_format.Parse(
         """
