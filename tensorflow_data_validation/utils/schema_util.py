@@ -175,19 +175,19 @@ def set_domain(
     if feature.WhichOneof("domain_info") is not None:
         logging.warning('Replacing existing domain of feature "%s".', feature_path)
 
-        for d_type, d_name in feature_domains.items():
-            if isinstance(domain, d_type):
-                if d_type is str:
-                    found_domain = False
-                    for global_domain in schema.string_domain:
-                        if global_domain.name == domain:
-                            found_domain = True
-                            break
-                    if not found_domain:
-                        raise ValueError(f'Invalid global string domain "{domain}".')
-                    feature.domain = domain
-                else:
-                    getattr(feature, d_name).CopyFrom(domain)
+    for d_type, d_name in feature_domains.items():
+        if isinstance(domain, d_type):
+            if d_type is str:
+                found_domain = False
+                for global_domain in schema.string_domain:
+                    if global_domain.name == domain:
+                        found_domain = True
+                        break
+                if not found_domain:
+                    raise ValueError(f'Invalid global string domain "{domain}".')
+                feature.domain = domain
+            else:
+                getattr(feature, d_name).CopyFrom(domain)
 
 
 def write_schema_text(schema: schema_pb2.Schema, output_path: str) -> None:
