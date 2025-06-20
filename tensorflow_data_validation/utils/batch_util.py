@@ -14,42 +14,42 @@
 
 """Utilities for batching input examples."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 from typing import Optional
 
 import apache_beam as beam
 import pyarrow as pa
-from tensorflow_data_validation import constants
-from tensorflow_data_validation import types
-from tensorflow_data_validation.arrow import decoded_examples_to_arrow
 from tfx_bsl.coders import batch_util
+
+from tensorflow_data_validation import constants, types
+from tensorflow_data_validation.arrow import decoded_examples_to_arrow
 
 
 # TODO(b/221152546): Deprecate this.
 @beam.ptransform_fn
 def BatchExamplesToArrowRecordBatches(
     examples: beam.PCollection[types.LegacyExample],
-    desired_batch_size: Optional[int] = constants
-    .DEFAULT_DESIRED_INPUT_BATCH_SIZE
+    desired_batch_size: Optional[int] = constants.DEFAULT_DESIRED_INPUT_BATCH_SIZE,
 ) -> beam.PCollection[pa.RecordBatch]:
-  """Batches example dicts into Arrow record batches.
+    """Batches example dicts into Arrow record batches.
 
-  Args:
-    examples: A PCollection of example dicts.
-    desired_batch_size: Batch size. The output Arrow record batches will have as
-      many rows as the `desired_batch_size`.
+    Args:
+    ----
+      examples: A PCollection of example dicts.
+      desired_batch_size: Batch size. The output Arrow record batches will have as
+        many rows as the `desired_batch_size`.
 
-  Returns:
-    A PCollection of Arrow record batches.
-  """
-  return (
-      examples
-      | "BatchBeamExamples" >> beam.BatchElements(
-          **batch_util.GetBatchElementsKwargs(desired_batch_size))
-      | "DecodeExamplesToRecordBatch" >> beam.Map(
-          # pylint: disable=unnecessary-lambda
-          lambda x: decoded_examples_to_arrow.DecodedExamplesToRecordBatch(x)))
-  # pylint: enable=unnecessary-lambda
+    Returns:
+    -------
+      A PCollection of Arrow record batches.
+    """
+    return (
+        examples
+        | "BatchBeamExamples"
+        >> beam.BatchElements(**batch_util.GetBatchElementsKwargs(desired_batch_size))
+        | "DecodeExamplesToRecordBatch"
+        >> beam.Map(
+            # pylint: disable=unnecessary-lambda
+            lambda x: decoded_examples_to_arrow.DecodedExamplesToRecordBatch(x)
+        )
+    )
+    # pylint: enable=unnecessary-lambda

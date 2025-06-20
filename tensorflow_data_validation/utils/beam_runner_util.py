@@ -14,9 +14,10 @@
 """Support specification of non-direct runner in tests."""
 
 from typing import Optional
+
 import apache_beam as beam
 
 
 def get_test_runner() -> Optional[beam.runners.PipelineRunner]:
-  """Get a test runner."""
-  return None
+    """Get a test runner."""
+    return None

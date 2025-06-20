@@ -14,90 +14,92 @@
 
 """Tests for types."""
 
+import apache_beam as beam
+import pyarrow as pa
 import pytest
 from absl.testing import absltest
-import apache_beam as beam
 from apache_beam.testing import util
-import pyarrow as pa
+
 from tensorflow_data_validation import types  # pylint: disable=unused-import
 
 
 def _make_record_batch(num_cols, num_rows):
-  columns = [
-      pa.array([[b"kk"]] * num_rows, type=pa.large_list(pa.large_binary()))
-      for _ in range(num_cols)
-  ]
-  column_names = ["col%d" % c for c in range(num_cols)]
-  return pa.record_batch(columns, column_names)
+    columns = [
+        pa.array([[b"kk"]] * num_rows, type=pa.large_list(pa.large_binary()))
+        for _ in range(num_cols)
+    ]
+    column_names = ["col%d" % c for c in range(num_cols)]
+    return pa.record_batch(columns, column_names)
 
 
-class _Tracker(object):
-  """A singleton to track whether _TrackedCoder.encode/decode is called."""
+class _Tracker:
+    """A singleton to track whether _TrackedCoder.encode/decode is called."""
 
-  _instance = None
+    _instance = None
 
-  def reset(self):
-    self.encode_called = False
-    self.decode_called = False
+    def reset(self):
+        self.encode_called = False
+        self.decode_called = False
 
-  def __new__(cls):
-    if cls._instance is None:
-      cls._instance = object.__new__(cls)
-      cls._instance.reset()
-    return cls._instance
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = object.__new__(cls)
+            cls._instance.reset()
+        return cls._instance
 
 
 class _TrackedCoder(types._ArrowRecordBatchCoder):
+    def encode(self, value):
+        _Tracker().encode_called = True
+        return super().encode(value)
 
-  def encode(self, value):
-    _Tracker().encode_called = True
-    return super().encode(value)
-
-  def decode(self, encoded):
-    _Tracker().decode_called = True
-    return super().decode(encoded)
+    def decode(self, encoded):
+        _Tracker().decode_called = True
+        return super().decode(encoded)
 
 
 class TypesTest(absltest.TestCase):
+    def test_coder(self):
+        rb = _make_record_batch(10, 10)
+        coder = types._ArrowRecordBatchCoder()
+        self.assertTrue(coder.decode(coder.encode(rb)).equals(rb))
 
-  def test_coder(self):
-    rb = _make_record_batch(10, 10)
-    coder = types._ArrowRecordBatchCoder()
-    self.assertTrue(coder.decode(coder.encode(rb)).equals(rb))
+    @pytest.mark.xfail(run=False, reason="This test fails and needs to be fixed.")
+    def test_coder_end_to_end(self):
+        # First check that the registration is done.
+        self.assertIsInstance(
+            beam.coders.typecoders.registry.get_coder(pa.RecordBatch),
+            types._ArrowRecordBatchCoder,
+        )
+        # Then replace the registered coder with our patched one to track whether
+        # encode() / decode() are called.
+        beam.coders.typecoders.registry.register_coder(pa.RecordBatch, _TrackedCoder)
+        rb = _make_record_batch(1000, 1)
 
-  @pytest.mark.xfail(run=False, reason="This test fails and needs to be fixed.")
-  def test_coder_end_to_end(self):
-    # First check that the registration is done.
-    self.assertIsInstance(
-        beam.coders.typecoders.registry.get_coder(pa.RecordBatch),
-        types._ArrowRecordBatchCoder)
-    # Then replace the registered coder with our patched one to track whether
-    # encode() / decode() are called.
-    beam.coders.typecoders.registry.register_coder(pa.RecordBatch,
-                                                   _TrackedCoder)
-    rb = _make_record_batch(1000, 1)
-    def pipeline(root):
-      sample = (
-          root
-          | beam.Create([rb] * 20)
-          | beam.combiners.Sample.FixedSizeGlobally(5))
+        def pipeline(root):
+            sample = (
+                root
+                | beam.Create([rb] * 20)
+                | beam.combiners.Sample.FixedSizeGlobally(5)
+            )
 
-      def matcher(actual):
-        self.assertLen(actual, 1)
-        actual = actual[0]
-        self.assertLen(actual, 5)
-        for actual_rb in actual:
-          self.assertTrue(actual_rb.equals(rb))
+            def matcher(actual):
+                self.assertLen(actual, 1)
+                actual = actual[0]
+                self.assertLen(actual, 5)
+                for actual_rb in actual:
+                    self.assertTrue(actual_rb.equals(rb))
 
-      util.assert_that(sample, matcher)
+            util.assert_that(sample, matcher)
 
-    _Tracker().reset()
-    beam.runners.DirectRunner().run(pipeline)
-    self.assertTrue(_Tracker().encode_called)
-    self.assertTrue(_Tracker().decode_called)
-    beam.coders.typecoders.registry.register_coder(pa.RecordBatch,
-                                                   types._ArrowRecordBatchCoder)
+        _Tracker().reset()
+        beam.runners.DirectRunner().run(pipeline)
+        self.assertTrue(_Tracker().encode_called)
+        self.assertTrue(_Tracker().decode_called)
+        beam.coders.typecoders.registry.register_coder(
+            pa.RecordBatch, types._ArrowRecordBatchCoder
+        )
 
 
 if __name__ == "__main__":
-  absltest.main()
+    absltest.main()
