@@ -25,32 +25,28 @@
 WORKING_DIR=$PWD
 
 function setup_environment() {
-  source scl_source enable devtoolset-8
-  source scl_source enable rh-python38
+  # Re-enable for CentOS container if needed.
+  # source scl_source enable devtoolset-10
+  # source scl_source enable rh-python38
   if [[ -z "${PYTHON_VERSION}" ]]; then
     echo "Must set PYTHON_VERSION env to 39|310|311"; exit 1;
   fi
   # Bazel will use PYTHON_BIN_PATH to determine the right python library.
   if [[ "${PYTHON_VERSION}" == 39 ]]; then
-    PYTHON_DIR=/opt/python/cp39-cp39
+    PYTHON_DIR=${VIRTUAL_ENV}/cp39-cp39
   elif [[ "${PYTHON_VERSION}" == 310 ]]; then
-    PYTHON_DIR=/opt/python/cp310-cp310
+    PYTHON_DIR=${VIRTUAL_ENV}/cp310-cp310
   elif [[ "${PYTHON_VERSION}" == 311 ]]; then
-    PYTHON_DIR=/opt/python/cp311-cp311
+    PYTHON_DIR=${VIRTUAL_ENV}/cp311-cp311
   else
     echo "Must set PYTHON_VERSION env to 39|310|311"; exit 1;
   fi
-  export PIP_BIN="${PYTHON_DIR}"/bin/pip
-  export PYTHON_BIN_PATH="${PYTHON_DIR}"/bin/python
-  echo "PYTHON_BIN_PATH=${PYTHON_BIN_PATH}"
-  export WHEEL_BIN="${PYTHON_DIR}"/bin/wheel
-  ${PIP_BIN} install --upgrade pip
-  ${PIP_BIN} install wheel --upgrade
-  ${PIP_BIN} install auditwheel==5.2.0
-}
-
-function install_numpy() {
-  ${PIP_BIN} install "numpy~=1.22.0" --force
+  source "${PYTHON_DIR}/bin/activate"
+  export PYTHON_BIN_PATH="${PYTHON_DIR}/bin/python"
+  pip3 install --upgrade pip setuptools
+  pip3 install wheel
+  pip3 install "numpy~=1.22.0" --force
+  pip3 install auditwheel
 }
 
 function build_wheel() {
@@ -67,7 +63,9 @@ function stamp_wheel() {
 }
 
 set -x
+bazel clean --expunge
 setup_environment && \
-install_numpy && \
 build_wheel && \
-stamp_wheel
+# stamp_wheel
+bazel clean --expunge
+set +x

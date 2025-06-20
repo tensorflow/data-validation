@@ -43,5 +43,3 @@ See the
 [documentation](https://github.com/tensorflow/data-validation/blob/master/tensorflow_data_validation/anomalies/proto/custom_validation_config.proto)
 in the `CustomValidationConfig` proto for example
 configurations.
-
-

@@ -1,48 +1,44 @@
 """Open-source versions of TFDV proto build rules."""
 
-load("@com_google_protobuf//:protobuf.bzl", "cc_proto_library", "py_proto_library")
+load("@com_google_protobuf//bazel:py_proto_library.bzl", "py_proto_library")
+load("@rules_cc//cc:defs.bzl", "cc_proto_library")
 
-def tfdv_proto_library(
+def tfdv_proto_library(name, **kwargs):
+    """Google proto_library and cc_proto_library.
+
+    Args:
+        name: Name of the cc proto library.
+        **kwargs: Keyword arguments to pass to the proto libraries."""
+    well_known_protos = [
+        "@com_google_protobuf//:any_proto",
+        "@com_google_protobuf//:duration_proto",
+        "@com_google_protobuf//:timestamp_proto",
+        "@com_google_protobuf//:struct_proto",
+        "@com_google_protobuf//:empty_proto",
+        "@com_google_protobuf//:wrappers_proto",
+    ]
+    kwargs["deps"] = kwargs.get("deps", []) + well_known_protos
+    native.proto_library(name = name, **kwargs)  # buildifier: disable=native-proto
+    cc_proto_kwargs = {
+        "deps": [":" + name],
+    }
+    if "visibility" in kwargs:
+        cc_proto_kwargs["visibility"] = kwargs["visibility"]
+    if "testonly" in kwargs:
+        cc_proto_kwargs["testonly"] = kwargs["testonly"]
+    if "compatible_with" in kwargs:
+        cc_proto_kwargs["compatible_with"] = kwargs["compatible_with"]
+    cc_proto_library(name = name + "_cc_pb2", **cc_proto_kwargs)
+
+def tfdv_proto_library_py(
         name,
-        srcs = [],
-        has_services = False,
-        deps = [],
+        deps,
         visibility = None,
-        testonly = 0,
-        cc_grpc_version = None):
-    """Opensource cc_proto_library."""
-    _ignore = [has_services]
-    native.filegroup(
-        name = name + "_proto_srcs",
-        srcs = srcs,
-        testonly = testonly,
-    )
-
-    use_grpc_plugin = None
-    if cc_grpc_version:
-        use_grpc_plugin = True
-    cc_proto_library(
-        name = name,
-        srcs = srcs,
-        deps = deps,
-        cc_libs = ["@com_google_protobuf//:protobuf"],
-        protoc = "@com_google_protobuf//:protoc",
-        default_runtime = "@com_google_protobuf//:protobuf",
-        use_grpc_plugin = use_grpc_plugin,
-        testonly = testonly,
-        visibility = visibility,
-    )
-
-def tfdv_proto_library_py(name, proto_library, srcs = [], deps = [], visibility = None, testonly = 0):
+        testonly = 0):
     """Opensource py_proto_library."""
-    _ignore = [proto_library]
     py_proto_library(
         name = name,
-        srcs = srcs,
-        srcs_version = "PY3",
-        deps = ["@com_google_protobuf//:well_known_types_py_pb2"] + deps,
-        default_runtime = "@com_google_protobuf//:protobuf_python",
-        protoc = "@com_google_protobuf//:protoc",
+        deps = deps,
         visibility = visibility,
         testonly = testonly,
     )

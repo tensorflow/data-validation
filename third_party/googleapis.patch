@@ -1,0 +1,10 @@
+--- a/google/rpc/BUILD.bazel
++++ b/google/rpc/BUILD.bazel
+@@ -80,6 +80,7 @@ go_proto_library(
+ go_proto_library(
+     name = "status_go_proto",
+     importpath = "google.golang.org/genproto/googleapis/rpc/status",
++    importmap = "unknown",
+     protos = [":status_proto"],
+ )
+ 

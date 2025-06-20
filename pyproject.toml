@@ -19,3 +19,130 @@ requires = [
   # Required for using org_tensorflow bazel repository.
   "numpy~=1.22.0",
 ]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    "W",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+    # pep8 naming
+    "N",
+    # pydocstyle
+    "D",
+    # annotations
+    "ANN",
+    # debugger
+    "T10",
+    # flake8-pytest
+    "PT",
+    # flake8-return
+    "RET",
+    # flake8-unused-arguments
+    "ARG",
+    # flake8-fixme
+    "FIX",
+    # flake8-eradicate
+    "ERA",
+    # pandas-vet
+    "PD",
+    # numpy-specific rules
+    "NPY",
+]
+
+ignore = [
+    "D104",   # Missing docstring in public package
+    "D100",   # Missing docstring in public module
+    "D211",   # No blank line before class
+    "PD901",  # Avoid using 'df' for pandas dataframes. Perfectly fine in functions with limited scope
+    "ANN201", # Missing return type annotation for public function (makes no sense for NoneType return types...)
+    "ANN101", # Missing type annotation for `self`
+    "ANN204", # Missing return type annotation for special method
+    "ANN002", # Missing type annotation for `*args`
+    "ANN003", # Missing type annotation for `**kwargs`
+    "D105",   # Missing docstring in magic method
+    "D203",   # 1 blank line before after class docstring
+    "D204",   # 1 blank line required after class docstring
+    "D413",   # 1 blank line after parameters
+    "SIM108", # Simplify if/else to one line; not always clearer
+    "D206",   # Docstrings should be indented with spaces; unnecessary when running ruff-format
+    "E501",   # Line length too long; unnecessary when running ruff-format
+    "W191",   # Indentation contains tabs; unnecessary when running ruff-format
+
+    # REMOVE AFTER FIXING
+    # ANN rules (flake8-annotations)
+    "ANN001", # Missing type annotation for function argument `args`
+    "ANN102", # Missing type annotation for `cls` in classmethod
+    "ANN202", # Missing Missing return type annotation for private function
+    "ANN205", # Missing return type annotation for staticmethod
+    "ANN206", # Missing return type annotation for classmethod
+    "ANN401", # Dynamically typed expressions (typing.Any) are disallowed in `domain`
+    # ARG rules (flake8-unused-arguments)
+    "ARG001", # Unused function argument
+    "ARG002", # Unused method argument
+    # B rules (flake8-bugbear)
+    "B005",   # Using `.strip()` with multi-character strings is misleading
+    "B007",   # Loop control variable not used within loop body
+    "B008",   # Do not perform function call in argument defaults; instead, perform the call within the function, or read the default from a module-level singleton variable
+    "B904",   # Within an `except` clause, raise exceptions with `raise ... from err` or `raise ... from None` to distinguish them from errors in exception handling
+    # D rules (pydocstyle)
+    "D101",   # Missing docstring in public class
+    "D102",   # Missing docstring in public method
+    "D103",   # Missing docstring in public function
+    "D107",   # Missing docstring in `__init__`,
+    "D401",   # First line of docstring should be in imperative mood: "Loads the vocabulary from the specified path."
+    "D404",   # First word of the docstring should not be "This"
+    "D417",   # Missing argument descriptions in the docstring
+    # E rules (pycodestyle)
+    "E731",   # Do not assign a `lambda` expression, use a `def`
+    "E741",   # Ambiguous variable name
+    # ERA rules (flake8-eradicate)
+    "ERA001", # Found commented-out code
+    # F rules (Pyflakes)
+    "F821",   # Undefined name
+    # FIX rules (flake8-fixme)
+    "FIX002", # Line contains TODO, consider resolving the issue
+    # N rules (pep8-naming)
+    "N802",   # Function name should be lowercase,
+    # NPY rules (numpy-specific rules)
+    "NPY002", # Replace legacy
+    # PD rules (pandas-vet)
+    "PD002",  # `inplace=True` should be avoided; it has inconsistent behavior
+    "PD003",  # `.isna` is preferred to `.isnull`; functionality is equivalent
+    "PD011",  # Use `.to_numpy()` instead of `.values`
+    "PD015",  # Use `.merge` method instead of `pd.merge` function
+    # PT rules (flake8-pytest-style)
+    "PT009",  # Use a regular `assert` instead of unittest-style `assertEqual`
+    "PT018",  # Assertion should be broken down into multiple parts
+    "PT027",  # Use `pytest.raises` instead of unittest-style `assertRaisesRegex`
+    # RET rules (flake8-return)
+    "RET504", # Unnecessary assignment to variable before `return` statement
+    "RET505", # Unnecessary `elif` after `return` statement
+    # SIM rules (flake8-simplify)
+    "SIM101", # Multiple `isinstance` calls for `maybe_collection`, merge into a single call
+    "SIM102", # Use a single `if` statement instead of nested `if` statements
+    "SIM103", # Return the condition directly
+    "SIM105", # Use `contextlib.suppress(...)` instead of `try`-`except`-`pass`
+    "SIM117", # Use a single `with` statement with multiple contexts instead of nested `with` statements
+    "SIM211", # Use `not ...` instead of `False if ... else True`
+    # UP rules (pyupgrade)
+    "UP008",  # Use `super()` instead of `super(__class__, self)`
+    "UP028",  # Replace `yield` over `for` loop with `yield from`
+    "UP031",  # Use format specifiers instead of percent format
+]
+
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]

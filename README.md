@@ -172,7 +172,8 @@ other *untested* combinations may also work.
 
 tensorflow-data-validation                                                            | apache-beam[gcp] | pyarrow | tensorflow        | tensorflow-metadata | tensorflow-transform | tfx-bsl
 ------------------------------------------------------------------------------------- | ---------------- | ------- | ----------------- | ------------------- | -------------------- | -------
-[GitHub master](https://github.com/tensorflow/data-validation/blob/master/RELEASE.md) | 2.59.0           | 10.0.1  | nightly (2.x)     | 1.16.1              | n/a                  | 1.16.1
+[GitHub master](https://github.com/tensorflow/data-validation/blob/master/RELEASE.md) | 2.65.0           | 10.0.1  | nightly (2.x)     | 1.17.1              | n/a                  | 1.17.1
+[1.17.0](https://github.com/tensorflow/data-validation/blob/v1.17.0/RELEASE.md)       | 2.65.0           | 10.0.1  | 2.17              | 1.17.1              | n/a                  | 1.17.1
 [1.16.1](https://github.com/tensorflow/data-validation/blob/v1.16.1/RELEASE.md)       | 2.59.0           | 10.0.1  | 2.16              | 1.16.1              | n/a                  | 1.16.1
 [1.16.0](https://github.com/tensorflow/data-validation/blob/v1.16.0/RELEASE.md)       | 2.59.0           | 10.0.1  | 2.16              | 1.16.0              | n/a                  | 1.16.0
 [1.15.1](https://github.com/tensorflow/data-validation/blob/v1.15.1/RELEASE.md)       | 2.47.0           | 10.0.0  | 2.15              | 1.15.0              | n/a                  | 1.15.1
@@ -237,4 +238,3 @@ tag.
   * [TensorFlow Data Validation PyPI](https://pypi.org/project/tensorflow-data-validation/)
   * [TensorFlow Data Validation Paper](https://mlsys.org/Conferences/2019/doc/2019/167.pdf)
   * [TensorFlow Data Validation Slides](https://conf.slac.stanford.edu/xldb2018/sites/xldb2018.conf.slac.stanford.edu/files/Tues_09.45_NeoklisPolyzotis_Data%20Analysis%20and%20Validation%20(1).pdf)
-

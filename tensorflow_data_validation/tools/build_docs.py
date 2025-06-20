@@ -36,34 +36,28 @@ python tensorflow_data_validation/tools/build_docs.py --output_dir=/tmp/tfdv_api
 """
 # pylint: enable=line-too-long
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import inspect
 
-from absl import app
-from absl import flags
-
 import apache_beam as beam
+from absl import app, flags
+from tensorflow_docs.api_generator import doc_controls, generate_lib, public_api
 
 import tensorflow_data_validation as tfdv
-
-from tensorflow_docs.api_generator import doc_controls
-from tensorflow_docs.api_generator import generate_lib
-from tensorflow_docs.api_generator import public_api
 
 flags.DEFINE_string("output_dir", "/tmp/tfdv_api", "Where to output the docs")
 flags.DEFINE_string(
     "code_url_prefix",
     "https://github.com/tensorflow/data-validation/blob/master/tensorflow_data_validation/",
-    "The url prefix for links to code.")
+    "The url prefix for links to code.",
+)
 
-flags.DEFINE_bool("search_hints", True,
-                  "Include metadata search hints in the generated files")
+flags.DEFINE_bool(
+    "search_hints", True, "Include metadata search hints in the generated files"
+)
 
-flags.DEFINE_string("site_path", "/tfx/data_validation/api_docs/python",
-                    "Path prefix in the _toc.yaml")
+flags.DEFINE_string(
+    "site_path", "/tfx/data_validation/api_docs/python", "Path prefix in the _toc.yaml"
+)
 
 
 FLAGS = flags.FLAGS
@@ -76,52 +70,59 @@ supress_docs_for = [
 
 
 def _filter_class_attributes(path, parent, children):
-  """Filter out class attirubtes that are part of the PTransform API."""
-  del path
-  skip_class_attributes = {
-      "expand", "label", "from_runner_api", "register_urn", "side_inputs"
-  }
-  if inspect.isclass(parent):
-    children = [(name, child)
-                for (name, child) in children
-                if name not in skip_class_attributes]
-  return children
+    """Filter out class attirubtes that are part of the PTransform API."""
+    del path
+    skip_class_attributes = {
+        "expand",
+        "label",
+        "from_runner_api",
+        "register_urn",
+        "side_inputs",
+    }
+    if inspect.isclass(parent):
+        children = [
+            (name, child)
+            for (name, child) in children
+            if name not in skip_class_attributes
+        ]
+    return children
 
 
 def main(args):
-  if args[1:]:
-    raise ValueError("Unrecognized Command line args", args[1:])
+    if args[1:]:
+        raise ValueError("Unrecognized Command line args", args[1:])
 
-  for obj in supress_docs_for:
-    doc_controls.do_not_generate_docs(obj)
+    for obj in supress_docs_for:
+        doc_controls.do_not_generate_docs(obj)
 
-  for name, value in inspect.getmembers(tfdv):
-    if inspect.ismodule(value):
-      doc_controls.do_not_generate_docs(value)
+    for name, value in inspect.getmembers(tfdv):
+        if inspect.ismodule(value):
+            doc_controls.do_not_generate_docs(value)
 
-  for name, value in inspect.getmembers(beam.PTransform):
-    # This ensures that the methods of PTransform are not documented in any
-    # derived classes.
-    if name == "__init__":
-      continue
-    try:
-      doc_controls.do_not_doc_inheritable(value)
-    except (TypeError, AttributeError):
-      pass
+    for name, value in inspect.getmembers(beam.PTransform):
+        # This ensures that the methods of PTransform are not documented in any
+        # derived classes.
+        if name == "__init__":
+            continue
+        try:
+            doc_controls.do_not_doc_inheritable(value)
+        except (TypeError, AttributeError):
+            pass
 
-  doc_generator = generate_lib.DocGenerator(
-      root_title="TensorFlow Data Validation",
-      py_modules=[("tfdv", tfdv)],
-      code_url_prefix=FLAGS.code_url_prefix,
-      search_hints=FLAGS.search_hints,
-      site_path=FLAGS.site_path,
-      # local_definitions_filter ensures that shared modules are only
-      # documented in the location that defines them, instead of every location
-      # that imports them.
-      callbacks=[public_api.local_definitions_filter, _filter_class_attributes])
+    doc_generator = generate_lib.DocGenerator(
+        root_title="TensorFlow Data Validation",
+        py_modules=[("tfdv", tfdv)],
+        code_url_prefix=FLAGS.code_url_prefix,
+        search_hints=FLAGS.search_hints,
+        site_path=FLAGS.site_path,
+        # local_definitions_filter ensures that shared modules are only
+        # documented in the location that defines them, instead of every location
+        # that imports them.
+        callbacks=[public_api.local_definitions_filter, _filter_class_attributes],
+    )
 
-  return doc_generator.build(output_dir=FLAGS.output_dir)
+    return doc_generator.build(output_dir=FLAGS.output_dir)
 
 
 if __name__ == "__main__":
-  app.run(main)
+    app.run(main)

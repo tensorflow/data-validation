@@ -1,4 +1,4 @@
-# Copyright 2019 Google LLC
+# Copyright 2025 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,10 +12,50 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Dockerfile for building a manylinux2014 TFDV wheel.
+# This docker image is essentially pypa/ubuntu:20.04 + bazel.
+FROM ubuntu:20.04
+ENV DEBIAN_FRONTEND=noninteractive
 
-# This docker image is essentially pypa/manylinux2014 + bazel.
-# TODO(b/272536553): Update filenames that include manylinux2010.
-FROM gcr.io/tfx-oss-public/manylinux2014-bazel:bazel-6.1.0
+RUN apt-get update -qq && \
+    apt-get install -y -qq software-properties-common && \
+    add-apt-repository ppa:deadsnakes/ppa && \
+    add-apt-repository ppa:ubuntu-toolchain-r/test && \
+    apt-get update -qq
+
+# Install prerequisites for Python verisions
+RUN apt-get -qq install -y bash curl tar make rename  git \
+    build-essential wget python zip unzip default-jre default-jdk \
+    python3-distutils python3-pip \
+    python3.9-distutils python3.10-distutils python3.11-distutils \
+    python3.9 python3.10 python3.11 python3.9-venv python3.10-venv python3.11-venv \
+    python3.9-dev python3.10-dev python3.11-dev
+
+# Unfortunately ZetaSQL has issues with clang (default bazel compiler), so
+# we install GCC. Also install make for rules_foreign_cc bazel rules.
+# Similar to manylinux2014
+ENV GCC_VERSION=10
+RUN apt-get -qq install -y gcc-${GCC_VERSION} g++-${GCC_VERSION}            && \
+    apt-get -qq install -y ca-certificates libgnutls30                      && \
+    update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-${GCC_VERSION} 90  \
+                        --slave   /usr/bin/g++ g++ /usr/bin/g++-${GCC_VERSION} && \
+    update-alternatives --set gcc /usr/bin/gcc-${GCC_VERSION} && \
+    CC=/usr/bin/gcc CXX=/usr/bin/g++
+
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 1000
+
+ENV VIRTUAL_ENV=/opt/python
+RUN python3.9 -m venv ${VIRTUAL_ENV}/cp39-cp39
+RUN python3.10 -m venv ${VIRTUAL_ENV}/cp310-cp310
+RUN python3.11 -m venv ${VIRTUAL_ENV}/cp311-cp311
+
+# Install bazel
+ENV BAZEL_LINKLIBS=-lstdc++:-lm
+RUN wget "https://github.com/bazelbuild/bazel/releases/download/6.5.0/bazel-6.5.0-installer-linux-x86_64.sh" && \
+  /bin/bash ./bazel-6.5.0-installer-linux-x86_64.sh
+RUN chmod u+x /usr/local/bin/bazel
+ENV PATH=$PATH:/usr/bin:/usr/local/bin
+ENV EXTRA_BAZEL_ARGS="--tool_java_runtime_version=local_jdk"
+
+ENV BAZEL_CXXOPTS="-std=c++17"
 WORKDIR /build
 CMD ["tensorflow_data_validation/tools/docker_build/build_manylinux.sh"]
