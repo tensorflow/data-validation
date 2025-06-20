@@ -14,7 +14,6 @@
 """Package Setup script for TensorFlow Data Validation."""
 
 import os
-from pathlib import Path
 import platform
 import shutil
 import subprocess
@@ -23,6 +22,7 @@ import sys
 # pylint:disable=g-bad-import-order
 # setuptools must be imported prior to distutils.
 from distutils.command import build
+from pathlib import Path
 
 import setuptools
 from setuptools import find_packages, setup

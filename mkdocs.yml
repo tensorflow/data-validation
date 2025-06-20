@@ -1,6 +1,6 @@
 site_name: TensorFlow Data Validation
 repo_name: "data-validation"
-repo_url: 
+repo_url:
 
 theme:
   logo: images/tf_full_color_primary_icon.svg
