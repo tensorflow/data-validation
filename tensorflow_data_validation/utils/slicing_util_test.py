@@ -13,15 +13,11 @@
 # limitations under the License.
 """Tests for the slicing utilities."""
 
-import apache_beam as beam
 import pyarrow as pa
-import pytest
 from absl.testing import absltest
-from apache_beam.testing import util
 from google.protobuf import text_format
 from tfx_bsl.public.proto import slicing_spec_pb2
 
-from tensorflow_data_validation import constants
 from tensorflow_data_validation.utils import slicing_util
 
 
@@ -233,26 +229,7 @@ class SlicingUtilTest(absltest.TestCase):
                 slicing_util.get_feature_value_slicer(features)(input_record_batch)
             )
 
-    def test_convert_slicing_config_to_fns_and_sqls(self):
-        slicing_config = text_format.Parse(
-            """
-        slicing_specs {
-          slice_keys_sql: "SELECT STRUCT(education) FROM example.education"
-        }
-        """,
-            slicing_spec_pb2.SlicingConfig(),
-        )
-
-        slicing_fns, slicing_sqls = (
-            slicing_util.convert_slicing_config_to_slice_functions_and_sqls(
-                slicing_config
-            )
-        )
-        self.assertEqual(slicing_fns, [])
-        self.assertEqual(
-            slicing_sqls, ["SELECT STRUCT(education) FROM example.education"]
-        )
-
+    def test_convert_slicing_config_to_fns(self):
         slicing_config = text_format.Parse(
             """
         slicing_specs {}
@@ -267,13 +244,10 @@ class SlicingUtilTest(absltest.TestCase):
             slicing_spec_pb2.SlicingConfig(),
         )
 
-        slicing_fns, slicing_sqls = (
-            slicing_util.convert_slicing_config_to_slice_functions_and_sqls(
-                slicing_config
-            )
+        slicing_fns = slicing_util.convert_slicing_config_to_slice_functions(
+            slicing_config
         )
         self.assertLen(slicing_fns, 2)
-        self.assertEqual(slicing_sqls, [])
 
         slicing_config = text_format.Parse(
             """
@@ -298,14 +272,12 @@ class SlicingUtilTest(absltest.TestCase):
                 ),
             ),
         ]
-        slicing_fns, slicing_sqls = (
-            slicing_util.convert_slicing_config_to_slice_functions_and_sqls(
-                slicing_config
-            )
+        slicing_fns = slicing_util.convert_slicing_config_to_slice_functions(
+            slicing_config
         )
         self._check_results(slicing_fns[0](input_record_batch), expected_result)
 
-    def test_convert_slicing_config_to_fns_and_sqls_on_int_field(self):
+    def test_convert_slicing_config_to_fns_on_int_field(self):
         slicing_config = text_format.Parse(
             """
         slicing_specs {
@@ -329,14 +301,12 @@ class SlicingUtilTest(absltest.TestCase):
                 ),
             ),
         ]
-        slicing_fns, _ = (
-            slicing_util.convert_slicing_config_to_slice_functions_and_sqls(
-                slicing_config
-            )
+        slicing_fns = slicing_util.convert_slicing_config_to_slice_functions(
+            slicing_config
         )
         self._check_results(slicing_fns[0](input_record_batch), expected_result)
 
-    def test_convert_slicing_config_to_fns_and_sqls_on_int_invalid(self):
+    def test_convert_slicing_config_to_fns_on_int_invalid(self):
         slicing_config = text_format.Parse(
             """
         slicing_specs {
@@ -361,301 +331,14 @@ class SlicingUtilTest(absltest.TestCase):
                 ),
             ),
         ]
-        slicing_fns, _ = (
-            slicing_util.convert_slicing_config_to_slice_functions_and_sqls(
-                slicing_config
-            )
+        slicing_fns = slicing_util.convert_slicing_config_to_slice_functions(
+            slicing_config
         )
 
         with self.assertRaisesRegex(
             ValueError, "The feature to slice on has integer values but*"
         ):
             self._check_results(slicing_fns[0](input_record_batch), expected_result)
-
-    @pytest.mark.xfail(run=False, reason="This test fails and needs to be fixed.")
-    def test_generate_slices_sql(self):
-        input_record_batches = [
-            pa.RecordBatch.from_arrays(
-                [
-                    pa.array([[1], [2, 1], [3], [2, 1, 1], [3]]),
-                    pa.array([["dog"], ["cat"], ["wolf"], ["dog", "wolf"], ["wolf"]]),
-                ],
-                ["a", "b"],
-            ),
-            pa.RecordBatch.from_arrays(
-                [pa.array([[1]]), pa.array([["dog"]]), pa.array([[1]])], ["a", "b", "c"]
-            ),
-            pa.RecordBatch.from_arrays(
-                [pa.array([[1]]), pa.array([["cat"]]), pa.array([[1]])], ["a", "b", "d"]
-            ),
-            pa.RecordBatch.from_arrays(
-                [pa.array([[1]]), pa.array([["cat"]]), pa.array([[1]])], ["a", "b", "e"]
-            ),
-            pa.RecordBatch.from_arrays(
-                [pa.array([[1]]), pa.array([["cat"]]), pa.array([[1]])], ["a", "b", "f"]
-            ),
-        ]
-        record_batch_with_metadata = pa.RecordBatch.from_arrays(
-            [pa.array([[1]]), pa.array([["cat"]])], ["a", "b"]
-        )
-        record_batch_with_metadata = pa.RecordBatch.from_arrays(
-            arrays=record_batch_with_metadata.columns,
-            schema=record_batch_with_metadata.schema.with_metadata({b"foo": "bar"}),
-        )
-        input_record_batches.append(record_batch_with_metadata)
-        slice_sql = """
-        SELECT
-          STRUCT(a, b)
-        FROM
-          example.a, example.b
-    """
-
-        with beam.Pipeline() as pipeline:
-            # pylint: disable=no-value-for-parameter
-            result = (
-                pipeline
-                | "Create" >> beam.Create(input_record_batches, reshuffle=False)
-                | "GenerateSlicesSql"
-                >> beam.ParDo(
-                    slicing_util.GenerateSlicesSqlDoFn(slice_sqls=[slice_sql])
-                )
-            )
-
-            # pylint: enable=no-value-for-parameter
-
-            def check_result(got):
-                try:
-                    self.assertLen(got, 18)
-                    expected_slice_keys = [
-                        "a_1_b_dog",
-                        "a_1_b_cat",
-                        "a_2_b_cat",
-                        "a_2_b_dog",
-                        "a_1_b_wolf",
-                        "a_2_b_wolf",
-                        "a_3_b_wolf",
-                        "a_1_b_dog",
-                        "a_1_b_cat",
-                        "a_1_b_cat",
-                        "a_1_b_cat",
-                        "a_1_b_cat",
-                    ] + [constants.DEFAULT_SLICE_KEY] * 6
-                    actual_slice_keys = [slice_key for (slice_key, _) in got]
-                    self.assertCountEqual(expected_slice_keys, actual_slice_keys)
-
-                except AssertionError as err:
-                    raise util.BeamAssertException(err)
-
-            util.assert_that(result, check_result)
-
-    @pytest.mark.xfail(run=False, reason="This test fails and needs to be fixed.")
-    def test_generate_slices_sql_assert_record_batches(self):
-        input_record_batches = [
-            pa.RecordBatch.from_arrays(
-                [
-                    pa.array([[1], [2, 1], [3], [2, 1, 1], [3]]),
-                    pa.array([["dog"], ["cat"], ["wolf"], ["dog", "wolf"], ["wolf"]]),
-                ],
-                ["a", "b"],
-            ),
-        ]
-        slice_sql = """
-        SELECT
-          STRUCT(a, b)
-        FROM
-          example.a, example.b
-    """
-        expected_result = [
-            (
-                "a_1_b_dog",
-                pa.RecordBatch.from_arrays(
-                    [pa.array([[1], [2, 1, 1]]), pa.array([["dog"], ["dog", "wolf"]])],
-                    ["a", "b"],
-                ),
-            ),
-            (
-                "a_1_b_cat",
-                pa.RecordBatch.from_arrays(
-                    [pa.array([[2, 1]]), pa.array([["cat"]])], ["a", "b"]
-                ),
-            ),
-            (
-                "a_2_b_cat",
-                pa.RecordBatch.from_arrays(
-                    [pa.array([[2, 1]]), pa.array([["cat"]])], ["a", "b"]
-                ),
-            ),
-            (
-                "a_2_b_dog",
-                pa.RecordBatch.from_arrays(
-                    [pa.array([[2, 1, 1]]), pa.array([["dog", "wolf"]])], ["a", "b"]
-                ),
-            ),
-            (
-                "a_1_b_wolf",
-                pa.RecordBatch.from_arrays(
-                    [pa.array([[2, 1, 1]]), pa.array([["dog", "wolf"]])], ["a", "b"]
-                ),
-            ),
-            (
-                "a_2_b_wolf",
-                pa.RecordBatch.from_arrays(
-                    [pa.array([[2, 1, 1]]), pa.array([["dog", "wolf"]])], ["a", "b"]
-                ),
-            ),
-            (
-                "a_3_b_wolf",
-                pa.RecordBatch.from_arrays(
-                    [pa.array([[3], [3]]), pa.array([["wolf"], ["wolf"]])], ["a", "b"]
-                ),
-            ),
-            (constants.DEFAULT_SLICE_KEY, input_record_batches[0]),
-        ]
-
-        with beam.Pipeline() as pipeline:
-            # pylint: disable=no-value-for-parameter
-            result = (
-                pipeline
-                | "Create" >> beam.Create(input_record_batches, reshuffle=False)
-                | "GenerateSlicesSql"
-                >> beam.ParDo(
-                    slicing_util.GenerateSlicesSqlDoFn(slice_sqls=[slice_sql])
-                )
-            )
-
-            # pylint: enable=no-value-for-parameter
-
-            def check_result(got):
-                try:
-                    self._check_results(got, expected_result)
-
-                except AssertionError as err:
-                    raise util.BeamAssertException(err)
-
-            util.assert_that(result, check_result)
-
-    @pytest.mark.xfail(run=False, reason="This test fails and needs to be fixed.")
-    def test_generate_slices_sql_invalid_slice(self):
-        input_record_batches = [
-            pa.RecordBatch.from_arrays(
-                [
-                    pa.array([[1], [2, 1], [3], [2, 1, 1], [3]]),
-                    pa.array([[], [], [], [], []]),
-                ],
-                ["a", "b"],
-            ),
-        ]
-        slice_sql1 = """
-        SELECT
-          STRUCT(a, b)
-        FROM
-          example.a, example.b
-    """
-
-        expected_result = [
-            (constants.INVALID_SLICE_KEY, input_record_batches[0]),
-            (constants.DEFAULT_SLICE_KEY, input_record_batches[0]),
-        ]
-        with beam.Pipeline() as pipeline:
-            # pylint: disable=no-value-for-parameter
-            result = (
-                pipeline
-                | "Create" >> beam.Create(input_record_batches, reshuffle=False)
-                | "GenerateSlicesSql"
-                >> beam.ParDo(
-                    slicing_util.GenerateSlicesSqlDoFn(slice_sqls=[slice_sql1])
-                )
-            )
-
-            def check_result(got):
-                try:
-                    self._check_results(got, expected_result)
-
-                except AssertionError as err:
-                    raise util.BeamAssertException(err)
-
-            util.assert_that(result, check_result)
-
-    @pytest.mark.xfail(run=False, reason="This test fails and needs to be fixed.")
-    def test_generate_slices_sql_multiple_queries(self):
-        input_record_batches = [
-            pa.RecordBatch.from_arrays(
-                [
-                    pa.array([[1], [2, 1], [3], [2, 1, 1], [3]]),
-                    pa.array([[], [], [], [], []]),
-                ],
-                ["a", "b"],
-            ),
-        ]
-        slice_sql1 = """
-        SELECT
-          STRUCT(c)
-        FROM
-          example.a, example.b
-    """
-
-        slice_sql2 = """
-        SELECT
-          STRUCT(a)
-        FROM
-          example.a
-    """
-
-        expected_result = [
-            (
-                "a_1",
-                pa.RecordBatch.from_arrays(
-                    [
-                        pa.array([[1], [2, 1], [2, 1, 1]]),
-                        pa.array([[], [], []]),
-                    ],
-                    ["a", "b"],
-                ),
-            ),
-            (
-                "a_2",
-                pa.RecordBatch.from_arrays(
-                    [
-                        pa.array([[2, 1], [2, 1, 1]]),
-                        pa.array([[], []]),
-                    ],
-                    ["a", "b"],
-                ),
-            ),
-            (
-                "a_3",
-                pa.RecordBatch.from_arrays(
-                    [
-                        pa.array([[3], [3]]),
-                        pa.array([[], []]),
-                    ],
-                    ["a", "b"],
-                ),
-            ),
-            (constants.INVALID_SLICE_KEY, input_record_batches[0]),
-            (constants.DEFAULT_SLICE_KEY, input_record_batches[0]),
-        ]
-        with beam.Pipeline() as pipeline:
-            # pylint: disable=no-value-for-parameter
-            result = (
-                pipeline
-                | "Create" >> beam.Create(input_record_batches, reshuffle=False)
-                | "GenerateSlicesSql"
-                >> beam.ParDo(
-                    slicing_util.GenerateSlicesSqlDoFn(
-                        slice_sqls=[slice_sql1, slice_sql2]
-                    )
-                )
-            )
-
-            def check_result(got):
-                try:
-                    self._check_results(got, expected_result)
-
-                except AssertionError as err:
-                    raise util.BeamAssertException(err)
-
-            util.assert_that(result, check_result)
 
 
 if __name__ == "__main__":

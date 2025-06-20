@@ -17,9 +17,7 @@
 from tfx_bsl.telemetry import util
 
 # Name of the default slice containing all examples.
-# LINT.IfChange
 DEFAULT_SLICE_KEY = "All Examples"
-# LINT.ThenChange(../anomalies/custom_validation.cc)
 
 # Name of the invalid slice containing all examples in the RecordBatch.
 INVALID_SLICE_KEY = "Invalid Slice"

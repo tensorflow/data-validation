@@ -29,7 +29,9 @@ jobs:
     - name: Install built wheel
       shell: bash
       run: |
-        pip install dist/*.whl['test']
+        PYTHON_VERSION_TAG="cp$(echo ${{ matrix.python-version }} | sed 's/\.//')"
+        WHEEL_FILE=$(ls dist/*${PYTHON_VERSION_TAG}*.whl)
+        pip install "${WHEEL_FILE}[test]"
 
     - name: Run Test
       run: |

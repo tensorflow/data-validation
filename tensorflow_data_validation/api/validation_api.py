@@ -25,7 +25,6 @@ from tensorflow_metadata.proto.v0 import anomalies_pb2, schema_pb2, statistics_p
 
 from tensorflow_data_validation import constants, types
 from tensorflow_data_validation.anomalies.proto import (
-    custom_validation_config_pb2,
     validation_config_pb2,
     validation_metadata_pb2,
 )
@@ -222,45 +221,12 @@ def _merge_descriptions(
     return " ".join(descriptions)
 
 
-def _merge_custom_anomalies(
-    anomalies: anomalies_pb2.Anomalies, custom_anomalies: anomalies_pb2.Anomalies
-) -> anomalies_pb2.Anomalies:
-    """Merges custom_anomalies with anomalies."""
-    for key, custom_anomaly_info in custom_anomalies.anomaly_info.items():
-        if key in anomalies.anomaly_info:
-            # If the key is found in in both inputs, we know it has multiple errors.
-            anomalies.anomaly_info[key].short_description = _MULTIPLE_ERRORS
-            anomalies.anomaly_info[key].description = _merge_descriptions(
-                anomalies.anomaly_info[key], custom_anomaly_info
-            )
-            anomalies.anomaly_info[key].severity = max(
-                anomalies.anomaly_info[key].severity, custom_anomaly_info.severity
-            )
-            anomalies.anomaly_info[key].reason.extend(custom_anomaly_info.reason)
-        else:
-            anomalies.anomaly_info[key].CopyFrom(custom_anomaly_info)
-            # Also populate top-level descriptions.
-            anomalies.anomaly_info[key].description = _merge_descriptions(
-                custom_anomaly_info, None
-            )
-            if len(anomalies.anomaly_info[key].reason) > 1:
-                anomalies.anomaly_info[key].short_description = _MULTIPLE_ERRORS
-            else:
-                anomalies.anomaly_info[
-                    key
-                ].short_description = custom_anomaly_info.reason[0].short_description
-    return anomalies
-
-
 def validate_statistics(
     statistics: statistics_pb2.DatasetFeatureStatisticsList,
     schema: schema_pb2.Schema,
     environment: Optional[str] = None,
     previous_statistics: Optional[statistics_pb2.DatasetFeatureStatisticsList] = None,
     serving_statistics: Optional[statistics_pb2.DatasetFeatureStatisticsList] = None,
-    custom_validation_config: Optional[
-        custom_validation_config_pb2.CustomValidationConfig
-    ] = None,
 ) -> anomalies_pb2.Anomalies:
     """Validates the input statistics against the provided input schema.
 
@@ -313,14 +279,6 @@ def validate_statistics(
           distribution skew between current data and serving data. Configuration
           for skew detection can be done by specifying a `skew_comparator` in the
           schema.
-      custom_validation_config: An optional config that can be used to specify
-          custom validations to perform. If doing single-feature validations,
-          the test feature will come from `statistics` and will be mapped to
-          `feature` in the SQL query. If doing feature pair validations, the test
-          feature will come from `statistics` and will be mapped to `feature_test`
-          in the SQL query, and the base feature will come from
-          `previous_statistics` and will be mapped to `feature_base` in the SQL
-          query.
 
     Returns:
     -------
@@ -354,7 +312,6 @@ def validate_statistics(
         None,
         None,
         False,
-        custom_validation_config,
     )
 
 
@@ -371,9 +328,6 @@ def validate_statistics_internal(
     ] = None,
     validation_options: Optional[vo.ValidationOptions] = None,
     enable_diff_regions: bool = False,
-    custom_validation_config: Optional[
-        custom_validation_config_pb2.CustomValidationConfig
-    ] = None,
 ) -> anomalies_pb2.Anomalies:
     """Validates the input statistics against the provided input schema.
 
@@ -431,14 +385,6 @@ def validate_statistics_internal(
       enable_diff_regions: Specifies whether to include a comparison between the
           existing schema and the fixed schema in the Anomalies protocol buffer
           output.
-      custom_validation_config: An optional config that can be used to specify
-          custom validations to perform. If doing single-feature validations,
-          the test feature will come from `statistics` and will be mapped to
-          `feature` in the SQL query. If doing feature pair validations, the test
-          feature will come from `statistics` and will be mapped to `feature_test`
-          in the SQL query, and the base feature will come from
-          `previous_statistics` and will be mapped to `feature_base` in the SQL
-          query.
 
     Returns:
     -------
@@ -570,78 +516,6 @@ def validate_statistics_internal(
     result = anomalies_pb2.Anomalies()
     result.ParseFromString(anomalies_proto_string)
 
-    if custom_validation_config is not None:
-        serialized_previous_statistics = (
-            previous_span_statistics.SerializeToString()
-            if previous_span_statistics is not None
-            else ""
-        )
-        custom_anomalies_string = (
-            pywrap_tensorflow_data_validation.CustomValidateStatistics(
-                tf.compat.as_bytes(statistics.SerializeToString()),
-                tf.compat.as_bytes(serialized_previous_statistics),
-                tf.compat.as_bytes(custom_validation_config.SerializeToString()),
-                tf.compat.as_bytes(environment),
-            )
-        )
-        custom_anomalies = anomalies_pb2.Anomalies()
-        custom_anomalies.ParseFromString(custom_anomalies_string)
-        result = _merge_custom_anomalies(result, custom_anomalies)
-
-    return result
-
-
-def custom_validate_statistics(
-    statistics: statistics_pb2.DatasetFeatureStatisticsList,
-    validations: custom_validation_config_pb2.CustomValidationConfig,
-    baseline_statistics: Optional[statistics_pb2.DatasetFeatureStatisticsList] = None,
-    environment: Optional[str] = None,
-) -> anomalies_pb2.Anomalies:
-    """Validates the input statistics with the user-supplied SQL queries.
-
-    If the SQL query from a user-supplied validation returns False, TFDV will
-    return an anomaly for that validation. In single feature valdiations, the test
-    feature will be mapped to `feature` in the SQL query. In two feature
-    validations, the test feature will be mapped to `feature_test` in the SQL
-    query, and the base feature will be mapped to `feature_base`.
-
-    If an optional `environment` is supplied, TFDV will run validations with
-    that environment specified and validations with no environment specified.
-
-    Args:
-    ----
-      statistics: A DatasetFeatureStatisticsList protocol buffer that holds the
-        statistics to validate.
-      validations: Configuration that specifies the dataset(s) and feature(s) to
-        validate and the SQL query to use for the validation. The SQL query must
-        return a boolean value.
-      baseline_statistics: An optional DatasetFeatureStatisticsList protocol
-        buffer that holds the baseline statistics used when validating feature
-        pairs.
-      environment: If supplied, TFDV will run validations with that
-        environment specified and validations with no environment specified. If
-        not supplied, TFDV will run all validations.
-
-    Returns:
-    -------
-      An Anomalies protocol buffer.
-    """
-    serialized_statistics = statistics.SerializeToString()
-    serialized_baseline_statistics = (
-        baseline_statistics.SerializeToString()
-        if baseline_statistics is not None
-        else ""
-    )
-    serialized_validations = validations.SerializeToString()
-    environment = "" if environment is None else environment
-    serialized_anomalies = pywrap_tensorflow_data_validation.CustomValidateStatistics(
-        tf.compat.as_bytes(serialized_statistics),
-        tf.compat.as_bytes(serialized_baseline_statistics),
-        tf.compat.as_bytes(serialized_validations),
-        tf.compat.as_bytes(environment),
-    )
-    result = anomalies_pb2.Anomalies()
-    result.ParseFromString(serialized_anomalies)
     return result
 
 

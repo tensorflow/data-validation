@@ -98,16 +98,11 @@ class GenerateStatisticsImpl(beam.PTransform):
         )
 
         if self._options.slicing_config:
-            slice_fns, slice_sqls = (
-                slicing_util.convert_slicing_config_to_slice_functions_and_sqls(
-                    self._options.slicing_config
-                )
+            slice_fns = slicing_util.convert_slicing_config_to_slice_functions(
+                self._options.slicing_config
             )
         else:
-            slice_fns, slice_sqls = (
-                self._options.experimental_slice_functions,
-                self._options.experimental_slice_sqls,
-            )
+            slice_fns = self._options.experimental_slice_functions
 
         if slice_fns:
             # Add default slicing function.
@@ -115,10 +110,6 @@ class GenerateStatisticsImpl(beam.PTransform):
             slice_functions.extend(slice_fns)
             dataset = dataset | "GenerateSliceKeys" >> beam.FlatMap(
                 slicing_util.generate_slices, slice_functions=slice_functions
-            )
-        elif slice_sqls:
-            dataset = dataset | "GenerateSlicesSql" >> beam.ParDo(
-                slicing_util.GenerateSlicesSqlDoFn(slice_sqls=slice_sqls)
             )
         else:
             dataset = dataset | "KeyWithVoid" >> beam.Map(lambda v: (None, v))
@@ -234,15 +225,14 @@ class GenerateSlicedStatisticsImpl(beam.PTransform):
         ----
           options: `tfdv.StatsOptions` for generating data statistics.
           is_slicing_enabled: Whether to include slice keys in the resulting proto,
-            even if slice functions or slicing SQL queries are not provided in
-            `options`. If slice functions or slicing SQL queries are provided in
+            even if slice functions are not provided in
+            `options`. If slice functions are provided in
             `options`, slice keys are included regardless of this value.
         """
         self._options = options
         self._is_slicing_enabled = (
             is_slicing_enabled
             or bool(self._options.experimental_slice_functions)
-            or bool(self._options.experimental_slice_sqls)
             or bool(self._options.slicing_config)
         )
 
