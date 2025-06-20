@@ -22,6 +22,7 @@ import sys
 # pylint:disable=g-bad-import-order
 # setuptools must be imported prior to distutils.
 from distutils.command import build
+from pathlib import Path
 
 import setuptools
 from setuptools import find_packages, setup
@@ -119,8 +120,24 @@ def _make_visualization_requirements():
     ]
 
 
+def _make_docs_requirements():
+    return [
+        req
+        for req in Path("./requirements-docs.txt")
+        .expanduser()
+        .resolve()
+        .read_text()
+        .splitlines()
+        if req
+    ]
+
+
 def _make_all_extra_requirements():
-    return _make_mutual_information_requirements() + _make_visualization_requirements()
+    return (
+        *_make_mutual_information_requirements(),
+        *_make_visualization_requirements(),
+        *_make_docs_requirements(),
+    )
 
 
 def select_constraint(default, nightly=None, git_master=None):
@@ -208,6 +225,7 @@ setup(
         "mutual-information": _make_mutual_information_requirements(),
         "visualization": _make_visualization_requirements(),
         "dev": ["precommit"],
+        "docs": _make_docs_requirements(),
         "test": [
             "pytest",
             "scikit-learn",
