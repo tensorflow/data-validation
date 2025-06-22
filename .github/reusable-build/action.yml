@@ -34,3 +34,4 @@ runs:
     run: |
       pip install twine
       twine check dist/*
+      ls dist/*
