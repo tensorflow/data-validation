@@ -6,9 +6,9 @@ freshness: { owner: 'kuochuntsai' reviewed: '2022-11-29' }
 
 TFDV supports custom data validation using SQL. You can run custom data
 validation using
-[validate_statistics](https://github.com/tensorflow/data-validation/blob/master/tensorflow_data_validation/api/validation_api.py;l=236;rcl=488721853)
+[validate_statistics](https://github.com/tensorflow/data-validation/blob/master/tensorflow_data_validation/api/validation_api.py#L236)
 or
-[custom_validate_statistics](https://github.com/tensorflow/data-validation/blob/master/tensorflow_data_validation/api/validation_api.py;l=535;rcl=488721853).
+[custom_validate_statistics](https://github.com/tensorflow/data-validation/blob/master/tensorflow_data_validation/api/validation_api.py#L535).
 Use `validate_statistics` to run standard, schema-based data validation along
 with custom validation. Use `custom_validate_statistics` to run only custom
 validation.
