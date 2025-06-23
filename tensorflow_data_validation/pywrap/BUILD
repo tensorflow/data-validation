@@ -41,7 +41,6 @@ cc_library(
     ],
     features = ["-use_header_modules"],
     deps = [
-        "//tensorflow_data_validation/anomalies:custom_validation",
         "//tensorflow_data_validation/anomalies:feature_statistics_validator",
         "@pybind11",
     ],
