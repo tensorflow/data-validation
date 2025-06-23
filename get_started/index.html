@@ -1,0 +1,1069 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../install/">
+      
+      
+        <link rel="next" href="../anomalies/">
+      
+      
+      <link rel="icon" href="../images/tf_full_color_primary_icon.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.14">
+    
+    
+      
+        <title>Getting Started - TensorFlow Data Validation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.342714a4.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#get-started-with-tensorflow-data-validation" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="TensorFlow Data Validation" class="md-header__button md-logo" aria-label="TensorFlow Data Validation" data-md-component="logo">
+      
+  <img src="../images/tf_full_color_primary_icon.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            TensorFlow Data Validation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Getting Started
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="TensorFlow Data Validation" class="md-nav__button md-logo" aria-label="TensorFlow Data Validation" data-md-component="logo">
+      
+  <img src="../images/tf_full_color_primary_icon.svg" alt="logo">
+
+    </a>
+    TensorFlow Data Validation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Install
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Getting Started
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Getting Started
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#computing-descriptive-data-statistics" class="md-nav__link">
+    <span class="md-ellipsis">
+      Computing descriptive data statistics
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Computing descriptive data statistics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#running-on-google-cloud" class="md-nav__link">
+    <span class="md-ellipsis">
+      Running on Google Cloud
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inferring-a-schema-over-the-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Inferring a schema over the data
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#checking-the-data-for-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      Checking the data for errors
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Checking the data for errors">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#matching-the-statistics-of-the-dataset-against-a-schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      Matching the statistics of the dataset against a schema
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checking-for-errors-on-a-per-example-basis" class="md-nav__link">
+    <span class="md-ellipsis">
+      Checking for errors on a per-example basis
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schema-environments" class="md-nav__link">
+    <span class="md-ellipsis">
+      Schema Environments
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#checking-data-skew-and-drift" class="md-nav__link">
+    <span class="md-ellipsis">
+      Checking data skew and drift
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#writing-custom-data-connector" class="md-nav__link">
+    <span class="md-ellipsis">
+      Writing custom data connector
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#computing-statistics-over-slices-of-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Computing statistics over slices of data
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../anomalies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Anomalies
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    API
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#computing-descriptive-data-statistics" class="md-nav__link">
+    <span class="md-ellipsis">
+      Computing descriptive data statistics
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Computing descriptive data statistics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#running-on-google-cloud" class="md-nav__link">
+    <span class="md-ellipsis">
+      Running on Google Cloud
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inferring-a-schema-over-the-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Inferring a schema over the data
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#checking-the-data-for-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      Checking the data for errors
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Checking the data for errors">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#matching-the-statistics-of-the-dataset-against-a-schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      Matching the statistics of the dataset against a schema
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checking-for-errors-on-a-per-example-basis" class="md-nav__link">
+    <span class="md-ellipsis">
+      Checking for errors on a per-example basis
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schema-environments" class="md-nav__link">
+    <span class="md-ellipsis">
+      Schema Environments
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#checking-data-skew-and-drift" class="md-nav__link">
+    <span class="md-ellipsis">
+      Checking data skew and drift
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#writing-custom-data-connector" class="md-nav__link">
+    <span class="md-ellipsis">
+      Writing custom data connector
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#computing-statistics-over-slices-of-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Computing statistics over slices of data
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="get-started-with-tensorflow-data-validation">Get started with TensorFlow Data Validation<a class="headerlink" href="#get-started-with-tensorflow-data-validation" title="Permanent link">&para;</a></h1>
+<p>TensorFlow Data Validation (TFDV) can analyze training and serving data to:</p>
+<ul>
+<li>
+<p>compute descriptive
+    <a href="https://github.com/tensorflow/metadata/tree/master/tensorflow_metadata/proto/v0/statistics.proto">statistics</a>,</p>
+</li>
+<li>
+<p>infer a
+    <a href="https://github.com/tensorflow/metadata/tree/master/tensorflow_metadata/proto/v0/schema.proto">schema</a>,</p>
+</li>
+<li>
+<p>detect
+    <a href="https://github.com/tensorflow/metadata/tree/master/tensorflow_metadata/proto/v0/anomalies.proto">data anomalies</a>.</p>
+</li>
+</ul>
+<p>The core API supports each piece of functionality, with convenience methods that
+build on top and can be called in the context of notebooks.</p>
+<h2 id="computing-descriptive-data-statistics">Computing descriptive data statistics<a class="headerlink" href="#computing-descriptive-data-statistics" title="Permanent link">&para;</a></h2>
+<p>TFDV can compute descriptive
+<a href="https://github.com/tensorflow/metadata/tree/master/tensorflow_metadata/proto/v0/statistics.proto">statistics</a>
+that provide a quick overview of the data in terms of the features that are
+present and the shapes of their value distributions. Tools such as
+<a href="https://pair-code.github.io/facets/">Facets Overview</a> can provide a succinct
+visualization of these statistics for easy browsing.</p>
+<p>For example, suppose that <code>path</code> points to a file in the <code>TFRecord</code> format
+(which holds records of type <code>tensorflow.Example</code>). The following snippet
+illustrates the computation of statistics using TFDV:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>    <span class="n">stats</span> <span class="o">=</span> <span class="n">tfdv</span><span class="o">.</span><span class="n">generate_statistics_from_tfrecord</span><span class="p">(</span><span class="n">data_location</span><span class="o">=</span><span class="n">path</span><span class="p">)</span>
+</span></code></pre></div>
+<p>The returned value is a
+<a href="https://github.com/tensorflow/metadata/tree/master/tensorflow_metadata/proto/v0/statistics.proto">DatasetFeatureStatisticsList</a>
+protocol buffer. The <a href="https://nbviewer.jupyter.org/github/tensorflow/tfx/blob/master/docs/tutorials/data_validation/tfdv_basic.ipynb">example notebook</a>
+contains a visualization of the statistics using
+<a href="https://pair-code.github.io/facets/">Facets Overview</a>:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>    <span class="n">tfdv</span><span class="o">.</span><span class="n">visualize_statistics</span><span class="p">(</span><span class="n">stats</span><span class="p">)</span>
+</span></code></pre></div>
+<p><img alt="Screenshot of statistics visualization" src="../images/stats.png" /></p>
+<p>The previous example assumes that the data is stored in a <code>TFRecord</code> file. TFDV
+also supports CSV input format, with extensibility for other common formats.
+You can find the available data decoders <a href="https://github.com/tensorflow/data-validation/tree/master/tensorflow_data_validation/coders">here</a>.
+In addition, TFDV provides the <code>tfdv.generate_statistics_from_dataframe</code> utility
+function for users with in-memory data represented as a pandas DataFrame.</p>
+<p>In addition to computing a default set of data statistics, TFDV can also
+compute statistics for semantic domains (e.g., images, text). To enable
+computation of semantic domain statistics, pass a <a href="https://github.com/tensorflow/data-validation/blob/master/tensorflow_data_validation/statistics/stats_options.py">tfdv.StatsOptions</a>
+object with <code>enable_semantic_domain_stats</code> set to True to
+<code>tfdv.generate_statistics_from_tfrecord</code>.</p>
+<h3 id="running-on-google-cloud">Running on Google Cloud<a class="headerlink" href="#running-on-google-cloud" title="Permanent link">&para;</a></h3>
+<p>Internally, TFDV uses <a href="https://beam.apache.org">Apache Beam</a>'s data-parallel
+processing framework to scale the computation of statistics over large datasets.
+For applications that wish to integrate deeper with TFDV (e.g. attach statistics
+generation at the end of a data-generation pipeline,
+<a href="#writing-custom-data-connector">generate statistics for data in custom format</a>),
+the API also exposes a Beam PTransform for statistics generation.</p>
+<p>To run TFDV on Google Cloud, the TFDV wheel file must be downloaded and provided
+to the Dataflow workers. Download the wheel file to the current directory as
+follows:</p>
+<div class="language-sh highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>pip<span class="w"> </span>download<span class="w"> </span>tensorflow_data_validation<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span>--no-deps<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span>--platform<span class="w"> </span>manylinux2010_x86_64<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span>--only-binary<span class="o">=</span>:all:
+</span></code></pre></div>
+<p>The following snippet shows an example usage of TFDV on Google Cloud:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">tensorflow_data_validation</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">tfdv</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">apache_beam.options.pipeline_options</span><span class="w"> </span><span class="kn">import</span> <span class="n">PipelineOptions</span><span class="p">,</span> <span class="n">GoogleCloudOptions</span><span class="p">,</span> <span class="n">StandardOptions</span><span class="p">,</span> <span class="n">SetupOptions</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">PROJECT_ID</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">JOB_NAME</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="n">GCS_STAGING_LOCATION</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="n">GCS_TMP_LOCATION</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="n">GCS_DATA_LOCATION</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="c1"># GCS_STATS_OUTPUT_PATH is the file path to which to output the data statistics</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="c1"># result.</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="n">GCS_STATS_OUTPUT_PATH</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="n">PATH_TO_WHL_FILE</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="c1"># Create and set your PipelineOptions.</span>
+</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
+</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>
+</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="c1"># For Cloud execution, set the Cloud Platform project, job_name,</span>
+</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="c1"># staging location, temp_location and specify DataflowRunner.</span>
+</span><span id="__span-3-21"><a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="n">google_cloud_options</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span>
+</span><span id="__span-3-22"><a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">project</span> <span class="o">=</span> <span class="n">PROJECT_ID</span>
+</span><span id="__span-3-23"><a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">job_name</span> <span class="o">=</span> <span class="n">JOB_NAME</span>
+</span><span id="__span-3-24"><a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">staging_location</span> <span class="o">=</span> <span class="n">GCS_STAGING_LOCATION</span>
+</span><span id="__span-3-25"><a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a><span class="n">google_cloud_options</span><span class="o">.</span><span class="n">temp_location</span> <span class="o">=</span> <span class="n">GCS_TMP_LOCATION</span>
+</span><span id="__span-3-26"><a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a><span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">StandardOptions</span><span class="p">)</span><span class="o">.</span><span class="n">runner</span> <span class="o">=</span> <span class="s1">&#39;DataflowRunner&#39;</span>
+</span><span id="__span-3-27"><a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a>
+</span><span id="__span-3-28"><a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a><span class="n">setup_options</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">SetupOptions</span><span class="p">)</span>
+</span><span id="__span-3-29"><a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a><span class="c1"># PATH_TO_WHL_FILE should point to the downloaded tfdv wheel file.</span>
+</span><span id="__span-3-30"><a id="__codelineno-3-30" name="__codelineno-3-30" href="#__codelineno-3-30"></a><span class="n">setup_options</span><span class="o">.</span><span class="n">extra_packages</span> <span class="o">=</span> <span class="p">[</span><span class="n">PATH_TO_WHL_FILE</span><span class="p">]</span>
+</span><span id="__span-3-31"><a id="__codelineno-3-31" name="__codelineno-3-31" href="#__codelineno-3-31"></a>
+</span><span id="__span-3-32"><a id="__codelineno-3-32" name="__codelineno-3-32" href="#__codelineno-3-32"></a><span class="n">tfdv</span><span class="o">.</span><span class="n">generate_statistics_from_tfrecord</span><span class="p">(</span><span class="n">GCS_DATA_LOCATION</span><span class="p">,</span>
+</span><span id="__span-3-33"><a id="__codelineno-3-33" name="__codelineno-3-33" href="#__codelineno-3-33"></a>                                       <span class="n">output_path</span><span class="o">=</span><span class="n">GCS_STATS_OUTPUT_PATH</span><span class="p">,</span>
+</span><span id="__span-3-34"><a id="__codelineno-3-34" name="__codelineno-3-34" href="#__codelineno-3-34"></a>                                       <span class="n">pipeline_options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span>
+</span></code></pre></div>
+<p>In this case, the generated statistics proto is stored in a TFRecord file
+written to <code>GCS_STATS_OUTPUT_PATH</code>.</p>
+<p>NOTE When calling any of the <code>tfdv.generate_statistics_...</code> functions (e.g.,
+<code>tfdv.generate_statistics_from_tfrecord</code>) on Google Cloud, you must provide an
+<code>output_path</code>. Specifying None may cause an error.</p>
+<h2 id="inferring-a-schema-over-the-data">Inferring a schema over the data<a class="headerlink" href="#inferring-a-schema-over-the-data" title="Permanent link">&para;</a></h2>
+<p>The
+<a href="https://github.com/tensorflow/metadata/tree/master/tensorflow_metadata/proto/v0/schema.proto">schema</a>
+describes the expected properties of the data. Some of these properties are:</p>
+<ul>
+<li>which features are expected to be present</li>
+<li>their type</li>
+<li>the number of values for a feature in each example</li>
+<li>the presence of each feature across all examples</li>
+<li>the expected domains of features.</li>
+</ul>
+<p>In short, the schema describes the expectations for "correct" data and can thus
+be used to detect errors in the data (described below). Moreover, the same
+schema can be used to set up
+<a href="https://github.com/tensorflow/transform">TensorFlow Transform</a> for data
+transformations. Note that the schema is expected to be fairly static, e.g.,
+several datasets can conform to the same schema, whereas statistics (described
+above) can vary per dataset.</p>
+<p>Since writing a schema can be a tedious task, especially for datasets with lots
+of features, TFDV provides a method to generate an initial version of the schema
+based on the descriptive statistics:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>    <span class="n">schema</span> <span class="o">=</span> <span class="n">tfdv</span><span class="o">.</span><span class="n">infer_schema</span><span class="p">(</span><span class="n">stats</span><span class="p">)</span>
+</span></code></pre></div>
+<p>In general, TFDV uses conservative heuristics to infer stable data properties
+from the statistics in order to avoid overfitting the schema to the specific
+dataset. It is strongly advised to <strong>review the inferred schema and refine
+it as needed</strong>, to capture any domain knowledge about the data that TFDV's
+heuristics might have missed.</p>
+<p>By default, <code>tfdv.infer_schema</code> infers the shape of each required feature, if
+<code>value_count.min</code> equals <code>value_count.max</code> for the feature. Set the
+<code>infer_feature_shape</code> argument to False to disable shape inference.</p>
+<p>The schema itself is stored as a
+<a href="https://github.com/tensorflow/metadata/tree/master/tensorflow_metadata/proto/v0/schema.proto">Schema protocol buffer</a>
+and can thus be updated/edited using the standard protocol-buffer API. TFDV also
+provides a <a href="https://github.com/tensorflow/data-validation/tree/master/tensorflow_data_validation/utils/schema_util.py">few utility methods</a>
+ to make these updates easier. For instance,
+suppose that the schema contains the following stanza to describe a required
+string feature <code>payment_type</code> that takes a single value:</p>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kc">feature</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="kc">na</span><span class="err">me</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;payment_type&quot;</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="err">value_cou</span><span class="kc">nt</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="err">mi</span><span class="kc">n</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span><span class="err">max</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">  </span><span class="p">}</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">  </span><span class="kc">t</span><span class="err">ype</span><span class="p">:</span><span class="w"> </span><span class="err">BYTES</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">  </span><span class="err">domai</span><span class="kc">n</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;payment_type&quot;</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">  </span><span class="err">prese</span><span class="kc">n</span><span class="err">ce</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">    </span><span class="err">mi</span><span class="kc">n</span><span class="err">_</span><span class="kc">fra</span><span class="err">c</span><span class="kc">t</span><span class="err">io</span><span class="kc">n</span><span class="p">:</span><span class="w"> </span><span class="mf">1.0</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">    </span><span class="err">mi</span><span class="kc">n</span><span class="err">_cou</span><span class="kc">nt</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span>
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">  </span><span class="p">}</span>
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>To mark that the feature should be populated in at least 50% of the examples:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>    <span class="n">tfdv</span><span class="o">.</span><span class="n">get_feature</span><span class="p">(</span><span class="n">schema</span><span class="p">,</span> <span class="s1">&#39;payment_type&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">presence</span><span class="o">.</span><span class="n">min_fraction</span> <span class="o">=</span> <span class="mf">0.5</span>
+</span></code></pre></div>
+<p>The <a href="https://nbviewer.jupyter.org/github/tensorflow/tfx/blob/master/docs/tutorials/data_validation/tfdv_basic.ipynb">example notebook</a>
+contains a simple visualization of the
+schema as a table, listing each feature and its main characteristics as encoded
+in the schema.</p>
+<p><img alt="Screenshot of schema visualization" src="../images/schema.png" /></p>
+<h2 id="checking-the-data-for-errors">Checking the data for errors<a class="headerlink" href="#checking-the-data-for-errors" title="Permanent link">&para;</a></h2>
+<p>Given a schema, it is possible to check whether a dataset conforms to the
+expectations set in the schema or whether there exist any [data anomalies]
+(https://github.com/tensorflow/data-validation/blob/master/g3doc/anomalies.md).
+You can check your data for errors (a) in the aggregate across an entire dataset
+by matching the statistics of the dataset against the schema, or (b) by checking
+for errors on a per-example basis.</p>
+<h3 id="matching-the-statistics-of-the-dataset-against-a-schema">Matching the statistics of the dataset against a schema<a class="headerlink" href="#matching-the-statistics-of-the-dataset-against-a-schema" title="Permanent link">&para;</a></h3>
+<p>To check for errors in the aggregate, TFDV matches the statistics of the dataset
+against the schema and marks any discrepancies. For example:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>    <span class="c1"># Assume that other_path points to another TFRecord file</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>    <span class="n">other_stats</span> <span class="o">=</span> <span class="n">tfdv</span><span class="o">.</span><span class="n">generate_statistics_from_tfrecord</span><span class="p">(</span><span class="n">data_location</span><span class="o">=</span><span class="n">other_path</span><span class="p">)</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    <span class="n">anomalies</span> <span class="o">=</span> <span class="n">tfdv</span><span class="o">.</span><span class="n">validate_statistics</span><span class="p">(</span><span class="n">statistics</span><span class="o">=</span><span class="n">other_stats</span><span class="p">,</span> <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">)</span>
+</span></code></pre></div>
+<p>The result is an instance of the
+<a href="https://github.com/tensorflow/metadata/tree/master/tensorflow_metadata/proto/v0/anomalies.proto">Anomalies</a>
+protocol buffer and describes any errors where the statistics do not agree with
+the schema. For example, suppose that the data at <code>other_path</code> contains examples
+with values for the feature <code>payment_type</code> outside the domain specified in the
+schema.</p>
+<p>This produces an anomaly</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>   <span class="n">payment_type</span>  <span class="n">Unexpected</span> <span class="n">string</span> <span class="n">values</span>  <span class="n">Examples</span> <span class="n">contain</span> <span class="n">values</span> <span class="n">missing</span> <span class="kn">from</span><span class="w"> </span><span class="nn">the</span> <span class="n">schema</span><span class="p">:</span> <span class="n">Prcard</span> <span class="p">(</span><span class="o">&lt;</span><span class="mi">1</span><span class="o">%</span><span class="p">)</span><span class="o">.</span>
+</span></code></pre></div>
+<p>indicating that an out of domain value was found in the stats in &lt; 1% of
+the feature values.</p>
+<p>If this was expected, then the schema can be updated as follows:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>   <span class="n">tfdv</span><span class="o">.</span><span class="n">get_domain</span><span class="p">(</span><span class="n">schema</span><span class="p">,</span> <span class="s1">&#39;payment_type&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;Prcard&#39;</span><span class="p">)</span>
+</span></code></pre></div>
+<p>If the anomaly truly indicates a data error, then the underlying data should be
+fixed before using it for training.</p>
+<p>The various anomaly types that can be detected by this module are listed <a href="https://github.com/tensorflow/metadata/tree/master/tensorflow_metadata/proto/v0/anomalies.proto">here</a>.</p>
+<p>The <a href="https://nbviewer.jupyter.org/github/tensorflow/tfx/blob/master/docs/tutorials/data_validation/tfdv_basic.ipynb">example notebook</a>
+contains a simple visualization of the anomalies as
+a table, listing the features where errors are detected and a short description
+of each error.</p>
+<p><img alt="Screenshot of anomalies" src="../images/anomaly.png" /></p>
+<h3 id="checking-for-errors-on-a-per-example-basis">Checking for errors on a per-example basis<a class="headerlink" href="#checking-for-errors-on-a-per-example-basis" title="Permanent link">&para;</a></h3>
+<p>TFDV also provides the option to validate data on a per-example basis, instead
+of comparing dataset-wide statistics against the schema. TFDV provides functions
+for validating data on a per-example basis and then generating summary
+statistics for the anomalous examples found. For example:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>   <span class="n">options</span> <span class="o">=</span> <span class="n">tfdv</span><span class="o">.</span><span class="n">StatsOptions</span><span class="p">(</span><span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">)</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>   <span class="n">anomalous_example_stats</span> <span class="o">=</span> <span class="n">tfdv</span><span class="o">.</span><span class="n">validate_examples_in_tfrecord</span><span class="p">(</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>       <span class="n">data_location</span><span class="o">=</span><span class="nb">input</span><span class="p">,</span> <span class="n">stats_options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span>
+</span></code></pre></div>
+<p>The <code>anomalous_example_stats</code> that <code>validate_examples_in_tfrecord</code> returns is
+a <a href="https://github.com/tensorflow/metadata/tree/master/tensorflow_metadata/proto/v0/statistics.proto">DatasetFeatureStatisticsList</a>
+protocol buffer in which each dataset consists of the set of examples that
+exhibit a particular anomaly. You can use this to determine the number of
+examples in your dataset that exhibit a given anomaly and the characteristics of
+those examples.</p>
+<h2 id="schema-environments">Schema Environments<a class="headerlink" href="#schema-environments" title="Permanent link">&para;</a></h2>
+<p>By default, validations assume that all datasets in a pipeline adhere to a
+single schema. In some cases introducing slight schema variations is necessary,
+for instance features used as labels are required during training (and should be
+validated), but are missing during serving.</p>
+<p><strong>Environments</strong> can be used to express such requirements. In particular,
+features in schema can be associated with a set of environments using
+default_environment, in_environment and not_in_environment.</p>
+<p>For example, if the <strong>tips</strong> feature is being used as the label in training, but
+missing in the serving data. Without environment specified, it will show up as
+an anomaly.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>    <span class="n">serving_stats</span> <span class="o">=</span> <span class="n">tfdv</span><span class="o">.</span><span class="n">generate_statistics_from_tfrecord</span><span class="p">(</span><span class="n">data_location</span><span class="o">=</span><span class="n">serving_data_path</span><span class="p">)</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>    <span class="n">serving_anomalies</span> <span class="o">=</span> <span class="n">tfdv</span><span class="o">.</span><span class="n">validate_statistics</span><span class="p">(</span><span class="n">serving_stats</span><span class="p">,</span> <span class="n">schema</span><span class="p">)</span>
+</span></code></pre></div>
+<p><img alt="Screenshot of serving anomalies" src="../images/serving_anomaly.png" /></p>
+<p>To fix this, we need to set the default environment for all features to be both
+'TRAINING' and 'SERVING', and exclude the 'tips' feature from SERVING
+environment.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>    <span class="c1"># All features are by default in both TRAINING and SERVING environments.</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>    <span class="n">schema</span><span class="o">.</span><span class="n">default_environment</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;TRAINING&#39;</span><span class="p">)</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>    <span class="n">schema</span><span class="o">.</span><span class="n">default_environment</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;SERVING&#39;</span><span class="p">)</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>    <span class="c1"># Specify that &#39;tips&#39; feature is not in SERVING environment.</span>
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>    <span class="n">tfdv</span><span class="o">.</span><span class="n">get_feature</span><span class="p">(</span><span class="n">schema</span><span class="p">,</span> <span class="s1">&#39;tips&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">not_in_environment</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;SERVING&#39;</span><span class="p">)</span>
+</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>
+</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>    <span class="n">serving_anomalies_with_env</span> <span class="o">=</span> <span class="n">tfdv</span><span class="o">.</span><span class="n">validate_statistics</span><span class="p">(</span>
+</span><span id="__span-12-9"><a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a>        <span class="n">serving_stats</span><span class="p">,</span> <span class="n">schema</span><span class="p">,</span> <span class="n">environment</span><span class="o">=</span><span class="s1">&#39;SERVING&#39;</span><span class="p">)</span>
+</span></code></pre></div>
+<h2 id="checking-data-skew-and-drift">Checking data skew and drift<a class="headerlink" href="#checking-data-skew-and-drift" title="Permanent link">&para;</a></h2>
+<p>In addition to checking whether a dataset conforms to the expectations set in
+the schema, TFDV also provides functionalities to detect:</p>
+<ul>
+<li>skew between training and serving data</li>
+<li>drift between different days of training data</li>
+</ul>
+<p>TFDV performs this check by comparing the statistics of different datasets
+based on the drift/skew comparators specified in the schema. For example, to
+check if there is any skew between 'payment_type' feature within training and
+serving dataset:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>    <span class="c1"># Assume we have already generated the statistics of training dataset, and</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>    <span class="c1"># inferred a schema from it.</span>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>    <span class="n">serving_stats</span> <span class="o">=</span> <span class="n">tfdv</span><span class="o">.</span><span class="n">generate_statistics_from_tfrecord</span><span class="p">(</span><span class="n">data_location</span><span class="o">=</span><span class="n">serving_data_path</span><span class="p">)</span>
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>    <span class="c1"># Add a skew comparator to schema for &#39;payment_type&#39; and set the threshold</span>
+</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>    <span class="c1"># of L-infinity norm for triggering skew anomaly to be 0.01.</span>
+</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>    <span class="n">tfdv</span><span class="o">.</span><span class="n">get_feature</span><span class="p">(</span><span class="n">schema</span><span class="p">,</span> <span class="s1">&#39;payment_type&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">skew_comparator</span><span class="o">.</span><span class="n">infinity_norm</span><span class="o">.</span><span class="n">threshold</span> <span class="o">=</span> <span class="mf">0.01</span>
+</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>    <span class="n">skew_anomalies</span> <span class="o">=</span> <span class="n">tfdv</span><span class="o">.</span><span class="n">validate_statistics</span><span class="p">(</span>
+</span><span id="__span-13-8"><a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>        <span class="n">statistics</span><span class="o">=</span><span class="n">train_stats</span><span class="p">,</span> <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span> <span class="n">serving_statistics</span><span class="o">=</span><span class="n">serving_stats</span><span class="p">)</span>
+</span></code></pre></div>
+<p>NOTE L-infinity norm will only detect skew for the categorical features. Instead
+of specifying an <code>infinity_norm</code> threshold, specifying a
+<code>jensen_shannon_divergence</code> threshold in the <code>skew_comparator</code> would detect
+skew for both numeric and categorical features.</p>
+<p>Same with checking whether a dataset conform to the expectations set in the
+schema, the result is also an instance of the
+<a href="https://github.com/tensorflow/metadata/tree/master/tensorflow_metadata/proto/v0/anomalies.proto">Anomalies</a>
+protocol buffer and describes any skew between the training and serving
+datasets. For example, suppose the serving data contains significantly more
+examples with feature <code>payement_type</code> having value <code>Cash</code>, this produces a skew
+anomaly</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>   <span class="n">payment_type</span>  <span class="n">High</span> <span class="n">L</span><span class="o">-</span><span class="n">infinity</span> <span class="n">distance</span> <span class="n">between</span> <span class="n">serving</span> <span class="ow">and</span> <span class="n">training</span>  <span class="n">The</span> <span class="n">L</span><span class="o">-</span><span class="n">infinity</span> <span class="n">distance</span> <span class="n">between</span> <span class="n">serving</span> <span class="ow">and</span> <span class="n">training</span> <span class="ow">is</span> <span class="mf">0.0435984</span> <span class="p">(</span><span class="n">up</span> <span class="n">to</span> <span class="n">six</span> <span class="n">significant</span> <span class="n">digits</span><span class="p">),</span> <span class="n">above</span> <span class="n">the</span> <span class="n">threshold</span> <span class="mf">0.01</span><span class="o">.</span> <span class="n">The</span> <span class="n">feature</span> <span class="n">value</span> <span class="k">with</span> <span class="n">maximum</span> <span class="n">difference</span> <span class="ow">is</span><span class="p">:</span> <span class="n">Cash</span>
+</span></code></pre></div>
+<p>If the anomaly truly indicates a skew between training and serving data, then
+further investigation is necessary as this could have a direct impact on model
+performance.</p>
+<p>The <a href="https://nbviewer.jupyter.org/github/tensorflow/tfx/blob/master/docs/tutorials/data_validation/tfdv_basic.ipynb">example notebook</a>
+contains a simple example of checking for skew-based anomalies.</p>
+<p>Detecting drift between different days of training data can be done in a similar
+way</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>    <span class="c1"># Assume we have already generated the statistics of training dataset for</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>    <span class="c1"># day 2, and inferred a schema from it.</span>
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>    <span class="n">train_day1_stats</span> <span class="o">=</span> <span class="n">tfdv</span><span class="o">.</span><span class="n">generate_statistics_from_tfrecord</span><span class="p">(</span><span class="n">data_location</span><span class="o">=</span><span class="n">train_day1_data_path</span><span class="p">)</span>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>    <span class="c1"># Add a drift comparator to schema for &#39;payment_type&#39; and set the threshold</span>
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>    <span class="c1"># of L-infinity norm for triggering drift anomaly to be 0.01.</span>
+</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>    <span class="n">tfdv</span><span class="o">.</span><span class="n">get_feature</span><span class="p">(</span><span class="n">schema</span><span class="p">,</span> <span class="s1">&#39;payment_type&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">drift_comparator</span><span class="o">.</span><span class="n">infinity_norm</span><span class="o">.</span><span class="n">threshold</span> <span class="o">=</span> <span class="mf">0.01</span>
+</span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>    <span class="n">drift_anomalies</span> <span class="o">=</span> <span class="n">tfdv</span><span class="o">.</span><span class="n">validate_statistics</span><span class="p">(</span>
+</span><span id="__span-15-8"><a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>        <span class="n">statistics</span><span class="o">=</span><span class="n">train_day2_stats</span><span class="p">,</span> <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span> <span class="n">previous_statistics</span><span class="o">=</span><span class="n">train_day1_stats</span><span class="p">)</span>
+</span></code></pre></div>
+<p>NOTE L-infinity norm will only detect skew for the categorical features. Instead
+of specifying an <code>infinity_norm</code> threshold, specifying a
+<code>jensen_shannon_divergence</code> threshold in the <code>skew_comparator</code> would detect
+skew for both numeric and categorical features.</p>
+<h2 id="writing-custom-data-connector">Writing custom data connector<a class="headerlink" href="#writing-custom-data-connector" title="Permanent link">&para;</a></h2>
+<p>To compute data statistics, TFDV provides several
+<a href="https://github.com/tensorflow/data-validation/tree/master/tensorflow_data_validation/utils/stats_gen_lib.py">convenient methods</a>
+for handling input data in various formats (e.g. <code>TFRecord</code> of
+<a href="https://www.tensorflow.org/api_docs/python/tf/train/Example">tf.train.Example</a>,
+CSV, etc). If your data format is not in this list, you need to write a custom
+data connector for reading input data, and connect it with the TFDV core API for
+computing data statistics.</p>
+<p>The TFDV
+<a href="https://github.com/tensorflow/data-validation/tree/master/tensorflow_data_validation/api/stats_api.py">core API for computing data statistics</a>
+is a
+<a href="https://beam.apache.org/contribute/ptransform-style-guide/">Beam PTransform</a>
+that takes a PCollection of batches of input examples (a batch of input examples
+is represented as an <a href="https://arrow.apache.org">Arrow</a> RecordBatch), and outputs
+a PCollection containing a single <code>DatasetFeatureStatisticsList</code> protocol
+buffer.</p>
+<p>Once you have implemented the custom data connector that batches your
+input examples in an Arrow RecordBatch, you need to connect it with the
+<code>tfdv.GenerateStatistics</code> API for computing the data statistics. Take <code>TFRecord</code>
+of <code>tf.train.Example</code>'s for example. <code>tfx_bsl</code> provides the
+<a href="https://www.tensorflow.org/tfx/tfx_bsl/api_docs/python/tfx_bsl/public/tfxio/TFExampleRecord">TFExampleRecord</a>
+data connector, and below is an example of how to connect it with the
+<code>tfdv.GenerateStatistics</code> API.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">tensorflow_data_validation</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">tfdv</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tfx_bsl.public</span><span class="w"> </span><span class="kn">import</span> <span class="n">tfxio</span>
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="kn">import</span><span class="w"> </span><span class="nn">apache_beam</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">beam</span>
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tensorflow_metadata.proto.v0</span><span class="w"> </span><span class="kn">import</span> <span class="n">statistics_pb2</span>
+</span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>
+</span><span id="__span-16-6"><a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="n">DATA_LOCATION</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+</span><span id="__span-16-7"><a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="n">OUTPUT_LOCATION</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+</span><span id="__span-16-8"><a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>
+</span><span id="__span-16-9"><a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a><span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+</span><span id="__span-16-10"><a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a>    <span class="n">_</span> <span class="o">=</span> <span class="p">(</span>
+</span><span id="__span-16-11"><a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a>    <span class="n">p</span>
+</span><span id="__span-16-12"><a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a>    <span class="c1"># 1. Read and decode the data with tfx_bsl.</span>
+</span><span id="__span-16-13"><a id="__codelineno-16-13" name="__codelineno-16-13" href="#__codelineno-16-13"></a>    <span class="o">|</span> <span class="s1">&#39;TFXIORead&#39;</span> <span class="o">&gt;&gt;</span> <span class="p">(</span>
+</span><span id="__span-16-14"><a id="__codelineno-16-14" name="__codelineno-16-14" href="#__codelineno-16-14"></a>          <span class="n">tfxio</span><span class="o">.</span><span class="n">TFExampleRecord</span><span class="p">(</span>
+</span><span id="__span-16-15"><a id="__codelineno-16-15" name="__codelineno-16-15" href="#__codelineno-16-15"></a>              <span class="n">file_pattern</span><span class="o">=</span><span class="p">[</span><span class="n">DATA_LOCATION</span><span class="p">],</span>
+</span><span id="__span-16-16"><a id="__codelineno-16-16" name="__codelineno-16-16" href="#__codelineno-16-16"></a>              <span class="n">telemetry_descriptors</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;my&#39;</span><span class="p">,</span> <span class="s1">&#39;tfdv&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">BeamSource</span><span class="p">())</span>
+</span><span id="__span-16-17"><a id="__codelineno-16-17" name="__codelineno-16-17" href="#__codelineno-16-17"></a>    <span class="c1"># 2. Invoke TFDV `GenerateStatistics` API to compute the data statistics.</span>
+</span><span id="__span-16-18"><a id="__codelineno-16-18" name="__codelineno-16-18" href="#__codelineno-16-18"></a>    <span class="o">|</span> <span class="s1">&#39;GenerateStatistics&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">tfdv</span><span class="o">.</span><span class="n">GenerateStatistics</span><span class="p">()</span>
+</span><span id="__span-16-19"><a id="__codelineno-16-19" name="__codelineno-16-19" href="#__codelineno-16-19"></a>    <span class="c1"># 3. Materialize the generated data statistics.</span>
+</span><span id="__span-16-20"><a id="__codelineno-16-20" name="__codelineno-16-20" href="#__codelineno-16-20"></a>    <span class="o">|</span> <span class="s1">&#39;WriteStatsOutput&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">WriteStatisticsToTFRecord</span><span class="p">(</span><span class="n">OUTPUT_LOCATION</span><span class="p">))</span>
+</span></code></pre></div>
+<h2 id="computing-statistics-over-slices-of-data">Computing statistics over slices of data<a class="headerlink" href="#computing-statistics-over-slices-of-data" title="Permanent link">&para;</a></h2>
+<p>TFDV can be configured to compute statistics over slices of data. Slicing can be
+enabled by providing slicing functions which take in an Arrow <code>RecordBatch</code> and
+output a sequence of tuples of form <code>(slice key, record batch)</code>. TFDV provides
+an easy way to
+<a href="https://github.com/tensorflow/data-validation/blob/master/tensorflow_data_validation/utils/slicing_util.py#L47">generate feature value based slicing functions</a>
+which can be provided as part of <code>tfdv.StatsOptions</code> when computing statistics.</p>
+<p>When slicing is enabled, the output
+<a href="https://github.com/tensorflow/metadata/blob/master/tensorflow_metadata/proto/v0/statistics.proto#L36">DatasetFeatureStatisticsList</a>
+proto contains multiple
+<a href="https://github.com/tensorflow/metadata/blob/master/tensorflow_metadata/proto/v0/statistics.proto#L41">DatasetFeatureStatistics</a>
+protos, one for each slice. Each slice is identified by a unique name which is
+set as the
+<a href="https://github.com/tensorflow/metadata/blob/master/tensorflow_metadata/proto/v0/statistics.proto#L43">dataset name in the DatasetFeatureStatistics proto</a>.
+By default TFDV computes statistics for the overall dataset in addition to the
+configured slices.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">tensorflow_data_validation</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">tfdv</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tensorflow_data_validation.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">slicing_util</span>
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="c1"># Slice on country feature (i.e., every unique value of the feature).</span>
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="n">slice_fn1</span> <span class="o">=</span> <span class="n">slicing_util</span><span class="o">.</span><span class="n">get_feature_value_slicer</span><span class="p">(</span><span class="n">features</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;country&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">})</span>
+</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>
+</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="c1"># Slice on the cross of country and state feature (i.e., every unique pair of</span>
+</span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="c1"># values of the cross).</span>
+</span><span id="__span-17-9"><a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a><span class="n">slice_fn2</span> <span class="o">=</span> <span class="n">slicing_util</span><span class="o">.</span><span class="n">get_feature_value_slicer</span><span class="p">(</span>
+</span><span id="__span-17-10"><a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a>    <span class="n">features</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;country&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;state&#39;</span><span class="p">:</span> <span class="kc">None</span><span class="p">})</span>
+</span><span id="__span-17-11"><a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a>
+</span><span id="__span-17-12"><a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a><span class="c1"># Slice on specific values of a feature.</span>
+</span><span id="__span-17-13"><a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a><span class="n">slice_fn3</span> <span class="o">=</span> <span class="n">slicing_util</span><span class="o">.</span><span class="n">get_feature_value_slicer</span><span class="p">(</span>
+</span><span id="__span-17-14"><a id="__codelineno-17-14" name="__codelineno-17-14" href="#__codelineno-17-14"></a>    <span class="n">features</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;age&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">10</span><span class="p">,</span> <span class="mi">50</span><span class="p">,</span> <span class="mi">70</span><span class="p">]})</span>
+</span><span id="__span-17-15"><a id="__codelineno-17-15" name="__codelineno-17-15" href="#__codelineno-17-15"></a>
+</span><span id="__span-17-16"><a id="__codelineno-17-16" name="__codelineno-17-16" href="#__codelineno-17-16"></a><span class="n">stats_options</span> <span class="o">=</span> <span class="n">tfdv</span><span class="o">.</span><span class="n">StatsOptions</span><span class="p">(</span>
+</span><span id="__span-17-17"><a id="__codelineno-17-17" name="__codelineno-17-17" href="#__codelineno-17-17"></a>    <span class="n">slice_functions</span><span class="o">=</span><span class="p">[</span><span class="n">slice_fn1</span><span class="p">,</span> <span class="n">slice_fn2</span><span class="p">,</span> <span class="n">slice_fn3</span><span class="p">])</span>
+</span></code></pre></div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "..", "features": ["content.code.copy", "content.code.select", "content.action.edit"], "search": "../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.13a4f30d.min.js"></script>
+      
+        <script src="../javascripts/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

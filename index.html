@@ -1,0 +1,1196 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+      
+        <link rel="next" href="install/">
+      
+      
+      <link rel="icon" href="images/tf_full_color_primary_icon.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.14">
+    
+    
+      
+        <title>TensorFlow Data Validation</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.342714a4.min.css">
+      
+        
+        <link rel="stylesheet" href="assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="stylesheets/extra.css">
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#tensorflow-data-validation-checking-and-analyzing-your-data" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="." title="TensorFlow Data Validation" class="md-header__button md-logo" aria-label="TensorFlow Data Validation" data-md-component="logo">
+      
+  <img src="images/tf_full_color_primary_icon.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            TensorFlow Data Validation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Home
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="." title="TensorFlow Data Validation" class="md-nav__button md-logo" aria-label="TensorFlow Data Validation" data-md-component="logo">
+      
+  <img src="images/tf_full_color_primary_icon.svg" alt="logo">
+
+    </a>
+    TensorFlow Data Validation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="." class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#tensorflow-data-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      TensorFlow Data Validation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="TensorFlow Data Validation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      Overview
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schema-based-example-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Schema Based Example Validation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Schema Based Example Validation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#advanced-schema-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      Advanced Schema Features
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Advanced Schema Features">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sparse-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      Sparse Features
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schema-environments" class="md-nav__link">
+    <span class="md-ellipsis">
+      Schema Environments
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schema-generation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Schema Generation
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#training-serving-skew-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      Training-Serving Skew Detection
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Training-Serving Skew Detection">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#overview_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Overview
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-scenario" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example Scenario
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#drift-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      Drift Detection
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-visualizations-to-check-your-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using Visualizations to Check Your Data
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Using Visualizations to Check Your Data">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#identifying-suspicious-distributions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Identifying Suspicious Distributions
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Identifying Suspicious Distributions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#unbalanced-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Unbalanced Data
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#uniformly-distributed-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Uniformly Distributed Data
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Uniformly Distributed Data">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bugs-that-can-produce-uniformly-distributed-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bugs That Can Produce Uniformly Distributed Data
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#missing-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Missing Data
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#large-differences-in-scale-between-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      Large Differences in Scale Between Features
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#labels-with-invalid-labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      Labels with Invalid Labels
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Install
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="get_started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Getting Started
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="anomalies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Anomalies
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    API
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#tensorflow-data-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      TensorFlow Data Validation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="TensorFlow Data Validation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      Overview
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schema-based-example-validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Schema Based Example Validation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Schema Based Example Validation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#advanced-schema-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      Advanced Schema Features
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Advanced Schema Features">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sparse-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      Sparse Features
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schema-environments" class="md-nav__link">
+    <span class="md-ellipsis">
+      Schema Environments
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schema-generation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Schema Generation
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#training-serving-skew-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      Training-Serving Skew Detection
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Training-Serving Skew Detection">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#overview_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Overview
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-scenario" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example Scenario
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#drift-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      Drift Detection
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-visualizations-to-check-your-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using Visualizations to Check Your Data
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Using Visualizations to Check Your Data">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#identifying-suspicious-distributions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Identifying Suspicious Distributions
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Identifying Suspicious Distributions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#unbalanced-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Unbalanced Data
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#uniformly-distributed-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Uniformly Distributed Data
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Uniformly Distributed Data">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bugs-that-can-produce-uniformly-distributed-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bugs That Can Produce Uniformly Distributed Data
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#missing-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Missing Data
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#large-differences-in-scale-between-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      Large Differences in Scale Between Features
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#labels-with-invalid-labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      Labels with Invalid Labels
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="tensorflow-data-validation-checking-and-analyzing-your-data">TensorFlow Data Validation: Checking and analyzing your data<a class="headerlink" href="#tensorflow-data-validation-checking-and-analyzing-your-data" title="Permanent link">&para;</a></h1>
+<p>Once your data is in a TFX pipeline, you can use TFX components to
+analyze and transform it. You can use these tools even before you train
+a model.</p>
+<p>There are many reasons to analyze and transform your data:</p>
+<ul>
+<li>To find problems in your data. Common problems include:<ul>
+<li>Missing data, such as features with empty values.</li>
+<li>Labels treated as features, so that your model gets to peek at
+    the right answer during training.</li>
+<li>Features with values outside the range you expect.</li>
+<li>Data anomalies.</li>
+<li>Transfer learned model has preprocessing that does not match the
+    training data.</li>
+</ul>
+</li>
+<li>To engineer more effective feature sets. For example, you can
+    identify:<ul>
+<li>Especially informative features.</li>
+<li>Redundant features.</li>
+<li>Features that vary so widely in scale that they may slow
+    learning.</li>
+<li>Features with little or no unique predictive information.</li>
+</ul>
+</li>
+</ul>
+<p>TFX tools can both help find data bugs, and help with feature
+engineering.</p>
+<h2 id="tensorflow-data-validation">TensorFlow Data Validation<a class="headerlink" href="#tensorflow-data-validation" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="#overview">Overview</a></li>
+<li><a href="#schema-based-example-validation">Schema Based Example Validation</a></li>
+<li><a href="#training-serving-skew-detection">Training-Serving Skew Detection</a></li>
+<li><a href="#drift-detection">Drift Detection</a></li>
+</ul>
+<h3 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h3>
+<p>TensorFlow Data Validation identifies anomalies in training and serving
+data, and can automatically create a schema by examining the data. The
+component can be configured to detect different classes of anomalies in
+the data. It can</p>
+<ol>
+<li>Perform validity checks by comparing data statistics against a
+    schema that codifies expectations of the user.</li>
+<li>Detect training-serving skew by comparing examples in training and
+    serving data.</li>
+<li>Detect data drift by looking at a series of data.</li>
+</ol>
+<p>We document each of these functionalities independently:</p>
+<ul>
+<li><a href="#schema-based-example-validation">Schema Based Example Validation</a></li>
+<li><a href="#training-serving-skew-detection">Training-Serving Skew Detection</a></li>
+<li><a href="#drift-detection">Drift Detection</a></li>
+</ul>
+<h3 id="schema-based-example-validation">Schema Based Example Validation<a class="headerlink" href="#schema-based-example-validation" title="Permanent link">&para;</a></h3>
+<p>TensorFlow Data Validation identifies any anomalies in the input data by
+comparing data statistics against a schema. The schema codifies
+properties which the input data is expected to satisfy, such as data
+types or categorical values, and can be modified or replaced by the
+user.</p>
+<p>Tensorflow Data Validation is typically invoked multiple times within
+the context of the TFX pipeline: (i) for every split obtained from
+ExampleGen, (ii) for all pre-transformed data used by Transform and
+(iii) for all post-transform data generated by Transform. When invoked
+in the context of Transform (ii-iii), statistics options and
+schema-based constraints can be set by defining the
+<a href="https://tensorflow.github.io/transform"><code>stats_options_updater_fn</code></a>.
+This is particilarly useful when validating unstructured data (e.g. text
+features). See the <a href="https://github.com/tensorflow/tfx/blob/master/tfx/examples/bert/mrpc/bert_mrpc_utils.py">user
+code</a>
+for an example.</p>
+<h4 id="advanced-schema-features">Advanced Schema Features<a class="headerlink" href="#advanced-schema-features" title="Permanent link">&para;</a></h4>
+<p>This section covers more advanced schema configuration that can help
+with special setups.</p>
+<h5 id="sparse-features">Sparse Features<a class="headerlink" href="#sparse-features" title="Permanent link">&para;</a></h5>
+<p>Encoding sparse features in Examples usually introduces multiple
+Features that are expected to have the same valency for all Examples.
+For example the sparse feature:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">WeightedCategories</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;CategoryA&#39;</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;CategoryX&#39;</span><span class="p">,</span> <span class="mf">0.7</span><span class="p">)]</span>
+</span></code></pre></div>
+<p>would be encoded using separate Features for index and value:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">WeightedCategoriesIndex</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;CategoryA&#39;</span><span class="p">,</span> <span class="s1">&#39;CategoryX&#39;</span><span class="p">]</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">WeightedCategoriesValue</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.3</span><span class="p">,</span> <span class="mf">0.7</span><span class="p">]</span>
+</span></code></pre></div>
+<p>with the restriction that the valency of the index and value feature
+should match for all Examples. This restriction can be made explicit in
+the schema by defining a sparse_feature:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">sparse_feature</span> <span class="p">{</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  <span class="n">name</span><span class="p">:</span> <span class="s1">&#39;WeightedCategories&#39;</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  <span class="n">index_feature</span> <span class="p">{</span> <span class="n">name</span><span class="p">:</span> <span class="s1">&#39;WeightedCategoriesIndex&#39;</span> <span class="p">}</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  <span class="n">value_feature</span> <span class="p">{</span> <span class="n">name</span><span class="p">:</span> <span class="s1">&#39;WeightedCategoriesValue&#39;</span> <span class="p">}</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>The sparse feature definition requires one or more index and one value
+feature which refer to features that exist in the schema. Explicitly
+defining sparse features enables TFDV to check that the valencies of all
+referred features match.</p>
+<p>Some use cases introduce similar valency restrictions between Features,
+but do not necessarily encode a sparse feature. Using sparse feature
+should unblock you, but is not ideal.</p>
+<h5 id="schema-environments">Schema Environments<a class="headerlink" href="#schema-environments" title="Permanent link">&para;</a></h5>
+<p>By default validations assume that all Examples in a pipeline adhere to
+a single schema. In some cases introducing slight schema variations is
+necessary, for instance features used as labels are required during
+training (and should be validated), but are missing during serving.
+Environments can be used to express such requirements, in particular
+<code>default_environment()</code>,
+<code>in_environment()</code>, and
+<code>not_in_environment()</code>.</p>
+<p>For example, assume a feature named <code>'LABEL'</code> is required for training,
+but is expected to be missing from serving. This can be expressed by:</p>
+<ul>
+<li>Define two distinct environments in the schema: <code>["SERVING",
+    "TRAINING"]</code> and associate <code>'LABEL'</code> only with environment
+    <code>"TRAINING"</code>.</li>
+<li>Associate the training data with environment <code>"TRAINING"</code> and the
+    serving data with environment <code>"SERVING"</code>.</li>
+</ul>
+<h5 id="schema-generation">Schema Generation<a class="headerlink" href="#schema-generation" title="Permanent link">&para;</a></h5>
+<p>The input data schema is specified as an instance of the TensorFlow
+<a href="https://github.com/tensorflow/metadata/blob/master/tensorflow_metadata/proto/v0/schema.proto">Schema</a>.</p>
+<p>Instead of constructing a schema manually from scratch, a developer can
+rely on TensorFlow Data Validation's automatic schema construction.
+Specifically, TensorFlow Data Validation automatically constructs an
+initial schema based on statistics computed over training data available
+in the pipeline. Users can simply review this autogenerated schema,
+modify it as needed, check it into a version control system, and push it
+explicitly into the pipeline for further validation.</p>
+<p>TFDV includes <code>infer_schema()</code> to generate a
+schema automatically. For example:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">schema</span> <span class="o">=</span> <span class="n">tfdv</span><span class="o">.</span><span class="n">infer_schema</span><span class="p">(</span><span class="n">statistics</span><span class="o">=</span><span class="n">train_stats</span><span class="p">)</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">tfdv</span><span class="o">.</span><span class="n">display_schema</span><span class="p">(</span><span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">)</span>
+</span></code></pre></div>
+<p>This triggers an automatic schema generation based on the following
+rules:</p>
+<ul>
+<li>
+<p>If a schema has already been auto-generated then it is used as is.</p>
+</li>
+<li>
+<p>Otherwise, TensorFlow Data Validation examines the available data
+    statistics and computes a suitable schema for the data.</p>
+</li>
+</ul>
+<p><em>Note: The auto-generated schema is best-effort and only tries to infer
+basic properties of the data. It is expected that users review and
+modify it as needed.</em></p>
+<h3 id="training-serving-skew-detection">Training-Serving Skew Detection<a class="headerlink" href="#training-serving-skew-detection" title="Permanent link">&para;</a></h3>
+<h4 id="overview_1">Overview<a class="headerlink" href="#overview_1" title="Permanent link">&para;</a></h4>
+<p>TensorFlow Data Validation can detect distribution skew between training
+and serving data. Distribution skew occurs when the distribution of
+feature values for training data is significantly different from serving
+data. One of the key causes for distribution skew is using either a
+completely different corpus for training data generation to overcome
+lack of initial data in the desired corpus. Another reason is a faulty
+sampling mechanism that only chooses a subsample of the serving data to
+train on.</p>
+<h5 id="example-scenario">Example Scenario<a class="headerlink" href="#example-scenario" title="Permanent link">&para;</a></h5>
+<p><strong>Note:</strong> For instance, in order to compensate for an underrepresented
+slice of data, if a biased sampling is used without upweighting the
+downsampled examples appropriately, the distribution of feature values
+between training and serving data gets artificially skewed.</p>
+<p>See the <a href="get_started#checking-data-skew-and-drift">TensorFlow Data Validation Get Started
+Guide</a>
+for information about configuring training-serving skew detection.</p>
+<h3 id="drift-detection">Drift Detection<a class="headerlink" href="#drift-detection" title="Permanent link">&para;</a></h3>
+<p>Drift detection is supported between consecutive spans of data (i.e.,
+between span N and span N+1), such as between different days of training
+data. We express drift in terms of <a href="https://en.wikipedia.org/wiki/Chebyshev_distance">L-infinity
+distance</a> for
+categorical features and approximate <a href="https://en.wikipedia.org/wiki/Jensen%E2%80%93Shannon_divergence">Jensen-Shannon
+divergence</a>
+for numeric features. You can set the threshold distance so that you
+receive warnings when the drift is higher than is acceptable. Setting
+the correct distance is typically an iterative process requiring domain
+knowledge and experimentation.</p>
+<p>See the <a href="get_started#checking-data-skew-and-drift">TensorFlow Data Validation Get Started
+Guide</a>
+for information about configuring drift detection.</p>
+<h2 id="using-visualizations-to-check-your-data">Using Visualizations to Check Your Data<a class="headerlink" href="#using-visualizations-to-check-your-data" title="Permanent link">&para;</a></h2>
+<p>TensorFlow Data Validation provides tools for visualizing the
+distribution of feature values. By examining these distributions in a
+Jupyter notebook using <a href="https://pair-code.github.io/facets/">Facets</a> you
+can catch common problems with data.</p>
+<p><img alt="Feature stats" src="images/feature_stats.png" /></p>
+<h3 id="identifying-suspicious-distributions">Identifying Suspicious Distributions<a class="headerlink" href="#identifying-suspicious-distributions" title="Permanent link">&para;</a></h3>
+<p>You can identify common bugs in your data by using a Facets Overview
+display to look for suspicious distributions of feature values.</p>
+<h4 id="unbalanced-data">Unbalanced Data<a class="headerlink" href="#unbalanced-data" title="Permanent link">&para;</a></h4>
+<p>An unbalanced feature is a feature for which one value predominates.
+Unbalanced features can occur naturally, but if a feature always has the
+same value you may have a data bug. To detect unbalanced features in a
+Facets Overview, choose "Non-uniformity" from the "Sort by"
+dropdown.</p>
+<p>The most unbalanced features will be listed at the top of each
+feature-type list. For example, the following screenshot shows one
+feature that is all zeros, and a second that is highly unbalanced, at
+the top of the "Numeric Features" list:</p>
+<p><img alt="Visualization of unbalanced
+data" src="images/unbalanced.png" /></p>
+<h4 id="uniformly-distributed-data">Uniformly Distributed Data<a class="headerlink" href="#uniformly-distributed-data" title="Permanent link">&para;</a></h4>
+<p>A uniformly distributed feature is one for which all possible values
+appear with close to the same frequency. As with unbalanced data, this
+distribution can occur naturally, but can also be produced by data bugs.</p>
+<p>To detect uniformly distributed features in a Facets Overview, choose
+"Non- uniformity" from the "Sort by" dropdown and check the
+"Reverse order" checkbox:</p>
+<p><img alt="Histogram of uniform data" src="images/uniform.png" /></p>
+<p>String data is represented using bar charts if there are 20 or fewer
+unique values, and as a cumulative distribution graph if there are more
+than 20 unique values. So for string data, uniform distributions can
+appear as either flat bar graphs like the one above or straight lines
+like the one below:</p>
+<p><img alt="Line graph: cumulative distribution of uniform
+data" src="images/uniform_cumulative.png" /></p>
+<h5 id="bugs-that-can-produce-uniformly-distributed-data">Bugs That Can Produce Uniformly Distributed Data<a class="headerlink" href="#bugs-that-can-produce-uniformly-distributed-data" title="Permanent link">&para;</a></h5>
+<p>Here are some common bugs that can produce uniformly distributed data:</p>
+<ul>
+<li>
+<p>Using strings to represent non-string data types such as dates. For
+    example, you will have many unique values for a datetime feature
+    with representations like <code>2017-03-01-11-45-03</code>. Unique values
+    will be distributed uniformly.</p>
+</li>
+<li>
+<p>Including indices like "row number" as features. Here again you
+    have many unique values.</p>
+</li>
+</ul>
+<h4 id="missing-data">Missing Data<a class="headerlink" href="#missing-data" title="Permanent link">&para;</a></h4>
+<p>To check whether a feature is missing values entirely:</p>
+<ol>
+<li>Choose "Amount missing/zero" from the "Sort by" drop-down.</li>
+<li>Check the "Reverse order" checkbox.</li>
+<li>Look at the "missing" column to see the percentage of instances
+    with missing values for a feature.</li>
+</ol>
+<p>A data bug can also cause incomplete feature values. For example you may
+expect a feature's value list to always have three elements and
+discover that sometimes it only has one. To check for incomplete values
+or other cases where feature value lists don\'t have the expected number
+of elements:</p>
+<ol>
+<li>
+<p>Choose "Value list length" from the "Chart to show" drop-down
+    menu on the right.</p>
+</li>
+<li>
+<p>Look at the chart to the right of each feature row. The chart shows
+    the range of value list lengths for the feature. For example, the
+    highlighted row in the screenshot below shows a feature that has
+    some zero-length value lists:</p>
+</li>
+</ol>
+<p><img alt="Facets Overview display with feature with zero-length feature value
+lists" src="images/zero_length.png" /></p>
+<h4 id="large-differences-in-scale-between-features">Large Differences in Scale Between Features<a class="headerlink" href="#large-differences-in-scale-between-features" title="Permanent link">&para;</a></h4>
+<p>If your features vary widely in scale, then the model may have
+difficulties learning. For example, if some features vary from 0 to 1
+and others vary from 0 to 1,000,000,000, you have a big difference in
+scale. Compare the "max" and "min" columns across features to find
+widely varying scales.</p>
+<p>Consider normalizing feature values to reduce these wide variations.</p>
+<h4 id="labels-with-invalid-labels">Labels with Invalid Labels<a class="headerlink" href="#labels-with-invalid-labels" title="Permanent link">&para;</a></h4>
+<p>TensorFlow's Estimators have restrictions on the type of data they
+accept as labels. For example, binary classifiers typically only work
+with {0, 1} labels.</p>
+<p>Review the label values in the Facets Overview and make sure they
+conform to the <a href="https://github.com/tensorflow/docs/blob/master/site/en/r1/guide/feature_columns.md">requirements of
+Estimators</a>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": ".", "features": ["content.code.copy", "content.code.select", "content.action.edit"], "search": "assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.13a4f30d.min.js"></script>
+      
+        <script src="javascripts/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

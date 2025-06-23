@@ -1,0 +1,1903 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../get_started/">
+      
+      
+        <link rel="next" href="../api/">
+      
+      
+      <link rel="icon" href="../images/tf_full_color_primary_icon.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.14">
+    
+    
+      
+        <title>Anomalies - TensorFlow Data Validation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.342714a4.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#tensorflow-data-validation-anomalies-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="TensorFlow Data Validation" class="md-header__button md-logo" aria-label="TensorFlow Data Validation" data-md-component="logo">
+      
+  <img src="../images/tf_full_color_primary_icon.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            TensorFlow Data Validation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Anomalies
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="TensorFlow Data Validation" class="md-nav__button md-logo" aria-label="TensorFlow Data Validation" data-md-component="logo">
+      
+  <img src="../images/tf_full_color_primary_icon.svg" alt="logo">
+
+    </a>
+    TensorFlow Data Validation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Install
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../get_started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Getting Started
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Anomalies
+    
+  </span>
+  
+
+      </a>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    API
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="tensorflow-data-validation-anomalies-reference">TensorFlow Data Validation Anomalies Reference<a class="headerlink" href="#tensorflow-data-validation-anomalies-reference" title="Permanent link">&para;</a></h1>
+<!--*
+freshness: { owner: 'kuochuntsai' reviewed: '2022-12-01' }
+*-->
+
+<p>TFDV checks for anomalies by comparing a schema and statistics proto(s). The
+following chart lists the anomaly types that TFDV can detect, the schema and
+statistics fields that are used to detect each anomaly type, and the
+condition(s) under which each anomaly type is detected.</p>
+<ul>
+<li>
+<p><code>BOOL_TYPE_BIG_INT</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.bool_domain</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.num_stats.max</code></li>
+<li><code>features.type</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>feature.bool_domain</code> is specified and</li>
+<li><code>features.type</code> == <code>INT</code> and</li>
+<li><code>features.num_stats.max</code> &gt; 1</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>BOOL_TYPE_BYTES_NOT_INT</code></p>
+<ul>
+<li>Anomaly type not detected in TFDV</li>
+</ul>
+</li>
+<li>
+<p><code>BOOL_TYPE_BYTES_NOT_STRING</code></p>
+<ul>
+<li>Anomaly type not detected in TFDV</li>
+</ul>
+</li>
+<li>
+<p><code>BOOL_TYPE_FLOAT_NOT_INT</code></p>
+<ul>
+<li>Anomaly type not detected in TFDV</li>
+</ul>
+</li>
+<li>
+<p><code>BOOL_TYPE_FLOAT_NOT_STRING</code></p>
+<ul>
+<li>Anomaly type not detected in TFDV</li>
+</ul>
+</li>
+<li>
+<p><code>BOOL_TYPE_INT_NOT_STRING</code></p>
+<ul>
+<li>Anomaly type not detected in TFDV</li>
+</ul>
+</li>
+<li>
+<p><code>BOOL_TYPE_SMALL_INT</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.bool_domain</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.num_stats.min</code></li>
+<li><code>features.type</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>features.type</code> == <code>INT</code> and</li>
+<li><code>feature.bool_domain</code> is specified and</li>
+<li><code>features.num_stats.min</code> &lt; 0</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>BOOL_TYPE_STRING_NOT_INT</code></p>
+<ul>
+<li>Anomaly type not detected in TFDV</li>
+</ul>
+</li>
+<li>
+<p><code>BOOL_TYPE_UNEXPECTED_STRING</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.bool_domain</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.string_stats.rank_histogram</code>*</li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>features.type</code> == <code>STRING</code> and</li>
+<li><code>feature.bool_domain</code> is specified and</li>
+<li>at least one value in <code>rank_histogram</code>* is not
+    <code>feature.bool_domain.true_value</code> or
+    <code>feature.bool_domain.false_value</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>BOOL_TYPE_UNEXPECTED_FLOAT</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.bool_domain</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.num_stats.min</code></li>
+<li><code>features.num_stats.max</code></li>
+<li><code>features.num_stats.histograms.num_nan</code></li>
+<li><code>features.num_stats.histograms.buckets.low_value</code></li>
+<li><code>features.num_stats.histograms.buckets.high_value</code></li>
+<li><code>features.type</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>features.type</code> == <code>FLOAT</code> and</li>
+<li><code>feature.bool_domain</code> is specified and either<ul>
+<li>(<code>features.num_stats.min</code> != 0 or <code>features.num_stats.min</code> != 1)
+    or</li>
+<li>(<code>features.num_stats.max</code> != 0 or <code>features.num_stats.max</code> != 1)
+    or</li>
+<li><code>features.num_stats.histograms.num_nan</code> &gt; 0 or</li>
+<li>(<code>features.num_stats.histograms.buckets.low_value</code> != 0 or
+    <code>features.num_stats.histograms.buckets.high_value</code> != 1) and
+    <code>features.num_stats.histograms.buckets.sample_count</code> &gt; 0</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>BOOL_TYPE_INVALID_CONFIG</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.bool_domain</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.type</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li>If <code>features.type</code> == <code>INT</code> or <code>FLOAT</code>,<ul>
+<li><code>feature.bool_domain</code> is specified and</li>
+<li><code>feature.bool_domain.true_value</code> or
+    <code>feature.bool_domain.false_value</code> is specified, or</li>
+</ul>
+</li>
+<li>if <code>features.type</code> == <code>STRING</code>,<ul>
+<li><code>feature.bool_domain</code> is specified and</li>
+<li><code>feature.bool_domain.true_value</code> and
+    <code>feature.bool_domain.false_value</code> are not specified</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>ENUM_TYPE_BYTES_NOT_STRING</code></p>
+<ul>
+<li>Anomaly type not detected in TFDV</li>
+</ul>
+</li>
+<li>
+<p><code>ENUM_TYPE_FLOAT_NOT_STRING</code></p>
+<ul>
+<li>Anomaly type not detected in TFDV</li>
+</ul>
+</li>
+<li>
+<p><code>ENUM_TYPE_INT_NOT_STRING</code></p>
+<ul>
+<li>Anomaly type not detected in TFDV</li>
+</ul>
+</li>
+<li>
+<p><code>ENUM_TYPE_INVALID_UTF8</code></p>
+<ul>
+<li>Statistics Fields:<ul>
+<li><code>features.string_stats.invalid_utf8_count</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>invalid_utf8_count</code> &gt; 0</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>ENUM_TYPE_UNEXPECTED_STRING_VALUES</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>string_domain</code> and <code>feature.domain</code>; or <code>feature.string_domain</code></li>
+<li><code>feature.distribution_constraints.min_domain_mass</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.string_stats.rank_histogram</code>*</li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li>Either (number of values in <code>rank_histogram</code>* that are not in domain
+    / total number of values) &gt; (1 -
+    <code>feature.distribution_constraints.min_domain_mass</code>) or</li>
+<li><code>feature.distribution_constraints.min_domain_mass</code> == 1.0 and there
+    are values in the histogram that are not in the domain</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>FEATURE_TYPE_HIGH_NUMBER_VALUES</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.value_count.max</code></li>
+<li><code>feature.value_counts.value_count.max</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.common_stats.max_num_values</code></li>
+<li><code>features.common_stats.presence_and_valency_stats.max_num_values</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li>If <code>feature.value_count.max</code> is specified<ul>
+<li><code>features.common_stats.max_num_values</code> &gt;
+    <code>feature.value_count.max</code>; or</li>
+</ul>
+</li>
+<li>if <code>feature.value_counts</code> is specified<ul>
+<li><code>feature.value_counts.value_count.max</code> &lt;
+    <code>features.common_stats.presence_and_valency_stats.max_num_values</code>
+    at a given nestedness level</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>FEATURE_TYPE_LOW_FRACTION_PRESENT</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.presence.min_fraction</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.common_stats.num_non_missing</code>*</li>
+<li><code>num_examples</code>*</li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>feature.presence.min_fraction</code> is specified and
+    (<code>features.common_stats.num_non_missing</code><em> / <code>num_examples</code></em>) &lt;
+    <code>feature.presence.min_fraction</code> or</li>
+<li><code>feature.presence.min_fraction</code> == 1.0 and
+    <code>common_stats.num_missing</code> != 0</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>FEATURE_TYPE_LOW_NUMBER_PRESENT</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.presence.min_count</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.common_stats.num_non_missing</code>*</li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>feature.presence.min_count</code> is specified and either<ul>
+<li><code>features.common_stats.num_non_missing</code>* == 0 or</li>
+<li><code>features.common_stats.num_non_missing</code>* &lt;
+    <code>feature.presence.min_count</code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>FEATURE_TYPE_LOW_NUMBER_VALUES</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.value_count.min</code></li>
+<li><code>feature.value_counts.value_count.min</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.common_stats.min_num_values</code></li>
+<li><code>features.common_stats.presence_and_valency_stats.min_num_values</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li>If <code>feature.value_count.min</code> is specified<ul>
+<li><code>features.common_stats.min_num_values</code> &lt;
+    <code>feature.value_count.min</code>; or</li>
+</ul>
+</li>
+<li>if <code>feature.value_counts</code> is specified<ul>
+<li><code>features.common_stats.presence_and_valency_stats.min_num_values</code>
+    &lt; <code>feature.value_counts.value_count.min</code> at a given nestedness
+    level</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>FEATURE_TYPE_NOT_PRESENT</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.in_environment</code> or <code>feature.not_in_environment</code> or
+    <code>schema.default_environment</code></li>
+<li><code>feature.lifecycle_stage</code></li>
+<li><code>feature.presence.min_count</code> or <code>feature.presence.min_fraction</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.common_stats.num_non_missing</code>*</li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>feature.lifecycle_stage</code> not in [<code>PLANNED</code>, <code>ALPHA</code>, <code>DEBUG</code>,
+    <code>DEPRECATED</code>] and</li>
+<li><code>common_stats.num_non_missing</code>* == 0 and</li>
+<li>(<code>feature.presence.min_count</code> &gt; 0 or
+    <code>feature.presence.min_fraction</code> &gt; 0) and either<ul>
+<li><code>feature.in_environment</code> == current environment or</li>
+<li><code>feature.not_in_environment</code> != current environment or</li>
+<li><code>schema.default_environment</code> != current environment</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>FEATURE_TYPE_NO_VALUES</code></p>
+<ul>
+<li>Anomaly type not detected in TFDV</li>
+</ul>
+</li>
+<li>
+<p><code>FEATURE_TYPE_UNEXPECTED_REPEATED</code></p>
+<ul>
+<li>Anomaly type not detected in TFDV</li>
+</ul>
+</li>
+<li>
+<p><code>FEATURE_TYPE_HIGH_UNIQUE</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.unique_constraints.max</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.string_stats.unique</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>features.string_stats.unique</code> &gt; <code>feature.unique_constraints.max</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>FEATURE_TYPE_LOW_UNIQUE</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.unique_constraints.min</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.string_stats.unique</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>features.string_stats.unique</code> &lt; <code>feature.unique_constraints.min</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>FEATURE_TYPE_NO_UNIQUE</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.unique_constraints</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.string_stats.unique</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>feature.unique_constraints</code> specified but no
+    <code>features.string_stats.unique</code> present (as is the case where the
+    feature is not a string or categorical)</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>FLOAT_TYPE_BIG_FLOAT</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.float_domain.max</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.type</code></li>
+<li><code>features.num_stats.max</code> or <code>features.string_stats.rank_histogram</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li>If <code>features.type</code> == <code>FLOAT</code>,<ul>
+<li><code>features.num_stats.max</code> &gt; <code>feature.float_domain.max</code>; or</li>
+</ul>
+</li>
+<li>if <code>features.type</code> == <code>BYTES</code> or <code>STRING</code>,<ul>
+<li>maximum value in <code>features.string_stats.rank_histogram</code> (when
+    converted to float) &gt; <code>feature.float_domain.max</code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>FLOAT_TYPE_NOT_FLOAT</code></p>
+<ul>
+<li>Anomaly type not detected in TFDV</li>
+</ul>
+</li>
+<li>
+<p><code>FLOAT_TYPE_SMALL_FLOAT</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.float_domain.min</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.type</code></li>
+<li><code>features.num_stats.min</code> or <code>features.string_stats.rank_histogram</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li>If <code>features.type</code> == <code>FLOAT</code>,<ul>
+<li><code>features.num_stats.min</code> &lt; <code>feature.float_domain.min</code>; or</li>
+</ul>
+</li>
+<li>if <code>features.type</code> == <code>BYTES</code> or <code>STRING</code>,<ul>
+<li>minimum value in <code>features.string_stats.rank_histogram</code> (when
+    converted to float) &lt; <code>feature.float_domain.min</code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>FLOAT_TYPE_STRING_NOT_FLOAT</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.float_domain</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.type</code></li>
+<li><code>features.string_stats.rank_histogram</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>features.type</code> == <code>BYTES</code> or <code>STRING</code> and</li>
+<li><code>features.string_stats.rank_histogram</code> has at least one value that
+    cannot be converted to a float</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>FLOAT_TYPE_NON_STRING</code></p>
+<ul>
+<li>Anomaly type not detected in TFDV</li>
+</ul>
+</li>
+<li>
+<p><code>FLOAT_TYPE_UNKNOWN_TYPE_NUMBER</code></p>
+<ul>
+<li>Anomaly type not detected in TFDV</li>
+</ul>
+</li>
+<li>
+<p><code>FLOAT_TYPE_HAS_NAN</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.float_domain.disallow_nan</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.type</code></li>
+<li><code>features.num_stats.histograms.num_nan</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>float_domain.disallow_nan</code> is true and</li>
+<li><code>features.num_stats.histograms.num_nan</code> &gt; 0</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>FLOAT_TYPE_HAS_INF</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.float_domain.disallow_inf</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.type</code></li>
+<li><code>features.num_stats.min</code></li>
+<li><code>features.num_stats.max</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>features.type</code> == <code>FLOAT</code></li>
+<li><code>float_domain.disallow_inf</code> is true and either<ul>
+<li><code>features.num_stats.min</code> == <code>inf/-inf</code> or</li>
+<li><code>features.num_stats.max</code> == <code>inf/-inf</code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>INT_TYPE_BIG_INT</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.int_domain.max</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.type</code></li>
+<li><code>features.num_stats.max</code></li>
+<li><code>features.string_stats.rank_histogram</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li>If <code>features.type</code> == <code>INT</code>,<ul>
+<li><code>features.num_stats.max</code> &gt; <code>feature.int_domain.max</code>; or</li>
+</ul>
+</li>
+<li>if <code>features.type</code> == <code>BYTES</code> or <code>STRING</code>,<ul>
+<li>maximum value in <code>features.string_stats.rank_histogram</code> (when
+    converted to int) &gt; <code>feature.int_domain.max</code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>INT_TYPE_INT_EXPECTED</code></p>
+<ul>
+<li>Anomaly type not detected in TFDV</li>
+</ul>
+</li>
+<li>
+<p><code>INT_TYPE_NOT_INT_STRING</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.int_domain</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.type</code></li>
+<li><code>features.string_stats.rank_histogram</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>features.type</code> == <code>BYTES</code> or <code>STRING</code> and</li>
+<li><code>features.string_stats.rank_histogram</code> has at least one value that
+    cannot be converted to an int</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>INT_TYPE_NOT_STRING</code></p>
+<ul>
+<li>Anomaly type not detected in TFDV</li>
+</ul>
+</li>
+<li>
+<p><code>INT_TYPE_SMALL_INT</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.int_domain.min</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.type</code></li>
+<li><code>features.num_stats.min</code></li>
+<li><code>features.string_stats.rank_histogram</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li>If <code>features.type</code> == <code>INT</code>,<ul>
+<li><code>features.num_stats.min</code> &lt; <code>feature.int_domain.min</code>; or</li>
+</ul>
+</li>
+<li>if <code>features.type</code> == <code>BYTES</code> or <code>STRING</code>,<ul>
+<li>minimum value in <code>features.string_stats.rank_histogram</code> (when
+    converted to int) &lt; <code>feature.int_domain.min</code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>INT_TYPE_STRING_EXPECTED</code></p>
+<ul>
+<li>Anomaly type not detected in TFDV</li>
+</ul>
+</li>
+<li>
+<p><code>INT_TYPE_UNKNOWN_TYPE_NUMBER</code></p>
+<ul>
+<li>Anomaly type not detected in TFDV</li>
+</ul>
+</li>
+<li>
+<p><code>LOW_SUPPORTED_IMAGE_FRACTION</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.image_domain.minimum_supported_image_fraction</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.custom_stats.rank_histogram</code> for the custom_stats with
+    name <code>image_format_histogram</code>. Note that semantic domain stats must
+    be enabled for the image_format_histogram to be generated and for
+    this validation to be performed. Semantic domain stats are not
+    generated by default.</li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li>The fraction of values that are supported Tensorflow image types to
+    all image types is less than
+    <code>feature.image_domain.minimum_supported_image_fraction</code>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>SCHEMA_MISSING_COLUMN</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.in_environment</code> or <code>feature.not_in_environment</code> or
+    <code>schema.default_environment</code></li>
+<li><code>feature.lifecycle_stage</code></li>
+<li><code>feature.presence.min_count</code> or <code>feature.presence.min_fraction</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>feature.lifecycle_stage</code> != <code>PLANNED</code>, <code>ALPHA</code>, <code>DEBUG</code>, or
+    <code>DEPRECATED</code> and</li>
+<li><code>feature.presence.min_count</code> &gt; 0 or
+    <code>feature.presence.min_fraction</code> &gt; 0 and</li>
+<li><code>feature.in_environment</code> == current environment or
+    <code>feature.not_in_environment</code> != current environment or
+    <code>schema.default_environment</code> != current environment and</li>
+<li>no feature with the specified name/path is found in the statistics
+    proto</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>SCHEMA_NEW_COLUMN</code></p>
+<ul>
+<li>Detection Condition:<ul>
+<li>there is a feature in the statistics proto but no feature with its
+    name/path in the schema proto</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>SCHEMA_TRAINING_SERVING_SKEW</code></p>
+<ul>
+<li>Anomaly type not detected in TFDV</li>
+</ul>
+</li>
+<li>
+<p><code>STRING_TYPE_NOW_FLOAT</code></p>
+<ul>
+<li>Anomaly type not detected in TFDV</li>
+</ul>
+</li>
+<li>
+<p><code>STRING_TYPE_NOW_INT</code></p>
+<ul>
+<li>Anomaly type not detected in TFDV</li>
+</ul>
+</li>
+<li>
+<p><code>COMPARATOR_CONTROL_DATA_MISSING</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.skew_comparator.infinity_norm.threshold</code></li>
+<li><code>feature.drift_comparator.infinity_norm.threshold</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li>control statistics proto (i.e., serving statistics for skew or
+    previous statistics for drift) is available but does not contain the
+    specified feature</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>COMPARATOR_TREATMENT_DATA_MISSING</code></p>
+<ul>
+<li>Anomaly type not detected in TFDV</li>
+</ul>
+</li>
+<li>
+<p><code>COMPARATOR_L_INFTY_HIGH</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.skew_comparator.infinity_norm.threshold</code></li>
+<li><code>feature.drift_comparator.infinity_norm.threshold</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.string_stats.rank_histogram</code>*</li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li>L-infinity norm of the vector that represents the difference between
+    the normalized counts from the
+    <code>features.string_stats.rank_histogram</code>* in the control statistics
+    (i.e., serving statistics for skew or previous statistics for drift)
+    and the treatment statistics (i.e., training statistics for skew or
+    current statistics for drift) &gt;
+    <code>feature.skew_comparator.infinity_norm.threshold</code> or
+    <code>feature.drift_comparator.infinity_norm.threshold</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>COMPARATOR_NORMALIZED_ABSOLUTE_DIFFERENCE_HIGH</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.skew_comparator.normalized_abs_difference.threshold</code></li>
+<li><code>feature.drift_comparator.normalized_abs_difference.threshold</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.string_stats.rank_histogram</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li>The normalized absolute count difference of value counts from the
+    <code>features.string_stats.rank_histogram</code> in the control statistics
+    (i.e., serving statistics for skew or previous statistics for drift)
+    and the treatment statistics (i.e., training statistics for skew or
+    current statistics for drift) exceeded
+    feature.skew_comparator.normalized_abs_difference.threshold or
+    feature.drift_comparator.normalized_abs_difference.threshold. Count
+    differences are normalized by the total count across both
+    conditions.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>COMPARATOR_JENSEN_SHANNON_DIVERGENCE_HIGH</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.skew_comparator.jensen_shannon_divergence.threshold</code></li>
+<li><code>feature.drift_comparator.jensen_shannon_divergence.threshold</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.num_stats.histograms</code> of type <code>STANDARD</code></li>
+<li><code>features.string_stats.rank_histogram</code>*</li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li>Approximate Jensen-Shannon divergence computed between in the
+    control statistics (i.e., serving statistics for skew or previous
+    statistics for drift) and the treatment statistics (i.e., training
+    statistics for skew or current statistics for drift) &gt;
+    <code>feature.skew_comparator.jensen_shannon_divergence.threshold</code> or
+    <code>feature.drift_comparator.jensen_shannon_divergence.threshold</code>. The
+    approximate Jensen-Shannon divergence is computed based on the
+    normalized sample counts in both <code>features.num_stats.histograms</code>
+    standard histogram and <code>features.string_stats.rank_histogram</code>*.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>NO_DATA_IN_SPAN</code></p>
+<ul>
+<li>Anomaly type not detected in TFDV</li>
+</ul>
+</li>
+<li>
+<p><code>SPARSE_FEATURE_MISSING_VALUE</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>sparse_feature.value_feature</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.custom_stats</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>features.custom_stats</code> with "missing_value" as name and</li>
+<li><code>missing_value</code> custom stat != 0</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>SPARSE_FEATURE_MISSING_INDEX</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>sparse_feature.index_feature</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.custom_stats</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>features.custom_stats</code> with "missing_index" as name and</li>
+<li><code>missing_index</code> custom stat contains any value != 0</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>SPARSE_FEATURE_LENGTH_MISMATCH</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>sparse_feature.value_feature</code></li>
+<li><code>sparse_feature.index_feature</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.custom_stats</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>features.custom_stats</code> with "min_length_diff" or "max_length_diff"
+    as name</li>
+<li><code>min_length_diff</code> or <code>max_length_diff</code> custom stat contains any
+    value != 0</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>SPARSE_FEATURE_NAME_COLLISION</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>sparse_feature.name</code></li>
+<li><code>sparse_feature.lifecycle_stage</code></li>
+<li><code>feature.name</code></li>
+<li><code>feature.lifecycle_stage</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>sparse_feature.lifecycle_stage</code> != <code>PLANNED</code>, <code>ALPHA</code>, <code>DEBUG</code>, or
+    <code>DEPRECATED</code>, and</li>
+<li><code>feature.lifecycle_stage</code> != <code>PLANNED</code>, <code>ALPHA</code>, <code>DEBUG</code>, or
+    <code>DEPRECATED</code>, and</li>
+<li><code>sparse_feature.name</code> == <code>feature.name</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>SEMANTIC_DOMAIN_UPDATE</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.domain_info</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.custom_stats</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>features.custom_stats</code> with "domain_info" as name and</li>
+<li><code>feature.domain_info</code> is not already set in the schema and</li>
+<li>there is a single <code>domain_info</code> custom stat for the feature</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>COMPARATOR_LOW_NUM_EXAMPLES</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>schema.dataset_constraints.num_examples_drift_comparator.min_fraction_threshold</code></li>
+<li><code>schema.dataset_constraints.num_examples_version_comparator.min_fraction_threshold</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>num_examples</code>*</li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>num_examples</code>* &gt; 0 and</li>
+<li>previous statistics proto is available and</li>
+<li><code>num_examples</code><em> / previous statistics <code>num_examples</code></em> &lt; comparator
+    <code>min_fraction_threshold</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>COMPARATOR_HIGH_NUM_EXAMPLES</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>schema.dataset_constraints.num_examples_drift_comparator.max_fraction_threshold</code></li>
+<li><code>schema.dataset_constraints.num_examples_version_comparator.max_fraction_threshold</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>num_examples</code>*</li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>num_examples</code>* &gt; 0 and</li>
+<li>previous statistics proto is available and</li>
+<li><code>num_examples</code><em> / previous statistics <code>num_examples</code></em> &gt; comparator
+    <code>max_fraction_threshold</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>DATASET_LOW_NUM_EXAMPLES</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>schema.dataset_constraints.min_examples_count</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>num_examples</code>*</li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>num_examples</code>* &lt; <code>dataset_constraints.min_examples_count</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>DATASET_HIGH_NUM_EXAMPLES</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>schema.dataset_constraints.max_examples_count</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>num_examples</code>*</li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>num_examples</code>* &gt; <code>dataset_constraints.max_examples_count</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>WEIGHTED_FEATURE_NAME_COLLISION</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>weighted_feature.name</code></li>
+<li><code>weighted_feature.lifecycle_stage</code></li>
+<li><code>sparse_feature.name</code></li>
+<li><code>sparse_feature.lifecycle_stage</code></li>
+<li><code>feature.name</code></li>
+<li><code>feature.lifecycle_stage</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>weighted_feature.lifecycle_stage</code> != <code>PLANNED</code>, <code>ALPHA</code>, <code>DEBUG</code>,
+    or <code>DEPRECATED</code> and either<ul>
+<li>if <code>feature.lifecycle_stage</code> != <code>PLANNED</code>, <code>ALPHA</code>, <code>DEBUG</code>, or
+    <code>DEPRECATED</code>,<ul>
+<li><code>weighted_feature.name</code> == <code>feature.name</code>; or</li>
+</ul>
+</li>
+<li>if <code>sparse_feature.lifecycle_stage</code> != <code>PLANNED</code>, <code>ALPHA</code>,
+    <code>DEBUG</code>, or <code>DEPRECATED</code>,<ul>
+<li><code>weighted_feature.name</code> == <code>sparse_feature.name</code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>WEIGHTED_FEATURE_MISSING_VALUE</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>weighted_feature.feature</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.custom_stats</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>features.custom_stats</code> with "missing_value" as name and</li>
+<li><code>missing_value</code> custom stat != 0</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>WEIGHTED_FEATURE_MISSING_WEIGHT</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>weighted_feature.weight_feature</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.custom_stats</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>features.custom_stats</code> with "missing_weight" as name and</li>
+<li><code>missing_weight</code> custom stat != 0</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>WEIGHTED_FEATURE_LENGTH_MISMATCH</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>weighted_feature.feature</code></li>
+<li><code>weighted_feature.weight_feature</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.custom_stats</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>features.custom_stats</code> with "min_weighted_length_diff" or
+    "max_weight_length_diff" as name, and</li>
+<li><code>min_weight_length_diff</code> or <code>max_weight_length_diff</code> custom stat !=
+    0</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>VALUE_NESTEDNESS_MISMATCH</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.value_count</code></li>
+<li><code>feature.value_counts</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.common_stats.presence_and_valency_stats</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>feature.value_count</code> is specified, and there is a repeated
+    <code>presence_and_valency_stats</code> of the feature (which indicates a
+    nestedness level that is greater than one) and</li>
+<li><code>feature.value_counts</code> is specified, and the number of times the
+    <code>presence_and_valency_stats</code> of the feature is repeated does not
+    match the number of times <code>value_count</code> is repeated within
+    <code>feature.value_counts</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>DOMAIN_INVALID_FOR_TYPE</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.type</code></li>
+<li><code>feature.domain_info</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.type</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li>If <code>features.type</code> == <code>BYTES</code>,<ul>
+<li><code>feature.domain_info</code> is of an incompatible type; or</li>
+</ul>
+</li>
+<li>if <code>features.type</code> != <code>BYTES</code>,<ul>
+<li><code>feature.domain_info</code> does not match <code>feature.type</code> (e.g.,
+    <code>int_domain</code> is specified, but feature's <code>type</code> is <code>FLOAT</code>)</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>FEATURE_MISSING_NAME</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.name</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>feature.name</code> is not specified</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>FEATURE_MISSING_TYPE</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.type</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>feature.type</code> is not specified</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>INVALID_SCHEMA_SPECIFICATION</code></p>
+<p>NOTE: There are various different reasons why an anomaly of
+<code>INVALID_SCHEMA_SPECIFICATION</code> may be generated. Each bullet in the
+Detection Condition below lists an independent reason.</p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.domain_info</code></li>
+<li><code>feature.presence.min_fraction</code></li>
+<li><code>feature.value_count.min</code></li>
+<li><code>feature.value_count.max</code></li>
+<li><code>feature.distribution_constraints</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>feature.presence.min_fraction</code> &lt; 0.0 or &gt; 1.0, or</li>
+<li><code>feature.value_count.min</code> &lt; 0 or &gt; <code>feature.value_count.max</code>, or</li>
+<li>a bool, int, float, struct, or semantic domain is specified for a
+    feature and <code>feature.distribution_constraints</code> is also specified for
+    that feature, or</li>
+<li><code>feature.distribution_constraints</code> is specified for a feature, but
+    neither a schema-level domain nor <code>feature.string_domain</code> is
+    specified for that feature</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>INVALID_DOMAIN_SPECIFICATION</code></p>
+<p>NOTE: There are various different reasons why an anomaly of
+<code>INVALID_DOMAIN_SPECIFICATION</code> may be generated. Each bullet in the
+Detection Condition below lists an independent reason.</p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.domain_info</code></li>
+<li><code>feature.bool_domain</code></li>
+<li><code>feature.string_domain</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li>Unknown <code>feature.domain_info</code> type is specified or</li>
+<li><code>feature.domain</code> is specified, but there is no matching domain
+    specified at the schema level, or</li>
+<li>if <code>feature.bool_domain</code>, <code>feature.bool_domain.true_value</code>, and
+    <code>feature.bool_domain.false_value</code> are specified,<ul>
+<li><code>feature.bool_domain.true_value</code> ==
+    <code>feature.bool_domain.false_value</code>, or</li>
+</ul>
+</li>
+<li>if <code>feature.string_domain</code> is specified,<ul>
+<li>has duplicated <code>feature.string_domain.values</code> or</li>
+<li><code>feature.string_domain</code> exceeds the maximum size</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>UNEXPECTED_DATA_TYPE</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.type</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.type</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>features.type</code> is not of type specified in <code>feature.type</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>SEQUENCE_VALUE_TOO_FEW_OCCURRENCES</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.natural_language_domain.token_constraints.min_per_sequence</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.custom_stats.nl_statistics.token_statistics.per_sequence_min_frequency</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>min_per_sequence</code> &gt; <code>per_sequence_min_frequency</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>SEQUENCE_VALUE_TOO_MANY_OCCURRENCES</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.natural_language_domain.token_constraints.max_per_sequence</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.custom_stats.nl_statistics.token_statistics.per_sequence_max_frequency</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>max_per_sequence</code> &lt; <code>per_sequence_max_frequency</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>SEQUENCE_VALUE_TOO_SMALL_FRACTION</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.natural_language_domain.token_constraints.min_fraction_of_sequences</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.custom_stats.nl_statistics.token_statistics.fraction_of_sequences</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>min_fraction_of_sequences</code> &gt; <code>fraction_of_sequences</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>SEQUENCE_VALUE_TOO_LARGE_FRACTION</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.natural_language_domain.token_constraints.max_fraction_of_sequences</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.custom_stats.nl_statistics.token_statistics.fraction_of_sequences</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>max_fraction_of_sequences</code> &lt; <code>fraction_of_sequences</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>FEATURE_COVERAGE_TOO_LOW</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.natural_language_domain.coverage.min_coverage</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.custom_stats.nl_statistics.feature_coverage</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>feature_coverage</code> &lt; <code>coverage.min_coverage</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>FEATURE_COVERAGE_TOO_SHORT_AVG_TOKEN_LENGTH</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.natural_language_domain.coverage.min_avg_token_length</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.custom_stats.nl_statistics.avg_token_length</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>avg_token_length</code> &lt; <code>min_avg_token_length</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>NLP_WRONG_LOCATION</code></p>
+<ul>
+<li>Anomaly type not detected in TFDV</li>
+</ul>
+</li>
+<li>
+<p><code>EMBEDDING_SHAPE_INVALID</code></p>
+<ul>
+<li>Anomaly type not detected in TFDV</li>
+</ul>
+</li>
+<li>
+<p><code>MAX_IMAGE_BYTE_SIZE_EXCEEDED</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.image_domain.max_image_byte_size</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.bytes_stats.max_num_bytes_int</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>max_num_bytes_int</code> &gt; <code>max_image_byte_size</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>INVALID_FEATURE_SHAPE</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.shape</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.common_stats.num_missing</code></li>
+<li><code>features.common_stats.min_num_values</code></li>
+<li><code>features.common_stats.max_num_values</code></li>
+<li><code>features.common_stats.presence_and_valency_stats.num_missing</code></li>
+<li><code>features.common_stats.presence_and_valency_stats.min_num_values</code></li>
+<li><code>features.common_stats.presence_and_valency_stats.max_num_values</code></li>
+<li><code>features.common_stats.weighted_presence_and_valency_stats</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>feature.shape</code> is specified, and either<ul>
+<li>the feature may be missing (<code>num_missing</code> != 0) at some nest
+    level or</li>
+<li>the feature may have variable number of values (<code>min_num_values</code>
+    != <code>max_num_values</code>) at some nest level or</li>
+<li>the specified shape is not compatible with the feature's value
+    count stats. For example, shape <code>[16]</code> is compatible with
+    (<code>min_num_values</code> == <code>max_num_values</code> == <code>[2, 2, 4]</code> (for a
+    3-nested feature))</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>STATS_NOT_AVAILBLE</code></p>
+<ul>
+<li>Anomaly occurs when stats needed to validate constraints are not
+    present.</li>
+</ul>
+</li>
+<li>
+<p><code>DERIVED_FEATURE_BAD_LIFECYCLE</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.lifecycle_stage</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.validation_derived_source</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>feature.lifecycle_stage</code> is not one of <code>DERIVED</code> or <code>DISABLED</code>, and
+    <code>features.validation_derived_source</code> is present, indicating that
+    this is a derived feature.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><code>DERIVED_FEATURE_INVALID_SOURCE</code></p>
+<ul>
+<li>Schema Fields:<ul>
+<li><code>feature.validation_derived_source</code></li>
+</ul>
+</li>
+<li>Statistics Fields:<ul>
+<li><code>features.validation_derived_source</code></li>
+</ul>
+</li>
+<li>Detection Condition:<ul>
+<li><code>features.validation_derived_source</code> is present for a feature, but
+    the corresponding <code>feature.validation_derived_source</code> is not.</li>
+</ul>
+</li>
+</ul>
+<hr />
+</li>
+</ul>
+<p>* If a weighted statistic is available for this field, it will be used instead
+of the non-weighted statistic.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "..", "features": ["content.code.copy", "content.code.select", "content.action.edit"], "search": "../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.13a4f30d.min.js"></script>
+      
+        <script src="../javascripts/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

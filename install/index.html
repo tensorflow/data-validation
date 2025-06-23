@@ -1,0 +1,1465 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="..">
+      
+      
+        <link rel="next" href="../get_started/">
+      
+      
+      <link rel="icon" href="../images/tf_full_color_primary_icon.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.14">
+    
+    
+      
+        <title>Install - TensorFlow Data Validation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.342714a4.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#tensorflow-data-validation" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="TensorFlow Data Validation" class="md-header__button md-logo" aria-label="TensorFlow Data Validation" data-md-component="logo">
+      
+  <img src="../images/tf_full_color_primary_icon.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            TensorFlow Data Validation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Install
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="TensorFlow Data Validation" class="md-nav__button md-logo" aria-label="TensorFlow Data Validation" data-md-component="logo">
+      
+  <img src="../images/tf_full_color_primary_icon.svg" alt="logo">
+
+    </a>
+    TensorFlow Data Validation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Install
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Install
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#installing-from-pypi" class="md-nav__link">
+    <span class="md-ellipsis">
+      Installing from PyPI
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Installing from PyPI">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nightly-packages" class="md-nav__link">
+    <span class="md-ellipsis">
+      Nightly Packages
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#build-with-docker" class="md-nav__link">
+    <span class="md-ellipsis">
+      Build with Docker
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Build with Docker">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-install-docker" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Install Docker
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-clone-the-tfdv-repository" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Clone the TFDV repository
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-build-the-pip-package" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Build the pip package
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-install-the-pip-package" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Install the pip package
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#build-from-source" class="md-nav__link">
+    <span class="md-ellipsis">
+      Build from source
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Build from source">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Prerequisites
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Prerequisites">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#install-numpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Install NumPy
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#install-bazel" class="md-nav__link">
+    <span class="md-ellipsis">
+      Install Bazel
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-clone-the-tfdv-repository_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Clone the TFDV repository
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-build-the-pip-package_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Build the pip package
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-install-the-pip-package_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Install the pip package
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#supported-platforms" class="md-nav__link">
+    <span class="md-ellipsis">
+      Supported platforms
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#notable-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      Notable Dependencies
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compatible-versions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Compatible versions
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Questions
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#links" class="md-nav__link">
+    <span class="md-ellipsis">
+      Links
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../get_started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Getting Started
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../anomalies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Anomalies
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    API
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#installing-from-pypi" class="md-nav__link">
+    <span class="md-ellipsis">
+      Installing from PyPI
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Installing from PyPI">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nightly-packages" class="md-nav__link">
+    <span class="md-ellipsis">
+      Nightly Packages
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#build-with-docker" class="md-nav__link">
+    <span class="md-ellipsis">
+      Build with Docker
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Build with Docker">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-install-docker" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Install Docker
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-clone-the-tfdv-repository" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Clone the TFDV repository
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-build-the-pip-package" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Build the pip package
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-install-the-pip-package" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Install the pip package
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#build-from-source" class="md-nav__link">
+    <span class="md-ellipsis">
+      Build from source
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Build from source">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Prerequisites
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Prerequisites">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#install-numpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Install NumPy
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#install-bazel" class="md-nav__link">
+    <span class="md-ellipsis">
+      Install Bazel
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-clone-the-tfdv-repository_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Clone the TFDV repository
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-build-the-pip-package_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Build the pip package
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-install-the-pip-package_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Install the pip package
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#supported-platforms" class="md-nav__link">
+    <span class="md-ellipsis">
+      Supported platforms
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#notable-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      Notable Dependencies
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compatible-versions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Compatible versions
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Questions
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#links" class="md-nav__link">
+    <span class="md-ellipsis">
+      Links
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="tensorflow-data-validation">TensorFlow Data Validation<a class="headerlink" href="#tensorflow-data-validation" title="Permanent link">&para;</a></h1>
+<p><em>TensorFlow Data Validation</em> (TFDV) is a library for exploring and validating
+machine learning data. It is designed to be highly scalable
+and to work well with TensorFlow and <a href="https://www.tensorflow.org/tfx">TensorFlow Extended (TFX)</a>.</p>
+<p>TF Data Validation includes:</p>
+<ul>
+<li>Scalable calculation of summary statistics of training and test data.</li>
+<li>Integration with a viewer for data distributions and statistics, as well
+     as faceted comparison of pairs of features (<a href="https://github.com/PAIR-code/facets">Facets</a>)</li>
+<li>Automated <a href="https://github.com/tensorflow/metadata/blob/master/tensorflow_metadata/proto/v0/schema.proto">data-schema</a>
+     generation to describe expectations about data
+     like required values, ranges, and vocabularies</li>
+<li>A schema viewer to help you inspect the schema.</li>
+<li>Anomaly detection to identify anomalies, such as missing features,
+     out-of-range values, or wrong feature types, to name a few.</li>
+<li>An anomalies viewer so that you can see what features have anomalies and
+     learn more in order to correct them.</li>
+</ul>
+<p>For instructions on using TFDV, see the
+<a href="../get_started">get started guide</a>
+and try out the
+<a href="https://colab.research.google.com/github/tensorflow/tfx/blob/master/docs/tutorials/data_validation/tfdv_basic.ipynb">example notebook</a>.
+Some of the techniques implemented in TFDV are described in a
+<a href="https://mlsys.org/Conferences/2019/doc/2019/167.pdf">technical paper published in SysML'19</a>.</p>
+<p>Caution: TFDV may be backwards incompatible before version 1.0.</p>
+<h2 id="installing-from-pypi">Installing from PyPI<a class="headerlink" href="#installing-from-pypi" title="Permanent link">&para;</a></h2>
+<p>The recommended way to install TFDV is using the
+<a href="https://pypi.org/project/tensorflow-data-validation/">PyPI package</a>:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>tensorflow-data-validation
+</span></code></pre></div>
+<h3 id="nightly-packages">Nightly Packages<a class="headerlink" href="#nightly-packages" title="Permanent link">&para;</a></h3>
+<p>TFDV also hosts nightly packages on Google Cloud. To install the latest nightly
+package, please use the following command:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">TFX_DEPENDENCY_SELECTOR</span><span class="o">=</span>NIGHTLY
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>pip<span class="w"> </span>install<span class="w"> </span>--extra-index-url<span class="w"> </span>https://pypi-nightly.tensorflow.org/simple<span class="w"> </span>tensorflow-data-validation
+</span></code></pre></div>
+<p>This will install the nightly packages for the major dependencies of TFDV such
+as TensorFlow Metadata (TFMD) and TFX Basic Shared Libraries (TFX-BSL).</p>
+<p>Sometimes TFDV uses those dependencies' most recent changes, which are not yet
+released. Because of this, it is safer to use nightly versions of those
+dependent libraries when using nightly TFDV. Export the
+<code>TFX_DEPENDENCY_SELECTOR</code> environment variable to do so.</p>
+<p>Note: These nightly packages are unstable and breakages are likely to happen.
+The fix could often take a week or more depending on the complexity involved.</p>
+<h2 id="build-with-docker">Build with Docker<a class="headerlink" href="#build-with-docker" title="Permanent link">&para;</a></h2>
+<p>This is the recommended way to build TFDV under Linux, and is continuously
+tested at Google.</p>
+<h3 id="1-install-docker">1. Install Docker<a class="headerlink" href="#1-install-docker" title="Permanent link">&para;</a></h3>
+<p>Please first install <code>docker</code> and <code>docker-compose</code> by following the directions:
+<a href="https://docs.docker.com/install/">docker</a>;
+<a href="https://docs.docker.com/compose/install/">docker-compose</a>.</p>
+<h3 id="2-clone-the-tfdv-repository">2. Clone the TFDV repository<a class="headerlink" href="#2-clone-the-tfdv-repository" title="Permanent link">&para;</a></h3>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/tensorflow/data-validation
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">cd</span><span class="w"> </span>data-validation
+</span></code></pre></div>
+<p>Note that these instructions will install the latest master branch of TensorFlow
+Data Validation. If you want to install a specific branch (such as a release
+branch), pass <code>-b &lt;branchname&gt;</code> to the <code>git clone</code> command.</p>
+<h3 id="3-build-the-pip-package">3. Build the pip package<a class="headerlink" href="#3-build-the-pip-package" title="Permanent link">&para;</a></h3>
+<p>Then, run the following at the project root:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>sudo<span class="w"> </span>docker-compose<span class="w"> </span>build<span class="w"> </span>manylinux2010
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>sudo<span class="w"> </span>docker-compose<span class="w"> </span>run<span class="w"> </span>-e<span class="w"> </span><span class="nv">PYTHON_VERSION</span><span class="o">=</span><span class="si">${</span><span class="nv">PYTHON_VERSION</span><span class="si">}</span><span class="w"> </span>manylinux2010
+</span></code></pre></div>
+<p>where <code>PYTHON_VERSION</code> is one of <code>{39, 310, 311}</code>.</p>
+<p>A wheel will be produced under <code>dist/</code>.</p>
+<h3 id="4-install-the-pip-package">4. Install the pip package<a class="headerlink" href="#4-install-the-pip-package" title="Permanent link">&para;</a></h3>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>pip<span class="w"> </span>install<span class="w"> </span>dist/*.whl
+</span></code></pre></div>
+<h2 id="build-from-source">Build from source<a class="headerlink" href="#build-from-source" title="Permanent link">&para;</a></h2>
+<h3 id="1-prerequisites">1. Prerequisites<a class="headerlink" href="#1-prerequisites" title="Permanent link">&para;</a></h3>
+<p>To compile and use TFDV, you need to set up some prerequisites.</p>
+<h4 id="install-numpy">Install NumPy<a class="headerlink" href="#install-numpy" title="Permanent link">&para;</a></h4>
+<p>If NumPy is not installed on your system, install it now by following <a href="https://www.scipy.org/scipylib/download.html">these
+directions</a>.</p>
+<h4 id="install-bazel">Install Bazel<a class="headerlink" href="#install-bazel" title="Permanent link">&para;</a></h4>
+<p>If Bazel is not installed on your system, install it now by following <a href="https://bazel.build/versions/master/docs/install.html">these
+directions</a>.</p>
+<h3 id="2-clone-the-tfdv-repository_1">2. Clone the TFDV repository<a class="headerlink" href="#2-clone-the-tfdv-repository_1" title="Permanent link">&para;</a></h3>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/tensorflow/data-validation
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="nb">cd</span><span class="w"> </span>data-validation
+</span></code></pre></div>
+<p>Note that these instructions will install the latest master branch of TensorFlow
+Data Validation. If you want to install a specific branch (such as a release
+branch), pass <code>-b &lt;branchname&gt;</code> to the <code>git clone</code> command.</p>
+<h3 id="3-build-the-pip-package_1">3. Build the pip package<a class="headerlink" href="#3-build-the-pip-package_1" title="Permanent link">&para;</a></h3>
+<p><code>TFDV</code> wheel is Python version dependent -- to build the pip package that
+works for a specific Python version, use that Python binary to run:</p>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>python<span class="w"> </span>setup.py<span class="w"> </span>bdist_wheel
+</span></code></pre></div>
+<p>You can find the generated <code>.whl</code> file in the <code>dist</code> subdirectory.</p>
+<h3 id="4-install-the-pip-package_1">4. Install the pip package<a class="headerlink" href="#4-install-the-pip-package_1" title="Permanent link">&para;</a></h3>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>pip<span class="w"> </span>install<span class="w"> </span>dist/*.whl
+</span></code></pre></div>
+<h2 id="supported-platforms">Supported platforms<a class="headerlink" href="#supported-platforms" title="Permanent link">&para;</a></h2>
+<p>TFDV is tested on the following 64-bit operating systems:</p>
+<ul>
+<li>macOS 12.5 (Monterey) or later.</li>
+<li>Ubuntu 20.04 or later.</li>
+</ul>
+<h2 id="notable-dependencies">Notable Dependencies<a class="headerlink" href="#notable-dependencies" title="Permanent link">&para;</a></h2>
+<p>TensorFlow is required.</p>
+<p><a href="https://beam.apache.org/">Apache Beam</a> is required; it's the way that efficient
+distributed computation is supported. By default, Apache Beam runs in local
+mode but can also run in distributed mode using
+<a href="https://cloud.google.com/dataflow/">Google Cloud Dataflow</a> and other Apache
+Beam
+<a href="https://beam.apache.org/documentation/runners/capability-matrix/">runners</a>.</p>
+<p><a href="https://arrow.apache.org/">Apache Arrow</a> is also required. TFDV uses Arrow to
+represent data internally in order to make use of vectorized numpy functions.</p>
+<h2 id="compatible-versions">Compatible versions<a class="headerlink" href="#compatible-versions" title="Permanent link">&para;</a></h2>
+<p>The following table shows the  package versions that are
+compatible with each other. This is determined by our testing framework, but
+other <em>untested</em> combinations may also work.</p>
+<table>
+<thead>
+<tr>
+<th>tensorflow-data-validation</th>
+<th>apache-beam[gcp]</th>
+<th>pyarrow</th>
+<th>tensorflow</th>
+<th>tensorflow-metadata</th>
+<th>tensorflow-transform</th>
+<th>tfx-bsl</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/master/RELEASE.md">GitHub master</a></td>
+<td>2.65.0</td>
+<td>10.0.1</td>
+<td>nightly (1.x/2.x)</td>
+<td>1.17.1</td>
+<td>n/a</td>
+<td>1.17.1</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v1.17.0/RELEASE.md">1.17.0</a></td>
+<td>2.65.0</td>
+<td>10.0.1</td>
+<td>2.17</td>
+<td>1.17.1</td>
+<td>n/a</td>
+<td>1.17.1</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v1.16.1/RELEASE.md">1.16.1</a></td>
+<td>2.59.0</td>
+<td>10.0.1</td>
+<td>2.16</td>
+<td>1.16.1</td>
+<td>n/a</td>
+<td>1.16.1</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v1.16.0/RELEASE.md">1.16.0</a></td>
+<td>2.59.0</td>
+<td>10.0.1</td>
+<td>2.16</td>
+<td>1.16.0</td>
+<td>n/a</td>
+<td>1.16.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v1.15.1/RELEASE.md">1.15.1</a></td>
+<td>2.47.0</td>
+<td>10.0.0</td>
+<td>2.15</td>
+<td>1.15.0</td>
+<td>n/a</td>
+<td>1.15.1</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v1.15.0/RELEASE.md">1.15.0</a></td>
+<td>2.47.0</td>
+<td>10.0.0</td>
+<td>2.15</td>
+<td>1.15.0</td>
+<td>n/a</td>
+<td>1.15.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v1.14.0/RELEASE.md">1.14.0</a></td>
+<td>2.47.0</td>
+<td>10.0.0</td>
+<td>2.13</td>
+<td>1.14.0</td>
+<td>n/a</td>
+<td>1.14.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v1.13.0/RELEASE.md">1.13.0</a></td>
+<td>2.40.0</td>
+<td>6.0.0</td>
+<td>2.12</td>
+<td>1.13.1</td>
+<td>n/a</td>
+<td>1.13.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v1.12.0/RELEASE.md">1.12.0</a></td>
+<td>2.40.0</td>
+<td>6.0.0</td>
+<td>2.11</td>
+<td>1.12.0</td>
+<td>n/a</td>
+<td>1.12.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v1.11.0/RELEASE.md">1.11.0</a></td>
+<td>2.40.0</td>
+<td>6.0.0</td>
+<td>1.15 / 2.10</td>
+<td>1.11.0</td>
+<td>n/a</td>
+<td>1.11.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v1.10.0/RELEASE.md">1.10.0</a></td>
+<td>2.40.0</td>
+<td>6.0.0</td>
+<td>1.15 / 2.9</td>
+<td>1.10.0</td>
+<td>n/a</td>
+<td>1.10.1</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v1.9.0/RELEASE.md">1.9.0</a></td>
+<td>2.38.0</td>
+<td>5.0.0</td>
+<td>1.15 / 2.9</td>
+<td>1.9.0</td>
+<td>n/a</td>
+<td>1.9.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v1.8.0/RELEASE.md">1.8.0</a></td>
+<td>2.38.0</td>
+<td>5.0.0</td>
+<td>1.15 / 2.8</td>
+<td>1.8.0</td>
+<td>n/a</td>
+<td>1.8.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v1.7.0/RELEASE.md">1.7.0</a></td>
+<td>2.36.0</td>
+<td>5.0.0</td>
+<td>1.15 / 2.8</td>
+<td>1.7.0</td>
+<td>n/a</td>
+<td>1.7.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v1.6.0/RELEASE.md">1.6.0</a></td>
+<td>2.35.0</td>
+<td>5.0.0</td>
+<td>1.15 / 2.7</td>
+<td>1.6.0</td>
+<td>n/a</td>
+<td>1.6.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v1.5.0/RELEASE.md">1.5.0</a></td>
+<td>2.34.0</td>
+<td>2.0.0</td>
+<td>1.15 / 2.7</td>
+<td>1.5.0</td>
+<td>n/a</td>
+<td>1.5.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v1.4.0/RELEASE.md">1.4.0</a></td>
+<td>2.32.0</td>
+<td>2.0.0</td>
+<td>1.15 / 2.6</td>
+<td>1.4.0</td>
+<td>n/a</td>
+<td>1.4.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v1.3.0/RELEASE.md">1.3.0</a></td>
+<td>2.32.0</td>
+<td>2.0.0</td>
+<td>1.15 / 2.6</td>
+<td>1.2.0</td>
+<td>n/a</td>
+<td>1.3.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v1.2.0/RELEASE.md">1.2.0</a></td>
+<td>2.31.0</td>
+<td>2.0.0</td>
+<td>1.15 / 2.5</td>
+<td>1.2.0</td>
+<td>n/a</td>
+<td>1.2.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v1.1.1/RELEASE.md">1.1.1</a></td>
+<td>2.29.0</td>
+<td>2.0.0</td>
+<td>1.15 / 2.5</td>
+<td>1.1.0</td>
+<td>n/a</td>
+<td>1.1.1</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v1.1.0/RELEASE.md">1.1.0</a></td>
+<td>2.29.0</td>
+<td>2.0.0</td>
+<td>1.15 / 2.5</td>
+<td>1.1.0</td>
+<td>n/a</td>
+<td>1.1.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v1.0.0/RELEASE.md">1.0.0</a></td>
+<td>2.29.0</td>
+<td>2.0.0</td>
+<td>1.15 / 2.5</td>
+<td>1.0.0</td>
+<td>n/a</td>
+<td>1.0.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v0.30.0/RELEASE.md">0.30.0</a></td>
+<td>2.28.0</td>
+<td>2.0.0</td>
+<td>1.15 / 2.4</td>
+<td>0.30.0</td>
+<td>n/a</td>
+<td>0.30.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v0.29.0/RELEASE.md">0.29.0</a></td>
+<td>2.28.0</td>
+<td>2.0.0</td>
+<td>1.15 / 2.4</td>
+<td>0.29.0</td>
+<td>n/a</td>
+<td>0.29.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v0.28.0/RELEASE.md">0.28.0</a></td>
+<td>2.28.0</td>
+<td>2.0.0</td>
+<td>1.15 / 2.4</td>
+<td>0.28.0</td>
+<td>n/a</td>
+<td>0.28.1</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v0.27.0/RELEASE.md">0.27.0</a></td>
+<td>2.27.0</td>
+<td>2.0.0</td>
+<td>1.15 / 2.4</td>
+<td>0.27.0</td>
+<td>n/a</td>
+<td>0.27.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v0.26.1/RELEASE.md">0.26.1</a></td>
+<td>2.28.0</td>
+<td>0.17.0</td>
+<td>1.15 / 2.3</td>
+<td>0.26.0</td>
+<td>0.26.0</td>
+<td>0.26.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v0.26.0/RELEASE.md">0.26.0</a></td>
+<td>2.25.0</td>
+<td>0.17.0</td>
+<td>1.15 / 2.3</td>
+<td>0.26.0</td>
+<td>0.26.0</td>
+<td>0.26.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v0.25.0/RELEASE.md">0.25.0</a></td>
+<td>2.25.0</td>
+<td>0.17.0</td>
+<td>1.15 / 2.3</td>
+<td>0.25.0</td>
+<td>0.25.0</td>
+<td>0.25.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v0.24.1/RELEASE.md">0.24.1</a></td>
+<td>2.24.0</td>
+<td>0.17.0</td>
+<td>1.15 / 2.3</td>
+<td>0.24.0</td>
+<td>0.24.1</td>
+<td>0.24.1</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v0.24.0/RELEASE.md">0.24.0</a></td>
+<td>2.23.0</td>
+<td>0.17.0</td>
+<td>1.15 / 2.3</td>
+<td>0.24.0</td>
+<td>0.24.0</td>
+<td>0.24.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v0.23.1/RELEASE.md">0.23.1</a></td>
+<td>2.24.0</td>
+<td>0.17.0</td>
+<td>1.15 / 2.3</td>
+<td>0.23.0</td>
+<td>0.23.0</td>
+<td>0.23.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v0.23.0/RELEASE.md">0.23.0</a></td>
+<td>2.23.0</td>
+<td>0.17.0</td>
+<td>1.15 / 2.3</td>
+<td>0.23.0</td>
+<td>0.23.0</td>
+<td>0.23.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v0.22.2/RELEASE.md">0.22.2</a></td>
+<td>2.20.0</td>
+<td>0.16.0</td>
+<td>1.15 / 2.2</td>
+<td>0.22.0</td>
+<td>0.22.0</td>
+<td>0.22.1</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v0.22.1/RELEASE.md">0.22.1</a></td>
+<td>2.20.0</td>
+<td>0.16.0</td>
+<td>1.15 / 2.2</td>
+<td>0.22.0</td>
+<td>0.22.0</td>
+<td>0.22.1</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v0.22.0/RELEASE.md">0.22.0</a></td>
+<td>2.20.0</td>
+<td>0.16.0</td>
+<td>1.15 / 2.2</td>
+<td>0.22.0</td>
+<td>0.22.0</td>
+<td>0.22.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v0.21.5/RELEASE.md">0.21.5</a></td>
+<td>2.17.0</td>
+<td>0.15.0</td>
+<td>1.15 / 2.1</td>
+<td>0.21.0</td>
+<td>0.21.1</td>
+<td>0.21.3</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v0.21.4/RELEASE.md">0.21.4</a></td>
+<td>2.17.0</td>
+<td>0.15.0</td>
+<td>1.15 / 2.1</td>
+<td>0.21.0</td>
+<td>0.21.1</td>
+<td>0.21.3</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v0.21.2/RELEASE.md">0.21.2</a></td>
+<td>2.17.0</td>
+<td>0.15.0</td>
+<td>1.15 / 2.1</td>
+<td>0.21.0</td>
+<td>0.21.0</td>
+<td>0.21.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v0.21.1/RELEASE.md">0.21.1</a></td>
+<td>2.17.0</td>
+<td>0.15.0</td>
+<td>1.15 / 2.1</td>
+<td>0.21.0</td>
+<td>0.21.0</td>
+<td>0.21.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v0.21.0/RELEASE.md">0.21.0</a></td>
+<td>2.17.0</td>
+<td>0.15.0</td>
+<td>1.15 / 2.1</td>
+<td>0.21.0</td>
+<td>0.21.0</td>
+<td>0.21.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v0.15.0/RELEASE.md">0.15.0</a></td>
+<td>2.16.0</td>
+<td>0.14.0</td>
+<td>1.15 / 2.0</td>
+<td>0.15.0</td>
+<td>0.15.0</td>
+<td>0.15.0</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v0.14.1/RELEASE.md">0.14.1</a></td>
+<td>2.14.0</td>
+<td>0.14.0</td>
+<td>1.14</td>
+<td>0.14.0</td>
+<td>0.14.0</td>
+<td>n/a</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v0.14.0/RELEASE.md">0.14.0</a></td>
+<td>2.14.0</td>
+<td>0.14.0</td>
+<td>1.14</td>
+<td>0.14.0</td>
+<td>0.14.0</td>
+<td>n/a</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v0.13.1/RELEASE.md">0.13.1</a></td>
+<td>2.11.0</td>
+<td>n/a</td>
+<td>1.13</td>
+<td>0.12.1</td>
+<td>0.13.0</td>
+<td>n/a</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v0.13.0/RELEASE.md">0.13.0</a></td>
+<td>2.11.0</td>
+<td>n/a</td>
+<td>1.13</td>
+<td>0.12.1</td>
+<td>0.13.0</td>
+<td>n/a</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v0.12.0/RELEASE.md">0.12.0</a></td>
+<td>2.10.0</td>
+<td>n/a</td>
+<td>1.12</td>
+<td>0.12.1</td>
+<td>0.12.0</td>
+<td>n/a</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v0.11.0/RELEASE.md">0.11.0</a></td>
+<td>2.8.0</td>
+<td>n/a</td>
+<td>1.11</td>
+<td>0.9.0</td>
+<td>0.11.0</td>
+<td>n/a</td>
+</tr>
+<tr>
+<td><a href="https://github.com/tensorflow/data-validation/blob/v0.9.0/RELEASE.md">0.9.0</a></td>
+<td>2.6.0</td>
+<td>n/a</td>
+<td>1.9</td>
+<td>n/a</td>
+<td>n/a</td>
+<td>n/a</td>
+</tr>
+</tbody>
+</table>
+<h2 id="questions">Questions<a class="headerlink" href="#questions" title="Permanent link">&para;</a></h2>
+<p>Please direct any questions about working with TF Data Validation to
+<a href="https://stackoverflow.com">Stack Overflow</a> using the
+<a href="https://stackoverflow.com/questions/tagged/tensorflow-data-validation">tensorflow-data-validation</a>
+tag.</p>
+<h2 id="links">Links<a class="headerlink" href="#links" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../get_started">TensorFlow Data Validation Getting Started Guide</a></li>
+<li><a href="https://colab.research.google.com/github/tensorflow/tfx/blob/master/docs/tutorials/data_validation/tfdv_basic.ipynb">TensorFlow Data Validation Notebook</a></li>
+<li><a href="../api">TensorFlow Data Validation API Documentation</a></li>
+<li><a href="https://medium.com/tensorflow/introducing-tensorflow-data-validation-data-understanding-validation-and-monitoring-at-scale-d38e3952c2f0">TensorFlow Data Validation Blog Post</a></li>
+<li><a href="https://pypi.org/project/tensorflow-data-validation/">TensorFlow Data Validation PyPI</a></li>
+<li><a href="https://www.sysml.cc/doc/2019/167.pdf">TensorFlow Data Validation Paper</a></li>
+<li><a href="https://conf.slac.stanford.edu/xldb2018/sites/xldb2018.conf.slac.stanford.edu/files/Tues_09.45_NeoklisPolyzotis_Data%20Analysis%20and%20Validation%20\(1\).pdf">TensorFlow Data Validation Slides</a></li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "..", "features": ["content.code.copy", "content.code.select", "content.action.edit"], "search": "../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.13a4f30d.min.js"></script>
+      
+        <script src="../javascripts/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>
