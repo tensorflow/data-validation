@@ -16,14 +16,11 @@
 
 import copy
 import json
-import logging
 import types as python_types
 from typing import Dict, List, Optional, Union
 
 from google.protobuf import json_format
 from tensorflow_metadata.proto.v0 import schema_pb2
-from tfx_bsl.arrow import sql_util
-from tfx_bsl.coders import example_coder
 from tfx_bsl.public.proto import slicing_spec_pb2
 
 from tensorflow_data_validation import types
@@ -31,7 +28,6 @@ from tensorflow_data_validation.statistics.generators import stats_generator
 from tensorflow_data_validation.utils import (
     example_weight_map,
     schema_util,
-    slicing_util,
 )
 
 _SCHEMA_JSON_KEY = "schema_json"
@@ -81,7 +77,6 @@ class StatsOptions:
         experimental_use_sketch_based_topk_uniques: Optional[bool] = None,
         use_sketch_based_topk_uniques: Optional[bool] = None,
         experimental_slice_functions: Optional[List[types.SliceFunction]] = None,
-        experimental_slice_sqls: Optional[List[str]] = None,
         experimental_result_partitions: int = 1,
         experimental_num_feature_partitions: int = 1,
         slicing_config: Optional[slicing_spec_pb2.SlicingConfig] = None,
@@ -166,25 +161,8 @@ class StatsOptions:
             pyarrow.RecordBatch as input and return an Iterable[Tuple[Text,
             pyarrow.RecordBatch]]. Each tuple contains the slice key and the
             corresponding sliced RecordBatch. Only one of
-            experimental_slice_functions or experimental_slice_sqls must be
+            experimental_slice_functions must be
             specified.
-          experimental_slice_sqls: List of slicing SQL queries. The query must have
-            the following pattern: "SELECT STRUCT({feature_name} [AS {slice_key}])
-            [FROM example.feature_name [, example.feature_name, ... ] [WHERE ... ]]"
-            The “example.feature_name” inside the FROM statement is used to flatten
-            the repeated fields. For non-repeated fields, you can directly write the
-            query as follows: “SELECT STRUCT(non_repeated_feature_a,
-            non_repeated_feature_b)” In the query, the “example” is a key word that
-            binds to each input "row". The semantics of this variable will depend on
-            the decoding of the input data to the Arrow representation (e.g., for
-            tf.Example, each key is decoded to a separate column). Thus, structured
-            data can be readily accessed by iterating/unnesting the fields of the
-            "example" variable. Example 1: Slice on each value of a feature "SELECT
-            STRUCT(gender) FROM example.gender" Example 2: Slice on each value of
-            one feature and a specified value of another. "SELECT STRUCT(gender,
-            country) FROM example.gender, example.country WHERE country = 'USA'"
-            Only one of experimental_slice_functions or experimental_slice_sqls must
-            be specified.
           experimental_result_partitions: The number of feature partitions to
             combine output DatasetFeatureStatisticsLists into. If set to 1 (default)
             output is globally combined. If set to value greater than one, up to
@@ -195,7 +173,7 @@ class StatsOptions:
             number of features in a dataset, and never more than the available beam
             parallelism.
           slicing_config: an optional SlicingConfig. SlicingConfig includes
-            slicing_specs specified with feature keys, feature values or slicing SQL
+            slicing_specs specified with feature keys or feature values
             queries.
           experimental_filter_read_paths: If provided, tries to push down either
             paths passed via feature_allowlist or via the schema (in that priority)
@@ -246,7 +224,6 @@ class StatsOptions:
             self.use_sketch_based_topk_uniques = True
         else:
             self.use_sketch_based_topk_uniques = False
-        self.experimental_slice_sqls = experimental_slice_sqls
         self.experimental_num_feature_partitions = experimental_num_feature_partitions
         self.experimental_result_partitions = experimental_result_partitions
         self.slicing_config = slicing_config
@@ -424,8 +401,6 @@ class StatsOptions:
     def experimental_slice_functions(
         self, slice_functions: Optional[List[types.SliceFunction]]
     ) -> None:
-        if hasattr(self, "experimental_slice_sqls"):
-            _validate_slicing_options(slice_functions, self.experimental_slice_sqls)
         if slice_functions is not None:
             if not isinstance(slice_functions, list):
                 raise TypeError(
@@ -440,19 +415,6 @@ class StatsOptions:
         self._slice_functions = slice_functions
 
     @property
-    def experimental_slice_sqls(self) -> Optional[List[str]]:
-        return self._slice_sqls
-
-    @experimental_slice_sqls.setter
-    def experimental_slice_sqls(self, slice_sqls: Optional[List[str]]) -> None:
-        if hasattr(self, "experimental_slice_functions"):
-            _validate_slicing_options(self.experimental_slice_functions, slice_sqls)
-        if slice_sqls and self.schema:
-            for slice_sql in slice_sqls:
-                _validate_sql(slice_sql, self.schema)
-        self._slice_sqls = slice_sqls
-
-    @property
     def slicing_config(self) -> Optional[slicing_spec_pb2.SlicingConfig]:
         return self._slicing_config
 
@@ -460,16 +422,9 @@ class StatsOptions:
     def slicing_config(
         self, slicing_config: Optional[slicing_spec_pb2.SlicingConfig]
     ) -> None:
-        _validate_slicing_config(slicing_config)
-
         if slicing_config and self.experimental_slice_functions:
             raise ValueError(
                 "Specify only one of slicing_config or experimental_slice_functions."
-            )
-
-        if slicing_config and self.experimental_slice_sqls:
-            raise ValueError(
-                "Specify only one of slicing_config or experimental_slice_sqls."
             )
 
         self._slicing_config = slicing_config
@@ -638,67 +593,3 @@ class StatsOptions:
         self, features_config: types.PerFeatureStatsConfig
     ) -> None:
         self._per_feature_stats_config = features_config
-
-
-def _validate_sql(sql_query: str, schema: schema_pb2.Schema):
-    arrow_schema = example_coder.ExamplesToRecordBatchDecoder(
-        schema.SerializeToString()
-    ).ArrowSchema()
-    formatted_query = slicing_util.format_slice_sql_query(sql_query)
-    try:
-        sql_util.RecordBatchSQLSliceQuery(formatted_query, arrow_schema)
-    except Exception as e:  # pylint: disable=broad-except
-        # The schema passed to TFDV initially may be incomplete, so we can't crash
-        # on what may be an error caused by missing features.
-        logging.error(
-            "One of the slice SQL query %s raised an exception: %s.", sql_query, repr(e)
-        )
-
-
-def _validate_slicing_options(
-    slice_fns: Optional[List[types.SliceFunction]] = None,
-    slice_sqls: Optional[List[str]] = None,
-):
-    if slice_fns and slice_sqls:
-        raise ValueError(
-            "Only one of experimental_slice_functions or "
-            "experimental_slice_sqls must be specified."
-        )
-
-
-def _validate_slicing_config(slicing_config: Optional[slicing_spec_pb2.SlicingConfig]):
-    """Validates slicing config.
-
-    Args:
-    ----
-      slicing_config: an optional list of slicing specifications. Slicing
-      specifications can be provided by feature keys, feature values or slicing
-      SQL queries.
-
-    Returns:
-    -------
-      None if slicing_config is None.
-
-    Raises:
-    ------
-      ValueError: If both slicing functions and slicing sql queries are specified
-      in the slicing config.
-    """
-    if slicing_config is None:
-        return
-
-    has_slice_fns, has_slice_sqls = False, False
-
-    for slicing_spec in slicing_config.slicing_specs:
-        if (not has_slice_fns) and (
-            slicing_spec.feature_keys or slicing_spec.feature_values
-        ):
-            has_slice_fns = True
-        if (not has_slice_sqls) and slicing_spec.slice_keys_sql:
-            has_slice_sqls = True
-
-        if has_slice_fns and has_slice_sqls:
-            raise ValueError(
-                "Only one of slicing features or slicing sql queries can be "
-                "specified in the slicing config."
-            )

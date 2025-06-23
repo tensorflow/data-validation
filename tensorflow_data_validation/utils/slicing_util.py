@@ -13,13 +13,11 @@
 # limitations under the License.
 """Utility function for generating slicing functions."""
 
-import collections
 import functools
 import logging
 from collections import abc
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Union
 
-import apache_beam as beam
 import numpy as np
 import pandas as pd
 
@@ -29,7 +27,7 @@ import pandas.core.computation.expressions  # pylint: disable=unused-import
 import pyarrow as pa
 import six
 from tensorflow_metadata.proto.v0 import statistics_pb2
-from tfx_bsl.arrow import array_util, sql_util, table_util
+from tfx_bsl.arrow import array_util, table_util
 from tfx_bsl.public.proto import slicing_spec_pb2
 
 from tensorflow_data_validation import constants, types
@@ -155,41 +153,41 @@ def get_feature_value_slicer(
                             "the provided slice values are not valid integers."
                         ) from e
 
-                        flattened, value_parent_indices = array_util.flatten_nested(
-                            feature_array, True
-                        )
-                        non_missing_values = np.asarray(flattened)
-                        # Create dataframe with feature value and parent index.
-                        df = pd.DataFrame(
-                            {
-                                feature_name: non_missing_values,
-                                _PARENT_INDEX_COLUMN: value_parent_indices,
-                            }
-                        )
-                        df = df.drop_duplicates()
-                        # Filter based on slice values
-                        if values is not None:
-                            df = df.loc[df[feature_name].isin(values)]
-                        per_feature_parent_indices.append(df)
-                # If there are no features to slice on, yield no output.
-                # TODO(b/200081813): Produce output with an appropriate placeholder key.
-                if not per_feature_parent_indices:
-                    return
-                # Join dataframes based on parent indices.
-                # Note that we want the parent indices per slice key to be sorted in the
-                # merged dataframe. The individual dataframes have the parent indices in
-                # sorted order. We use "inner" join type to preserve the order of the left
-                # keys (also note that same parent index rows would be consecutive). Hence
-                # we expect the merged dataframe to have sorted parent indices per
-                # slice key.
-                merged_df = functools.reduce(
-                    lambda base, update: base.merge(
-                        update,
-                        how="inner",  # pylint: disable=g-long-lambda
-                        on=_PARENT_INDEX_COLUMN,
-                    ),
-                    per_feature_parent_indices,
-                )
+            flattened, value_parent_indices = array_util.flatten_nested(
+                feature_array, True
+            )
+            non_missing_values = np.asarray(flattened)
+            # Create dataframe with feature value and parent index.
+            df = pd.DataFrame(
+                {
+                    feature_name: non_missing_values,
+                    _PARENT_INDEX_COLUMN: value_parent_indices,
+                }
+            )
+            df = df.drop_duplicates()
+            # Filter based on slice values
+            if values is not None:
+                df = df.loc[df[feature_name].isin(values)]
+            per_feature_parent_indices.append(df)
+        # If there are no features to slice on, yield no output.
+        # TODO(b/200081813): Produce output with an appropriate placeholder key.
+        if not per_feature_parent_indices:
+            return
+        # Join dataframes based on parent indices.
+        # Note that we want the parent indices per slice key to be sorted in the
+        # merged dataframe. The individual dataframes have the parent indices in
+        # sorted order. We use "inner" join type to preserve the order of the left
+        # keys (also note that same parent index rows would be consecutive). Hence
+        # we expect the merged dataframe to have sorted parent indices per
+        # slice key.
+        merged_df = functools.reduce(
+            lambda base, update: base.merge(
+                update,
+                how="inner",  # pylint: disable=g-long-lambda
+                on=_PARENT_INDEX_COLUMN,
+            ),
+            per_feature_parent_indices,
+        )
 
         # Construct a new column in the merged dataframe with the slice keys.
         merged_df[_SLICE_KEY_COLUMN] = ""
@@ -267,42 +265,26 @@ def generate_slices(
             )
 
 
-def format_slice_sql_query(slice_sql_query: str) -> str:
-    return f"""
-         SELECT
-           ARRAY(
-             {slice_sql_query}
-           ) as slice_key
-         FROM Examples as example;"""
-
-
-def convert_slicing_config_to_slice_functions_and_sqls(
+def convert_slicing_config_to_slice_functions(
     slicing_config: Optional[slicing_spec_pb2.SlicingConfig],
-) -> Tuple[List[types.SliceFunction], List[str]]:
-    """Convert slicing config to a tuple of slice functions and sql queries.
+) -> List[types.SliceFunction]:
+    """Convert slicing config to a list of slice functions.
 
     Args:
     ----
       slicing_config: an optional list of slicing specifications. Slicing
-      specifications can be provided by feature keys, feature values or slicing
-      SQL queries.
+      specifications can be provided by feature keys, or feature values
 
     Returns:
     -------
-      A tuple consisting of a list of slice functions and a list of slice sql
-      queries.
+      A list of slice functions.
     """
     if not slicing_config:
-        return [], []
+        return []
     slice_function_list = []
-    slice_keys_sql_list = []
     for slicing_spec in slicing_config.slicing_specs:
         # checking overall slice
-        if (
-            not slicing_spec.feature_keys
-            and not slicing_spec.feature_values
-            and not slicing_spec.slice_keys_sql
-        ):
+        if not slicing_spec.feature_keys and not slicing_spec.feature_values:
             logging.info("The entire dataset is already included as a slice.")
             continue
 
@@ -315,83 +297,4 @@ def convert_slicing_config_to_slice_functions_and_sqls(
         if slice_spec_dict:
             slice_function_list.append(get_feature_value_slicer(slice_spec_dict))
 
-        if slicing_spec.slice_keys_sql:
-            slice_keys_sql_list.append(slicing_spec.slice_keys_sql)
-
-    return slice_function_list, slice_keys_sql_list
-
-
-class GenerateSlicesSqlDoFn(beam.DoFn):
-    """A DoFn that extracts slice keys in batch based on input SQL."""
-
-    def __init__(self, slice_sqls: List[str]):
-        self._sqls = [format_slice_sql_query(slice_sql) for slice_sql in slice_sqls]
-        self._sql_slicer_schema_cache_hits = beam.metrics.Metrics.distribution(
-            constants.METRICS_NAMESPACE, "sql_slicer_schema_cache_hits"
-        )
-        self._sql_slicer_schema_cache_misses = beam.metrics.Metrics.distribution(
-            constants.METRICS_NAMESPACE, "sql_slicer_schema_cache_misses"
-        )
-
-    def setup(self):
-        def _generate_queries(
-            schema: pa.Schema,
-        ) -> List[sql_util.RecordBatchSQLSliceQuery]:
-            queries = []
-            for sql in self._sqls:
-                try:
-                    queries.append(sql_util.RecordBatchSQLSliceQuery(sql, schema))
-                except RuntimeError as error:
-                    # We can't crash on errors caused by missing features/values.
-                    # Instead failed slicing sqls will create a Invalid Slice.
-                    logging.warning("Failed to parse SQL query %r: %r", sql, error)
-                    queries.append(None)
-            return queries
-
-        # A cache for compiled sql queries, keyed by record batch schemas.
-        # This way we can work with record batches of different schemas.
-        self._get_queries_for_schema = functools.lru_cache(maxsize=3)(_generate_queries)
-
-    def process(
-        self, record_batch: pa.RecordBatch
-    ) -> Iterable[types.SlicedRecordBatch]:
-        # Keep track of row indices per slice key.
-        per_slice_indices = collections.defaultdict(set)
-        if record_batch.schema.metadata is not None:
-            # record_batch may have unhashable schema metadata if derived features are
-            # being used, so we construct a new schema that strips that information.
-            cache_schema = pa.schema(
-                zip(record_batch.schema.names, record_batch.schema.types)
-            )
-        else:
-            cache_schema = record_batch.schema
-        for query in self._get_queries_for_schema(cache_schema):
-            # Example of result with batch size = 3:
-            # result = [[[('feature', 'value_1')]],
-            #           [[('feature', 'value_2')]],
-            #           []
-            #          ]
-            if query is None:
-                yield (constants.INVALID_SLICE_KEY, record_batch)
-                continue
-
-            result = query.Execute(record_batch)
-            for i, per_row_slices in enumerate(result):
-                for slice_tuples in per_row_slices:
-                    slice_key = "_".join(map("_".join, slice_tuples))
-                    per_slice_indices[slice_key].add(i)
-
-        yield (constants.DEFAULT_SLICE_KEY, record_batch)
-        for slice_key, row_indices in per_slice_indices.items():
-            yield (
-                slice_key,
-                table_util.RecordBatchTake(record_batch, pa.array(row_indices)),
-            )
-
-    def teardown(self):
-        self._sql_slicer_schema_cache_hits.update(
-            self._get_queries_for_schema.cache_info().hits
-        )
-        self._sql_slicer_schema_cache_misses.update(
-            self._get_queries_for_schema.cache_info().misses
-        )
+    return slice_function_list
