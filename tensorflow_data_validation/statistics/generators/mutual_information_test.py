@@ -15,6 +15,7 @@
 
 import apache_beam as beam
 import numpy as np
+import sys
 import pyarrow as pa
 import pytest
 from absl.testing import absltest, parameterized
