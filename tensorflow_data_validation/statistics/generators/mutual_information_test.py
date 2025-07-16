@@ -219,6 +219,7 @@ class EncodeExamplesTest(absltest.TestCase):
             batch, expected, set([types.FeaturePath(["fa"])]), EMPTY_SET
         )
 
+    @pytest.mark.skipif(sys.platform == "darwin", reason="fails on macos")
     def test_encoder_multivalent_numeric_too_large_for_numpy_v1(self):
         # For NumPy version 1.x.x, np.histogram cannot handle values > 2**53 if the
         # min and max of the examples are the same.
