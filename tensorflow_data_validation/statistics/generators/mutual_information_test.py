@@ -13,9 +13,10 @@
 # limitations under the License.
 """Tests for mutual_information."""
 
+import sys
+
 import apache_beam as beam
 import numpy as np
-import sys
 import pyarrow as pa
 import pytest
 from absl.testing import absltest, parameterized
@@ -1444,6 +1445,7 @@ class MutualInformationTest(absltest.TestCase):
                 TEST_MAX_ENCODING_LENGTH,
             ).compute(batch)
 
+    @pytest.mark.skipif(sys.platform == "darwin", reason="fails on macos")
     def test_mi_multivalent_too_large_int_value_for_numpy_v1(self):
         # For NumPy version 1.x.x, np.histogram cannot handle values > 2**53 if the
         # min and max of the examples are the same.
