@@ -148,11 +148,25 @@ def _make_docs_requirements():
     ]
 
 
+def _make_test_requirements():
+    return [
+        "pytest",
+        "scikit-learn",
+        "scipy",
+    ]
+
+
+def _make_dev_requirements():
+    return ["precommit", "cibuildwheel", "build"]
+
+
 def _make_all_extra_requirements():
     return (
         *_make_mutual_information_requirements(),
         *_make_visualization_requirements(),
         *_make_docs_requirements(),
+        *_make_test_requirements(),
+        *_make_dev_requirements(),
     )
 
 
@@ -230,23 +244,19 @@ setup(
             nightly=">=1.18.0.dev",
             git_master="@git+https://github.com/tensorflow/metadata@master",
         ),
-        "ajf-test-tfx-bsl>=1.18.0.dev",
-        # + select_constraint(
-        #     default=">=1.17.1,<1.18",
-        #     nightly=">=1.18.0.dev",
-        #     git_master="@git+https://github.com/tensorflow/tfx-bsl@master",
-        # ),
+        "tfx-bsl",
+        + select_constraint(
+            default=">=1.17.1,<1.18",
+            nightly=">=1.18.0.dev",
+            git_master="@git+https://github.com/tensorflow/tfx-bsl@master",
+        ),
     ],
     extras_require={
         "mutual-information": _make_mutual_information_requirements(),
         "visualization": _make_visualization_requirements(),
-        "dev": ["precommit", "cibuildwheel", "build"],
+        "dev": _make_dev_requirements(),
         "docs": _make_docs_requirements(),
-        "test": [
-            "pytest",
-            "scikit-learn",
-            "scipy",
-        ],
+        "test": _make_test_requirements(),
         "all": _make_all_extra_requirements(),
     },
     python_requires=">=3.9,<4",
