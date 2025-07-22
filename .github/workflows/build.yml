@@ -37,3 +37,33 @@ jobs:
 
     - name: Build wheels
       uses: pypa/cibuildwheel@v2.23.3
+
+
+  upload_to_pypi:
+    name: Upload to Test PyPI
+    runs-on: ubuntu-latest
+    if: (github.event_name == 'release' && startsWith(github.ref, 'refs/tags')) || (github.event_name == 'workflow_dispatch')
+    needs: [build_wheels]
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/ajf-test-tfdv/
+    permissions:
+      id-token: write
+    steps:
+      - name: Retrieve wheels and sdist
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          path: wheels/
+
+      - name: List the build artifacts
+        run: |
+          ls -lAs wheels/
+      - name: Upload to Test PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1.12
+        with:
+          packages_dir: wheels/
+          repository_url: https://test.pypi.org/legacy/
+          # already checked, and the pkginfo/twine versions on this runner causes check to fail
+          verify-metadata: true
+          verbose: true

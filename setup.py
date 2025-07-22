@@ -194,7 +194,7 @@ with open("README.md") as fp:
     _LONG_DESCRIPTION = fp.read()
 
 setup(
-    name="tensorflow-data-validation",
+    name="ajf-test-tfdv",
     version=__version__,
     author="Google LLC",
     author_email="tensorflow-extended-dev@googlegroups.com",
@@ -244,12 +244,12 @@ setup(
             nightly=">=1.18.0.dev",
             git_master="@git+https://github.com/tensorflow/metadata@master",
         ),
-        "tfx-bsl",
-        + select_constraint(
-            default=">=1.17.1,<1.18",
-            nightly=">=1.18.0.dev",
-            git_master="@git+https://github.com/tensorflow/tfx-bsl@master",
-        ),
+        "ajf-test-tfx-bsl==1.18.1",
+        # + select_constraint(
+        #     default=">=1.17.1,<1.18",
+        #     nightly=">=1.18.0.dev",
+        #     git_master="@git+https://github.com/tensorflow/tfx-bsl@master",
+        # ),
     ],
     extras_require={
         "mutual-information": _make_mutual_information_requirements(),
