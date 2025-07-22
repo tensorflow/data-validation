@@ -37,15 +37,3 @@ jobs:
 
     - name: Build wheels
       uses: pypa/cibuildwheel@v2.23.3
-      # env:
-      #   CIBW_SOME_OPTION: value
-      #    ...
-      # with:
-      #   package-dir: .
-      #   output-dir: wheelhouse
-      #   config-file: "{package}/pyproject.toml"
-
-    - uses: actions/upload-artifact@v4
-      with:
-        name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
-        path: ./wheelhouse/*.whl
