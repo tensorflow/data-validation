@@ -77,15 +77,31 @@ class _BazelBuildCommand(setuptools.Command):
             )
         self._additional_build_options = []
         if platform.system() == "Darwin":
-            self._additional_build_options = ["--macos_minimum_os=10.14"]
+            # This flag determines the platform qualifier of the macos wheel.
+            if platform.machine() == "arm64":
+                self._additional_build_options = [
+                    "--macos_minimum_os=11.0",
+                    "--config=macos_arm64",
+                ]
+            else:
+                self._additional_build_options = ["--macos_minimum_os=10.14"]
 
     def run(self):
-        subprocess.check_call(
+        check_call_call = (
             [self._bazel_cmd, "run", "-c", "opt"]
             + self._additional_build_options
-            + ["//tensorflow_data_validation:move_generated_files"],
+            + ["//tensorflow_data_validation:move_generated_files"]
+        )
+        print(check_call_call)
+        subprocess.check_call(
+            check_call_call,
             # Bazel should be invoked in a directory containing bazel WORKSPACE
             # file, which is the root directory.
+            cwd=os.path.dirname(os.path.realpath(__file__)),
+            env=dict(os.environ, PYTHON_BIN_PATH=sys.executable),
+        )
+        subprocess.check_call(
+            ["ls", "-al"],
             cwd=os.path.dirname(os.path.realpath(__file__)),
             env=dict(os.environ, PYTHON_BIN_PATH=sys.executable),
         )
@@ -132,11 +148,25 @@ def _make_docs_requirements():
     ]
 
 
+def _make_test_requirements():
+    return [
+        "pytest",
+        "scikit-learn",
+        "scipy",
+    ]
+
+
+def _make_dev_requirements():
+    return ["precommit", "cibuildwheel", "build"]
+
+
 def _make_all_extra_requirements():
     return (
         *_make_mutual_information_requirements(),
         *_make_visualization_requirements(),
         *_make_docs_requirements(),
+        *_make_test_requirements(),
+        *_make_dev_requirements(),
     )
 
 
@@ -224,13 +254,9 @@ setup(
     extras_require={
         "mutual-information": _make_mutual_information_requirements(),
         "visualization": _make_visualization_requirements(),
-        "dev": ["precommit"],
+        "dev": _make_dev_requirements(),
         "docs": _make_docs_requirements(),
-        "test": [
-            "pytest",
-            "scikit-learn",
-            "scipy",
-        ],
+        "test": _make_test_requirements(),
         "all": _make_all_extra_requirements(),
     },
     python_requires=">=3.9,<4",

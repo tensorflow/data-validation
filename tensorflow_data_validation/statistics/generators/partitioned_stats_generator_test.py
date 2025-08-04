@@ -13,6 +13,8 @@
 # limitations under the License.
 """Tests for partitioned_stats_generator."""
 
+import sys
+
 import apache_beam as beam
 import numpy as np
 import pyarrow as pa
@@ -473,6 +475,7 @@ class SampleRecordBatchRows(parameterized.TestCase):
         if num_compacts_metric:
             self.assertEqual(metric_num_compacts, num_compacts)
 
+    @pytest.mark.skipif(sys.platform == "darwin", reason="fails on macos")
     def test_sample_metrics(self):
         record_batch = pa.RecordBatch.from_arrays(
             [

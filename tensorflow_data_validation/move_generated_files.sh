@@ -16,6 +16,8 @@
 # Moves the bazel generated files needed for packaging the wheel to the source
 # tree.
 function tfdv::move_generated_files() {
+  echo $BUILD_WORKSPACE_DIRECTORY
+
   PYWRAP_TFDV="tensorflow_data_validation/pywrap/tensorflow_data_validation_extension.so"
   cp -f "${BUILD_WORKSPACE_DIRECTORY}/bazel-bin/${PYWRAP_TFDV}" \
     "${BUILD_WORKSPACE_DIRECTORY}/${PYWRAP_TFDV}"
@@ -23,6 +25,7 @@ function tfdv::move_generated_files() {
   # If run by "bazel run", $(pwd) is the .runfiles dir that contains all the
   # data dependencies.
   RUNFILES_DIR=$(pwd)
+  echo "RUNFILES_DIR: ${RUNFILES_DIR}"
   cp -f ${RUNFILES_DIR}/tensorflow_data_validation/skew/protos/feature_skew_results_pb2.py \
     ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/skew/protos
   cp -f ${RUNFILES_DIR}/tensorflow_data_validation/anomalies/proto/validation_config_pb2.py \
@@ -30,6 +33,7 @@ function tfdv::move_generated_files() {
   cp -f ${RUNFILES_DIR}/tensorflow_data_validation/anomalies/proto/validation_metadata_pb2.py \
     ${BUILD_WORKSPACE_DIRECTORY}/tensorflow_data_validation/anomalies/proto
   chmod +w "${BUILD_WORKSPACE_DIRECTORY}/${PYWRAP_TFDV}"
+  echo "finished moving generated files"
 }
 
 tfdv::move_generated_files

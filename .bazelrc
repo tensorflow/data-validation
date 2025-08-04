@@ -2,6 +2,8 @@
 # Zetasql is removed.
 # This is a candidate for removal
 build --cxxopt="-std=c++17"
+# Needed to build absl
+build --host_cxxopt=-std=c++17
 
 # Needed to avoid zetasql proto error.
 # Zetasql is removed.
@@ -12,3 +14,5 @@ build --protocopt=--experimental_allow_proto3_optional
 # parameter 'user_link_flags' is deprecated and will be removed soon.
 # It may be temporarily re-enabled by setting --incompatible_require_linker_input_cc_api=false
 build --incompatible_require_linker_input_cc_api=false
+build:macos --apple_platform_type=macos
+build:macos_arm64 --cpu=darwin_arm64

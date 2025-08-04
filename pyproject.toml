@@ -17,7 +17,7 @@ requires = [
   "setuptools",
   "wheel",
   # Required for using org_tensorflow bazel repository.
-  "numpy~=1.22.0",
+  "numpy>=1.22.0",
 ]
 
 [tool.ruff]
@@ -143,6 +143,23 @@ ignore = [
     "UP031",  # Use format specifiers instead of percent format
 ]
 
-
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
+
+[tool.cibuildwheel]
+build-frontend="build"
+environment = {USE_BAZEL_VERSION = "6.5.0"}
+skip = ["cp312-*", "cp313-*", "*musllinux*", "pp*"]
+test-command="pytest {project}"
+test-extras = ["test"]
+
+[tool.cibuildwheel.linux]
+manylinux-x86_64-image = "manylinux2014"
+archs=["x86_64"]
+before-build = "yum install -y npm && npm install -g @bazel/bazelisk"
+test-command="pytest {project}"
+
+
+[tool.cibuildwheel.macos]
+# bazel install not required because it's already in github action runner
+archs = ["arm64"]
