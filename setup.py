@@ -175,7 +175,7 @@ setup(
     # six, and protobuf) with TF.
     install_requires=[
         'scikit-learn==1.5.1',
-        'scipy==1.17.0',
+        'scipy>=1.4.1,<2',
         'absl-py>=0.9,<2.0.0',
         'apache-beam[gcp]>=2.53,<3;python_version>="3.11"',
         'apache-beam[gcp]>=2.50,<2.51;python_version<"3.11"',
