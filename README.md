@@ -238,4 +238,3 @@ tag.
   * [TensorFlow Data Validation PyPI](https://pypi.org/project/tensorflow-data-validation/)
   * [TensorFlow Data Validation Paper](https://mlsys.org/Conferences/2019/doc/2019/167.pdf)
   * [TensorFlow Data Validation Slides](https://conf.slac.stanford.edu/xldb2018/sites/xldb2018.conf.slac.stanford.edu/files/Tues_09.45_NeoklisPolyzotis_Data%20Analysis%20and%20Validation%20(1).pdf)
-

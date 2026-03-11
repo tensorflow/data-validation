@@ -14,32 +14,30 @@
 
 """Tests for basic statistics generator."""
 
-from absl.testing import absltest
-from absl.testing import parameterized
 import numpy as np
 import pyarrow as pa
+from absl.testing import absltest, parameterized
+from google.protobuf import text_format
+from tensorflow_metadata.proto.v0 import schema_pb2, statistics_pb2
+
 from tensorflow_data_validation import types
 from tensorflow_data_validation.statistics.generators import basic_stats_generator
 from tensorflow_data_validation.utils import test_util
 from tensorflow_data_validation.utils.example_weight_map import ExampleWeightMap
 
-from google.protobuf import text_format
-from tensorflow_metadata.proto.v0 import schema_pb2
-from tensorflow_metadata.proto.v0 import statistics_pb2
-
 
 class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
-
-  def test_single_feature(self):
-    # input with two batches: first batch has two examples and second batch
-    # has a single example.
-    b1 = pa.RecordBatch.from_arrays([pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]])],
-                                    ['a'])
-    b2 = pa.RecordBatch.from_arrays([pa.array([[1.0]])], ['a'])
-    batches = [b1, b2]
-    expected_result = {
-        types.FeaturePath(['a']): text_format.Parse(
-            """
+    def test_single_feature(self):
+        # input with two batches: first batch has two examples and second batch
+        # has a single example.
+        b1 = pa.RecordBatch.from_arrays(
+            [pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]])], ["a"]
+        )
+        b2 = pa.RecordBatch.from_arrays([pa.array([[1.0]])], ["a"])
+        batches = [b1, b2]
+        expected_result = {
+            types.FeaturePath(["a"]): text_format.Parse(
+                """
             path {
               step: 'a'
             }
@@ -123,21 +121,26 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 type: QUANTILES
               }
             }
-            """, statistics_pb2.FeatureNameStatistics())}
-    generator = basic_stats_generator.BasicStatsGenerator(
-        num_values_histogram_buckets=4, num_histogram_buckets=3,
-        num_quantiles_histogram_buckets=4)
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
+            """,
+                statistics_pb2.FeatureNameStatistics(),
+            )
+        }
+        generator = basic_stats_generator.BasicStatsGenerator(
+            num_values_histogram_buckets=4,
+            num_histogram_buckets=3,
+            num_quantiles_histogram_buckets=4,
+        )
+        self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_two_feature_partitions(self):
-    # Note: default partitioner assigns a->1, b->0
-    b1 = pa.RecordBatch.from_arrays(
-        [pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]]),
-         pa.array([['abc'], ['xyz']])], ['a', 'b'])
-    batches = [b1]
-    expected_result = {
-        types.FeaturePath(['b']):
-            text_format.Parse(
+    def test_two_feature_partitions(self):
+        # Note: default partitioner assigns a->1, b->0
+        b1 = pa.RecordBatch.from_arrays(
+            [pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]]), pa.array([["abc"], ["xyz"]])],
+            ["a", "b"],
+        )
+        batches = [b1]
+        expected_result = {
+            types.FeaturePath(["b"]): text_format.Parse(
                 """
             type: STRING
             string_stats {
@@ -176,34 +179,37 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             path {
               step: "b"
             }
-            """, statistics_pb2.FeatureNameStatistics())
-    }
-    generator = basic_stats_generator.BasicStatsGenerator(
-        num_values_histogram_buckets=4,
-        num_histogram_buckets=3,
-        num_quantiles_histogram_buckets=4)
-    # Note: partition 0 contains feature "b"
-    generator = generator._copy_for_partition_index(0, 2)
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
+            """,
+                statistics_pb2.FeatureNameStatistics(),
+            )
+        }
+        generator = basic_stats_generator.BasicStatsGenerator(
+            num_values_histogram_buckets=4,
+            num_histogram_buckets=3,
+            num_quantiles_histogram_buckets=4,
+        )
+        # Note: partition 0 contains feature "b"
+        generator = generator._copy_for_partition_index(0, 2)
+        self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_with_feature_config(self):
-    config = types.PerFeatureStatsConfig(
-        [types.FeaturePath(['a']), types.FeaturePath(['b'])],
-        types.PerFeatureStatsConfig.INCLUDE,
-    )
-    b1 = pa.RecordBatch.from_arrays(
-        [
-            pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]]),
-            pa.array([['abc'], ['xyz']]),
-            pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]]),
-            pa.array([['abc'], ['xyz']]),
-        ],
-        ['a', 'b', 'c', 'd'],
-    )
-    batches = [b1]
-    expected_result = {
-        types.FeaturePath(['a']): text_format.Parse(
-            """
+    def test_with_feature_config(self):
+        config = types.PerFeatureStatsConfig(
+            [types.FeaturePath(["a"]), types.FeaturePath(["b"])],
+            types.PerFeatureStatsConfig.INCLUDE,
+        )
+        b1 = pa.RecordBatch.from_arrays(
+            [
+                pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]]),
+                pa.array([["abc"], ["xyz"]]),
+                pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]]),
+                pa.array([["abc"], ["xyz"]]),
+            ],
+            ["a", "b", "c", "d"],
+        )
+        batches = [b1]
+        expected_result = {
+            types.FeaturePath(["a"]): text_format.Parse(
+                """
             type: FLOAT
             num_stats {
               common_stats {
@@ -286,10 +292,10 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               step: "a"
             }
             """,
-            statistics_pb2.FeatureNameStatistics(),
-        ),
-        types.FeaturePath(['b']): text_format.Parse(
-            """
+                statistics_pb2.FeatureNameStatistics(),
+            ),
+            types.FeaturePath(["b"]): text_format.Parse(
+                """
             type: STRING
             string_stats {
               common_stats {
@@ -328,10 +334,10 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               step: "b"
             }
             """,
-            statistics_pb2.FeatureNameStatistics(),
-        ),
-        types.FeaturePath(['c']): text_format.Parse(
-            """
+                statistics_pb2.FeatureNameStatistics(),
+            ),
+            types.FeaturePath(["c"]): text_format.Parse(
+                """
             type: FLOAT
             num_stats {
               common_stats {
@@ -351,10 +357,10 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               step: "c"
             }
             """,
-            statistics_pb2.FeatureNameStatistics(),
-        ),
-        types.FeaturePath(['d']): text_format.Parse(
-            """
+                statistics_pb2.FeatureNameStatistics(),
+            ),
+            types.FeaturePath(["d"]): text_format.Parse(
+                """
             type: STRING
             string_stats {
               common_stats {
@@ -370,26 +376,25 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               step: "d"
             }
             """,
-            statistics_pb2.FeatureNameStatistics(),
-        ),
-    }
-    generator = basic_stats_generator.BasicStatsGenerator(
-        num_values_histogram_buckets=4,
-        num_histogram_buckets=3,
-        num_quantiles_histogram_buckets=4,
-        feature_config=config,
-    )
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
+                statistics_pb2.FeatureNameStatistics(),
+            ),
+        }
+        generator = basic_stats_generator.BasicStatsGenerator(
+            num_values_histogram_buckets=4,
+            num_histogram_buckets=3,
+            num_quantiles_histogram_buckets=4,
+            feature_config=config,
+        )
+        self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_two_feature_partitions_with_weights(self):
-    # Note: default partitioner assigns a->1, b->0
-    b1 = pa.RecordBatch.from_arrays(
-        [pa.array([[1.0], [10.0]]),
-         pa.array([['a'], ['xyz']])], ['a', 'b'])
-    batches = [b1]
-    expected_result = {
-        types.FeaturePath(['b']):
-            text_format.Parse(
+    def test_two_feature_partitions_with_weights(self):
+        # Note: default partitioner assigns a->1, b->0
+        b1 = pa.RecordBatch.from_arrays(
+            [pa.array([[1.0], [10.0]]), pa.array([["a"], ["xyz"]])], ["a", "b"]
+        )
+        batches = [b1]
+        expected_result = {
+            types.FeaturePath(["b"]): text_format.Parse(
                 """
             type: STRING
             string_stats {
@@ -433,44 +438,48 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             path {
               step: "b"
             }
-            """, statistics_pb2.FeatureNameStatistics())
-    }
-    generator = basic_stats_generator.BasicStatsGenerator(
-        num_values_histogram_buckets=4,
-        num_histogram_buckets=3,
-        num_quantiles_histogram_buckets=4,
-        example_weight_map=ExampleWeightMap(weight_feature='a'),
+            """,
+                statistics_pb2.FeatureNameStatistics(),
+            )
+        }
+        generator = basic_stats_generator.BasicStatsGenerator(
+            num_values_histogram_buckets=4,
+            num_histogram_buckets=3,
+            num_quantiles_histogram_buckets=4,
+            example_weight_map=ExampleWeightMap(weight_feature="a"),
         )
-    # Note: partition 0 contains feature "b"
-    generator = generator._copy_for_partition_index(0, 2)
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
+        # Note: partition 0 contains feature "b"
+        generator = generator._copy_for_partition_index(0, 2)
+        self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_no_feature_falls_in_partition(self):
-    # Note: default partitioner assigns a->0, b->1
-    b1 = pa.RecordBatch.from_arrays(
-        [pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]]),
-         pa.array([['abc'], ['xyz']])], ['a', 'b'])
-    batches = [b1]
-    expected_result = {}
-    generator = basic_stats_generator.BasicStatsGenerator(
-        num_values_histogram_buckets=4,
-        num_histogram_buckets=3,
-        num_quantiles_histogram_buckets=4)
-    generator = generator._copy_for_partition_index(0, 3)
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
+    def test_no_feature_falls_in_partition(self):
+        # Note: default partitioner assigns a->0, b->1
+        b1 = pa.RecordBatch.from_arrays(
+            [pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]]), pa.array([["abc"], ["xyz"]])],
+            ["a", "b"],
+        )
+        batches = [b1]
+        expected_result = {}
+        generator = basic_stats_generator.BasicStatsGenerator(
+            num_values_histogram_buckets=4,
+            num_histogram_buckets=3,
+            num_quantiles_histogram_buckets=4,
+        )
+        generator = generator._copy_for_partition_index(0, 3)
+        self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_infinity(self):
-    # input with two batches: first batch has two examples and second batch
-    # has a single example.
-    b1 = pa.RecordBatch.from_arrays([
-        pa.array([[1.0, 2.0, np.inf, np.inf, -np.inf], [3.0, 4.0, 5.0, -np.inf]
-                 ])
-    ], ['a'])
-    b2 = pa.RecordBatch.from_arrays([pa.array([[1.0, np.inf, -np.inf]])], ['a'])
-    batches = [b1, b2]
-    expected_result = {
-        types.FeaturePath(['a']): text_format.Parse(
-            """
+    def test_infinity(self):
+        # input with two batches: first batch has two examples and second batch
+        # has a single example.
+        b1 = pa.RecordBatch.from_arrays(
+            [pa.array([[1.0, 2.0, np.inf, np.inf, -np.inf], [3.0, 4.0, 5.0, -np.inf]])],
+            ["a"],
+        )
+        b2 = pa.RecordBatch.from_arrays([pa.array([[1.0, np.inf, -np.inf]])], ["a"])
+        batches = [b1, b2]
+        expected_result = {
+            types.FeaturePath(["a"]): text_format.Parse(
+                """
             path {
               step: 'a'
             }
@@ -568,45 +577,55 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 type: QUANTILES
               }
             }
-            """, statistics_pb2.FeatureNameStatistics())}
-    generator = basic_stats_generator.BasicStatsGenerator(
-        num_values_histogram_buckets=4, num_histogram_buckets=4,
-        num_quantiles_histogram_buckets=4)
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
+            """,
+                statistics_pb2.FeatureNameStatistics(),
+            )
+        }
+        generator = basic_stats_generator.BasicStatsGenerator(
+            num_values_histogram_buckets=4,
+            num_histogram_buckets=4,
+            num_quantiles_histogram_buckets=4,
+        )
+        self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_no_runtime_warnings_close_to_max_int(self):
-    # input has batches with values that are slightly smaller than the maximum
-    # integer value.
-    less_than_max_int_value = np.iinfo(np.int64).max - 1
-    batches = ([
-        pa.RecordBatch.from_arrays([pa.array([[less_than_max_int_value]])],
-                                   ['a'])
-    ] * 2)
-    generator = basic_stats_generator.BasicStatsGenerator()
-    old_nperr = np.geterr()
-    np.seterr(over='raise')
-    accumulators = [
-        generator.add_input(generator.create_accumulator(), batch)
-        for batch in batches
-    ]
-    generator.merge_accumulators(accumulators)
-    np.seterr(**old_nperr)
+    def test_no_runtime_warnings_close_to_max_int(self):
+        # input has batches with values that are slightly smaller than the maximum
+        # integer value.
+        less_than_max_int_value = np.iinfo(np.int64).max - 1
+        batches = [
+            pa.RecordBatch.from_arrays([pa.array([[less_than_max_int_value]])], ["a"])
+        ] * 2
+        generator = basic_stats_generator.BasicStatsGenerator()
+        old_nperr = np.geterr()
+        np.seterr(over="raise")
+        accumulators = [
+            generator.add_input(generator.create_accumulator(), batch)
+            for batch in batches
+        ]
+        generator.merge_accumulators(accumulators)
+        np.seterr(**old_nperr)
 
-  def test_handle_null_column(self):
-    # Feature 'a' covers null coming before non-null.
-    # Feature 'b' covers null coming after non-null.
-    b1 = pa.RecordBatch.from_arrays([
-        pa.array([None, None, None], type=pa.null()),
-        pa.array([[1.0, 2.0, 3.0], [4.0], [5.0]]),
-    ], ['a', 'b'])
-    b2 = pa.RecordBatch.from_arrays([
-        pa.array([[1, 2], None], type=pa.list_(pa.int64())),
-        pa.array([None, None], type=pa.null()),
-    ], ['a', 'b'])
-    batches = [b1, b2]
-    expected_result = {
-        types.FeaturePath(['a']): text_format.Parse(
-            """
+    def test_handle_null_column(self):
+        # Feature 'a' covers null coming before non-null.
+        # Feature 'b' covers null coming after non-null.
+        b1 = pa.RecordBatch.from_arrays(
+            [
+                pa.array([None, None, None], type=pa.null()),
+                pa.array([[1.0, 2.0, 3.0], [4.0], [5.0]]),
+            ],
+            ["a", "b"],
+        )
+        b2 = pa.RecordBatch.from_arrays(
+            [
+                pa.array([[1, 2], None], type=pa.list_(pa.int64())),
+                pa.array([None, None], type=pa.null()),
+            ],
+            ["a", "b"],
+        )
+        batches = [b1, b2]
+        expected_result = {
+            types.FeaturePath(["a"]): text_format.Parse(
+                """
             path {
               step: "a"
             }
@@ -688,9 +707,11 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 type: QUANTILES
               }
             }
-            """, statistics_pb2.FeatureNameStatistics()),
-        types.FeaturePath(['b']): text_format.Parse(
-            """
+            """,
+                statistics_pb2.FeatureNameStatistics(),
+            ),
+            types.FeaturePath(["b"]): text_format.Parse(
+                """
             path {
               step: 'b'
             }
@@ -773,28 +794,37 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 type: QUANTILES
               }
             }
-            """, statistics_pb2.FeatureNameStatistics()),
-    }
-    generator = basic_stats_generator.BasicStatsGenerator(
-        num_values_histogram_buckets=4,
-        num_histogram_buckets=3,
-        num_quantiles_histogram_buckets=4)
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
+            """,
+                statistics_pb2.FeatureNameStatistics(),
+            ),
+        }
+        generator = basic_stats_generator.BasicStatsGenerator(
+            num_values_histogram_buckets=4,
+            num_histogram_buckets=3,
+            num_quantiles_histogram_buckets=4,
+        )
+        self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_pure_null_column(self):
-    batches = [
-        pa.RecordBatch.from_arrays([
-            pa.array([None, None], type=pa.null()),
-            pa.array([[1.0], [1.0]]),
-        ], ['a', 'w']),
-        pa.RecordBatch.from_arrays([
-            pa.array([None], type=pa.null()),
-            pa.array([[1.0]]),
-        ], ['a', 'w']),
-    ]
-    expected_result = {
-        types.FeaturePath(['a']):
-            text_format.Parse("""
+    def test_pure_null_column(self):
+        batches = [
+            pa.RecordBatch.from_arrays(
+                [
+                    pa.array([None, None], type=pa.null()),
+                    pa.array([[1.0], [1.0]]),
+                ],
+                ["a", "w"],
+            ),
+            pa.RecordBatch.from_arrays(
+                [
+                    pa.array([None], type=pa.null()),
+                    pa.array([[1.0]]),
+                ],
+                ["a", "w"],
+            ),
+        ]
+        expected_result = {
+            types.FeaturePath(["a"]): text_format.Parse(
+                """
             type: STRING
             string_stats {
               common_stats {
@@ -807,34 +837,43 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             path {
               step: "a"
             }
-            """, statistics_pb2.FeatureNameStatistics()),
-    }
-    generator = basic_stats_generator.BasicStatsGenerator(
-        example_weight_map=ExampleWeightMap(weight_feature='w'),
-        num_values_histogram_buckets=4, num_histogram_buckets=3,
-        num_quantiles_histogram_buckets=4)
-    self.assertCombinerOutputEqual(
-        batches, generator, expected_result,
-        only_match_expected_feature_stats=True)
+            """,
+                statistics_pb2.FeatureNameStatistics(),
+            ),
+        }
+        generator = basic_stats_generator.BasicStatsGenerator(
+            example_weight_map=ExampleWeightMap(weight_feature="w"),
+            num_values_histogram_buckets=4,
+            num_histogram_buckets=3,
+            num_quantiles_histogram_buckets=4,
+        )
+        self.assertCombinerOutputEqual(
+            batches, generator, expected_result, only_match_expected_feature_stats=True
+        )
 
-  def test_with_weight_feature(self):
-    # input with two batches: first batch has two examples and second batch
-    # has a single example.
-    b1 = pa.RecordBatch.from_arrays([
-        pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]]),
-        pa.array([[1, 2], [3, 4, 5]]),
-        pa.array([[1.0], [2.0]])
-    ], ['a', 'b', 'w'])
-    b2 = pa.RecordBatch.from_arrays([
-        pa.array([[1.0, np.nan, np.nan, np.nan], None]),
-        pa.array([[1], None]),
-        pa.array([[3.0], [2.0]])
-    ], ['a', 'b', 'w'])
+    def test_with_weight_feature(self):
+        # input with two batches: first batch has two examples and second batch
+        # has a single example.
+        b1 = pa.RecordBatch.from_arrays(
+            [
+                pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]]),
+                pa.array([[1, 2], [3, 4, 5]]),
+                pa.array([[1.0], [2.0]]),
+            ],
+            ["a", "b", "w"],
+        )
+        b2 = pa.RecordBatch.from_arrays(
+            [
+                pa.array([[1.0, np.nan, np.nan, np.nan], None]),
+                pa.array([[1], None]),
+                pa.array([[3.0], [2.0]]),
+            ],
+            ["a", "b", "w"],
+        )
 
-    batches = [b1, b2]
-    expected_result = {
-        types.FeaturePath(['a']):
-            text_format.Parse(
+        batches = [b1, b2]
+        expected_result = {
+            types.FeaturePath(["a"]): text_format.Parse(
                 """
             path {
               step: 'a'
@@ -975,9 +1014,10 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 }
               }
             }
-            """, statistics_pb2.FeatureNameStatistics()),
-        types.FeaturePath(['b']):
-            text_format.Parse(
+            """,
+                statistics_pb2.FeatureNameStatistics(),
+            ),
+            types.FeaturePath(["b"]): text_format.Parse(
                 """
             path {
               step: 'b'
@@ -1114,9 +1154,10 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 }
               }
             }
-            """, statistics_pb2.FeatureNameStatistics()),
-        types.FeaturePath(['w']):
-            text_format.Parse(
+            """,
+                statistics_pb2.FeatureNameStatistics(),
+            ),
+            types.FeaturePath(["w"]): text_format.Parse(
                 """
             path {
               step: 'w'
@@ -1251,34 +1292,43 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 }
               }
             }
-            """, statistics_pb2.FeatureNameStatistics())
-    }
-    generator = basic_stats_generator.BasicStatsGenerator(
-        example_weight_map=ExampleWeightMap(weight_feature='w'),
-        num_values_histogram_buckets=4, num_histogram_buckets=3,
-        num_quantiles_histogram_buckets=4)
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
+            """,
+                statistics_pb2.FeatureNameStatistics(),
+            ),
+        }
+        generator = basic_stats_generator.BasicStatsGenerator(
+            example_weight_map=ExampleWeightMap(weight_feature="w"),
+            num_values_histogram_buckets=4,
+            num_histogram_buckets=3,
+            num_quantiles_histogram_buckets=4,
+        )
+        self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_with_per_feature_weight(self):
-    # input with two batches: first batch has two examples and second batch
-    # has a single example.
-    b1 = pa.RecordBatch.from_arrays([
-        pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]]),
-        pa.array([[1, 2], [3, 4, 5]]),
-        pa.array([[1.0], [2.0]]),
-        pa.array([[2.0], [1.0]]),
-    ], ['a', 'b', 'w_a', 'w_b'])
-    b2 = pa.RecordBatch.from_arrays([
-        pa.array([[1.0, np.nan, np.nan, np.nan], None]),
-        pa.array([[1], None]),
-        pa.array([[3.0], [2.0]]),
-        pa.array([[2.0], [3.0]]),
-    ], ['a', 'b', 'w_a', 'w_b'])
+    def test_with_per_feature_weight(self):
+        # input with two batches: first batch has two examples and second batch
+        # has a single example.
+        b1 = pa.RecordBatch.from_arrays(
+            [
+                pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]]),
+                pa.array([[1, 2], [3, 4, 5]]),
+                pa.array([[1.0], [2.0]]),
+                pa.array([[2.0], [1.0]]),
+            ],
+            ["a", "b", "w_a", "w_b"],
+        )
+        b2 = pa.RecordBatch.from_arrays(
+            [
+                pa.array([[1.0, np.nan, np.nan, np.nan], None]),
+                pa.array([[1], None]),
+                pa.array([[3.0], [2.0]]),
+                pa.array([[2.0], [3.0]]),
+            ],
+            ["a", "b", "w_a", "w_b"],
+        )
 
-    batches = [b1, b2]
-    expected_result = {
-        types.FeaturePath(['a']):
-            text_format.Parse(
+        batches = [b1, b2]
+        expected_result = {
+            types.FeaturePath(["a"]): text_format.Parse(
                 """
             path {
               step: 'a'
@@ -1419,9 +1469,10 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 }
               }
             }
-            """, statistics_pb2.FeatureNameStatistics()),
-        types.FeaturePath(['b']):
-            text_format.Parse(
+            """,
+                statistics_pb2.FeatureNameStatistics(),
+            ),
+            types.FeaturePath(["b"]): text_format.Parse(
                 """
             num_stats {
               common_stats {
@@ -1555,32 +1606,40 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             path {
               step: "b"
             }
-            """, statistics_pb2.FeatureNameStatistics()),
-    }
-    generator = basic_stats_generator.BasicStatsGenerator(
-        example_weight_map=ExampleWeightMap(
-            weight_feature='w_a',
-            per_feature_override={types.FeaturePath(['b']): 'w_b'}),
-        num_values_histogram_buckets=4,
-        num_histogram_buckets=3,
-        num_quantiles_histogram_buckets=4)
-    self.assertCombinerOutputEqual(batches, generator, expected_result,
-                                   only_match_expected_feature_stats=True)
+            """,
+                statistics_pb2.FeatureNameStatistics(),
+            ),
+        }
+        generator = basic_stats_generator.BasicStatsGenerator(
+            example_weight_map=ExampleWeightMap(
+                weight_feature="w_a",
+                per_feature_override={types.FeaturePath(["b"]): "w_b"},
+            ),
+            num_values_histogram_buckets=4,
+            num_histogram_buckets=3,
+            num_quantiles_histogram_buckets=4,
+        )
+        self.assertCombinerOutputEqual(
+            batches, generator, expected_result, only_match_expected_feature_stats=True
+        )
 
-  def test_with_entire_feature_value_list_missing(self):
-    # input with two batches: first batch has three examples and second batch
-    # has two examples.
-    b1 = pa.RecordBatch.from_arrays([
-        pa.array([[1.0, 2.0], None, [3.0, 4.0, 5.0]]),
-        pa.array([['x', 'y', 'z', 'w'], None, ['qwe', 'abc']]),
-    ], ['a', 'b'])
-    b2 = pa.RecordBatch.from_arrays(
-        [pa.array([[1.0], None]),
-         pa.array([None, ['qwe']])], ['a', 'b'])
-    batches = [b1, b2]
-    expected_result = {
-        types.FeaturePath(['a']): text_format.Parse(
-            """
+    def test_with_entire_feature_value_list_missing(self):
+        # input with two batches: first batch has three examples and second batch
+        # has two examples.
+        b1 = pa.RecordBatch.from_arrays(
+            [
+                pa.array([[1.0, 2.0], None, [3.0, 4.0, 5.0]]),
+                pa.array([["x", "y", "z", "w"], None, ["qwe", "abc"]]),
+            ],
+            ["a", "b"],
+        )
+        b2 = pa.RecordBatch.from_arrays(
+            [pa.array([[1.0], None]), pa.array([None, ["qwe"]])], ["a", "b"]
+        )
+        batches = [b1, b2]
+        expected_result = {
+            types.FeaturePath(["a"]): text_format.Parse(
+                """
             path {
               step: 'a'
             }
@@ -1660,9 +1719,11 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 type: QUANTILES
               }
             }
-            """, statistics_pb2.FeatureNameStatistics()),
-        types.FeaturePath(['b']): text_format.Parse(
-            """
+            """,
+                statistics_pb2.FeatureNameStatistics(),
+            ),
+            types.FeaturePath(["b"]): text_format.Parse(
+                """
             path {
               step: 'b'
             }
@@ -1696,23 +1757,29 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               }
               avg_length: 1.85714285
             }
-            """, statistics_pb2.FeatureNameStatistics())}
-    generator = basic_stats_generator.BasicStatsGenerator(
-        num_values_histogram_buckets=3, num_histogram_buckets=3,
-        num_quantiles_histogram_buckets=4)
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
+            """,
+                statistics_pb2.FeatureNameStatistics(),
+            ),
+        }
+        generator = basic_stats_generator.BasicStatsGenerator(
+            num_values_histogram_buckets=3,
+            num_histogram_buckets=3,
+            num_quantiles_histogram_buckets=4,
+        )
+        self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_with_individual_feature_value_missing(self):
-    # input with two batches: first batch has two examples and second batch
-    # has a single example.
-    b1 = pa.RecordBatch.from_arrays(
-        [pa.array([[1.0, 2.0], [3.0, 4.0, np.nan, 5.0]])], ['a'])
-    b2 = pa.RecordBatch.from_arrays([pa.array([[np.nan, 1.0]])], ['a'])
-    batches = [b1, b2]
+    def test_with_individual_feature_value_missing(self):
+        # input with two batches: first batch has two examples and second batch
+        # has a single example.
+        b1 = pa.RecordBatch.from_arrays(
+            [pa.array([[1.0, 2.0], [3.0, 4.0, np.nan, 5.0]])], ["a"]
+        )
+        b2 = pa.RecordBatch.from_arrays([pa.array([[np.nan, 1.0]])], ["a"])
+        batches = [b1, b2]
 
-    expected_result = {
-        types.FeaturePath(['a']): text_format.Parse(
-            """
+        expected_result = {
+            types.FeaturePath(["a"]): text_format.Parse(
+                """
             path {
               step: 'a'
             }
@@ -1793,38 +1860,55 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 type: QUANTILES
               }
             }
-            """, statistics_pb2.FeatureNameStatistics())}
-    generator = basic_stats_generator.BasicStatsGenerator(
-        num_values_histogram_buckets=3, num_histogram_buckets=3,
-        num_quantiles_histogram_buckets=4)
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
+            """,
+                statistics_pb2.FeatureNameStatistics(),
+            )
+        }
+        generator = basic_stats_generator.BasicStatsGenerator(
+            num_values_histogram_buckets=3,
+            num_histogram_buckets=3,
+            num_quantiles_histogram_buckets=4,
+        )
+        self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_with_multiple_features(self):
+    def test_with_multiple_features(self):
+        # Test that columns of ListArray, LargeListArray can be handled. Also test
+        # that columns whose values are LargeBinaryArray can be handled.
+        b1 = pa.RecordBatch.from_arrays(
+            [
+                pa.array(
+                    [[1.0, 2.0], [3.0, 4.0, 5.0]], type=pa.large_list(pa.float32())
+                ),
+                pa.array(
+                    [[b"x", b"y", b"z", b"w"], [b"qwe", b"abc"]],
+                    type=pa.list_(pa.large_binary()),
+                ),
+                pa.array(
+                    [
+                        np.linspace(1, 1000, 1000, dtype=np.int32),
+                        np.linspace(1001, 2000, 1000, dtype=np.int32),
+                    ],
+                    type=pa.list_(pa.int32()),
+                ),
+            ],
+            ["a", "b", "c"],
+        )
+        b2 = pa.RecordBatch.from_arrays(
+            [
+                pa.array([[1.0]], type=pa.large_list(pa.float32())),
+                pa.array([[b"ab"]], type=pa.list_(pa.large_binary())),
+                pa.array(
+                    [np.linspace(2001, 3000, 1000, dtype=np.int32)],
+                    type=pa.list_(pa.int32()),
+                ),
+            ],
+            ["a", "b", "c"],
+        )
 
-    # Test that columns of ListArray, LargeListArray can be handled. Also test
-    # that columns whose values are LargeBinaryArray can be handled.
-    b1 = pa.RecordBatch.from_arrays([
-        pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]],
-                 type=pa.large_list(pa.float32())),
-        pa.array([[b'x', b'y', b'z', b'w'], [b'qwe', b'abc']],
-                 type=pa.list_(pa.large_binary())),
-        pa.array([
-            np.linspace(1, 1000, 1000, dtype=np.int32),
-            np.linspace(1001, 2000, 1000, dtype=np.int32)
-        ],
-                 type=pa.list_(pa.int32())),
-    ], ['a', 'b', 'c'])
-    b2 = pa.RecordBatch.from_arrays([
-        pa.array([[1.0]], type=pa.large_list(pa.float32())),
-        pa.array([[b'ab']], type=pa.list_(pa.large_binary())),
-        pa.array([np.linspace(2001, 3000, 1000, dtype=np.int32)],
-                 type=pa.list_(pa.int32())),
-    ], ['a', 'b', 'c'])
-
-    batches = [b1, b2]
-    expected_result = {
-        types.FeaturePath(['a']): text_format.Parse(
-            """
+        batches = [b1, b2]
+        expected_result = {
+            types.FeaturePath(["a"]): text_format.Parse(
+                """
             path {
               step: 'a'
             }
@@ -1904,10 +1988,10 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               }
             }
             """,
-            statistics_pb2.FeatureNameStatistics(),
-        ),
-        types.FeaturePath(['b']): text_format.Parse(
-            """
+                statistics_pb2.FeatureNameStatistics(),
+            ),
+            types.FeaturePath(["b"]): text_format.Parse(
+                """
             path {
               step: 'b'
             }
@@ -1941,10 +2025,10 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               avg_length: 1.71428571
             }
             """,
-            statistics_pb2.FeatureNameStatistics(),
-        ),
-        types.FeaturePath(['c']): text_format.Parse(
-            """
+                statistics_pb2.FeatureNameStatistics(),
+            ),
+            types.FeaturePath(["c"]): text_format.Parse(
+                """
             path {
               step: 'c'
             }
@@ -2023,31 +2107,44 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               }
             }
             """,
-            statistics_pb2.FeatureNameStatistics(),
-        ),
-    }
-    generator = basic_stats_generator.BasicStatsGenerator(
-        num_values_histogram_buckets=3, num_histogram_buckets=3,
-        num_quantiles_histogram_buckets=4, epsilon=0.001)
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
+                statistics_pb2.FeatureNameStatistics(),
+            ),
+        }
+        generator = basic_stats_generator.BasicStatsGenerator(
+            num_values_histogram_buckets=3,
+            num_histogram_buckets=3,
+            num_quantiles_histogram_buckets=4,
+            epsilon=0.001,
+        )
+        self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_with_bytes_features(self):
-
-    b1 = pa.RecordBatch.from_arrays([
-        pa.array([[b'x', b'y', b'z', b'w'], [b'qwe', b'abc']]),], ['b'])
-    b2 = pa.RecordBatch.from_arrays([pa.array([[b'ab']]),], ['b'])
-    batches = [b1, b2]
-    schema = text_format.Parse(
-        """
+    def test_with_bytes_features(self):
+        b1 = pa.RecordBatch.from_arrays(
+            [
+                pa.array([[b"x", b"y", b"z", b"w"], [b"qwe", b"abc"]]),
+            ],
+            ["b"],
+        )
+        b2 = pa.RecordBatch.from_arrays(
+            [
+                pa.array([[b"ab"]]),
+            ],
+            ["b"],
+        )
+        batches = [b1, b2]
+        schema = text_format.Parse(
+            """
         feature {
           name: "b"
           type: BYTES
           image_domain { }
         }
-        """, schema_pb2.Schema())
-    expected_result = {
-        types.FeaturePath(['b']): text_format.Parse(
-            """
+        """,
+            schema_pb2.Schema(),
+        )
+        expected_result = {
+            types.FeaturePath(["b"]): text_format.Parse(
+                """
             path {
               step: 'b'
             }
@@ -2083,24 +2180,27 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               max_num_bytes: 3
               max_num_bytes_int: 3
             }
-            """, statistics_pb2.FeatureNameStatistics()),
-    }
-    generator = basic_stats_generator.BasicStatsGenerator(
-        schema=schema,
-        num_values_histogram_buckets=3, num_histogram_buckets=3,
-        num_quantiles_histogram_buckets=4, epsilon=0.001)
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
+            """,
+                statistics_pb2.FeatureNameStatistics(),
+            ),
+        }
+        generator = basic_stats_generator.BasicStatsGenerator(
+            schema=schema,
+            num_values_histogram_buckets=3,
+            num_histogram_buckets=3,
+            num_quantiles_histogram_buckets=4,
+            epsilon=0.001,
+        )
+        self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_categorical_int_feature(self):
-    batches = [
-        pa.RecordBatch.from_arrays([pa.array([[1, 5, 10], [0]])], ['c']),
-        pa.RecordBatch.from_arrays([pa.array([[1, 1, 1, 5, 15], [-1]])], ['c']),
-        pa.RecordBatch.from_arrays([pa.array([None, None], type=pa.null())],
-                                   ['c'])
-    ]
-    expected_result = {
-        types.FeaturePath(['c']):
-            text_format.Parse(
+    def test_categorical_int_feature(self):
+        batches = [
+            pa.RecordBatch.from_arrays([pa.array([[1, 5, 10], [0]])], ["c"]),
+            pa.RecordBatch.from_arrays([pa.array([[1, 1, 1, 5, 15], [-1]])], ["c"]),
+            pa.RecordBatch.from_arrays([pa.array([None, None], type=pa.null())], ["c"]),
+        ]
+        expected_result = {
+            types.FeaturePath(["c"]): text_format.Parse(
                 """
             path {
               step: 'c'
@@ -2135,10 +2235,12 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               }
               avg_length: 1.29999995232
             }
-            """, statistics_pb2.FeatureNameStatistics())
-    }
-    schema = text_format.Parse(
-        """
+            """,
+                statistics_pb2.FeatureNameStatistics(),
+            )
+        }
+        schema = text_format.Parse(
+            """
         feature {
           name: "c"
           type: INT
@@ -2146,26 +2248,27 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             is_categorical: true
           }
         }
-        """, schema_pb2.Schema())
-    generator = basic_stats_generator.BasicStatsGenerator(
-        schema=schema,
-        num_values_histogram_buckets=3,
-        num_histogram_buckets=3,
-        num_quantiles_histogram_buckets=4)
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
+        """,
+            schema_pb2.Schema(),
+        )
+        generator = basic_stats_generator.BasicStatsGenerator(
+            schema=schema,
+            num_values_histogram_buckets=3,
+            num_histogram_buckets=3,
+            num_quantiles_histogram_buckets=4,
+        )
+        self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_categorical_float_feature(self):
-    batches = [
-        pa.RecordBatch.from_arrays([pa.array([[1.0, 5.0, 10.0], [0.0]])],
-                                   ['c']),
-        pa.RecordBatch.from_arrays(
-            [pa.array([[1.0, 1.0, 1.0, 5.0, 15.0], [-1.0]])], ['c']),
-        pa.RecordBatch.from_arrays([pa.array([None, None], type=pa.null())],
-                                   ['c'])
-    ]
-    expected_result = {
-        types.FeaturePath(['c']):
-            text_format.Parse(
+    def test_categorical_float_feature(self):
+        batches = [
+            pa.RecordBatch.from_arrays([pa.array([[1.0, 5.0, 10.0], [0.0]])], ["c"]),
+            pa.RecordBatch.from_arrays(
+                [pa.array([[1.0, 1.0, 1.0, 5.0, 15.0], [-1.0]])], ["c"]
+            ),
+            pa.RecordBatch.from_arrays([pa.array([None, None], type=pa.null())], ["c"]),
+        ]
+        expected_result = {
+            types.FeaturePath(["c"]): text_format.Parse(
                 """
             path {
               step: 'c'
@@ -2200,10 +2303,12 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
               }
               avg_length: 3.3
             }
-            """, statistics_pb2.FeatureNameStatistics())
-    }
-    schema = text_format.Parse(
-        """
+            """,
+                statistics_pb2.FeatureNameStatistics(),
+            )
+        }
+        schema = text_format.Parse(
+            """
         feature {
           name: "c"
           type: FLOAT
@@ -2211,21 +2316,26 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             is_categorical: true
           }
         }
-        """, schema_pb2.Schema())
-    generator = basic_stats_generator.BasicStatsGenerator(
-        schema=schema,
-        num_values_histogram_buckets=3, num_histogram_buckets=3,
-        num_quantiles_histogram_buckets=4)
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
+        """,
+            schema_pb2.Schema(),
+        )
+        generator = basic_stats_generator.BasicStatsGenerator(
+            schema=schema,
+            num_values_histogram_buckets=3,
+            num_histogram_buckets=3,
+            num_quantiles_histogram_buckets=4,
+        )
+        self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_empty_batch(self):
-    batches = [
-        pa.RecordBatch.from_arrays([pa.array([], type=pa.list_(pa.binary()))],
-                                   ['a'])
-    ]
-    expected_result = {
-        types.FeaturePath(['a']): text_format.Parse(
-            """
+    def test_empty_batch(self):
+        batches = [
+            pa.RecordBatch.from_arrays(
+                [pa.array([], type=pa.list_(pa.binary()))], ["a"]
+            )
+        ]
+        expected_result = {
+            types.FeaturePath(["a"]): text_format.Parse(
+                """
             path {
               step: 'a'
             }
@@ -2236,17 +2346,22 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 tot_num_values: 0
               }
             }
-            """, statistics_pb2.FeatureNameStatistics())}
-    generator = basic_stats_generator.BasicStatsGenerator()
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
+            """,
+                statistics_pb2.FeatureNameStatistics(),
+            )
+        }
+        generator = basic_stats_generator.BasicStatsGenerator()
+        self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_no_value_in_batch(self):
-    batches = [
-        pa.RecordBatch.from_arrays([
-            pa.array([[], [], []], type=pa.list_(pa.int64()))], ['a'])]
-    expected_result = {
-        types.FeaturePath(['a']): text_format.Parse(
-            """
+    def test_no_value_in_batch(self):
+        batches = [
+            pa.RecordBatch.from_arrays(
+                [pa.array([[], [], []], type=pa.list_(pa.int64()))], ["a"]
+            )
+        ]
+        expected_result = {
+            types.FeaturePath(["a"]): text_format.Parse(
+                """
             path {
               step: 'a'
             }
@@ -2287,17 +2402,21 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                   type: QUANTILES
                 }
               }
-            }""", statistics_pb2.FeatureNameStatistics())}
-    generator = basic_stats_generator.BasicStatsGenerator()
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
+            }""",
+                statistics_pb2.FeatureNameStatistics(),
+            )
+        }
+        generator = basic_stats_generator.BasicStatsGenerator()
+        self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_only_nan(self):
-    b1 = pa.RecordBatch.from_arrays(
-        [pa.array([[np.nan]], type=pa.list_(pa.float32()))], ['a'])
-    batches = [b1]
-    expected_result = {
-        types.FeaturePath(['a']): text_format.Parse(
-            """
+    def test_only_nan(self):
+        b1 = pa.RecordBatch.from_arrays(
+            [pa.array([[np.nan]], type=pa.list_(pa.float32()))], ["a"]
+        )
+        batches = [b1]
+        expected_result = {
+            types.FeaturePath(["a"]): text_format.Parse(
+                """
             path {
               step: 'a'
             }
@@ -2332,23 +2451,33 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 type: QUANTILES
               }
             }
-            """, statistics_pb2.FeatureNameStatistics())}
-    generator = basic_stats_generator.BasicStatsGenerator(
-        num_values_histogram_buckets=2, num_histogram_buckets=3,
-        num_quantiles_histogram_buckets=4)
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
+            """,
+                statistics_pb2.FeatureNameStatistics(),
+            )
+        }
+        generator = basic_stats_generator.BasicStatsGenerator(
+            num_values_histogram_buckets=2,
+            num_histogram_buckets=3,
+            num_quantiles_histogram_buckets=4,
+        )
+        self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_schema_claims_bytes_but_actually_int(self):
-    schema = text_format.Parse("""
+    def test_schema_claims_bytes_but_actually_int(self):
+        schema = text_format.Parse(
+            """
         feature {
           name: "a"
           type: BYTES
           image_domain { }
-        }""", schema_pb2.Schema())
-    batches = [pa.RecordBatch.from_arrays([
-        pa.array([], type=pa.list_(pa.int64()))], ['a'])]
-    expected_result = {
-        types.FeaturePath(['a']): text_format.Parse("""
+        }""",
+            schema_pb2.Schema(),
+        )
+        batches = [
+            pa.RecordBatch.from_arrays([pa.array([], type=pa.list_(pa.int64()))], ["a"])
+        ]
+        expected_result = {
+            types.FeaturePath(["a"]): text_format.Parse(
+                """
             type: INT
             num_stats {
               common_stats {
@@ -2357,26 +2486,38 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             path {
               step: "a"
             }
-            """, statistics_pb2.FeatureNameStatistics())}
-    generator = basic_stats_generator.BasicStatsGenerator(
-        schema=schema,
-        num_values_histogram_buckets=2, num_histogram_buckets=3,
-        num_quantiles_histogram_buckets=4)
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
+            """,
+                statistics_pb2.FeatureNameStatistics(),
+            )
+        }
+        generator = basic_stats_generator.BasicStatsGenerator(
+            schema=schema,
+            num_values_histogram_buckets=2,
+            num_histogram_buckets=3,
+            num_quantiles_histogram_buckets=4,
+        )
+        self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_schema_claims_categorical_int_but_actually_float(self):
-    # Categorical generators do not run for mismatched declared vs. actual
-    # numeric types.
-    schema = text_format.Parse("""
+    def test_schema_claims_categorical_int_but_actually_float(self):
+        # Categorical generators do not run for mismatched declared vs. actual
+        # numeric types.
+        schema = text_format.Parse(
+            """
     feature {
       name: "a"
       type: INT
       int_domain { is_categorical: true }
-    }""", schema_pb2.Schema())
-    batches = [pa.RecordBatch.from_arrays([
-        pa.array([], type=pa.list_(pa.float32()))], ['a'])]
-    expected_result = {
-        types.FeaturePath(['a']): text_format.Parse("""
+    }""",
+            schema_pb2.Schema(),
+        )
+        batches = [
+            pa.RecordBatch.from_arrays(
+                [pa.array([], type=pa.list_(pa.float32()))], ["a"]
+            )
+        ]
+        expected_result = {
+            types.FeaturePath(["a"]): text_format.Parse(
+                """
             type: FLOAT
             num_stats {
               common_stats {
@@ -2385,27 +2526,33 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             path {
               step: "a"
             }
-            """, statistics_pb2.FeatureNameStatistics())}
-    generator = basic_stats_generator.BasicStatsGenerator(
-        schema=schema,
-        num_values_histogram_buckets=2, num_histogram_buckets=3,
-        num_quantiles_histogram_buckets=4)
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
+            """,
+                statistics_pb2.FeatureNameStatistics(),
+            )
+        }
+        generator = basic_stats_generator.BasicStatsGenerator(
+            schema=schema,
+            num_values_histogram_buckets=2,
+            num_histogram_buckets=3,
+            num_quantiles_histogram_buckets=4,
+        )
+        self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_schema_claims_categorical_int_but_type_missing(self):
-    # Categorical generators will run for a declared numeric with actual string
-    # type, but output will be correctly string typed.
-    schema = text_format.Parse(
-        """
+    def test_schema_claims_categorical_int_but_type_missing(self):
+        # Categorical generators will run for a declared numeric with actual string
+        # type, but output will be correctly string typed.
+        schema = text_format.Parse(
+            """
         feature {
           name: "a"
           type: INT
           int_domain { is_categorical: true }
-        }""", schema_pb2.Schema())
-    batches = [pa.RecordBatch.from_arrays([pa.array([[]])], ['a'])]
-    expected_result = {
-        types.FeaturePath(['a']):
-            text_format.Parse(
+        }""",
+            schema_pb2.Schema(),
+        )
+        batches = [pa.RecordBatch.from_arrays([pa.array([[]])], ["a"])]
+        expected_result = {
+            types.FeaturePath(["a"]): text_format.Parse(
                 """
                 type: STRING
                 string_stats {
@@ -2429,50 +2576,62 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
                 path {
                   step: "a"
                 }
-                """, statistics_pb2.FeatureNameStatistics())
-    }
-    generator = basic_stats_generator.BasicStatsGenerator(
-        schema=schema,
-        num_values_histogram_buckets=2,
-        num_histogram_buckets=3,
-        num_quantiles_histogram_buckets=4)
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
+                """,
+                statistics_pb2.FeatureNameStatistics(),
+            )
+        }
+        generator = basic_stats_generator.BasicStatsGenerator(
+            schema=schema,
+            num_values_histogram_buckets=2,
+            num_histogram_buckets=3,
+            num_quantiles_histogram_buckets=4,
+        )
+        self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_column_not_list(self):
-    batches = [pa.RecordBatch.from_arrays([pa.array([1, 2, 3])], ['a'])]
-    generator = basic_stats_generator.BasicStatsGenerator()
-    with self.assertRaisesRegex(  # pylint: disable=g-error-prone-assert-raises
-        TypeError, r'Expected feature column to be a \(Large\)List'):
-      self.assertCombinerOutputEqual(batches, generator, None)
+    def test_column_not_list(self):
+        batches = [pa.RecordBatch.from_arrays([pa.array([1, 2, 3])], ["a"])]
+        generator = basic_stats_generator.BasicStatsGenerator()
+        with self.assertRaisesRegex(  # pylint: disable=g-error-prone-assert-raises
+            TypeError, r"Expected feature column to be a \(Large\)List"
+        ):
+            self.assertCombinerOutputEqual(batches, generator, None)
 
-  def test_invalid_value_numpy_dtype(self):
-    batches = [pa.RecordBatch.from_arrays(
-        [pa.array([[]], type=pa.list_(pa.date32()))], ['a'])]
-    generator = basic_stats_generator.BasicStatsGenerator()
-    with self.assertRaisesRegex(  # pylint: disable=g-error-prone-assert-raises
-        TypeError, 'Feature a has unsupported arrow type'):
-      self.assertCombinerOutputEqual(batches, generator, None)
+    def test_invalid_value_numpy_dtype(self):
+        batches = [
+            pa.RecordBatch.from_arrays(
+                [pa.array([[]], type=pa.list_(pa.date32()))], ["a"]
+            )
+        ]
+        generator = basic_stats_generator.BasicStatsGenerator()
+        with self.assertRaisesRegex(  # pylint: disable=g-error-prone-assert-raises
+            TypeError, "Feature a has unsupported arrow type"
+        ):
+            self.assertCombinerOutputEqual(batches, generator, None)
 
-  def test_feature_with_inconsistent_types(self):
-    batches = [
-        pa.RecordBatch.from_arrays([pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]])],
-                                   ['a']),
-        pa.RecordBatch.from_arrays([pa.array([[1]])], ['a']),
-    ]
-    generator = basic_stats_generator.BasicStatsGenerator()
-    with self.assertRaisesRegex(  # pylint: disable=g-error-prone-assert-raises
-        TypeError, 'Cannot determine the type'):
-      self.assertCombinerOutputEqual(batches, generator, None)
+    def test_feature_with_inconsistent_types(self):
+        batches = [
+            pa.RecordBatch.from_arrays(
+                [pa.array([[1.0, 2.0], [3.0, 4.0, 5.0]])], ["a"]
+            ),
+            pa.RecordBatch.from_arrays([pa.array([[1]])], ["a"]),
+        ]
+        generator = basic_stats_generator.BasicStatsGenerator()
+        with self.assertRaisesRegex(  # pylint: disable=g-error-prone-assert-raises
+            TypeError, "Cannot determine the type"
+        ):
+            self.assertCombinerOutputEqual(batches, generator, None)
 
-  def test_with_invalid_utf8(self):
-    b1 = pa.RecordBatch.from_arrays(
-        [pa.array([[b'a'], [b'\xfc\xa1\xa1\xa1\xa1\xa1'], None])], ['a'])
-    b2 = pa.RecordBatch.from_arrays([pa.array([[b'\xfc\xa1\xa1\xa1\xa1\xa1']])],
-                                    ['a'])
-    batches = [b1, b2]
-    expected_result = {
-        types.FeaturePath(['a']):
-            text_format.Parse("""
+    def test_with_invalid_utf8(self):
+        b1 = pa.RecordBatch.from_arrays(
+            [pa.array([[b"a"], [b"\xfc\xa1\xa1\xa1\xa1\xa1"], None])], ["a"]
+        )
+        b2 = pa.RecordBatch.from_arrays(
+            [pa.array([[b"\xfc\xa1\xa1\xa1\xa1\xa1"]])], ["a"]
+        )
+        batches = [b1, b2]
+        expected_result = {
+            types.FeaturePath(["a"]): text_format.Parse(
+                """
             type: STRING
             string_stats {
               common_stats {
@@ -2512,37 +2671,40 @@ class BasicStatsGeneratorTest(test_util.CombinerStatsGeneratorTest):
             path {
               step: "a"
             }
-            """, statistics_pb2.FeatureNameStatistics())
-    }
-    generator = basic_stats_generator.BasicStatsGenerator(
-        num_values_histogram_buckets=4,
-        num_histogram_buckets=3,
-        num_quantiles_histogram_buckets=4)
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
+            """,
+                statistics_pb2.FeatureNameStatistics(),
+            )
+        }
+        generator = basic_stats_generator.BasicStatsGenerator(
+            num_values_histogram_buckets=4,
+            num_histogram_buckets=3,
+            num_quantiles_histogram_buckets=4,
+        )
+        self.assertCombinerOutputEqual(batches, generator, expected_result)
 
 
 _STRUCT_TEST_CASES = [
     dict(
-        testcase_name='deep_struct',
-        struct_column_as_list_dicts=[[{
-            'l2': [
+        testcase_name="deep_struct",
+        struct_column_as_list_dicts=[
+            [
                 {
-                    'l3': [1, 2, 3]
+                    "l2": [
+                        {"l3": [1, 2, 3]},
+                        {"l3": [4, 5]},
+                    ],
                 },
                 {
-                    'l3': [4, 5]
+                    "l2": [{}],
+                },
+                {
+                    "l2": [{"l3": None}],
                 },
             ],
-        }, {
-            'l2': [{}],
-        }, {
-            'l2': [{
-                'l3': None
-            }],
-        }], None],
+            None,
+        ],
         expected_result_text_protos={
-            ('c',):
-                """
+            ("c",): """
               type: STRUCT
               struct_stats {
                 common_stats {
@@ -2567,8 +2729,7 @@ _STRUCT_TEST_CASES = [
                   tot_num_values: 3
                 }
               }""",
-            ('c', 'l2'):
-                """
+            ("c", "l2"): """
               type: STRUCT
               struct_stats {
                 common_stats {
@@ -2592,8 +2753,7 @@ _STRUCT_TEST_CASES = [
                   tot_num_values: 4
                 }
               }""",
-            ('c', 'l2', 'l3'):
-                """
+            ("c", "l2", "l3"): """
               type: INT
               num_stats {
                 common_stats {
@@ -2663,20 +2823,13 @@ _STRUCT_TEST_CASES = [
                   type: QUANTILES
                 }
               }""",
-        }),
+        },
+    ),
     dict(
-        testcase_name='leaf_is_categorical',
+        testcase_name="leaf_is_categorical",
         struct_column_as_list_dicts=[
-            [{
-                'f1': [1, 2, 3],
-                'f2': ['b']
-            }],
-            [{
-                'f1': [3, 1],
-                'f2': ['a']
-            }, {
-                'f1': [2]
-            }],
+            [{"f1": [1, 2, 3], "f2": ["b"]}],
+            [{"f1": [3, 1], "f2": ["a"]}, {"f1": [2]}],
         ],
         struct_column_schema="""
         name: "f1"
@@ -2686,8 +2839,7 @@ _STRUCT_TEST_CASES = [
         }
         """,
         expected_result_text_protos={
-            ('c',):
-                """
+            ("c",): """
               type: STRUCT
               struct_stats {
                 common_stats {
@@ -2711,8 +2863,7 @@ _STRUCT_TEST_CASES = [
                   tot_num_values: 3
                 }
               }""",
-            ('c', 'f1'):
-                """
+            ("c", "f1"): """
               string_stats {
                 common_stats {
                   num_non_missing: 3
@@ -2736,8 +2887,7 @@ _STRUCT_TEST_CASES = [
                 }
                 avg_length: 1.0
               }""",
-            ('c', 'f2'):
-                """
+            ("c", "f2"): """
               type: STRING
               string_stats {
                 common_stats {
@@ -2763,23 +2913,24 @@ _STRUCT_TEST_CASES = [
                 }
                 avg_length: 1.0
               }""",
-        }),
+        },
+    ),
     dict(
-        testcase_name='nulls',
+        testcase_name="nulls",
         struct_column_as_list_dicts=[
             [  # first element of 'c'
                 {
-                    'f1': [1.0],
+                    "f1": [1.0],
                     # f2 is missing.
                 },
                 {
                     # f1, f2 are missing.
-                }
+                },
             ],
             None,  # second element of 'c' -- missing/null.
             [  # third element of 'c' -- a list<struct> of length 2.
                 {
-                    'f2': [2.0],
+                    "f2": [2.0],
                     # f1 is missing
                 },
                 None,  # f1, f2 are missing
@@ -2790,7 +2941,7 @@ _STRUCT_TEST_CASES = [
             [],  # fifth element of 'c'; note this is not counted as missing.
         ],
         expected_result_text_protos={
-            ('c',): """
+            ("c",): """
               type: STRUCT
               struct_stats {
                 common_stats {
@@ -2814,7 +2965,7 @@ _STRUCT_TEST_CASES = [
                 }
               }
             """,
-            ('c', 'f1'): """
+            ("c", "f1"): """
               type: FLOAT
               num_stats {
                 common_stats {
@@ -2873,7 +3024,7 @@ _STRUCT_TEST_CASES = [
                   type: QUANTILES
                 }
               }""",
-            ('c', 'f2'): """
+            ("c", "f2"): """
               type: FLOAT
               num_stats {
                 common_stats {
@@ -2932,15 +3083,16 @@ _STRUCT_TEST_CASES = [
                   type: QUANTILES
                 }
               }""",
-        }),
+        },
+    ),
     dict(
-        testcase_name='struct_not_nested_in_list',
+        testcase_name="struct_not_nested_in_list",
         struct_column_as_list_dicts=[
-            {'a': [b'meow', b'nyan']},
-            {'b': [b'foo']},
+            {"a": [b"meow", b"nyan"]},
+            {"b": [b"foo"]},
         ],
         expected_result_text_protos={
-            ('c',): """
+            ("c",): """
               type: STRUCT
               struct_stats {
                 common_stats {
@@ -2964,7 +3116,7 @@ _STRUCT_TEST_CASES = [
                   tot_num_values: 2
                 }
               }""",
-            ('c', 'a'): """
+            ("c", "a"): """
               type: STRING
               string_stats {
                 common_stats {
@@ -2990,7 +3142,7 @@ _STRUCT_TEST_CASES = [
                 }
                 avg_length: 4.0
               }""",
-            ('c', 'b'): """
+            ("c", "b"): """
               type: STRING
               string_stats {
                 common_stats {
@@ -3016,73 +3168,81 @@ _STRUCT_TEST_CASES = [
                 }
                 avg_length: 3.0
               }""",
-        }
+        },
     ),
 ]
 
 
-class BasicStatsGeneratorStructStatsTest(test_util.CombinerStatsGeneratorTest,
-                                         parameterized.TestCase):
+class BasicStatsGeneratorStructStatsTest(
+    test_util.CombinerStatsGeneratorTest, parameterized.TestCase
+):
+    @parameterized.named_parameters(*_STRUCT_TEST_CASES)
+    def test_struct(
+        self,
+        struct_column_as_list_dicts,
+        expected_result_text_protos,
+        struct_column_schema=None,
+    ):
+        mid = len(struct_column_as_list_dicts) // 2
 
-  @parameterized.named_parameters(*_STRUCT_TEST_CASES)
-  def test_struct(self, struct_column_as_list_dicts,
-                  expected_result_text_protos, struct_column_schema=None):
-    mid = len(struct_column_as_list_dicts) // 2
+        # Also test merging multiple batches.
+        batches = [
+            pa.RecordBatch.from_arrays(
+                [pa.array(struct_column_as_list_dicts[:mid])], ["c"]
+            ),
+            pa.RecordBatch.from_arrays(
+                [pa.array(struct_column_as_list_dicts[mid:])], ["c"]
+            ),
+        ]
 
-    # Also test merging multiple batches.
-    batches = [
-        pa.RecordBatch.from_arrays(
-            [pa.array(struct_column_as_list_dicts[:mid])], ['c']),
-        pa.RecordBatch.from_arrays(
-            [pa.array(struct_column_as_list_dicts[mid:])], ['c']),
-    ]
+        expected_result = {}
+        for k, v in expected_result_text_protos.items():
+            feature_stats = text_format.Parse(v, statistics_pb2.FeatureNameStatistics())
+            feature_path = types.FeaturePath(k)
+            feature_stats.path.CopyFrom(feature_path.to_proto())
+            expected_result[types.FeaturePath(k)] = feature_stats
 
-    expected_result = {}
-    for k, v in expected_result_text_protos.items():
-      feature_stats = text_format.Parse(
-          v, statistics_pb2.FeatureNameStatistics())
-      feature_path = types.FeaturePath(k)
-      feature_stats.path.CopyFrom(feature_path.to_proto())
-      expected_result[types.FeaturePath(k)] = feature_stats
-
-    schema = None
-    if struct_column_schema is not None:
-      schema = text_format.Parse("""
+        schema = None
+        if struct_column_schema is not None:
+            schema = text_format.Parse(
+                """
         feature {
           name: "c"
           type: STRUCT
           struct_domain {
           }
-        }""", schema_pb2.Schema())
-      schema.feature[0].struct_domain.feature.add().CopyFrom(text_format.Parse(
-          struct_column_schema, schema_pb2.Feature()))
-    generator = basic_stats_generator.BasicStatsGenerator(
-        schema=schema,
-        num_values_histogram_buckets=2, num_histogram_buckets=3,
-        num_quantiles_histogram_buckets=4)
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
+        }""",
+                schema_pb2.Schema(),
+            )
+            schema.feature[0].struct_domain.feature.add().CopyFrom(
+                text_format.Parse(struct_column_schema, schema_pb2.Feature())
+            )
+        generator = basic_stats_generator.BasicStatsGenerator(
+            schema=schema,
+            num_values_histogram_buckets=2,
+            num_histogram_buckets=3,
+            num_quantiles_histogram_buckets=4,
+        )
+        self.assertCombinerOutputEqual(batches, generator, expected_result)
 
-  def test_with_weights(self):
-    batches = [
-        pa.RecordBatch.from_arrays([
-            pa.array([[1.0], [2.0]]),
-            pa.array([[{
-                'f1': [{
-                    'f2': [1, 2]
-                }, {
-                    'f2': [0]
-                }]
-            }], [{
-                'f1': [{
-                    'f2': [3, 3]
-                }]
-            }]])
-        ], ['w', 'c'])
-    ]
+    def test_with_weights(self):
+        batches = [
+            pa.RecordBatch.from_arrays(
+                [
+                    pa.array([[1.0], [2.0]]),
+                    pa.array(
+                        [
+                            [{"f1": [{"f2": [1, 2]}, {"f2": [0]}]}],
+                            [{"f1": [{"f2": [3, 3]}]}],
+                        ]
+                    ),
+                ],
+                ["w", "c"],
+            )
+        ]
 
-    expected_result = {
-        types.FeaturePath(['c']):
-            text_format.Parse(
+        expected_result = {
+            types.FeaturePath(["c"]): text_format.Parse(
                 """
           type: STRUCT
           struct_stats {
@@ -3114,9 +3274,10 @@ class BasicStatsGeneratorStructStatsTest(test_util.CombinerStatsGeneratorTest,
           }
           path {
             step: "c"
-          }""", statistics_pb2.FeatureNameStatistics()),
-        types.FeaturePath(['c', 'f1']):
-            text_format.Parse(
+          }""",
+                statistics_pb2.FeatureNameStatistics(),
+            ),
+            types.FeaturePath(["c", "f1"]): text_format.Parse(
                 """
           type: STRUCT
           struct_stats {
@@ -3149,9 +3310,10 @@ class BasicStatsGeneratorStructStatsTest(test_util.CombinerStatsGeneratorTest,
           path {
             step: "c"
             step: "f1"
-          }""", statistics_pb2.FeatureNameStatistics()),
-        types.FeaturePath(['c', 'f1', 'f2']):
-            text_format.Parse(
+          }""",
+                statistics_pb2.FeatureNameStatistics(),
+            ),
+            types.FeaturePath(["c", "f1", "f2"]): text_format.Parse(
                 """
           num_stats {
             common_stats {
@@ -3270,9 +3432,10 @@ class BasicStatsGeneratorStructStatsTest(test_util.CombinerStatsGeneratorTest,
             step: "c"
             step: "f1"
             step: "f2"
-          }""", statistics_pb2.FeatureNameStatistics()),
-        types.FeaturePath(['w']):
-            text_format.Parse(
+          }""",
+                statistics_pb2.FeatureNameStatistics(),
+            ),
+            types.FeaturePath(["w"]): text_format.Parse(
                 """
           type: FLOAT
           num_stats {
@@ -3395,46 +3558,63 @@ class BasicStatsGeneratorStructStatsTest(test_util.CombinerStatsGeneratorTest,
       path {
         step: "w"
       }
-    """, statistics_pb2.FeatureNameStatistics()),
-    }
-    generator = basic_stats_generator.BasicStatsGenerator(
-        example_weight_map=ExampleWeightMap(weight_feature='w'),
-        num_values_histogram_buckets=2, num_histogram_buckets=3,
-        num_quantiles_histogram_buckets=4)
-    self.assertCombinerOutputEqual(batches, generator, expected_result)
+    """,
+                statistics_pb2.FeatureNameStatistics(),
+            ),
+        }
+        generator = basic_stats_generator.BasicStatsGenerator(
+            example_weight_map=ExampleWeightMap(weight_feature="w"),
+            num_values_histogram_buckets=2,
+            num_histogram_buckets=3,
+            num_quantiles_histogram_buckets=4,
+        )
+        self.assertCombinerOutputEqual(batches, generator, expected_result)
 
 
 _NESTED_TEST_CASES = [
     dict(
-        testcase_name='nested',
+        testcase_name="nested",
         batches=[
-            pa.RecordBatch.from_arrays([
-                pa.array([None, None],
-                         type=pa.large_list(
-                             pa.large_list(pa.list_(pa.large_binary())))),
-                pa.array([[1.0], [1.0]]),
-            ], ['a', 'w']),
-            pa.RecordBatch.from_arrays([
-                pa.array([
-                    [[[b'a', b'a'], [b'a'], None], None, []],
-                    [[[b'a', b'a']], [[b'a']]],
-                ]),
-                pa.array([[1.0], [1.0]]),
-            ], ['a', 'w']),
+            pa.RecordBatch.from_arrays(
+                [
+                    pa.array(
+                        [None, None],
+                        type=pa.large_list(pa.large_list(pa.list_(pa.large_binary()))),
+                    ),
+                    pa.array([[1.0], [1.0]]),
+                ],
+                ["a", "w"],
+            ),
+            pa.RecordBatch.from_arrays(
+                [
+                    pa.array(
+                        [
+                            [[[b"a", b"a"], [b"a"], None], None, []],
+                            [[[b"a", b"a"]], [[b"a"]]],
+                        ]
+                    ),
+                    pa.array([[1.0], [1.0]]),
+                ],
+                ["a", "w"],
+            ),
             # in this batch, 'a' has the same nestedness, but its type is
             # unknown. Note that here pa.null() means pa.list_(<unknown_type>).
-            pa.RecordBatch.from_arrays([
-                pa.array([
-                    [[None, None], None, []],
+            pa.RecordBatch.from_arrays(
+                [
+                    pa.array(
+                        [
+                            [[None, None], None, []],
+                        ],
+                        type=pa.list_(pa.list_(pa.null())),
+                    ),
+                    pa.array([[1.0]]),
                 ],
-                         type=pa.list_(pa.list_(pa.null()))),
-                pa.array([[1.0]])
-            ], ['a', 'w'])
+                ["a", "w"],
+            ),
         ],
-        weight_column='w',
+        weight_column="w",
         expected_result={
-            types.FeaturePath(['a']):
-                """
+            types.FeaturePath(["a"]): """
             type: STRING
             string_stats {
               common_stats {
@@ -3565,18 +3745,18 @@ _NESTED_TEST_CASES = [
             path {
               step: "a"
             }"""
-        }),
+        },
+    ),
     dict(
-        testcase_name='nested_null',
+        testcase_name="nested_null",
         batches=[
-            pa.RecordBatch.from_arrays([
-                pa.array([[None, None], None, []],
-                         type=pa.large_list(pa.null()))
-            ], ['a']),
+            pa.RecordBatch.from_arrays(
+                [pa.array([[None, None], None, []], type=pa.large_list(pa.null()))],
+                ["a"],
+            ),
         ],
         expected_result={
-            types.FeaturePath(['a']):
-                """
+            types.FeaturePath(["a"]): """
             type: STRING
             string_stats {
               common_stats {
@@ -3605,20 +3785,25 @@ _NESTED_TEST_CASES = [
             path {
               step: "a"
             }"""
-        }),
+        },
+    ),
     dict(
-        testcase_name='nested_with_non_utf8',
+        testcase_name="nested_with_non_utf8",
         batches=[
-            pa.RecordBatch.from_arrays([
-                pa.array([
-                    [[[b'a', b'a'], [b'a'], None], None, []],
-                    [[[b'a', b'\xfc\xa1\xa1\xa1\xa1\xa1']], [[b'a']]],
-                ])
-            ], ['a']),
+            pa.RecordBatch.from_arrays(
+                [
+                    pa.array(
+                        [
+                            [[[b"a", b"a"], [b"a"], None], None, []],
+                            [[[b"a", b"\xfc\xa1\xa1\xa1\xa1\xa1"]], [[b"a"]]],
+                        ]
+                    )
+                ],
+                ["a"],
+            ),
         ],
         expected_result={
-            types.FeaturePath(['a']):
-                """
+            types.FeaturePath(["a"]): """
             type: STRING
             string_stats {
               common_stats {
@@ -3726,36 +3911,43 @@ _NESTED_TEST_CASES = [
             path {
               step: "a"
             }"""
-        }),
+        },
+    ),
 ]
 
 
 class BasicStatsGeneratorNestedListTest(
-    test_util.CombinerStatsGeneratorTest, parameterized.TestCase):
-  # pylint: disable=g-error-prone-assert-raises
+    test_util.CombinerStatsGeneratorTest, parameterized.TestCase
+):
+    # pylint: disable=g-error-prone-assert-raises
 
-  @parameterized.named_parameters(*_NESTED_TEST_CASES)
-  def test_nested_list(self, batches, expected_result, weight_column=None):
-    generator = basic_stats_generator.BasicStatsGenerator(
-        num_values_histogram_buckets=2, num_histogram_buckets=3,
-        num_quantiles_histogram_buckets=4,
-        example_weight_map=ExampleWeightMap(weight_feature=weight_column))
-    expected_result = {
-        path: text_format.Parse(pbtxt, statistics_pb2.FeatureNameStatistics())
-        for path, pbtxt in expected_result.items()
-    }
-    self.assertCombinerOutputEqual(batches, generator, expected_result,
-                                   only_match_expected_feature_stats=True)
+    @parameterized.named_parameters(*_NESTED_TEST_CASES)
+    def test_nested_list(self, batches, expected_result, weight_column=None):
+        generator = basic_stats_generator.BasicStatsGenerator(
+            num_values_histogram_buckets=2,
+            num_histogram_buckets=3,
+            num_quantiles_histogram_buckets=4,
+            example_weight_map=ExampleWeightMap(weight_feature=weight_column),
+        )
+        expected_result = {
+            path: text_format.Parse(pbtxt, statistics_pb2.FeatureNameStatistics())
+            for path, pbtxt in expected_result.items()
+        }
+        self.assertCombinerOutputEqual(
+            batches, generator, expected_result, only_match_expected_feature_stats=True
+        )
 
-  def test_basic_stats_generator_different_nest_levels(self):
-    batches = [
-        pa.RecordBatch.from_arrays([pa.array([[1]])], ['a']),
-        pa.RecordBatch.from_arrays([pa.array([[[1]]])], ['a']),
-    ]
-    generator = basic_stats_generator.BasicStatsGenerator()
-    with self.assertRaisesRegex(
-        ValueError, 'Unable to merge common stats with different nest levels'):
-      self.assertCombinerOutputEqual(batches, generator, None)
+    def test_basic_stats_generator_different_nest_levels(self):
+        batches = [
+            pa.RecordBatch.from_arrays([pa.array([[1]])], ["a"]),
+            pa.RecordBatch.from_arrays([pa.array([[[1]]])], ["a"]),
+        ]
+        generator = basic_stats_generator.BasicStatsGenerator()
+        with self.assertRaisesRegex(
+            ValueError, "Unable to merge common stats with different nest levels"
+        ):
+            self.assertCombinerOutputEqual(batches, generator, None)
 
-if __name__ == '__main__':
-  absltest.main()
+
+if __name__ == "__main__":
+    absltest.main()

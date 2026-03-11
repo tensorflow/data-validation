@@ -19,6 +19,8 @@ cc_library(
         "//conditions:default": [],
     }),
     # Required by ZetaSQL.
+    # ZetaSQL is removed
+    # This is a candidate for deletion
     defines = ["NAMESPACE_FOR_HASH_FUNCTIONS=farmhash"],
     includes = ["src/."],
     visibility = ["//visibility:public"],
