@@ -25,8 +25,6 @@ def tfdv_pybind_extension(
     so_file = "%s%s.so" % (prefix, sname)
     pyd_file = "%s%s.pyd" % (prefix, sname)
     exported_symbols = [
-        "init%s" % sname,
-        "init_%s" % sname,
         "PyInit_%s" % sname,
     ]
 
