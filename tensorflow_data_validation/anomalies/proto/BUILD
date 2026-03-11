@@ -36,14 +36,3 @@ tfdv_proto_library_py(
     name = "validation_metadata_proto_py_pb2",
     deps = [":validation_metadata_proto"],
 )
-
-tfdv_proto_library(
-    name = "custom_validation_config_proto",
-    srcs = ["custom_validation_config.proto"],
-    deps = ["@com_github_tensorflow_metadata//tensorflow_metadata/proto/v0:metadata_v0_proto"],
-)
-
-tfdv_proto_library_py(
-    name = "custom_validation_config_proto_py_pb2",
-    deps = [":custom_validation_config_proto"],
-)

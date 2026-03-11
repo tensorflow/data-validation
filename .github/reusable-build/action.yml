@@ -1,0 +1,36 @@
+name: Resusable steps to build data-validation
+
+inputs:
+  python-version:
+    description: 'Python version'
+    required: true
+  upload-artifact:
+    description: 'Should upload build artifact or not'
+    default: false
+
+runs:
+  using: 'composite'
+  steps:
+  - name: Set up Python ${{ inputs.python-version }}
+    uses: actions/setup-python@v5
+    with:
+      python-version: ${{ inputs.python-version }}
+
+  - name: Build the package for Python ${{ inputs.python-version }}
+    shell: bash
+    run: |
+      version="${{ matrix.python-version }}"
+      docker compose run -e PYTHON_VERSION=$(echo "$version" | sed 's/\.//') manylinux2010
+
+  - name: Upload wheel artifact for Python ${{ matrix.python-version }}
+    if: ${{ inputs.upload-artifact == 'true' }}
+    uses: actions/upload-artifact@v4
+    with:
+      name: data-validation-wheel-py${{ matrix.python-version }}
+      path: dist/*.whl
+
+  - name: Check the wheel
+    shell: bash
+    run: |
+      pip install twine
+      twine check dist/*
