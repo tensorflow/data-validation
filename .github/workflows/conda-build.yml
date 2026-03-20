@@ -1,0 +1,79 @@
+name: Build data-validation with Conda
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.9", "3.10", "3.11"]
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Micromamba
+      uses: mamba-org/setup-micromamba@v1
+      with:
+        environment-name: tfdv-build
+        cache-environment: true
+        create-args: >-
+          python=${{ matrix.python-version }}
+
+    - name: Display environment info
+      shell: bash -l {0}
+      run: |
+        micromamba info
+        micromamba list
+
+    - name: Install Bazel
+      shell: bash -l {0}
+      run: |
+        # Install Bazelisk (manages Bazel versions)
+        if [ "$RUNNER_OS" == "Linux" ]; then
+          curl -Lo /tmp/bazelisk https://github.com/bazelbuild/bazelisk/releases/download/v1.20.0/bazelisk-linux-amd64
+        elif [ "$RUNNER_OS" == "macOS" ]; then
+          curl -Lo /tmp/bazelisk https://github.com/bazelbuild/bazelisk/releases/download/v1.20.0/bazelisk-darwin-amd64
+        fi
+        chmod +x /tmp/bazelisk
+        sudo mv /tmp/bazelisk /usr/local/bin/bazel
+        echo "USE_BAZEL_VERSION=6.5.0" >> $GITHUB_ENV
+        bazel --version
+
+    # Needed for Xcode 26.x in some CI environments; without this patch,
+    # Bazel Apple toolchain may fail with an "LC_UUID missing" linker error.
+    # Currently CI is passing, so keep this disabled. Uncomment if CI starts
+    # failing with an "LC_UUID missing" error.
+    # - name: Patch Apple CC toolchain (macOS only)
+    #   if: runner.os == 'macOS'
+    #   shell: bash -l {0}
+    #   run: bazel build //:patch_local_config_apple_cc
+
+    - name: Install build tooling
+      shell: bash -l {0}
+      run: |
+        python -m pip install numpy~=1.22.0
+        python -m pip install --upgrade pip build wheel "setuptools<69.3"
+
+    - name: Build the package
+      shell: bash -l {0}
+      run: |
+        python -m build --wheel --no-isolation
+
+    - name: Upload wheel artifact
+      uses: actions/upload-artifact@v4.4.0
+      with:
+        name: data-validation-wheel-${{ matrix.os }}-py${{ matrix.python-version }}
+        path: dist/*.whl
