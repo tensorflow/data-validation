@@ -2,6 +2,7 @@
 # Zetasql is removed.
 # This is a candidate for removal
 build --cxxopt="-std=c++17"
+build --host_cxxopt="-std=c++17"
 
 # Needed to avoid zetasql proto error.
 # Zetasql is removed.
