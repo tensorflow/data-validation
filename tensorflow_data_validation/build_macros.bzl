@@ -24,7 +24,15 @@ def tfdv_pybind_extension(
         prefix = name[:p + 1]
     so_file = "%s%s.so" % (prefix, sname)
     pyd_file = "%s%s.pyd" % (prefix, sname)
-    exported_symbols = [
+    # For macOS, only export PyInit_* (Python 3).
+    # macOS linker requires all exported symbols to exist.
+    exported_symbols_macos = [
+        "PyInit_%s" % sname,
+    ]
+
+    # For Linux, include Python 2 symbols for compatibility
+    # (version script allows undefined symbols).
+    exported_symbols_linux = [
         "init%s" % sname,
         "init_%s" % sname,
         "PyInit_%s" % sname,
@@ -33,8 +41,8 @@ def tfdv_pybind_extension(
     exported_symbols_file = "%s-exported-symbols.lds" % name
     version_script_file = "%s-version-script.lds" % name
 
-    exported_symbols_output = "\n".join(["_%s" % symbol for symbol in exported_symbols])
-    version_script_output = "\n".join([" %s;" % symbol for symbol in exported_symbols])
+    exported_symbols_output = "\n".join(["_%s" % symbol for symbol in exported_symbols_macos])
+    version_script_output = "\n".join([" %s;" % symbol for symbol in exported_symbols_linux])
 
     native.genrule(
         name = name + "_exported_symbols",

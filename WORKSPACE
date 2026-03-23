@@ -3,6 +3,14 @@ workspace(name = "tensorflow_data_validation")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_archive(
+    name = "zlib",
+    build_file = "@com_google_protobuf//:third_party/zlib.BUILD",
+    sha256 = "17e88863f3600672ab49182f217281b6fc4d3c762bde361935e436a95214d05c",
+    strip_prefix = "zlib-1.3.1",
+    urls = ["https://github.com/madler/zlib/archive/v1.3.1.tar.gz"],
+)
+
+http_archive(
     name = "google_bazel_common",
     sha256 = "82a49fb27c01ad184db948747733159022f9464fc2e62da996fa700594d9ea42",
     strip_prefix = "bazel-common-2a6b6406e12208e02b2060df0631fb30919080f3",
@@ -91,13 +99,11 @@ http_archive(
     urls = ["https://github.com/apache/arrow/archive/%s.zip" % ARROW_COMMIT],
 )
 
-COM_GOOGLE_ABSL_COMMIT = "4447c7562e3bc702ade25105912dce503f0c4010"  # lts_2023_08_0
-
 http_archive(
     name = "com_google_absl",
-    sha256 = "df8b3e0da03567badd9440377810c39a38ab3346fa89df077bb52e68e4d61e74",
-    strip_prefix = "abseil-cpp-%s" % COM_GOOGLE_ABSL_COMMIT,
-    url = "https://github.com/abseil/abseil-cpp/archive/%s.tar.gz" % COM_GOOGLE_ABSL_COMMIT,
+    urls = ["https://github.com/abseil/abseil-cpp/archive/refs/tags/20230802.1.tar.gz"],
+    strip_prefix = "abseil-cpp-20230802.1",
+    sha256 = "987ce98f02eefbaf930d6e38ab16aa05737234d7afbab2d5c4ea7adbe50c28ed",
 )
 
 
