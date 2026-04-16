@@ -928,7 +928,7 @@ class FeatureSkewDetectorTest(parameterized.TestCase):
         },
     )
     def test_confusion_analysis_errors(self, input_example, expected_error_regex):
-        with self.assertRaisesRegex(ValueError, expected_error_regex):
+        with self.assertRaisesRegex(RuntimeError, expected_error_regex):
             # Use the direct runner here to get exception propagation.
             with beam.Pipeline() as p:
                 baseline_examples = p | "Create Base" >> beam.Create([input_example])

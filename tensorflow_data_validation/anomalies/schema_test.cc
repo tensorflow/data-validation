@@ -30,6 +30,9 @@ limitations under the License.
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
 #include "tensorflow_metadata/proto/v0/statistics.pb.h"
 
+#define ASSERT_OK(expr) ASSERT_TRUE((expr).ok())
+#define EXPECT_OK(expr) EXPECT_TRUE((expr).ok())
+
 namespace tensorflow {
 namespace data_validation {
 namespace {
