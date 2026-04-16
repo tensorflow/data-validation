@@ -45,17 +45,17 @@ http_archive(
 #     strip_prefix = "rules_proto-6.0.2",
 #     url = "https://github.com/bazelbuild/rules_proto/releases/download/6.0.2/rules_proto-6.0.2.tar.gz",
 # )
-# 
+#
 # load("@rules_proto//proto:repositories.bzl", "rules_proto_dependencies")
-# 
+#
 # rules_proto_dependencies()
-# 
+#
 # load("@rules_proto//proto:setup.bzl", "rules_proto_setup")
-# 
+#
 # rules_proto_setup()
-# 
+#
 # load("@rules_proto//proto:toolchains.bzl", "rules_proto_toolchains")
-# 
+#
 # rules_proto_toolchains()
 
 # Install version 0.9.0 of rules_foreign_cc, as default version causes an
