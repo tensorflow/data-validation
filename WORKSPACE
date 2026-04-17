@@ -125,10 +125,10 @@ http_archive(
     strip_prefix = "abseil-cpp-20250127.2",
     sha256 = "f5a67394128fb4d9a18124820026014591942d9c882d9055d4d2412b13bf1c91",
     patch_cmds = [
-        "sed -i '/@rules_cc\\/\\/cc\\/compiler:emscripten/d' absl/debugging/BUILD.bazel",
-        "sed -i '/@rules_cc\\/\\/cc\\/compiler:emscripten/d' absl/base/BUILD.bazel",
-        "sed -i '/@rules_cc\\/\\/cc\\/compiler:emscripten/d' absl/random/internal/BUILD.bazel",
-        "sed -i '/@rules_cc\\/\\/cc\\/compiler:emscripten/d' absl/synchronization/BUILD.bazel",
+        "sed -i.bak '/@rules_cc\\/\\/cc\\/compiler:emscripten/d' absl/debugging/BUILD.bazel",
+        "sed -i.bak '/@rules_cc\\/\\/cc\\/compiler:emscripten/d' absl/base/BUILD.bazel",
+        "sed -i.bak '/@rules_cc\\/\\/cc\\/compiler:emscripten/d' absl/random/internal/BUILD.bazel",
+        "sed -i.bak '/@rules_cc\\/\\/cc\\/compiler:emscripten/d' absl/synchronization/BUILD.bazel",
     ],
 )
 
@@ -138,10 +138,10 @@ http_archive(
     strip_prefix = "abseil-cpp-20250127.2",
     sha256 = "f5a67394128fb4d9a18124820026014591942d9c882d9055d4d2412b13bf1c91",
     patch_cmds = [
-        "sed -i '/@rules_cc\\/\\/cc\\/compiler:emscripten/d' absl/debugging/BUILD.bazel",
-        "sed -i '/@rules_cc\\/\\/cc\\/compiler:emscripten/d' absl/base/BUILD.bazel",
-        "sed -i '/@rules_cc\\/\\/cc\\/compiler:emscripten/d' absl/random/internal/BUILD.bazel",
-        "sed -i '/@rules_cc\\/\\/cc\\/compiler:emscripten/d' absl/synchronization/BUILD.bazel",
+        "sed -i.bak '/@rules_cc\\/\\/cc\\/compiler:emscripten/d' absl/debugging/BUILD.bazel",
+        "sed -i.bak '/@rules_cc\\/\\/cc\\/compiler:emscripten/d' absl/base/BUILD.bazel",
+        "sed -i.bak '/@rules_cc\\/\\/cc\\/compiler:emscripten/d' absl/random/internal/BUILD.bazel",
+        "sed -i.bak '/@rules_cc\\/\\/cc\\/compiler:emscripten/d' absl/synchronization/BUILD.bazel",
     ],
 )
 
