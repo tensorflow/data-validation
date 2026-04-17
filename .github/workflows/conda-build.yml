@@ -78,7 +78,7 @@ jobs:
         python -m pip install "tensorflow>=2.21,<2.22"
         python -m pip install "tensorflow-metadata>=1.17.1"
         python -m pip install "tfx-bsl>=1.17.1"
-        python -m pip install "absl-py>=0.9,<2.0.0" "joblib>=1.2.0" "pyarrow>=14" "pyfarmhash>=0.2.2,<0.4" "six>=1.12,<2"
+        python -m pip install "absl-py>=0.9,<2.0.0" "joblib>=1.2.0" "pyarrow>=14" "pyfarmhash>=0.2.2,<0.4" "six>=1.12,<2" "dill"
         python -m pip install "protobuf==6.31.1" --force-reinstall
         python -m pip install dist/*.whl --no-deps
         python -m pip install pytest
