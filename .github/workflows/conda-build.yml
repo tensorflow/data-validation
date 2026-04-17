@@ -71,12 +71,6 @@ jobs:
       run: |
         python -m build --wheel --no-isolation
 
-    - name: Upload wheel artifact
-      uses: actions/upload-artifact@v4.4.0
-      with:
-        name: data-validation-wheel-${{ matrix.os }}-py${{ matrix.python-version }}
-        path: dist/*.whl
-
     - name: Install wheel and dependencies
       shell: bash -l {0}
       run: |
@@ -89,3 +83,9 @@ jobs:
         mkdir -p /tmp/test_dir
         cd /tmp/test_dir
         pytest --pyargs tensorflow_data_validation
+
+    - name: Upload wheel artifact
+      uses: actions/upload-artifact@v4.4.0
+      with:
+        name: data-validation-wheel-${{ matrix.os }}-py${{ matrix.python-version }}
+        path: dist/*.whl
