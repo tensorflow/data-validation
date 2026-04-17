@@ -80,9 +80,12 @@ jobs:
     - name: Run tests
       shell: bash -l {0}
       run: |
+        mv tensorflow_data_validation tensorflow_data_validation_bak
         mkdir -p /tmp/test_dir
         cd /tmp/test_dir
         python -m pytest --pyargs tensorflow_data_validation
+        cd -
+        mv tensorflow_data_validation_bak tensorflow_data_validation
 
     - name: Upload wheel artifact
       uses: actions/upload-artifact@v4.4.0
