@@ -78,6 +78,7 @@ def tfdv_pybind_extension(
                 # "-Wl,-rename_section,__TEXT,text_env,__TEXT,__text",
                 "-Wl,-w",
                 "-Wl,-exported_symbols_list,$(location %s)" % exported_symbols_file,
+                "-Wl,-undefined,dynamic_lookup",
             ],
             "//conditions:default": [
                 "-Wl,--version-script",
