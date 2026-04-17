@@ -82,6 +82,14 @@ class _BazelBuildCommand(setuptools.Command):
             self._additional_build_options = ["--macos_minimum_os=10.14"]
 
     def run(self):
+        bazelversion_path = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), ".bazelversion"
+        )
+        if os.path.exists(bazelversion_path):
+            with open(bazelversion_path, "r") as f:
+                bazel_version = f.read().strip()
+                os.environ["USE_BAZEL_VERSION"] = bazel_version
+
         subprocess.check_call(
             [self._bazel_cmd, "run", "-c", "opt"]
             + self._additional_build_options
