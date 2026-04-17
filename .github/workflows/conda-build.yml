@@ -82,7 +82,7 @@ jobs:
       run: |
         mkdir -p /tmp/test_dir
         cd /tmp/test_dir
-        pytest --pyargs tensorflow_data_validation
+        python -m pytest --pyargs tensorflow_data_validation
 
     - name: Upload wheel artifact
       uses: actions/upload-artifact@v4.4.0
