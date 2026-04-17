@@ -49,7 +49,6 @@ jobs:
         fi
         chmod +x /tmp/bazelisk
         sudo mv /tmp/bazelisk /usr/local/bin/bazel
-        echo "USE_BAZEL_VERSION=6.5.0" >> $GITHUB_ENV
         bazel --version
 
     # Needed for Xcode 26.x in some CI environments; without this patch,
@@ -64,7 +63,7 @@ jobs:
     - name: Install build tooling
       shell: bash -l {0}
       run: |
-        python -m pip install numpy~=1.22.0
+        python -m pip install numpy>=1.22.0
         python -m pip install --upgrade pip build wheel "setuptools<69.3"
 
     - name: Build the package
