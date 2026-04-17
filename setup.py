@@ -211,7 +211,7 @@ setup(
         # Beam's DirectRunner.
         "joblib>=1.2.0",  # Dependency for multi-processing.
         "numpy>=1.22.0",
-        "pandas>=1.0,<2",
+        "pandas>=1.0,<3",
         "protobuf>=6.0.0,<7.0.0",
         "pyarrow>=14",
         "pyfarmhash>=0.2.2,<0.4",
