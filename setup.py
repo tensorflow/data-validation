@@ -86,7 +86,7 @@ class _BazelBuildCommand(setuptools.Command):
             os.path.dirname(os.path.realpath(__file__)), ".bazelversion"
         )
         if os.path.exists(bazelversion_path):
-            with open(bazelversion_path, "r") as f:
+            with open(bazelversion_path) as f:
                 bazel_version = f.read().strip()
                 os.environ["USE_BAZEL_VERSION"] = bazel_version
 
