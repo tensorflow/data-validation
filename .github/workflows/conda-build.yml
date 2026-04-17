@@ -74,6 +74,7 @@ jobs:
     - name: Install wheel and dependencies
       shell: bash -l {0}
       run: |
+        python -m pip install "setuptools<70"
         python -m pip install "Cython<3"
         python -m pip install "pandas<2" --no-build-isolation
         python -m pip install dist/*.whl
