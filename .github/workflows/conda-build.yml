@@ -75,9 +75,9 @@ jobs:
       shell: bash -l {0}
       run: |
         python -m pip install "apache-beam[gcp]>=2.53,<3" "pandas>=1.0,<3" "numpy>=1.22.0"
-        python -m pip install "tensorflow>=2.21,<2.22"
         python -m pip install "tensorflow-metadata>=1.17.1"
-        python -m pip install "tfx-bsl>=1.17.1"
+        python -m pip install "tfx-bsl>=1.17.1" --no-deps
+        python -m pip install "tensorflow>=2.21,<2.22"
         python -m pip install "absl-py>=0.9,<2.0.0" "joblib>=1.2.0" "pyarrow>=14" "pyfarmhash>=0.2.2,<0.4" "six>=1.12,<2" "dill" "scipy" "scikit-learn"
         python -m pip install "protobuf==6.31.1" --force-reinstall
         python -m pip install dist/*.whl --no-deps
