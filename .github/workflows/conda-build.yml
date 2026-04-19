@@ -82,13 +82,13 @@ jobs:
         python -m pip install "protobuf==6.31.1" --force-reinstall
         python -m pip install dist/*.whl --no-deps
         python -m pip install pytest
-        SITE_DIR=$(python -c "import site; print(site.getsitepackages()[0])")
-        cp -r tensorflow_data_validation_bak/statistics/generators/testdata $SITE_DIR/tensorflow_data_validation/statistics/generators/
 
     - name: Run tests
       shell: bash -l {0}
       run: |
         mv tensorflow_data_validation tensorflow_data_validation_bak
+        SITE_DIR=$(python -c "import site; print(site.getsitepackages()[0])")
+        cp -r tensorflow_data_validation_bak/statistics/generators/testdata $SITE_DIR/tensorflow_data_validation/statistics/generators/
         mkdir -p /tmp/test_dir
         cd /tmp/test_dir
         python -m pytest --pyargs tensorflow_data_validation
