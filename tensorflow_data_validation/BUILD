@@ -38,3 +38,9 @@ sh_binary(
         ],
     }),
 )
+
+py_library(
+    name = "tensorflow_data_validation",
+    srcs = glob(["*.py"], exclude=["*_test.py"]),
+    visibility = ["//visibility:public"],
+)

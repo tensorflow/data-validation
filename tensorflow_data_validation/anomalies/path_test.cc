@@ -19,6 +19,8 @@ limitations under the License.
 #include "tensorflow_data_validation/anomalies/test_util.h"
 #include "tensorflow_metadata/proto/v0/path.pb.h"
 
+#define ASSERT_OK(expr) ASSERT_TRUE((expr).ok())
+
 namespace tensorflow {
 namespace data_validation {
 namespace {

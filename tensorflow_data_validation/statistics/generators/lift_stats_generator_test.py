@@ -1345,7 +1345,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         )
         examples = [(None, e) for e in examples]
         with self.assertRaisesRegex(
-            ValueError,
+            RuntimeError,
             r'Weight column "weight" must have exactly one ' "value in each example.*",
         ):
             with beam.Pipeline() as p:
@@ -1386,7 +1386,7 @@ class LiftStatsGeneratorTest(test_util.TransformStatsGeneratorTest):
         )
         examples = [(None, e) for e in examples]
         with self.assertRaisesRegex(
-            ValueError, r'Weight column "weight" cannot be null.*'
+            RuntimeError, r'Weight column "weight" cannot be null.*'
         ):
             with beam.Pipeline() as p:
                 _ = p | beam.Create(examples) | generator.ptransform

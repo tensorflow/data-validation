@@ -2,6 +2,24 @@ workspace(name = "tensorflow_data_validation")
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
+_PROTOBUF_COMMIT = "6.31.1"
+
+http_archive(
+    name = "com_google_protobuf",
+    sha256 = "6e09bbc950ba60c3a7b30280210cd285af8d7d8ed5e0a6ed101c72aff22e8d88",
+    strip_prefix = "protobuf-%s" % _PROTOBUF_COMMIT,
+    urls = [
+        "https://github.com/protocolbuffers/protobuf/archive/refs/tags/v%s.zip" % _PROTOBUF_COMMIT,
+    ],
+    patch_cmds = [
+        "touch BUILD",
+    ],
+)
+
+load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
+
+protobuf_deps()
+
 http_archive(
     name = "zlib",
     build_file = "@com_google_protobuf//:third_party/zlib.BUILD",
@@ -21,24 +39,24 @@ http_archive(
 # Generic Bazel Support                                                        #
 ################################################################################
 
-http_archive(
-    name = "rules_proto",
-    sha256 = "6fb6767d1bef535310547e03247f7518b03487740c11b6c6adb7952033fe1295",
-    strip_prefix = "rules_proto-6.0.2",
-    url = "https://github.com/bazelbuild/rules_proto/releases/download/6.0.2/rules_proto-6.0.2.tar.gz",
-)
-
-load("@rules_proto//proto:repositories.bzl", "rules_proto_dependencies")
-
-rules_proto_dependencies()
-
-load("@rules_proto//proto:setup.bzl", "rules_proto_setup")
-
-rules_proto_setup()
-
-load("@rules_proto//proto:toolchains.bzl", "rules_proto_toolchains")
-
-rules_proto_toolchains()
+# http_archive(
+#     name = "rules_proto",
+#     sha256 = "6fb6767d1bef535310547e03247f7518b03487740c11b6c6adb7952033fe1295",
+#     strip_prefix = "rules_proto-6.0.2",
+#     url = "https://github.com/bazelbuild/rules_proto/releases/download/6.0.2/rules_proto-6.0.2.tar.gz",
+# )
+#
+# load("@rules_proto//proto:repositories.bzl", "rules_proto_dependencies")
+#
+# rules_proto_dependencies()
+#
+# load("@rules_proto//proto:setup.bzl", "rules_proto_setup")
+#
+# rules_proto_setup()
+#
+# load("@rules_proto//proto:toolchains.bzl", "rules_proto_toolchains")
+#
+# rules_proto_toolchains()
 
 # Install version 0.9.0 of rules_foreign_cc, as default version causes an
 # invalid escape sequence error to be raised, which can't be avoided with
@@ -61,27 +79,29 @@ rules_foreign_cc_dependencies()
 
 http_archive(
     name = "bazel_skylib",
-    sha256 = "97e70364e9249702246c0e9444bccdc4b847bed1eb03c5a3ece4f83dfe6abc44",
+    sha256 = "3b5b49006181f5f8ff626ef8ddceaa95e9bb8ad294f7b5d7b11ea9f7ddaf8c59",
     urls = [
-        "https://mirror.bazel.build/github.com/bazelbuild/bazel-skylib/releases/download/1.0.2/bazel-skylib-1.0.2.tar.gz",
-        "https://github.com/bazelbuild/bazel-skylib/releases/download/1.0.2/bazel-skylib-1.0.2.tar.gz",
+        "https://mirror.bazel.build/github.com/bazelbuild/bazel-skylib/releases/download/1.9.0/bazel-skylib-1.9.0.tar.gz",
+        "https://github.com/bazelbuild/bazel-skylib/releases/download/1.9.0/bazel-skylib-1.9.0.tar.gz",
     ],
 )
-
-_PROTOBUF_COMMIT = "4.25.6"  # 4.25.6
 
 http_archive(
-    name = "com_google_protobuf",
-    sha256 = "ff6e9c3db65f985461d200c96c771328b6186ee0b10bc7cb2bbc87cf02ebd864",
-    strip_prefix = "protobuf-%s" % _PROTOBUF_COMMIT,
-    urls = [
-        "https://github.com/protocolbuffers/protobuf/archive/v4.25.6.zip",
-    ],
+    name = "rules_python",
+    sha256 = "c68bdc4fbec25de5b5493b8819cfc877c4ea299c0dcb15c244c5a00208cde311",
+    strip_prefix = "rules_python-0.31.0",
+    url = "https://github.com/bazelbuild/rules_python/releases/download/0.31.0/rules_python-0.31.0.tar.gz",
 )
 
-load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
+load("@rules_python//python:repositories.bzl", "py_repositories")
+py_repositories()
 
-protobuf_deps()
+local_repository(
+    name = "compatibility_proxy",
+    path = "third_party/dummy_compatibility_proxy",
+)
+
+
 
 # Use the last commit on the relevant release branch to update.
 # LINT.IfChange(arrow_archive_version)
@@ -101,9 +121,28 @@ http_archive(
 
 http_archive(
     name = "com_google_absl",
-    urls = ["https://github.com/abseil/abseil-cpp/archive/refs/tags/20230802.1.tar.gz"],
-    strip_prefix = "abseil-cpp-20230802.1",
-    sha256 = "987ce98f02eefbaf930d6e38ab16aa05737234d7afbab2d5c4ea7adbe50c28ed",
+    urls = ["https://github.com/abseil/abseil-cpp/archive/refs/tags/20250127.2.tar.gz"],
+    strip_prefix = "abseil-cpp-20250127.2",
+    sha256 = "f5a67394128fb4d9a18124820026014591942d9c882d9055d4d2412b13bf1c91",
+    patch_cmds = [
+        "sed -i.bak '/@rules_cc\\/\\/cc\\/compiler:emscripten/d' absl/debugging/BUILD.bazel",
+        "sed -i.bak '/@rules_cc\\/\\/cc\\/compiler:emscripten/d' absl/base/BUILD.bazel",
+        "sed -i.bak '/@rules_cc\\/\\/cc\\/compiler:emscripten/d' absl/random/internal/BUILD.bazel",
+        "sed -i.bak '/@rules_cc\\/\\/cc\\/compiler:emscripten/d' absl/synchronization/BUILD.bazel",
+    ],
+)
+
+http_archive(
+    name = "abseil-cpp",
+    urls = ["https://github.com/abseil/abseil-cpp/archive/refs/tags/20250127.2.tar.gz"],
+    strip_prefix = "abseil-cpp-20250127.2",
+    sha256 = "f5a67394128fb4d9a18124820026014591942d9c882d9055d4d2412b13bf1c91",
+    patch_cmds = [
+        "sed -i.bak '/@rules_cc\\/\\/cc\\/compiler:emscripten/d' absl/debugging/BUILD.bazel",
+        "sed -i.bak '/@rules_cc\\/\\/cc\\/compiler:emscripten/d' absl/base/BUILD.bazel",
+        "sed -i.bak '/@rules_cc\\/\\/cc\\/compiler:emscripten/d' absl/random/internal/BUILD.bazel",
+        "sed -i.bak '/@rules_cc\\/\\/cc\\/compiler:emscripten/d' absl/synchronization/BUILD.bazel",
+    ],
 )
 
 
@@ -128,14 +167,15 @@ http_archive(
 
 # TODO(b/177694034): Follow the new format for tensorflow import after TF 2.5.
 #here
-TENSORFLOW_COMMIT = "3c92ac03cab816044f7b18a86eb86aa01a294d95"  # 2.17.1
+# Corresponds to tag v2.21.0
+TENSORFLOW_COMMIT = "a481b10260dfdf833a1b16007eead49c1d7febf3"
 
 http_archive(
     name = "org_tensorflow_no_deps",
     patches = [
         "//third_party:tensorflow_expose_example_proto.patch",
     ],
-    sha256 = "317dd95c4830a408b14f3e802698eb68d70d81c7c7cfcd3d28b0ba023fe84a68",
+    sha256 = "ef3568bb4865d6c1b2564fb5689c19b6b9a5311572cd1f2ff9198636a8520921",
     strip_prefix = "tensorflow-%s" % TENSORFLOW_COMMIT,
     urls = [
         "https://github.com/tensorflow/tensorflow/archive/%s.tar.gz" % TENSORFLOW_COMMIT,
@@ -150,6 +190,13 @@ http_archive(
     sha256 = "8f4b7f28d214e36301435c055076c36186388dc9617117802cba8a059347cb00",
     strip_prefix = "pybind11-%s" % PYBIND11_COMMIT,
     urls = ["https://github.com/pybind/pybind11/archive/%s.zip" % PYBIND11_COMMIT],
+)
+
+http_archive(
+    name = "com_google_googletest",
+    urls = ["https://github.com/google/googletest/archive/refs/tags/v1.14.0.tar.gz"],
+    strip_prefix = "googletest-1.14.0",
+    sha256 = "8ad598c73ad796e0d8280b082cebd82a630d73e73cd3c70057938a6501bba5d7",
 )
 
 load("//third_party:python_configure.bzl", "local_python_configure")
@@ -236,7 +283,7 @@ http_archive(
 # Specify the minimum required bazel version.
 load("@bazel_skylib//lib:versions.bzl", "versions")
 
-versions.check("6.5.0")
+versions.check("7.7.0")
 
 # Please add all new TensorFlow Data Validation dependencies in workspace.bzl.
 load("//tensorflow_data_validation:workspace.bzl", "tf_data_validation_workspace")
