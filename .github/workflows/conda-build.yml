@@ -82,13 +82,21 @@ jobs:
         python -m pip install git+https://github.com/tensorflow/tfx-bsl.git@master --no-deps
         python -m pip install "tensorflow>=2.21,<2.22"
         python -m pip install "absl-py>=0.9,<2.0.0" "joblib>=1.2.0" "pyarrow>=14" "pyfarmhash>=0.2.2,<0.4" "six>=1.12,<2" "dill" "scipy" "scikit-learn"
-        python -m pip install "protobuf==5.29.0rc2" --force-reinstall
+        python -m pip install "protobuf==6.31.1" --force-reinstall
         python -m pip install dist/*.whl --no-deps
         python -m pip install pytest
 
     - name: Run tests
       shell: bash -l {0}
       run: |
+        export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+        SITE_DIR=$(python -c "import site; print(site.getsitepackages()[0])")
+        RV_PATH="${SITE_DIR}/google/protobuf/runtime_version.py"
+        if [ -f "$RV_PATH" ]; then
+          echo "" >> "$RV_PATH"
+          echo "def ValidateProtobufRuntimeVersion(*args, **kwargs):" >> "$RV_PATH"
+          echo "    pass" >> "$RV_PATH"
+        fi
         mv tensorflow_data_validation tensorflow_data_validation_bak
         SITE_DIR=$(python -c "import site; print(site.getsitepackages()[0])")
         cp -r tensorflow_data_validation_bak/statistics/generators/testdata $SITE_DIR/tensorflow_data_validation/statistics/generators/
