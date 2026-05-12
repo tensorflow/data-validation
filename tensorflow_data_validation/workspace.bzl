@@ -8,12 +8,12 @@ def tf_data_validation_workspace():
 
     git_repository(
         name = "com_github_tensorflow_metadata",
-        branch = "align-tf-2.21",
-        remote = "https://github.com/vkarampudi/metadata.git",
+        branch = "master",
+        remote = "https://github.com/tensorflow/metadata.git",
     )
 
     git_repository(
         name = "com_github_tfx_bsl",
-        branch = "testing",
-        remote = "https://github.com/vkarampudi/tfx-bsl.git",
+        branch = "master",
+        remote = "https://github.com/tensorflow/tfx-bsl.git",
     )
