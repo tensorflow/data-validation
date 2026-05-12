@@ -75,6 +75,7 @@ jobs:
       shell: bash -l {0}
       run: |
         export TFX_DEPENDENCY_SELECTOR=GIT_MASTER
+        export USE_BAZEL_VERSION=7.7.0
         python -m pip install "apache-beam[gcp]>=2.53,<3" "pandas>=1.0,<3" "numpy>=1.22.0"
         python -m pip install git+https://github.com/tensorflow/metadata.git@master --no-deps
         # Bypasses PyPI lack of uncompiled prebuilt wheels over modern setups stably
