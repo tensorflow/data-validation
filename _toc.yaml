@@ -1,0 +1,5 @@
+toc:
+- title: "Install"
+  path: /tfx/data_validation/install
+- title: "Get started"
+  path: /tfx/data_validation/get_started
