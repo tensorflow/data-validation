@@ -26,6 +26,8 @@ limitations under the License.
 #include <map>
 #include <string>
 #include <vector>
+#include <cstdio>
+#include <cstdlib>
 
 #include "google/protobuf/text_format.h"
 #include <gmock/gmock.h>
@@ -71,7 +73,9 @@ class ProtoStringMatcher {
 template <typename T>
 T CreateProto(const string& textual_proto) {
   T proto;
-  CHECK(TextFormat::ParseFromString(textual_proto, &proto));
+  if (!TextFormat::ParseFromString(textual_proto, &proto)) {
+    abort();
+  }
   return proto;
 }
 
@@ -100,8 +104,10 @@ inline ::testing::PolymorphicMatcher<ProtoStringMatcher> EqualsProto(
 template <typename T>
 T ParseTextProtoOrDie(const string& input) {
   T result;
-  CHECK(TextFormat::ParseFromString(input, &result))
-      << "Failed to parse: " << input;
+  if (!TextFormat::ParseFromString(input, &result)) {
+    fprintf(stderr, "Failed to parse: %s\n", input.c_str());
+    abort();
+  }
   return result;
 }
 

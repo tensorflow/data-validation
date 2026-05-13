@@ -25,7 +25,7 @@ limitations under the License.
 #include "absl/strings/str_cat.h"
 #include "tensorflow_data_validation/anomalies/map_util.h"
 #include "tensorflow_data_validation/anomalies/path.h"
-#include "tensorflow/tsl/platform/protobuf.h"
+#include <google/protobuf/text_format.h>
 #include "tensorflow_metadata/proto/v0/anomalies.pb.h"
 #include "tensorflow_metadata/proto/v0/schema.pb.h"
 
@@ -39,7 +39,7 @@ ProtoStringMatcher::ProtoStringMatcher(const string& expected)
 ProtoStringMatcher::ProtoStringMatcher(const google::protobuf::Message& expected)
     : expected_([&]() -> std::string {
         std::string result;
-        tsl::protobuf::TextFormat::PrintToString(expected, &result);
+        google::protobuf::TextFormat::PrintToString(expected, &result);
         return result;
       }()) {}
 

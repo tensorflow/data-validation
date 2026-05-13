@@ -15,5 +15,5 @@ def tf_data_validation_workspace():
     git_repository(
         name = "com_github_tfx_bsl",
         branch = "master",
-        remote = "https://github.com/tensorflow/tfx-bsl",
+        remote = "https://github.com/tensorflow/tfx-bsl.git",
     )

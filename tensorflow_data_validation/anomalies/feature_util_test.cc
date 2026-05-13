@@ -15,6 +15,8 @@ limitations under the License.
 
 #include "tensorflow_data_validation/anomalies/feature_util.h"
 
+#include <cstdio>
+#include <cstdlib>
 #include <memory>
 #include <string>
 #include <unordered_set>
@@ -62,8 +64,8 @@ Feature GetFeatureProtoOrDie(
       return feature_proto;
     }
   }
-  LOG(FATAL) << "Name " << field_name << " not found in "
-             << schema_proto.DebugString();
+  fprintf(stderr, "Name %s not found in %s\n", field_name.c_str(), schema_proto.DebugString().c_str());
+  abort();
 }
 
 TEST(FeatureUtilTest, ClearDomain) {

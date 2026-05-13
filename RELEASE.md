@@ -4,7 +4,16 @@
 
 ## Major Features and Improvements
 
+*   Upgraded to support TensorFlow 2.21.0.
+*   Added support for Python 3.12 and 3.13.
+*   Dropped support for Python 3.9.
+
 ## Bug Fixes and Other Changes
+
+*   Aligned Protobuf dependency to `>=6.0.0,<7.0.0`.
+*   Updated PyArrow dependency to `>=14`.
+*   Fixed C++ test build issues by defining missing `ASSERT_OK` and `EXPECT_OK` macros, replacing `LOG(FATAL)` with `abort()`, and fixing invalid Protobuf includes.
+*   Fixed Python test failures by updating `assertRaisesRegex` to expect `RuntimeError` wrapping `ValueError` in Beam pipelines.
 
 ## Known Issues
 
