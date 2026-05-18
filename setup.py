@@ -126,7 +126,7 @@ def _make_mutual_information_requirements():
 
 def _make_visualization_requirements():
     return [
-        "ipython>=7,<8",
+        "ipython>=7,<9",
     ]
 
 
