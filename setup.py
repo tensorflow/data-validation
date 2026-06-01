@@ -242,7 +242,7 @@ setup(
         ),
         "tfx-bsl"
         + select_constraint(
-            default="@git+https://github.com/vkarampudi/tfx-bsl@master",
+            default="@git+https://github.com/tensorflow/tfx-bsl@master",
             nightly=">=1.18.0.dev",
             git_master="@git+https://github.com/tensorflow/tfx-bsl@master",
         ),
