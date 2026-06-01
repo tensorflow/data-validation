@@ -205,7 +205,11 @@ def _raw_exec(repository_ctx, cmdline):
     Returns:
       The 'exec_result' of repository_ctx.execute().
     """
-    return repository_ctx.execute(cmdline)
+    env = {}
+    for k in ["PYTHONPATH", "PYTHON_BIN_PATH", "PYTHON_LIB_PATH"]:
+        if k in repository_ctx.os.environ:
+            env[k] = repository_ctx.os.environ[k]
+    return repository_ctx.execute(cmdline, environment = env)
 
 def _read_dir(repository_ctx, src_dir):
     """Returns a sorted list with all files in a directory.
@@ -476,6 +480,7 @@ _ENVIRONS = [
     BAZEL_SH,
     PYTHON_BIN_PATH,
     PYTHON_LIB_PATH,
+    "PYTHONPATH",
 ]
 
 local_python_configure = repository_rule(

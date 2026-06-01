@@ -90,10 +90,27 @@ class _BazelBuildCommand(setuptools.Command):
                 bazel_version = f.read().strip()
                 os.environ["USE_BAZEL_VERSION"] = bazel_version
 
+        pythonpath = os.environ.get("PYTHONPATH", "")
+        # Include sys.path entries to support PEP 517 isolated build environments
+        sys_path_entries = os.pathsep.join([p for p in sys.path if p])
+        if pythonpath:
+            pythonpath = os.pathsep.join([pythonpath, sys_path_entries])
+        else:
+            pythonpath = sys_path_entries
+
+        bazel_args = [
+            self._bazel_cmd,
+            "run",
+            "-c",
+            "opt",
+            f"--repo_env=PYTHON_BIN_PATH={sys.executable}",
+            f"--repo_env=PYTHONPATH={pythonpath}",
+        ]
+        bazel_args.extend(self._additional_build_options)
+        bazel_args.append("//tensorflow_data_validation:move_generated_files")
+
         subprocess.check_call(
-            [self._bazel_cmd, "run", "-c", "opt"]
-            + self._additional_build_options
-            + ["//tensorflow_data_validation:move_generated_files"],
+            bazel_args,
             # Bazel should be invoked in a directory containing bazel WORKSPACE
             # file, which is the root directory.
             cwd=os.path.dirname(os.path.realpath(__file__)),
@@ -225,7 +242,7 @@ setup(
         ),
         "tfx-bsl"
         + select_constraint(
-            default="@git+https://github.com/vkarampudi/tfx-bsl@testing",
+            default="@git+https://github.com/vkarampudi/tfx-bsl@master",
             nightly=">=1.18.0.dev",
             git_master="@git+https://github.com/tensorflow/tfx-bsl@master",
         ),
