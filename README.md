@@ -2,7 +2,7 @@
 
 # TensorFlow Data Validation
 
-[![Python](https://img.shields.io/badge/python%7C3.9%7C3.10%7C3.11-blue)](https://github.com/tensorflow/data-validation)
+[![Python](https://img.shields.io/badge/python%7C3.10%7C3.11%7C3.12%7C3.13-blue)](https://github.com/tensorflow/data-validation)
 [![PyPI](https://badge.fury.io/py/tensorflow-data-validation.svg)](https://badge.fury.io/py/tensorflow-data-validation)
 [![Documentation](https://img.shields.io/badge/api-reference-blue.svg)](https://www.tensorflow.org/tfx/data_validation/api_docs/python/tfdv)
 
@@ -172,7 +172,8 @@ other *untested* combinations may also work.
 
 tensorflow-data-validation                                                            | apache-beam[gcp] | pyarrow | tensorflow        | tensorflow-metadata | tensorflow-transform | tfx-bsl
 ------------------------------------------------------------------------------------- | ---------------- | ------- | ----------------- | ------------------- | -------------------- | -------
-[GitHub master](https://github.com/tensorflow/data-validation/blob/master/RELEASE.md) | 2.65.0           | 10.0.1  | nightly (2.x)     | 1.17.1              | n/a                  | 1.17.1
+[GitHub master](https://github.com/tensorflow/data-validation/blob/master/RELEASE.md) | 2.65.0           | 14.0.0  | nightly (2.x)     | 1.21.0              | n/a                  | 1.21.0
+[1.21.0](https://github.com/tensorflow/data-validation/blob/v1.21.0/RELEASE.md)       | 2.65.0           | 14.0.0  | 2.21              | 1.21.0              | n/a                  | 1.21.0
 [1.17.0](https://github.com/tensorflow/data-validation/blob/v1.17.0/RELEASE.md)       | 2.65.0           | 10.0.1  | 2.17              | 1.17.1              | n/a                  | 1.17.1
 [1.16.1](https://github.com/tensorflow/data-validation/blob/v1.16.1/RELEASE.md)       | 2.59.0           | 10.0.1  | 2.16              | 1.16.1              | n/a                  | 1.16.1
 [1.16.0](https://github.com/tensorflow/data-validation/blob/v1.16.0/RELEASE.md)       | 2.59.0           | 10.0.1  | 2.16              | 1.16.0              | n/a                  | 1.16.0
