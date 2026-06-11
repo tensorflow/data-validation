@@ -74,6 +74,7 @@ jobs:
           python -m pip install auditwheel
           auditwheel repair dist/*.whl -w wheelhouse/
           rm -rf dist/
+          mkdir -p dist/
           mv wheelhouse/* dist/
         fi
         WHEEL_PATH=$(ls dist/*.whl)
