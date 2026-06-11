@@ -70,6 +70,12 @@ jobs:
       shell: bash -l {0}
       run: |
         python -m build --wheel --no-isolation
+        if [ "$(uname)" == "Linux" ]; then
+          python -m pip install auditwheel
+          auditwheel repair dist/*.whl -w wheelhouse/
+          rm -rf dist/
+          mv wheelhouse/* dist/
+        fi
         WHEEL_PATH=$(ls dist/*.whl)
         python -m pip install "${WHEEL_PATH}[all,test]"
 
