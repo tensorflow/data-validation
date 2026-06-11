@@ -70,7 +70,8 @@ jobs:
       shell: bash -l {0}
       run: |
         python -m build --wheel --no-isolation
-        python -m pip install "dist/*.whl[all,test]"
+        WHEEL_PATH=$(ls dist/*.whl)
+        python -m pip install "${WHEEL_PATH}[all,test]"
 
     - name: Run tests
       shell: bash -l {0}
