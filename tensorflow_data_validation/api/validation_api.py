@@ -20,6 +20,7 @@ from typing import Callable, Iterable, List, Optional, Set, Tuple
 
 import apache_beam as beam
 import pyarrow as pa
+import pandas as pd
 import tensorflow as tf
 from tensorflow_metadata.proto.v0 import anomalies_pb2, schema_pb2, statistics_pb2
 
@@ -58,6 +59,17 @@ _GLOBAL_ONLY_ANOMALY_TYPES = frozenset(
 
 _MULTIPLE_ERRORS = "Multiple errors"
 
+def preprocess_numerical_to_categorical_by_own_quantiles(
+    dataframe: pd.DataFrame,
+):
+  # TODO: refactor implementation from private project
+  return dataframe
+
+def preprocess_numerical_to_categorical_by_training_quantiles(
+    dataframe: pd.DataFrame,
+):
+  # TODO: refactor implementation from private project
+  return dataframe
 
 def infer_schema(
     statistics: statistics_pb2.DatasetFeatureStatisticsList,
